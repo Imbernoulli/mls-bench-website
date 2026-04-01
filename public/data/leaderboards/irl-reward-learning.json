@@ -1,0 +1,118 @@
+{
+  "task_id": "irl-reward-learning",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "eval_return_halfcheetah_v4",
+    "eval_return_hopper_v4",
+    "eval_return_walker2d_v4",
+    "eval_return_halfcheetah_v4_std",
+    "eval_return_hopper_v4_std",
+    "eval_return_walker2d_v4_std"
+  ],
+  "metric_columns": [
+    "eval_return_halfcheetah_v4",
+    "eval_return_hopper_v4",
+    "eval_return_walker2d_v4"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-03-13T20:43:07.111931+00:00",
+      "model": "baseline:gail",
+      "is_final": true,
+      "seed": "42",
+      "eval_return_halfcheetah_v4": -584.32,
+      "eval_return_hopper_v4": 56.29,
+      "eval_return_walker2d_v4": 255.76,
+      "eval_return_halfcheetah_v4_std": null,
+      "eval_return_hopper_v4_std": null,
+      "eval_return_walker2d_v4_std": null
+    },
+    {
+      "timestamp": "2026-03-13T20:43:07.126641+00:00",
+      "model": "baseline:gail",
+      "is_final": true,
+      "seed": "123",
+      "eval_return_halfcheetah_v4": -349.08,
+      "eval_return_hopper_v4": 56.09,
+      "eval_return_walker2d_v4": 279.78,
+      "eval_return_halfcheetah_v4_std": null,
+      "eval_return_hopper_v4_std": null,
+      "eval_return_walker2d_v4_std": null
+    },
+    {
+      "timestamp": "2026-03-13T20:43:07.127213+00:00",
+      "model": "baseline:gail",
+      "is_final": true,
+      "seed": "456",
+      "eval_return_halfcheetah_v4": -597.31,
+      "eval_return_hopper_v4": 56.75,
+      "eval_return_walker2d_v4": 249.71,
+      "eval_return_halfcheetah_v4_std": null,
+      "eval_return_hopper_v4_std": null,
+      "eval_return_walker2d_v4_std": null
+    },
+    {
+      "timestamp": "2026-03-13T20:43:07.127431+00:00",
+      "model": "baseline:gail",
+      "is_final": true,
+      "seed": "mean",
+      "eval_return_halfcheetah_v4": -510.2366666666667,
+      "eval_return_hopper_v4": 56.376666666666665,
+      "eval_return_walker2d_v4": 261.75,
+      "eval_return_halfcheetah_v4_std": 139.71681514167625,
+      "eval_return_hopper_v4_std": 0.33842773723992015,
+      "eval_return_walker2d_v4_std": 15.904757149985015
+    },
+    {
+      "timestamp": "2026-03-13T21:11:44.484690+00:00",
+      "model": "baseline:airl",
+      "is_final": true,
+      "seed": "42",
+      "eval_return_halfcheetah_v4": -441.78,
+      "eval_return_hopper_v4": 56.0,
+      "eval_return_walker2d_v4": -2.2,
+      "eval_return_halfcheetah_v4_std": null,
+      "eval_return_hopper_v4_std": null,
+      "eval_return_walker2d_v4_std": null
+    },
+    {
+      "timestamp": "2026-03-13T21:11:44.487769+00:00",
+      "model": "baseline:airl",
+      "is_final": true,
+      "seed": "123",
+      "eval_return_halfcheetah_v4": -282.01,
+      "eval_return_hopper_v4": 56.16,
+      "eval_return_walker2d_v4": -2.07,
+      "eval_return_halfcheetah_v4_std": null,
+      "eval_return_hopper_v4_std": null,
+      "eval_return_walker2d_v4_std": null
+    },
+    {
+      "timestamp": "2026-03-13T21:11:44.488033+00:00",
+      "model": "baseline:airl",
+      "is_final": true,
+      "seed": "456",
+      "eval_return_halfcheetah_v4": -229.23,
+      "eval_return_hopper_v4": 56.8,
+      "eval_return_walker2d_v4": -1.91,
+      "eval_return_halfcheetah_v4_std": null,
+      "eval_return_hopper_v4_std": null,
+      "eval_return_walker2d_v4_std": null
+    },
+    {
+      "timestamp": "2026-03-13T21:11:44.488292+00:00",
+      "model": "baseline:airl",
+      "is_final": true,
+      "seed": "mean",
+      "eval_return_halfcheetah_v4": -317.6733333333333,
+      "eval_return_hopper_v4": 56.32,
+      "eval_return_walker2d_v4": -2.06,
+      "eval_return_halfcheetah_v4_std": 110.67195052646959,
+      "eval_return_hopper_v4_std": 0.4233202097703335,
+      "eval_return_walker2d_v4_std": 0.14525839046333963
+    }
+  ]
+}

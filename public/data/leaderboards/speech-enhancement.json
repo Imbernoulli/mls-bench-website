@@ -1,0 +1,136 @@
+{
+  "task_id": "speech-enhancement",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "elapsed_voicebank-demand",
+    "elapsed_dns-challenge",
+    "elapsed_voicebank-demand_std",
+    "elapsed_dns-challenge_std"
+  ],
+  "metric_columns": [],
+  "rows": [
+    {
+      "timestamp": "2026-03-30T13:58:39.930207+00:00",
+      "model": "baseline:dptnet",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_voicebank-demand": 0.0,
+      "elapsed_dns-challenge": 0.0,
+      "elapsed_voicebank-demand_std": null,
+      "elapsed_dns-challenge_std": null
+    },
+    {
+      "timestamp": "2026-03-30T13:58:39.933794+00:00",
+      "model": "baseline:dptnet",
+      "is_final": false,
+      "seed": "123",
+      "elapsed_voicebank-demand": 0.0,
+      "elapsed_dns-challenge": 0.0,
+      "elapsed_voicebank-demand_std": null,
+      "elapsed_dns-challenge_std": null
+    },
+    {
+      "timestamp": "2026-03-30T13:58:39.934322+00:00",
+      "model": "baseline:dptnet",
+      "is_final": false,
+      "seed": "456",
+      "elapsed_voicebank-demand": 0.0,
+      "elapsed_dns-challenge": 0.0,
+      "elapsed_voicebank-demand_std": null,
+      "elapsed_dns-challenge_std": null
+    },
+    {
+      "timestamp": "2026-03-30T13:58:39.934569+00:00",
+      "model": "baseline:dptnet",
+      "is_final": false,
+      "seed": "mean",
+      "elapsed_voicebank-demand": 0.0,
+      "elapsed_dns-challenge": 0.0,
+      "elapsed_voicebank-demand_std": 0.0,
+      "elapsed_dns-challenge_std": 0.0
+    },
+    {
+      "timestamp": "2026-03-30T14:06:39.922412+00:00",
+      "model": "baseline:dccrn",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_voicebank-demand": 0.0,
+      "elapsed_dns-challenge": 0.0,
+      "elapsed_voicebank-demand_std": null,
+      "elapsed_dns-challenge_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:06:39.924618+00:00",
+      "model": "baseline:dccrn",
+      "is_final": false,
+      "seed": "123",
+      "elapsed_voicebank-demand": 0.0,
+      "elapsed_dns-challenge": 0.0,
+      "elapsed_voicebank-demand_std": null,
+      "elapsed_dns-challenge_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:06:39.924858+00:00",
+      "model": "baseline:dccrn",
+      "is_final": false,
+      "seed": "456",
+      "elapsed_voicebank-demand": 0.0,
+      "elapsed_dns-challenge": 0.0,
+      "elapsed_voicebank-demand_std": null,
+      "elapsed_dns-challenge_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:06:39.925080+00:00",
+      "model": "baseline:dccrn",
+      "is_final": false,
+      "seed": "mean",
+      "elapsed_voicebank-demand": 0.0,
+      "elapsed_dns-challenge": 0.0,
+      "elapsed_voicebank-demand_std": 0.0,
+      "elapsed_dns-challenge_std": 0.0
+    },
+    {
+      "timestamp": "2026-03-30T14:10:44.826514+00:00",
+      "model": "baseline:conv_tasnet",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_voicebank-demand": 0.0,
+      "elapsed_dns-challenge": 0.0,
+      "elapsed_voicebank-demand_std": null,
+      "elapsed_dns-challenge_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:10:44.828083+00:00",
+      "model": "baseline:conv_tasnet",
+      "is_final": false,
+      "seed": "123",
+      "elapsed_voicebank-demand": 0.0,
+      "elapsed_dns-challenge": 0.0,
+      "elapsed_voicebank-demand_std": null,
+      "elapsed_dns-challenge_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:10:44.828330+00:00",
+      "model": "baseline:conv_tasnet",
+      "is_final": false,
+      "seed": "456",
+      "elapsed_voicebank-demand": 0.0,
+      "elapsed_dns-challenge": 0.0,
+      "elapsed_voicebank-demand_std": null,
+      "elapsed_dns-challenge_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:10:44.828566+00:00",
+      "model": "baseline:conv_tasnet",
+      "is_final": false,
+      "seed": "mean",
+      "elapsed_voicebank-demand": 0.0,
+      "elapsed_dns-challenge": 0.0,
+      "elapsed_voicebank-demand_std": 0.0,
+      "elapsed_dns-challenge_std": 0.0
+    }
+  ]
+}

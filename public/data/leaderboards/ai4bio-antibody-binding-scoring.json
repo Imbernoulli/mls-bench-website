@@ -1,0 +1,96 @@
+{
+  "task_id": "ai4bio-antibody-binding-scoring",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "elapsed_sars",
+    "elapsed_her2",
+    "elapsed_influenza"
+  ],
+  "metric_columns": [],
+  "rows": [
+    {
+      "timestamp": "2026-03-31T00:10:53.480162+00:00",
+      "model": "baseline:delta_mlp",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_sars": 1.0,
+      "elapsed_her2": 1.0,
+      "elapsed_influenza": null
+    },
+    {
+      "timestamp": "2026-03-31T00:11:53.386115+00:00",
+      "model": "baseline:masked_marginal",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_sars": null,
+      "elapsed_her2": 1.0,
+      "elapsed_influenza": null
+    },
+    {
+      "timestamp": "2026-03-31T00:11:53.868162+00:00",
+      "model": "baseline:esm2_pll",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_sars": 1.0,
+      "elapsed_her2": 1.0,
+      "elapsed_influenza": 1.0
+    },
+    {
+      "timestamp": "2026-03-31T04:56:11.497681+00:00",
+      "model": "baseline:masked_marginal",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_sars": 6.0,
+      "elapsed_her2": 5.0,
+      "elapsed_influenza": 5.0
+    },
+    {
+      "timestamp": "2026-03-31T04:56:12.228008+00:00",
+      "model": "baseline:delta_mlp",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_sars": 6.0,
+      "elapsed_her2": 5.0,
+      "elapsed_influenza": 6.0
+    },
+    {
+      "timestamp": "2026-03-31T04:57:13.820289+00:00",
+      "model": "baseline:esm2_pll",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_sars": 12.0,
+      "elapsed_her2": 8.0,
+      "elapsed_influenza": 10.0
+    },
+    {
+      "timestamp": "2026-03-31T05:45:40.044501+00:00",
+      "model": "baseline:esm2_pll",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_sars": 13.0,
+      "elapsed_her2": 9.0,
+      "elapsed_influenza": 11.0
+    },
+    {
+      "timestamp": "2026-03-31T05:45:40.078820+00:00",
+      "model": "baseline:delta_mlp",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_sars": 13.0,
+      "elapsed_her2": 8.0,
+      "elapsed_influenza": 11.0
+    },
+    {
+      "timestamp": "2026-03-31T05:46:40.252288+00:00",
+      "model": "baseline:masked_marginal",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_sars": 12.0,
+      "elapsed_her2": 9.0,
+      "elapsed_influenza": 11.0
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "task_id": "cv-diffusion-cfg",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "clip_score_sd15",
+    "inception_score_sd15",
+    "fid_sd15",
+    "clip_score_sd20",
+    "inception_score_sd20",
+    "fid_sd20",
+    "clip_score_sdxl",
+    "inception_score_sdxl",
+    "fid_sdxl"
+  ],
+  "metric_columns": [
+    "clip_score_sd15",
+    "inception_score_sd15",
+    "fid_sd15",
+    "clip_score_sd20",
+    "inception_score_sd20",
+    "fid_sd20",
+    "clip_score_sdxl",
+    "inception_score_sdxl",
+    "fid_sdxl"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-03-30T10:45:27.132438+00:00",
+      "model": "baseline:cfg",
+      "is_final": true,
+      "seed": "42",
+      "clip_score_sd15": 0.3086,
+      "inception_score_sd15": 35.2446,
+      "fid_sd15": 37.3642,
+      "clip_score_sd20": null,
+      "inception_score_sd20": null,
+      "fid_sd20": null,
+      "clip_score_sdxl": null,
+      "inception_score_sdxl": null,
+      "fid_sdxl": null
+    },
+    {
+      "timestamp": "2026-03-30T11:04:12.377564+00:00",
+      "model": "baseline:cfg",
+      "is_final": true,
+      "seed": "42",
+      "clip_score_sd15": null,
+      "inception_score_sd15": null,
+      "fid_sd15": null,
+      "clip_score_sd20": 0.307,
+      "inception_score_sd20": 36.7742,
+      "fid_sd20": 39.4616,
+      "clip_score_sdxl": null,
+      "inception_score_sdxl": null,
+      "fid_sdxl": null
+    },
+    {
+      "timestamp": "2026-03-30T11:39:55.358595+00:00",
+      "model": "baseline:cfg",
+      "is_final": true,
+      "seed": "42",
+      "clip_score_sd15": 0.3075,
+      "inception_score_sd15": 36.4391,
+      "fid_sd15": 23.6495,
+      "clip_score_sd20": null,
+      "inception_score_sd20": null,
+      "fid_sd20": null,
+      "clip_score_sdxl": null,
+      "inception_score_sdxl": null,
+      "fid_sdxl": null
+    },
+    {
+      "timestamp": "2026-03-30T12:09:24.497394+00:00",
+      "model": "baseline:cfg",
+      "is_final": true,
+      "seed": "42",
+      "clip_score_sd15": null,
+      "inception_score_sd15": null,
+      "fid_sd15": null,
+      "clip_score_sd20": 0.3054,
+      "inception_score_sd20": 36.8455,
+      "fid_sd20": 26.2615,
+      "clip_score_sdxl": null,
+      "inception_score_sdxl": null,
+      "fid_sdxl": null
+    }
+  ]
+}

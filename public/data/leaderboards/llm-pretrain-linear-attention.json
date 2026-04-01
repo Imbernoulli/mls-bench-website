@@ -1,0 +1,28 @@
+{
+  "task_id": "llm-pretrain-linear-attention",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "val_loss_gpt-124m",
+    "wikitext2_ppl_gpt-124m",
+    "lambada_ppl_gpt-124m"
+  ],
+  "metric_columns": [
+    "val_loss_gpt-124m",
+    "wikitext2_ppl_gpt-124m",
+    "lambada_ppl_gpt-124m"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-03-30T03:28:23.711416+00:00",
+      "model": "baseline:gla",
+      "is_final": false,
+      "seed": "42",
+      "val_loss_gpt-124m": 2.7349,
+      "wikitext2_ppl_gpt-124m": 98.91,
+      "lambada_ppl_gpt-124m": 67.83
+    }
+  ]
+}

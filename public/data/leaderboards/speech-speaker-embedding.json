@@ -1,0 +1,162 @@
+{
+  "task_id": "speech-speaker-embedding",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "elapsed_voxceleb1-test",
+    "elapsed_voxceleb1-hard",
+    "elapsed_cnceleb-eval",
+    "elapsed_voxceleb1-test_std",
+    "elapsed_voxceleb1-hard_std",
+    "elapsed_cnceleb-eval_std"
+  ],
+  "metric_columns": [],
+  "rows": [
+    {
+      "timestamp": "2026-03-30T14:11:44.914885+00:00",
+      "model": "baseline:resnet34",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_voxceleb1-test": 0.0,
+      "elapsed_voxceleb1-hard": 0.0,
+      "elapsed_cnceleb-eval": 0.0,
+      "elapsed_voxceleb1-test_std": null,
+      "elapsed_voxceleb1-hard_std": null,
+      "elapsed_cnceleb-eval_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:11:44.917330+00:00",
+      "model": "baseline:resnet34",
+      "is_final": false,
+      "seed": "123",
+      "elapsed_voxceleb1-test": 0.0,
+      "elapsed_voxceleb1-hard": 0.0,
+      "elapsed_cnceleb-eval": 0.0,
+      "elapsed_voxceleb1-test_std": null,
+      "elapsed_voxceleb1-hard_std": null,
+      "elapsed_cnceleb-eval_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:11:44.917706+00:00",
+      "model": "baseline:resnet34",
+      "is_final": false,
+      "seed": "456",
+      "elapsed_voxceleb1-test": 0.0,
+      "elapsed_voxceleb1-hard": 0.0,
+      "elapsed_cnceleb-eval": 0.0,
+      "elapsed_voxceleb1-test_std": null,
+      "elapsed_voxceleb1-hard_std": null,
+      "elapsed_cnceleb-eval_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:11:44.917946+00:00",
+      "model": "baseline:resnet34",
+      "is_final": false,
+      "seed": "mean",
+      "elapsed_voxceleb1-test": 0.0,
+      "elapsed_voxceleb1-hard": 0.0,
+      "elapsed_cnceleb-eval": 0.0,
+      "elapsed_voxceleb1-test_std": 0.0,
+      "elapsed_voxceleb1-hard_std": 0.0,
+      "elapsed_cnceleb-eval_std": 0.0
+    },
+    {
+      "timestamp": "2026-03-30T14:16:57.457489+00:00",
+      "model": "baseline:ecapa_tdnn",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_voxceleb1-test": 0.0,
+      "elapsed_voxceleb1-hard": 0.0,
+      "elapsed_cnceleb-eval": 0.0,
+      "elapsed_voxceleb1-test_std": null,
+      "elapsed_voxceleb1-hard_std": null,
+      "elapsed_cnceleb-eval_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:16:57.458896+00:00",
+      "model": "baseline:ecapa_tdnn",
+      "is_final": false,
+      "seed": "123",
+      "elapsed_voxceleb1-test": 0.0,
+      "elapsed_voxceleb1-hard": 0.0,
+      "elapsed_cnceleb-eval": 0.0,
+      "elapsed_voxceleb1-test_std": null,
+      "elapsed_voxceleb1-hard_std": null,
+      "elapsed_cnceleb-eval_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:16:57.459117+00:00",
+      "model": "baseline:ecapa_tdnn",
+      "is_final": false,
+      "seed": "456",
+      "elapsed_voxceleb1-test": 0.0,
+      "elapsed_voxceleb1-hard": 0.0,
+      "elapsed_cnceleb-eval": 0.0,
+      "elapsed_voxceleb1-test_std": null,
+      "elapsed_voxceleb1-hard_std": null,
+      "elapsed_cnceleb-eval_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:16:57.459327+00:00",
+      "model": "baseline:ecapa_tdnn",
+      "is_final": false,
+      "seed": "mean",
+      "elapsed_voxceleb1-test": 0.0,
+      "elapsed_voxceleb1-hard": 0.0,
+      "elapsed_cnceleb-eval": 0.0,
+      "elapsed_voxceleb1-test_std": 0.0,
+      "elapsed_voxceleb1-hard_std": 0.0,
+      "elapsed_cnceleb-eval_std": 0.0
+    },
+    {
+      "timestamp": "2026-03-30T14:19:51.166087+00:00",
+      "model": "baseline:rawnet3",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_voxceleb1-test": 0.0,
+      "elapsed_voxceleb1-hard": 0.0,
+      "elapsed_cnceleb-eval": 0.0,
+      "elapsed_voxceleb1-test_std": null,
+      "elapsed_voxceleb1-hard_std": null,
+      "elapsed_cnceleb-eval_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:19:57.300967+00:00",
+      "model": "baseline:rawnet3",
+      "is_final": false,
+      "seed": "123",
+      "elapsed_voxceleb1-test": 0.0,
+      "elapsed_voxceleb1-hard": 0.0,
+      "elapsed_cnceleb-eval": 0.0,
+      "elapsed_voxceleb1-test_std": null,
+      "elapsed_voxceleb1-hard_std": null,
+      "elapsed_cnceleb-eval_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:19:58.897518+00:00",
+      "model": "baseline:rawnet3",
+      "is_final": false,
+      "seed": "456",
+      "elapsed_voxceleb1-test": 0.0,
+      "elapsed_voxceleb1-hard": 0.0,
+      "elapsed_cnceleb-eval": 0.0,
+      "elapsed_voxceleb1-test_std": null,
+      "elapsed_voxceleb1-hard_std": null,
+      "elapsed_cnceleb-eval_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:20:00.873040+00:00",
+      "model": "baseline:rawnet3",
+      "is_final": false,
+      "seed": "mean",
+      "elapsed_voxceleb1-test": 0.0,
+      "elapsed_voxceleb1-hard": 0.0,
+      "elapsed_cnceleb-eval": 0.0,
+      "elapsed_voxceleb1-test_std": 0.0,
+      "elapsed_voxceleb1-hard_std": 0.0,
+      "elapsed_cnceleb-eval_std": 0.0
+    }
+  ]
+}

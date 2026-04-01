@@ -1,0 +1,76 @@
+{
+  "task_id": "ts-anomaly-detection",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "f_score_PSM",
+    "precision_PSM",
+    "recall_PSM",
+    "f_score_MSL",
+    "precision_MSL",
+    "recall_MSL",
+    "f_score_SMAP",
+    "precision_SMAP",
+    "recall_SMAP"
+  ],
+  "metric_columns": [
+    "f_score_PSM",
+    "precision_PSM",
+    "recall_PSM",
+    "f_score_MSL",
+    "precision_MSL",
+    "recall_MSL",
+    "f_score_SMAP",
+    "precision_SMAP",
+    "recall_SMAP"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-03-02T16:51:44.801834+00:00",
+      "model": "baseline:dlinear",
+      "is_final": true,
+      "seed": "42",
+      "f_score_PSM": 0.9663,
+      "precision_PSM": 0.9865,
+      "recall_PSM": 0.9469,
+      "f_score_MSL": 0.8187,
+      "precision_MSL": 0.8969,
+      "recall_MSL": 0.753,
+      "f_score_SMAP": 0.6733,
+      "precision_SMAP": 0.8987,
+      "recall_SMAP": 0.5383
+    },
+    {
+      "timestamp": "2026-03-02T16:52:43.165448+00:00",
+      "model": "baseline:patchtst",
+      "is_final": true,
+      "seed": "42",
+      "f_score_PSM": 0.9617,
+      "precision_PSM": 0.9888,
+      "recall_PSM": 0.9361,
+      "f_score_MSL": 0.7904,
+      "precision_MSL": 0.8867,
+      "recall_MSL": 0.713,
+      "f_score_SMAP": 0.6883,
+      "precision_SMAP": 0.904,
+      "recall_SMAP": 0.5557
+    },
+    {
+      "timestamp": "2026-03-02T16:56:52.353812+00:00",
+      "model": "baseline:timesnet",
+      "is_final": true,
+      "seed": "42",
+      "f_score_PSM": 0.9738,
+      "precision_PSM": 0.985,
+      "recall_PSM": 0.9629,
+      "f_score_MSL": 0.818,
+      "precision_MSL": 0.8955,
+      "recall_MSL": 0.7529,
+      "f_score_SMAP": 0.6943,
+      "precision_SMAP": 0.9011,
+      "recall_SMAP": 0.5647
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "task_id": "security-adversarial-attack-sparse-l0",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "asr_ResNet20_C10",
+    "asr_MobileNetV2_C10",
+    "asr_ResNet20_C100",
+    "asr_MobileNetV2_C100"
+  ],
+  "metric_columns": [
+    "asr_ResNet20_C10",
+    "asr_MobileNetV2_C10",
+    "asr_ResNet20_C100",
+    "asr_MobileNetV2_C100"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-03-15T01:56:01.637138+00:00",
+      "model": "baseline:onepixel",
+      "is_final": true,
+      "seed": "42",
+      "asr_ResNet20_C10": 0.89,
+      "asr_MobileNetV2_C10": 0.82,
+      "asr_ResNet20_C100": 0.84,
+      "asr_MobileNetV2_C100": 0.87
+    },
+    {
+      "timestamp": "2026-03-15T02:08:12.132108+00:00",
+      "model": "baseline:pixle",
+      "is_final": true,
+      "seed": "42",
+      "asr_ResNet20_C10": 0.48,
+      "asr_MobileNetV2_C10": 0.5,
+      "asr_ResNet20_C100": null,
+      "asr_MobileNetV2_C100": 0.49
+    }
+  ]
+}

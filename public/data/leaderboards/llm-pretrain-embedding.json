@@ -1,0 +1,118 @@
+{
+  "task_id": "llm-pretrain-embedding",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "val_loss_gpt-124m",
+    "val_loss_gpt-1.5b",
+    "wikitext2_ppl_gpt-124m",
+    "wikitext103_ppl_gpt-124m",
+    "lambada_ppl_gpt-124m",
+    "wikitext2_ppl_gpt-1.5b",
+    "lambada_ppl_gpt-1.5b"
+  ],
+  "metric_columns": [
+    "val_loss_gpt-124m",
+    "val_loss_gpt-1.5b",
+    "wikitext2_ppl_gpt-124m",
+    "wikitext103_ppl_gpt-124m",
+    "lambada_ppl_gpt-124m",
+    "wikitext2_ppl_gpt-1.5b",
+    "lambada_ppl_gpt-1.5b"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-03-07T06:48:40.889076+00:00",
+      "model": "baseline:untied",
+      "is_final": true,
+      "seed": "42",
+      "val_loss_gpt-124m": 3.9676,
+      "val_loss_gpt-1.5b": null,
+      "wikitext2_ppl_gpt-124m": null,
+      "wikitext103_ppl_gpt-124m": null,
+      "lambada_ppl_gpt-124m": null,
+      "wikitext2_ppl_gpt-1.5b": null,
+      "lambada_ppl_gpt-1.5b": null
+    },
+    {
+      "timestamp": "2026-03-07T06:48:40.889076+00:00",
+      "model": "baseline:value_embed",
+      "is_final": true,
+      "seed": "42",
+      "val_loss_gpt-124m": 3.8998,
+      "val_loss_gpt-1.5b": null,
+      "wikitext2_ppl_gpt-124m": null,
+      "wikitext103_ppl_gpt-124m": null,
+      "lambada_ppl_gpt-124m": null,
+      "wikitext2_ppl_gpt-1.5b": null,
+      "lambada_ppl_gpt-1.5b": null
+    },
+    {
+      "timestamp": "2026-03-07T06:48:40.889076+00:00",
+      "model": "baseline:bigram_hash",
+      "is_final": true,
+      "seed": "42",
+      "val_loss_gpt-124m": 3.9077,
+      "val_loss_gpt-1.5b": null,
+      "wikitext2_ppl_gpt-124m": null,
+      "wikitext103_ppl_gpt-124m": null,
+      "lambada_ppl_gpt-124m": null,
+      "wikitext2_ppl_gpt-1.5b": null,
+      "lambada_ppl_gpt-1.5b": null
+    },
+    {
+      "timestamp": "2026-03-08T09:50:08.667537+00:00",
+      "model": "baseline:untied",
+      "is_final": true,
+      "seed": "42",
+      "val_loss_gpt-124m": 2.6246,
+      "val_loss_gpt-1.5b": null,
+      "wikitext2_ppl_gpt-124m": 68.18,
+      "wikitext103_ppl_gpt-124m": 68.18,
+      "lambada_ppl_gpt-124m": 98.24,
+      "wikitext2_ppl_gpt-1.5b": null,
+      "lambada_ppl_gpt-1.5b": null
+    },
+    {
+      "timestamp": "2026-03-08T09:59:22.929833+00:00",
+      "model": "baseline:value_embed",
+      "is_final": true,
+      "seed": "42",
+      "val_loss_gpt-124m": 2.5793,
+      "val_loss_gpt-1.5b": null,
+      "wikitext2_ppl_gpt-124m": 65.07,
+      "wikitext103_ppl_gpt-124m": 65.07,
+      "lambada_ppl_gpt-124m": 94.04,
+      "wikitext2_ppl_gpt-1.5b": null,
+      "lambada_ppl_gpt-1.5b": null
+    },
+    {
+      "timestamp": "2026-03-08T10:01:16.981839+00:00",
+      "model": "baseline:bigram_hash",
+      "is_final": true,
+      "seed": "42",
+      "val_loss_gpt-124m": 2.6069,
+      "val_loss_gpt-1.5b": null,
+      "wikitext2_ppl_gpt-124m": 68.52,
+      "wikitext103_ppl_gpt-124m": 68.52,
+      "lambada_ppl_gpt-124m": 95.68,
+      "wikitext2_ppl_gpt-1.5b": null,
+      "lambada_ppl_gpt-1.5b": null
+    },
+    {
+      "timestamp": "2026-03-23T06:12:18.106972+00:00",
+      "model": "baseline:untied",
+      "is_final": true,
+      "seed": "42",
+      "val_loss_gpt-124m": null,
+      "val_loss_gpt-1.5b": 2.0997,
+      "wikitext2_ppl_gpt-124m": null,
+      "wikitext103_ppl_gpt-124m": null,
+      "lambada_ppl_gpt-124m": null,
+      "wikitext2_ppl_gpt-1.5b": 35.16,
+      "lambada_ppl_gpt-1.5b": 56.11
+    }
+  ]
+}

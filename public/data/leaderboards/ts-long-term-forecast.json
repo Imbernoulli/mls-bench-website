@@ -1,0 +1,85 @@
+{
+  "task_id": "ts-long-term-forecast",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "mse_ETTh1",
+    "mae_ETTh1",
+    "mse_Weather",
+    "mae_Weather",
+    "mse_ECL",
+    "mae_ECL"
+  ],
+  "metric_columns": [
+    "mse_ETTh1",
+    "mae_ETTh1",
+    "mse_Weather",
+    "mae_Weather",
+    "mse_ECL",
+    "mae_ECL"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-03-02T17:11:26.862640+00:00",
+      "model": "baseline:dlinear",
+      "is_final": true,
+      "seed": "42",
+      "mse_ETTh1": 0.3961581289768219,
+      "mae_ETTh1": 0.4108412563800812,
+      "mse_Weather": 0.19622044265270233,
+      "mae_Weather": 0.2561100721359253,
+      "mse_ECL": 0.21036776900291443,
+      "mae_ECL": 0.3015504777431488
+    },
+    {
+      "timestamp": "2026-03-02T17:13:40.980959+00:00",
+      "model": "baseline:itransformer",
+      "is_final": true,
+      "seed": "42",
+      "mse_ETTh1": 0.39497387409210205,
+      "mae_ETTh1": 0.40979042649269104,
+      "mse_Weather": 0.1753385215997696,
+      "mae_Weather": 0.21590271592140198,
+      "mse_ECL": 0.14819909632205963,
+      "mae_ECL": 0.23978275060653687
+    },
+    {
+      "timestamp": "2026-03-02T17:14:26.183389+00:00",
+      "model": "baseline:patchtst",
+      "is_final": true,
+      "seed": "42",
+      "mse_ETTh1": 0.3794446289539337,
+      "mae_ETTh1": 0.3986070454120636,
+      "mse_Weather": 0.17384560406208038,
+      "mae_Weather": 0.21566644310951233,
+      "mse_ECL": 0.18187110126018524,
+      "mae_ECL": 0.2742832899093628
+    },
+    {
+      "timestamp": "2026-03-03T07:55:02.808947+00:00",
+      "model": "baseline:timemixer",
+      "is_final": true,
+      "seed": "42",
+      "mse_ETTh1": 0.37674444913864136,
+      "mae_ETTh1": 0.39684417843818665,
+      "mse_Weather": 0.16213928163051605,
+      "mae_Weather": 0.20891571044921875,
+      "mse_ECL": 0.1561010330915451,
+      "mae_ECL": 0.24749454855918884
+    },
+    {
+      "timestamp": "2026-03-03T08:05:19.418980+00:00",
+      "model": "baseline:timexer",
+      "is_final": true,
+      "seed": "42",
+      "mse_ETTh1": 0.3880355656147003,
+      "mae_ETTh1": 0.4055076539516449,
+      "mse_Weather": 0.15735776722431183,
+      "mae_Weather": 0.204657644033432,
+      "mse_ECL": 0.14060701429843903,
+      "mae_ECL": 0.24255959689617157
+    }
+  ]
+}

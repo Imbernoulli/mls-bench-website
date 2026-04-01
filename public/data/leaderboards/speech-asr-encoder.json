@@ -1,0 +1,110 @@
+{
+  "task_id": "speech-asr-encoder",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "elapsed_commonvoice-es",
+    "elapsed_commonvoice-es_std"
+  ],
+  "metric_columns": [],
+  "rows": [
+    {
+      "timestamp": "2026-03-30T14:00:44.731775+00:00",
+      "model": "baseline:transformer",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_commonvoice-es": 0.0,
+      "elapsed_commonvoice-es_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:00:44.734197+00:00",
+      "model": "baseline:transformer",
+      "is_final": false,
+      "seed": "123",
+      "elapsed_commonvoice-es": 0.0,
+      "elapsed_commonvoice-es_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:00:44.734601+00:00",
+      "model": "baseline:transformer",
+      "is_final": false,
+      "seed": "456",
+      "elapsed_commonvoice-es": 0.0,
+      "elapsed_commonvoice-es_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:00:44.734821+00:00",
+      "model": "baseline:transformer",
+      "is_final": false,
+      "seed": "mean",
+      "elapsed_commonvoice-es": 0.0,
+      "elapsed_commonvoice-es_std": 0.0
+    },
+    {
+      "timestamp": "2026-03-30T14:16:56.448809+00:00",
+      "model": "baseline:conformer",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_commonvoice-es": 0.0,
+      "elapsed_commonvoice-es_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:16:56.450227+00:00",
+      "model": "baseline:conformer",
+      "is_final": false,
+      "seed": "123",
+      "elapsed_commonvoice-es": 0.0,
+      "elapsed_commonvoice-es_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:16:56.450434+00:00",
+      "model": "baseline:conformer",
+      "is_final": false,
+      "seed": "456",
+      "elapsed_commonvoice-es": 0.0,
+      "elapsed_commonvoice-es_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:16:56.450640+00:00",
+      "model": "baseline:conformer",
+      "is_final": false,
+      "seed": "mean",
+      "elapsed_commonvoice-es": 0.0,
+      "elapsed_commonvoice-es_std": 0.0
+    },
+    {
+      "timestamp": "2026-03-30T14:20:13.185690+00:00",
+      "model": "baseline:branchformer",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_commonvoice-es": 0.0,
+      "elapsed_commonvoice-es_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:20:18.260554+00:00",
+      "model": "baseline:branchformer",
+      "is_final": false,
+      "seed": "123",
+      "elapsed_commonvoice-es": 0.0,
+      "elapsed_commonvoice-es_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:20:19.766774+00:00",
+      "model": "baseline:branchformer",
+      "is_final": false,
+      "seed": "456",
+      "elapsed_commonvoice-es": 0.0,
+      "elapsed_commonvoice-es_std": null
+    },
+    {
+      "timestamp": "2026-03-30T14:20:23.770198+00:00",
+      "model": "baseline:branchformer",
+      "is_final": false,
+      "seed": "mean",
+      "elapsed_commonvoice-es": 0.0,
+      "elapsed_commonvoice-es_std": 0.0
+    }
+  ]
+}

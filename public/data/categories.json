@@ -1,0 +1,294 @@
+{
+  "agent": {
+    "id": "agent",
+    "label": "Agent Reasoning",
+    "tasks": [
+      "agent-tool-reasoning"
+    ]
+  },
+  "ai4bio": {
+    "id": "ai4bio",
+    "label": "AI for Biology",
+    "tasks": [
+      "ai4bio-antibody-binding-scoring",
+      "ai4bio-antibody-cdr-design",
+      "ai4bio-mutation-effect-prediction",
+      "ai4bio-protein-function-prediction",
+      "ai4bio-protein-inverse-folding",
+      "ai4bio-protein-structure-repr"
+    ]
+  },
+  "ai4sci": {
+    "id": "ai4sci",
+    "label": "AI for Science",
+    "tasks": [
+      "ai4sci-climate-emulation",
+      "ai4sci-inverse-diffusion-algo",
+      "ai4sci-mol-property-prediction",
+      "ai4sci-mol3d-generation",
+      "ai4sci-pla-binding-affinity",
+      "ai4sci-sbdd-drug-design",
+      "ai4sci-vs-contrastive-scoring",
+      "ai4sci-weather-forecast-aggregation",
+      "inverse-diffusion-algo"
+    ]
+  },
+  "ar": {
+    "id": "ar",
+    "label": "Autonomous Robotics",
+    "tasks": [
+      "ar-video-kv-temporal-policy"
+    ]
+  },
+  "automl": {
+    "id": "automl",
+    "label": "AutoML",
+    "tasks": [
+      "automl-nas-search"
+    ]
+  },
+  "bo": {
+    "id": "bo",
+    "label": "Bayesian Optimization",
+    "tasks": [
+      "bo-acquisition-function"
+    ]
+  },
+  "causal": {
+    "id": "causal",
+    "label": "Causal Inference",
+    "tasks": [
+      "causal-discovery-discrete",
+      "causal-observational-linear-gaussian",
+      "causal-observational-linear-non-gaussian",
+      "causal-observational-nonlinear",
+      "causal-treatment-effect"
+    ]
+  },
+  "cl": {
+    "id": "cl",
+    "label": "Continual Learning",
+    "tasks": [
+      "cl-regularization"
+    ]
+  },
+  "cv": {
+    "id": "cv",
+    "label": "Computer Vision",
+    "tasks": [
+      "cv-classification-loss",
+      "cv-data-augmentation",
+      "cv-dbm-sampler",
+      "cv-dbm-scheduler",
+      "cv-diffusion-cfg",
+      "cv-diffusion-conditioning",
+      "cv-diffusion-efficiency",
+      "cv-diffusion-prediction",
+      "cv-flowmaps-training",
+      "cv-meanflow-perceptual-loss",
+      "cv-meanflow-training",
+      "cv-multitask-loss",
+      "cv-pooling-aggregation",
+      "cv-sample-weighting"
+    ]
+  },
+  "demo": {
+    "id": "demo",
+    "label": "Demo",
+    "tasks": [
+      "demo-task-1",
+      "demo-task-2"
+    ]
+  },
+  "dl": {
+    "id": "dl",
+    "label": "Deep Learning",
+    "tasks": [
+      "dl-activation-function",
+      "dl-lr-schedule",
+      "dl-normalization",
+      "dl-regularization",
+      "dl-residual-connection",
+      "dl-weight-initialization",
+      "dlm-dkv-policy",
+      "jepa-planning",
+      "jepa-prediction-loss",
+      "jepa-regularizer",
+      "mas-topology",
+      "normalization"
+    ]
+  },
+  "fed": {
+    "id": "fed",
+    "label": "Federated Learning",
+    "tasks": [
+      "fed-aggregation-strategy"
+    ]
+  },
+  "graph": {
+    "id": "graph",
+    "label": "Graph Learning",
+    "tasks": [
+      "graph-generation",
+      "graph-graph-classification",
+      "graph-link-prediction",
+      "graph-node-classification",
+      "graph-signal-propagation",
+      "graph-temporal"
+    ]
+  },
+  "rl": {
+    "id": "rl",
+    "label": "Reinforcement Learning",
+    "tasks": [
+      "irl-reward-learning",
+      "libero-lifelong",
+      "rl-offline-adroit",
+      "rl-offline-continuous",
+      "rl-offline-discrete",
+      "rl-offline-off2on",
+      "rl-offline-pomdp",
+      "rl-offpolicy-continuous",
+      "rl-onpolicy-continuous",
+      "rl-value-atari",
+      "rl-value-discrete",
+      "safe-rl"
+    ]
+  },
+  "llm": {
+    "id": "llm",
+    "label": "Language Models",
+    "tasks": [
+      "llm-hybrid-posttraining",
+      "llm-kv-adaptive-quantization",
+      "llm-kv-selection-budgeting",
+      "llm-kv-structural-reduction",
+      "llm-offline-rl",
+      "llm-pretrain-attention",
+      "llm-pretrain-embedding",
+      "llm-pretrain-kernel",
+      "llm-pretrain-linear-attention",
+      "llm-pretrain-loss",
+      "llm-pretrain-lr-schedule",
+      "llm-pretrain-mlp",
+      "llm-pretrain-normalization",
+      "llm-pretrain-optimizer",
+      "llm-pretrain-packing",
+      "llm-pretrain-precision",
+      "llm-pretrain-quantization",
+      "llm-pretrain-residual",
+      "llm-pretrain-weight-averaging",
+      "llm-rl-advantage",
+      "llm-rl-baseline",
+      "llm-sft-loss",
+      "llm-ttrl-reward",
+      "llm-ttt-adaptation"
+    ]
+  },
+  "ml": {
+    "id": "ml",
+    "label": "Classical ML",
+    "tasks": [
+      "meta-fewshot-classification",
+      "meta-inner-loop-optimizer",
+      "ml-active-learning",
+      "ml-anomaly-detection",
+      "ml-calibration",
+      "ml-clustering-algorithm",
+      "ml-dimensionality-reduction",
+      "ml-ensemble-boosting",
+      "ml-feature-selection",
+      "ml-missing-data-imputation",
+      "ml-svm-kernel",
+      "ml-tree-split-criterion"
+    ]
+  },
+  "mlsys": {
+    "id": "mlsys",
+    "label": "ML Systems",
+    "tasks": [
+      "mlsys-moe-load-balance",
+      "mlsys-sparse-attention"
+    ]
+  },
+  "opt": {
+    "id": "opt",
+    "label": "Optimization",
+    "tasks": [
+      "opt-convex-acceleration",
+      "opt-dp-sgd",
+      "opt-evolution-strategy",
+      "opt-gradient-compression",
+      "opt-hyperparameter-search",
+      "opt-multi-objective",
+      "opt-online-bandit",
+      "opt-pac-bayes-bound",
+      "opt-variance-reduction",
+      "optimization-bilevel",
+      "optimization-convex-concave",
+      "optimization-parity"
+    ]
+  },
+  "pde": {
+    "id": "pde",
+    "label": "PDE Solvers",
+    "tasks": [
+      "pde-autoregressive-solver",
+      "pde-conditional-solver",
+      "pde-design-solver",
+      "pde-foundation-icl",
+      "pde-steady-solver"
+    ]
+  },
+  "quant": {
+    "id": "quant",
+    "label": "Quantitative Finance",
+    "tasks": [
+      "quant-concept-drift",
+      "quant-graph-stock",
+      "quant-order-execution",
+      "quant-portfolio-opt",
+      "quant-stock-prediction"
+    ]
+  },
+  "security": {
+    "id": "security",
+    "label": "Adversarial ML",
+    "tasks": [
+      "security-adversarial-attack-black-box-score",
+      "security-adversarial-attack-sparse-l0",
+      "security-adversarial-attack-white-box-linf",
+      "security-adversarial-training"
+    ]
+  },
+  "speech": {
+    "id": "speech",
+    "label": "Speech Processing",
+    "tasks": [
+      "speech-asr-encoder",
+      "speech-enhancement",
+      "speech-speaker-embedding",
+      "speech-vocoder"
+    ]
+  },
+  "sr": {
+    "id": "sr",
+    "label": "Symbolic Regression",
+    "tasks": [
+      "sr-symbolic-regression"
+    ]
+  },
+  "ts": {
+    "id": "ts",
+    "label": "Time Series",
+    "tasks": [
+      "stf-traffic-forecast",
+      "ts-anomaly-detection",
+      "ts-classification",
+      "ts-exogenous-forecast",
+      "ts-imputation",
+      "ts-long-term-forecast",
+      "ts-short-term-forecast"
+    ]
+  }
+}

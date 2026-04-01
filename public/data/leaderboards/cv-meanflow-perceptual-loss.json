@@ -1,0 +1,89 @@
+{
+  "task_id": "cv-meanflow-perceptual-loss",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "fid",
+    "best_fid"
+  ],
+  "metric_columns": [
+    "fid",
+    "best_fid"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-03-17T16:54:31.863500+00:00",
+      "model": "baseline:mse-only",
+      "is_final": true,
+      "seed": "42",
+      "fid": 70.26,
+      "best_fid": 69.97
+    },
+    {
+      "timestamp": "2026-03-17T16:55:40.101112+00:00",
+      "model": "baseline:mse-consistency",
+      "is_final": true,
+      "seed": "42",
+      "fid": 143.42,
+      "best_fid": 143.07
+    },
+    {
+      "timestamp": "2026-03-17T16:57:05.930136+00:00",
+      "model": "baseline:mse-lpips",
+      "is_final": true,
+      "seed": "42",
+      "fid": 63.65,
+      "best_fid": 63.47
+    },
+    {
+      "timestamp": "2026-03-18T04:40:21.102997+00:00",
+      "model": "baseline:mse-lpips-grad",
+      "is_final": true,
+      "seed": "42",
+      "fid": 223.4,
+      "best_fid": 222.71
+    },
+    {
+      "timestamp": "2026-03-18T05:14:02.376483+00:00",
+      "model": "baseline:mse-lpips-grad",
+      "is_final": true,
+      "seed": "42",
+      "fid": 74.57,
+      "best_fid": 73.59
+    },
+    {
+      "timestamp": "2026-03-18T07:33:41.295174+00:00",
+      "model": "baseline:mse-only",
+      "is_final": true,
+      "seed": "42",
+      "fid": 15.83,
+      "best_fid": 15.71
+    },
+    {
+      "timestamp": "2026-03-18T08:56:18.627430+00:00",
+      "model": "baseline:mse-consistency",
+      "is_final": true,
+      "seed": "42",
+      "fid": 19.24,
+      "best_fid": 19.08
+    },
+    {
+      "timestamp": "2026-03-18T10:21:45.384192+00:00",
+      "model": "baseline:mse-lpips",
+      "is_final": true,
+      "seed": "42",
+      "fid": 12.47,
+      "best_fid": 12.35
+    },
+    {
+      "timestamp": "2026-03-18T11:48:09.751638+00:00",
+      "model": "baseline:mse-lpips-grad",
+      "is_final": true,
+      "seed": "42",
+      "fid": 13.91,
+      "best_fid": 13.78
+    }
+  ]
+}

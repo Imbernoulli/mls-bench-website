@@ -1,0 +1,46 @@
+{
+  "task_id": "jepa-regularizer",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "val_acc_resnet18",
+    "val_acc_resnet34",
+    "val_acc_resnet50"
+  ],
+  "metric_columns": [
+    "val_acc_resnet18",
+    "val_acc_resnet34",
+    "val_acc_resnet50"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-03-27T01:22:30+00:00",
+      "model": "naive",
+      "is_final": true,
+      "seed": "42",
+      "val_acc_resnet18": 34.13,
+      "val_acc_resnet34": 30.95,
+      "val_acc_resnet50": 34.17
+    },
+    {
+      "timestamp": "2026-03-27T01:22:30+00:00",
+      "model": "vicreg",
+      "is_final": true,
+      "seed": "42",
+      "val_acc_resnet18": 80.54,
+      "val_acc_resnet34": 79.55,
+      "val_acc_resnet50": 81.64
+    },
+    {
+      "timestamp": "2026-03-27T01:22:30+00:00",
+      "model": "sigreg",
+      "is_final": true,
+      "seed": "42",
+      "val_acc_resnet18": 83.01,
+      "val_acc_resnet34": 83.42,
+      "val_acc_resnet50": 84.19
+    }
+  ]
+}

@@ -1,0 +1,166 @@
+{
+  "task_id": "rl-value-atari",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "eval_return_breakout_v4",
+    "eval_return_seaquest_v4",
+    "eval_return_pong_v4",
+    "eval_return_breakout_v4_std",
+    "eval_return_seaquest_v4_std",
+    "eval_return_pong_v4_std"
+  ],
+  "metric_columns": [
+    "eval_return_breakout_v4",
+    "eval_return_seaquest_v4",
+    "eval_return_pong_v4"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-03-31T01:43:16.849048+00:00",
+      "model": "baseline:qr_dqn",
+      "is_final": true,
+      "seed": "42",
+      "eval_return_breakout_v4": 246.9,
+      "eval_return_seaquest_v4": 7892.0,
+      "eval_return_pong_v4": 20.9,
+      "eval_return_breakout_v4_std": null,
+      "eval_return_seaquest_v4_std": null,
+      "eval_return_pong_v4_std": null
+    },
+    {
+      "timestamp": "2026-03-31T01:43:16.849048+00:00",
+      "model": "baseline:qr_dqn",
+      "is_final": true,
+      "seed": "123",
+      "eval_return_breakout_v4": 185.7,
+      "eval_return_seaquest_v4": 7038.0,
+      "eval_return_pong_v4": 20.9,
+      "eval_return_breakout_v4_std": null,
+      "eval_return_seaquest_v4_std": null,
+      "eval_return_pong_v4_std": null
+    },
+    {
+      "timestamp": "2026-03-31T01:43:16.849048+00:00",
+      "model": "baseline:qr_dqn",
+      "is_final": true,
+      "seed": "456",
+      "eval_return_breakout_v4": 324.7,
+      "eval_return_seaquest_v4": 12152.0,
+      "eval_return_pong_v4": 21.0,
+      "eval_return_breakout_v4_std": null,
+      "eval_return_seaquest_v4_std": null,
+      "eval_return_pong_v4_std": null
+    },
+    {
+      "timestamp": "2026-03-31T01:43:16.849048+00:00",
+      "model": "baseline:qr_dqn",
+      "is_final": true,
+      "seed": "mean",
+      "eval_return_breakout_v4": 252.4333333333333,
+      "eval_return_seaquest_v4": 9027.333333333334,
+      "eval_return_pong_v4": 20.933333333333334,
+      "eval_return_breakout_v4_std": 69.6650079547353,
+      "eval_return_seaquest_v4_std": 2739.5228294966505,
+      "eval_return_pong_v4_std": 0.0577350269189634
+    },
+    {
+      "timestamp": "2026-03-31T01:43:16.849048+00:00",
+      "model": "baseline:c51",
+      "is_final": true,
+      "seed": "42",
+      "eval_return_breakout_v4": 366.3,
+      "eval_return_seaquest_v4": 1270.0,
+      "eval_return_pong_v4": 20.0,
+      "eval_return_breakout_v4_std": null,
+      "eval_return_seaquest_v4_std": null,
+      "eval_return_pong_v4_std": null
+    },
+    {
+      "timestamp": "2026-03-31T01:43:16.849048+00:00",
+      "model": "baseline:c51",
+      "is_final": true,
+      "seed": "123",
+      "eval_return_breakout_v4": 220.6,
+      "eval_return_seaquest_v4": 804.0,
+      "eval_return_pong_v4": 20.4,
+      "eval_return_breakout_v4_std": null,
+      "eval_return_seaquest_v4_std": null,
+      "eval_return_pong_v4_std": null
+    },
+    {
+      "timestamp": "2026-03-31T01:43:16.849048+00:00",
+      "model": "baseline:c51",
+      "is_final": true,
+      "seed": "456",
+      "eval_return_breakout_v4": 207.0,
+      "eval_return_seaquest_v4": 834.0,
+      "eval_return_pong_v4": 20.4,
+      "eval_return_breakout_v4_std": null,
+      "eval_return_seaquest_v4_std": null,
+      "eval_return_pong_v4_std": null
+    },
+    {
+      "timestamp": "2026-03-31T01:43:16.849048+00:00",
+      "model": "baseline:c51",
+      "is_final": true,
+      "seed": "mean",
+      "eval_return_breakout_v4": 264.6333333333333,
+      "eval_return_seaquest_v4": 969.3333333333334,
+      "eval_return_pong_v4": 20.266666666666666,
+      "eval_return_breakout_v4_std": 88.3081158973134,
+      "eval_return_seaquest_v4_std": 260.81666613415126,
+      "eval_return_pong_v4_std": 0.2309401076758495
+    },
+    {
+      "timestamp": "2026-03-31T01:43:16.849048+00:00",
+      "model": "baseline:double_dqn",
+      "is_final": true,
+      "seed": "42",
+      "eval_return_breakout_v4": 141.6,
+      "eval_return_seaquest_v4": 7178.0,
+      "eval_return_pong_v4": 20.4,
+      "eval_return_breakout_v4_std": null,
+      "eval_return_seaquest_v4_std": null,
+      "eval_return_pong_v4_std": null
+    },
+    {
+      "timestamp": "2026-03-31T01:43:16.849048+00:00",
+      "model": "baseline:double_dqn",
+      "is_final": true,
+      "seed": "123",
+      "eval_return_breakout_v4": 125.6,
+      "eval_return_seaquest_v4": 5386.0,
+      "eval_return_pong_v4": 20.6,
+      "eval_return_breakout_v4_std": null,
+      "eval_return_seaquest_v4_std": null,
+      "eval_return_pong_v4_std": null
+    },
+    {
+      "timestamp": "2026-03-31T01:43:16.849048+00:00",
+      "model": "baseline:double_dqn",
+      "is_final": true,
+      "seed": "456",
+      "eval_return_breakout_v4": 244.8,
+      "eval_return_seaquest_v4": 7804.0,
+      "eval_return_pong_v4": 21.0,
+      "eval_return_breakout_v4_std": null,
+      "eval_return_seaquest_v4_std": null,
+      "eval_return_pong_v4_std": null
+    },
+    {
+      "timestamp": "2026-03-31T01:43:16.849048+00:00",
+      "model": "baseline:double_dqn",
+      "is_final": true,
+      "seed": "mean",
+      "eval_return_breakout_v4": 170.66666666666666,
+      "eval_return_seaquest_v4": 6789.333333333333,
+      "eval_return_pong_v4": 20.666666666666668,
+      "eval_return_breakout_v4_std": 64.69786189151334,
+      "eval_return_seaquest_v4_std": 1254.9810091524625,
+      "eval_return_pong_v4_std": 0.3055050463303898
+    }
+  ]
+}

@@ -1,0 +1,198 @@
+{
+  "task_id": "ai4bio-protein-inverse-folding",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "elapsed_TS50",
+    "elapsed_TS50_std"
+  ],
+  "metric_columns": [],
+  "rows": [
+    {
+      "timestamp": "2026-03-31T00:19:53.819163+00:00",
+      "model": "baseline:proteinmpnn",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_TS50": 0.0,
+      "elapsed_TS50_std": null
+    },
+    {
+      "timestamp": "2026-03-31T00:19:53.822269+00:00",
+      "model": "baseline:proteinmpnn",
+      "is_final": false,
+      "seed": "123",
+      "elapsed_TS50": 0.0,
+      "elapsed_TS50_std": null
+    },
+    {
+      "timestamp": "2026-03-31T00:19:53.822836+00:00",
+      "model": "baseline:proteinmpnn",
+      "is_final": false,
+      "seed": "456",
+      "elapsed_TS50": 0.0,
+      "elapsed_TS50_std": null
+    },
+    {
+      "timestamp": "2026-03-31T00:19:53.823046+00:00",
+      "model": "baseline:proteinmpnn",
+      "is_final": false,
+      "seed": "mean",
+      "elapsed_TS50": 0.0,
+      "elapsed_TS50_std": 0.0
+    },
+    {
+      "timestamp": "2026-03-31T00:23:53.817619+00:00",
+      "model": "baseline:gvp",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_TS50": null,
+      "elapsed_TS50_std": null
+    },
+    {
+      "timestamp": "2026-03-31T00:23:53.818104+00:00",
+      "model": "baseline:gvp",
+      "is_final": false,
+      "seed": "123",
+      "elapsed_TS50": 0.0,
+      "elapsed_TS50_std": null
+    },
+    {
+      "timestamp": "2026-03-31T00:23:53.818350+00:00",
+      "model": "baseline:gvp",
+      "is_final": false,
+      "seed": "456",
+      "elapsed_TS50": 0.0,
+      "elapsed_TS50_std": null
+    },
+    {
+      "timestamp": "2026-03-31T00:23:53.818573+00:00",
+      "model": "baseline:gvp",
+      "is_final": false,
+      "seed": "mean",
+      "elapsed_TS50": 0.0,
+      "elapsed_TS50_std": 0.0
+    },
+    {
+      "timestamp": "2026-03-31T00:24:53.730759+00:00",
+      "model": "baseline:pifold",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_TS50": 1.0,
+      "elapsed_TS50_std": null
+    },
+    {
+      "timestamp": "2026-03-31T00:24:53.733097+00:00",
+      "model": "baseline:pifold",
+      "is_final": false,
+      "seed": "123",
+      "elapsed_TS50": 0.0,
+      "elapsed_TS50_std": null
+    },
+    {
+      "timestamp": "2026-03-31T00:24:53.733337+00:00",
+      "model": "baseline:pifold",
+      "is_final": false,
+      "seed": "456",
+      "elapsed_TS50": 0.0,
+      "elapsed_TS50_std": null
+    },
+    {
+      "timestamp": "2026-03-31T00:24:53.733551+00:00",
+      "model": "baseline:pifold",
+      "is_final": false,
+      "seed": "mean",
+      "elapsed_TS50": 0.3333333333333333,
+      "elapsed_TS50_std": 0.5773502691896257
+    },
+    {
+      "timestamp": "2026-03-31T00:29:00.226872+00:00",
+      "model": "baseline:gvp",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_TS50": 0.0,
+      "elapsed_TS50_std": null
+    },
+    {
+      "timestamp": "2026-03-31T00:34:53.999021+00:00",
+      "model": "baseline:proteinmpnn",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_TS50": 1.0,
+      "elapsed_TS50_std": null
+    },
+    {
+      "timestamp": "2026-03-31T00:37:54.201689+00:00",
+      "model": "baseline:pifold",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_TS50": 0.0,
+      "elapsed_TS50_std": null
+    },
+    {
+      "timestamp": "2026-03-31T05:27:00.241904+00:00",
+      "model": "baseline:proteinmpnn",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_TS50": 9.0,
+      "elapsed_TS50_std": null
+    },
+    {
+      "timestamp": "2026-03-31T05:27:01.161253+00:00",
+      "model": "baseline:gvp",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_TS50": 9.0,
+      "elapsed_TS50_std": null
+    },
+    {
+      "timestamp": "2026-03-31T05:30:03.472286+00:00",
+      "model": "baseline:pifold",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_TS50": 9.0,
+      "elapsed_TS50_std": null
+    },
+    {
+      "timestamp": "2026-03-31T05:33:54.493535+00:00",
+      "model": "baseline:pifold",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_TS50": 12.0,
+      "elapsed_TS50_std": null
+    },
+    {
+      "timestamp": "2026-03-31T05:35:54.514329+00:00",
+      "model": "baseline:proteinmpnn",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_TS50": 12.0,
+      "elapsed_TS50_std": null
+    },
+    {
+      "timestamp": "2026-03-31T05:41:39.401804+00:00",
+      "model": "baseline:gvp",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_TS50": 11.0,
+      "elapsed_TS50_std": null
+    },
+    {
+      "timestamp": "2026-03-31T05:41:39.419130+00:00",
+      "model": "baseline:proteinmpnn",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_TS50": 11.0,
+      "elapsed_TS50_std": null
+    },
+    {
+      "timestamp": "2026-03-31T05:41:39.426716+00:00",
+      "model": "baseline:pifold",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_TS50": 12.0,
+      "elapsed_TS50_std": null
+    }
+  ]
+}

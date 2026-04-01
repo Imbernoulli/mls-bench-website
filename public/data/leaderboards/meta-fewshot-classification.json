@@ -1,0 +1,118 @@
+{
+  "task_id": "meta-fewshot-classification",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "accuracy_mini_imagenet",
+    "accuracy_cifar_fs",
+    "accuracy_CUB",
+    "accuracy_mini_imagenet_std",
+    "accuracy_cifar_fs_std",
+    "accuracy_CUB_std"
+  ],
+  "metric_columns": [
+    "accuracy_mini_imagenet",
+    "accuracy_cifar_fs",
+    "accuracy_CUB"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-03-13T20:20:07.979099+00:00",
+      "model": "baseline:protonet",
+      "is_final": true,
+      "seed": "42",
+      "accuracy_mini_imagenet": 0.6481,
+      "accuracy_cifar_fs": 0.6749,
+      "accuracy_CUB": 0.7531,
+      "accuracy_mini_imagenet_std": null,
+      "accuracy_cifar_fs_std": null,
+      "accuracy_CUB_std": null
+    },
+    {
+      "timestamp": "2026-03-13T20:20:07.983702+00:00",
+      "model": "baseline:protonet",
+      "is_final": true,
+      "seed": "123",
+      "accuracy_mini_imagenet": 0.6458,
+      "accuracy_cifar_fs": 0.6851,
+      "accuracy_CUB": 0.7536,
+      "accuracy_mini_imagenet_std": null,
+      "accuracy_cifar_fs_std": null,
+      "accuracy_CUB_std": null
+    },
+    {
+      "timestamp": "2026-03-13T20:20:07.984095+00:00",
+      "model": "baseline:protonet",
+      "is_final": true,
+      "seed": "456",
+      "accuracy_mini_imagenet": 0.6522,
+      "accuracy_cifar_fs": 0.6867,
+      "accuracy_CUB": 0.7622,
+      "accuracy_mini_imagenet_std": null,
+      "accuracy_cifar_fs_std": null,
+      "accuracy_CUB_std": null
+    },
+    {
+      "timestamp": "2026-03-13T20:20:07.984283+00:00",
+      "model": "baseline:protonet",
+      "is_final": true,
+      "seed": "mean",
+      "accuracy_mini_imagenet": 0.6487,
+      "accuracy_cifar_fs": 0.6822333333333334,
+      "accuracy_CUB": 0.7563,
+      "accuracy_mini_imagenet_std": 0.0032419130154894477,
+      "accuracy_cifar_fs_std": 0.006401041581909381,
+      "accuracy_CUB_std": 0.005115662224971449
+    },
+    {
+      "timestamp": "2026-03-13T20:30:02.735674+00:00",
+      "model": "baseline:matchingnet",
+      "is_final": true,
+      "seed": "42",
+      "accuracy_mini_imagenet": 0.5782,
+      "accuracy_cifar_fs": 0.6462,
+      "accuracy_CUB": 0.523,
+      "accuracy_mini_imagenet_std": null,
+      "accuracy_cifar_fs_std": null,
+      "accuracy_CUB_std": null
+    },
+    {
+      "timestamp": "2026-03-13T20:30:02.738892+00:00",
+      "model": "baseline:matchingnet",
+      "is_final": true,
+      "seed": "123",
+      "accuracy_mini_imagenet": 0.5772,
+      "accuracy_cifar_fs": 0.5676,
+      "accuracy_CUB": 0.6269,
+      "accuracy_mini_imagenet_std": null,
+      "accuracy_cifar_fs_std": null,
+      "accuracy_CUB_std": null
+    },
+    {
+      "timestamp": "2026-03-13T20:30:02.739147+00:00",
+      "model": "baseline:matchingnet",
+      "is_final": true,
+      "seed": "456",
+      "accuracy_mini_imagenet": 0.6232,
+      "accuracy_cifar_fs": 0.457,
+      "accuracy_CUB": 0.4575,
+      "accuracy_mini_imagenet_std": null,
+      "accuracy_cifar_fs_std": null,
+      "accuracy_CUB_std": null
+    },
+    {
+      "timestamp": "2026-03-13T20:30:02.739379+00:00",
+      "model": "baseline:matchingnet",
+      "is_final": true,
+      "seed": "mean",
+      "accuracy_mini_imagenet": 0.5928666666666667,
+      "accuracy_cifar_fs": 0.5569333333333333,
+      "accuracy_CUB": 0.5358,
+      "accuracy_mini_imagenet_std": 0.026274195198584697,
+      "accuracy_cifar_fs_std": 0.0950499517797528,
+      "accuracy_CUB_std": 0.08542230387902214
+    }
+  ]
+}

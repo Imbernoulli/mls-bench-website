@@ -1,0 +1,65 @@
+{
+  "task_id": "cv-diffusion-conditioning",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "fid",
+    "best_fid"
+  ],
+  "metric_columns": [
+    "fid",
+    "best_fid"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-03-19T14:16:44.510698+00:00",
+      "model": "baseline:concat-film",
+      "is_final": true,
+      "seed": "42",
+      "fid": 20.69,
+      "best_fid": 21.03
+    },
+    {
+      "timestamp": "2026-03-20T02:31:42.847291+00:00",
+      "model": "baseline:concat-film",
+      "is_final": true,
+      "seed": "42",
+      "fid": 7.68,
+      "best_fid": 7.82
+    },
+    {
+      "timestamp": "2026-03-20T08:57:01.624942+00:00",
+      "model": "baseline:cross-attn",
+      "is_final": true,
+      "seed": "42",
+      "fid": 9.68,
+      "best_fid": 9.77
+    },
+    {
+      "timestamp": "2026-03-22T06:28:17.171713+00:00",
+      "model": "baseline:adanorm",
+      "is_final": true,
+      "seed": "42",
+      "fid": 301.84,
+      "best_fid": 300.22
+    },
+    {
+      "timestamp": "2026-03-22T07:07:30.008964+00:00",
+      "model": "baseline:adanorm",
+      "is_final": true,
+      "seed": "42",
+      "fid": 40.25,
+      "best_fid": 41.23
+    },
+    {
+      "timestamp": "2026-03-22T14:35:37.165603+00:00",
+      "model": "baseline:adanorm",
+      "is_final": true,
+      "seed": "42",
+      "fid": 12.28,
+      "best_fid": 12.38
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "task_id": "cv-meanflow-training",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "fid",
+    "best_fid"
+  ],
+  "metric_columns": [
+    "fid",
+    "best_fid"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-03-17T15:59:52.530190+00:00",
+      "model": "baseline:meanflow",
+      "is_final": true,
+      "seed": "42",
+      "fid": 263.87,
+      "best_fid": 259.77
+    },
+    {
+      "timestamp": "2026-03-17T16:12:47.837743+00:00",
+      "model": "baseline:meanflow",
+      "is_final": true,
+      "seed": "42",
+      "fid": 70.79,
+      "best_fid": 70.29
+    },
+    {
+      "timestamp": "2026-03-17T16:37:51.369938+00:00",
+      "model": "baseline:alphaflow",
+      "is_final": true,
+      "seed": "42",
+      "fid": 134.07,
+      "best_fid": 135.08
+    },
+    {
+      "timestamp": "2026-03-17T16:48:30.846747+00:00",
+      "model": "baseline:pureflow",
+      "is_final": true,
+      "seed": "42",
+      "fid": 110.18,
+      "best_fid": 110.52
+    },
+    {
+      "timestamp": "2026-03-17T18:22:14.738291+00:00",
+      "model": "baseline:meanflow",
+      "is_final": true,
+      "seed": "42",
+      "fid": 14.52,
+      "best_fid": 14.38
+    },
+    {
+      "timestamp": "2026-03-17T19:45:37.162845+00:00",
+      "model": "baseline:alphaflow",
+      "is_final": true,
+      "seed": "42",
+      "fid": 18.73,
+      "best_fid": 18.61
+    },
+    {
+      "timestamp": "2026-03-17T21:08:52.491603+00:00",
+      "model": "baseline:pureflow",
+      "is_final": true,
+      "seed": "42",
+      "fid": 16.85,
+      "best_fid": 16.72
+    }
+  ]
+}

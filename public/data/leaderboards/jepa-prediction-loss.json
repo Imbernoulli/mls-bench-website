@@ -1,0 +1,18 @@
+{
+  "task_id": "jepa-prediction-loss",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "mean_detection_ap_small",
+    "mean_detection_ap_base",
+    "mean_detection_ap_large"
+  ],
+  "metric_columns": [
+    "mean_detection_ap_small",
+    "mean_detection_ap_base",
+    "mean_detection_ap_large"
+  ],
+  "rows": []
+}

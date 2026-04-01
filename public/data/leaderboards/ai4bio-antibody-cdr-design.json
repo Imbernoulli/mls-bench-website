@@ -1,0 +1,123 @@
+{
+  "task_id": "ai4bio-antibody-cdr-design",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "elapsed_antigen_fold",
+    "elapsed_temporal",
+    "elapsed_epitope_group"
+  ],
+  "metric_columns": [],
+  "rows": [
+    {
+      "timestamp": "2026-03-31T00:03:56.785825+00:00",
+      "model": "baseline:mean",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_antigen_fold": 1.0,
+      "elapsed_temporal": 1.0,
+      "elapsed_epitope_group": null
+    },
+    {
+      "timestamp": "2026-03-31T00:04:58.839149+00:00",
+      "model": "baseline:dymean",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_antigen_fold": 1.0,
+      "elapsed_temporal": 1.0,
+      "elapsed_epitope_group": null
+    },
+    {
+      "timestamp": "2026-03-31T00:05:53.641286+00:00",
+      "model": "baseline:diffab",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_antigen_fold": 1.0,
+      "elapsed_temporal": 2.0,
+      "elapsed_epitope_group": null
+    },
+    {
+      "timestamp": "2026-03-31T05:01:54.153098+00:00",
+      "model": "baseline:dymean",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_antigen_fold": 1.0,
+      "elapsed_temporal": 0.0,
+      "elapsed_epitope_group": 0.0
+    },
+    {
+      "timestamp": "2026-03-31T05:01:56.603199+00:00",
+      "model": "baseline:mean",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_antigen_fold": 1.0,
+      "elapsed_temporal": 1.0,
+      "elapsed_epitope_group": 1.0
+    },
+    {
+      "timestamp": "2026-03-31T05:02:58.516433+00:00",
+      "model": "baseline:diffab",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_antigen_fold": 0.0,
+      "elapsed_temporal": 1.0,
+      "elapsed_epitope_group": 0.0
+    },
+    {
+      "timestamp": "2026-03-31T05:29:35.652445+00:00",
+      "model": "baseline:dymean",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_antigen_fold": 7.0,
+      "elapsed_temporal": 7.0,
+      "elapsed_epitope_group": 7.0
+    },
+    {
+      "timestamp": "2026-03-31T05:29:35.739334+00:00",
+      "model": "baseline:mean",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_antigen_fold": 6.0,
+      "elapsed_temporal": 6.0,
+      "elapsed_epitope_group": 7.0
+    },
+    {
+      "timestamp": "2026-03-31T05:30:35.750916+00:00",
+      "model": "baseline:diffab",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_antigen_fold": 7.0,
+      "elapsed_temporal": 7.0,
+      "elapsed_epitope_group": 6.0
+    },
+    {
+      "timestamp": "2026-03-31T05:41:44.851188+00:00",
+      "model": "baseline:diffab",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_antigen_fold": 7.0,
+      "elapsed_temporal": 6.0,
+      "elapsed_epitope_group": 7.0
+    },
+    {
+      "timestamp": "2026-03-31T05:41:47.872833+00:00",
+      "model": "baseline:dymean",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_antigen_fold": 7.0,
+      "elapsed_temporal": 7.0,
+      "elapsed_epitope_group": 7.0
+    },
+    {
+      "timestamp": "2026-03-31T05:41:48.896321+00:00",
+      "model": "baseline:mean",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_antigen_fold": 7.0,
+      "elapsed_temporal": 6.0,
+      "elapsed_epitope_group": 7.0
+    }
+  ]
+}

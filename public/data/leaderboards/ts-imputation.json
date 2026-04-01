@@ -1,0 +1,61 @@
+{
+  "task_id": "ts-imputation",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "mse_ETTh1",
+    "mae_ETTh1",
+    "mse_Weather",
+    "mae_Weather",
+    "mse_ECL",
+    "mae_ECL"
+  ],
+  "metric_columns": [
+    "mse_ETTh1",
+    "mae_ETTh1",
+    "mse_Weather",
+    "mae_Weather",
+    "mse_ECL",
+    "mae_ECL"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-03-02T17:00:49.514283+00:00",
+      "model": "baseline:dlinear",
+      "is_final": true,
+      "seed": "42",
+      "mse_ETTh1": 0.14976748824119568,
+      "mae_ETTh1": 0.26931190490722656,
+      "mse_Weather": 0.05025525018572807,
+      "mae_Weather": 0.11431574076414108,
+      "mse_ECL": 0.11316473037004471,
+      "mae_ECL": 0.24282407760620117
+    },
+    {
+      "timestamp": "2026-03-02T17:06:10.751412+00:00",
+      "model": "baseline:timesnet",
+      "is_final": true,
+      "seed": "42",
+      "mse_ETTh1": 0.08032715320587158,
+      "mae_ETTh1": 0.19080160558223724,
+      "mse_Weather": 0.029269665479660034,
+      "mae_Weather": 0.055202264338731766,
+      "mse_ECL": 0.09145466238260269,
+      "mae_ECL": 0.207685187458992
+    },
+    {
+      "timestamp": "2026-03-02T17:17:18.493193+00:00",
+      "model": "baseline:patchtst",
+      "is_final": true,
+      "seed": "42",
+      "mse_ETTh1": 0.10444267094135284,
+      "mae_ETTh1": 0.21572086215019226,
+      "mse_Weather": 0.03099076636135578,
+      "mae_Weather": 0.05247551575303078,
+      "mse_ECL": 0.06240222975611687,
+      "mae_ECL": 0.1694820076227188
+    }
+  ]
+}

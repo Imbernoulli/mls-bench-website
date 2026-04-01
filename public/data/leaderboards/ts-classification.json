@@ -1,0 +1,46 @@
+{
+  "task_id": "ts-classification",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "accuracy_EthanolConcentration",
+    "accuracy_FaceDetection",
+    "accuracy_Handwriting"
+  ],
+  "metric_columns": [
+    "accuracy_EthanolConcentration",
+    "accuracy_FaceDetection",
+    "accuracy_Handwriting"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-03-02T17:02:20.616268+00:00",
+      "model": "baseline:dlinear",
+      "is_final": true,
+      "seed": "42",
+      "accuracy_EthanolConcentration": 0.2889733840304182,
+      "accuracy_FaceDetection": 0.6821793416572077,
+      "accuracy_Handwriting": 0.23058823529411765
+    },
+    {
+      "timestamp": "2026-03-02T17:03:05.620746+00:00",
+      "model": "baseline:timesnet",
+      "is_final": true,
+      "seed": "42",
+      "accuracy_EthanolConcentration": 0.3193916349809886,
+      "accuracy_FaceDetection": 0.6745175936435869,
+      "accuracy_Handwriting": 0.3352941176470588
+    },
+    {
+      "timestamp": "2026-03-02T17:04:47.692124+00:00",
+      "model": "baseline:patchtst",
+      "is_final": true,
+      "seed": "42",
+      "accuracy_EthanolConcentration": 0.28517110266159695,
+      "accuracy_FaceDetection": 0.6853007945516458,
+      "accuracy_Handwriting": 0.2541176470588235
+    }
+  ]
+}

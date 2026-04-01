@@ -1,0 +1,60 @@
+{
+  "task_id": "ai4bio-protein-function-prediction",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "elapsed_Beta",
+    "elapsed_Fluorescence",
+    "elapsed_Solubility"
+  ],
+  "metric_columns": [],
+  "rows": [
+    {
+      "timestamp": "2026-03-31T04:58:51.881917+00:00",
+      "model": "baseline:dgl_gcn",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_Beta": 6.0,
+      "elapsed_Fluorescence": 6.0,
+      "elapsed_Solubility": 6.0
+    },
+    {
+      "timestamp": "2026-03-31T04:58:51.914430+00:00",
+      "model": "baseline:cnn",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_Beta": 6.0,
+      "elapsed_Fluorescence": 6.0,
+      "elapsed_Solubility": 6.0
+    },
+    {
+      "timestamp": "2026-03-31T04:58:51.965401+00:00",
+      "model": "baseline:transformer",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_Beta": 5.0,
+      "elapsed_Fluorescence": 5.0,
+      "elapsed_Solubility": 5.0
+    },
+    {
+      "timestamp": "2026-03-31T05:42:28.747778+00:00",
+      "model": "baseline:cnn",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_Beta": 6.0,
+      "elapsed_Fluorescence": 9.0,
+      "elapsed_Solubility": 9.0
+    },
+    {
+      "timestamp": "2026-03-31T06:05:10.578360+00:00",
+      "model": "baseline:transformer",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_Beta": 7.0,
+      "elapsed_Fluorescence": null,
+      "elapsed_Solubility": null
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "task_id": "libero-lifelong",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "avg_final_success",
+    "avg_final_success_std"
+  ],
+  "metric_columns": [
+    "avg_final_success"
+  ],
+  "rows": []
+}
