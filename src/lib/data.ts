@@ -6,7 +6,7 @@ import type {
   Conversation,
 } from "./types";
 
-const DATA_BASE = "/data";
+const DATA_BASE = "/mls-bench-website/data";
 
 async function fetchJson<T>(path: string): Promise<T> {
   const res = await fetch(`${DATA_BASE}${path}`);
