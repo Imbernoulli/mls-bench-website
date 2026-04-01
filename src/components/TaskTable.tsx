@@ -92,8 +92,8 @@ export default function TaskTable({ tasks, categories }: Props) {
   };
 
   const SortIcon = ({ col }: { col: typeof sortBy }) => {
-    if (sortBy !== col) return <span className="text-muted-foreground/30 ml-1">&#x2195;</span>;
-    return <span className="ml-1">{sortDir === "asc" ? "&#x2191;" : "&#x2193;"}</span>;
+    if (sortBy !== col) return <span className="text-muted-foreground/30 ml-1">{"\u2195"}</span>;
+    return <span className="ml-1">{sortDir === "asc" ? "\u2191" : "\u2193"}</span>;
   };
 
   return (
@@ -226,7 +226,7 @@ export default function TaskTable({ tasks, categories }: Props) {
                   </td>
                   <td className="px-4 py-3 text-center">
                     {task.has_agent_logs ? (
-                      <span className="text-accent">&#x2713;</span>
+                      <span className="text-accent">{"\u2713"}</span>
                     ) : (
                       <span className="text-muted-foreground">-</span>
                     )}
