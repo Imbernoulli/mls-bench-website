@@ -7,160 +7,160 @@
     "seed",
     "eval_return_cartpole_v1",
     "eval_return_lunarlander_v2",
-    "eval_return_mountaincar_v0",
+    "eval_return_acrobot_v1",
     "eval_return_cartpole_v1_std",
     "eval_return_lunarlander_v2_std",
-    "eval_return_mountaincar_v0_std"
+    "eval_return_acrobot_v1_std"
   ],
   "metric_columns": [
     "eval_return_cartpole_v1",
     "eval_return_lunarlander_v2",
-    "eval_return_mountaincar_v0"
+    "eval_return_acrobot_v1"
   ],
   "rows": [
     {
-      "timestamp": "2026-03-31T01:43:16.849896+00:00",
+      "timestamp": "2026-03-30T03:44:59.248943+00:00",
       "model": "baseline:qr_dqn",
       "is_final": true,
       "seed": "42",
       "eval_return_cartpole_v1": 500.0,
       "eval_return_lunarlander_v2": 152.64,
-      "eval_return_mountaincar_v0": -200.0,
+      "eval_return_acrobot_v1": null,
       "eval_return_cartpole_v1_std": null,
       "eval_return_lunarlander_v2_std": null,
-      "eval_return_mountaincar_v0_std": null
+      "eval_return_acrobot_v1_std": null
     },
     {
-      "timestamp": "2026-03-31T01:43:16.849896+00:00",
+      "timestamp": "2026-03-30T03:44:59.248943+00:00",
       "model": "baseline:qr_dqn",
       "is_final": true,
       "seed": "123",
       "eval_return_cartpole_v1": 500.0,
       "eval_return_lunarlander_v2": 243.81,
-      "eval_return_mountaincar_v0": -200.0,
+      "eval_return_acrobot_v1": null,
       "eval_return_cartpole_v1_std": null,
       "eval_return_lunarlander_v2_std": null,
-      "eval_return_mountaincar_v0_std": null
+      "eval_return_acrobot_v1_std": null
     },
     {
-      "timestamp": "2026-03-31T01:43:16.849896+00:00",
+      "timestamp": "2026-03-30T03:44:59.248943+00:00",
       "model": "baseline:qr_dqn",
       "is_final": true,
       "seed": "456",
       "eval_return_cartpole_v1": 500.0,
       "eval_return_lunarlander_v2": 194.99,
-      "eval_return_mountaincar_v0": -200.0,
+      "eval_return_acrobot_v1": null,
       "eval_return_cartpole_v1_std": null,
       "eval_return_lunarlander_v2_std": null,
-      "eval_return_mountaincar_v0_std": null
+      "eval_return_acrobot_v1_std": null
     },
     {
-      "timestamp": "2026-03-31T01:43:16.849896+00:00",
+      "timestamp": "2026-03-30T03:44:59.248943+00:00",
       "model": "baseline:qr_dqn",
       "is_final": true,
       "seed": "mean",
       "eval_return_cartpole_v1": 500.0,
       "eval_return_lunarlander_v2": 197.14666666666668,
-      "eval_return_mountaincar_v0": -200.0,
+      "eval_return_acrobot_v1": null,
       "eval_return_cartpole_v1_std": 0.0,
       "eval_return_lunarlander_v2_std": 45.62324663297576,
-      "eval_return_mountaincar_v0_std": 0.0
+      "eval_return_acrobot_v1_std": null
     },
     {
-      "timestamp": "2026-03-31T01:43:16.849896+00:00",
+      "timestamp": "2026-03-30T03:44:59.248943+00:00",
       "model": "baseline:dueling_dqn",
       "is_final": true,
       "seed": "42",
       "eval_return_cartpole_v1": 500.0,
       "eval_return_lunarlander_v2": 274.81,
-      "eval_return_mountaincar_v0": -200.0,
+      "eval_return_acrobot_v1": null,
       "eval_return_cartpole_v1_std": null,
       "eval_return_lunarlander_v2_std": null,
-      "eval_return_mountaincar_v0_std": null
+      "eval_return_acrobot_v1_std": null
     },
     {
-      "timestamp": "2026-03-31T01:43:16.849896+00:00",
+      "timestamp": "2026-03-30T03:44:59.248943+00:00",
       "model": "baseline:dueling_dqn",
       "is_final": true,
       "seed": "123",
       "eval_return_cartpole_v1": 500.0,
       "eval_return_lunarlander_v2": 246.68,
-      "eval_return_mountaincar_v0": -200.0,
+      "eval_return_acrobot_v1": null,
       "eval_return_cartpole_v1_std": null,
       "eval_return_lunarlander_v2_std": null,
-      "eval_return_mountaincar_v0_std": null
+      "eval_return_acrobot_v1_std": null
     },
     {
-      "timestamp": "2026-03-31T01:43:16.849896+00:00",
+      "timestamp": "2026-03-30T03:44:59.248943+00:00",
       "model": "baseline:dueling_dqn",
       "is_final": true,
       "seed": "456",
       "eval_return_cartpole_v1": 500.0,
       "eval_return_lunarlander_v2": 229.95,
-      "eval_return_mountaincar_v0": -200.0,
+      "eval_return_acrobot_v1": null,
       "eval_return_cartpole_v1_std": null,
       "eval_return_lunarlander_v2_std": null,
-      "eval_return_mountaincar_v0_std": null
+      "eval_return_acrobot_v1_std": null
     },
     {
-      "timestamp": "2026-03-31T01:43:16.849896+00:00",
+      "timestamp": "2026-03-30T03:44:59.248943+00:00",
       "model": "baseline:dueling_dqn",
       "is_final": true,
       "seed": "mean",
       "eval_return_cartpole_v1": 500.0,
       "eval_return_lunarlander_v2": 250.48000000000002,
-      "eval_return_mountaincar_v0": -200.0,
+      "eval_return_acrobot_v1": null,
       "eval_return_cartpole_v1_std": 0.0,
       "eval_return_lunarlander_v2_std": 22.670132333094138,
-      "eval_return_mountaincar_v0_std": 0.0
+      "eval_return_acrobot_v1_std": null
     },
     {
-      "timestamp": "2026-03-31T01:43:16.849896+00:00",
+      "timestamp": "2026-03-30T03:44:59.248943+00:00",
       "model": "baseline:c51",
       "is_final": true,
       "seed": "42",
       "eval_return_cartpole_v1": 500.0,
       "eval_return_lunarlander_v2": 247.76,
-      "eval_return_mountaincar_v0": -129.6,
+      "eval_return_acrobot_v1": null,
       "eval_return_cartpole_v1_std": null,
       "eval_return_lunarlander_v2_std": null,
-      "eval_return_mountaincar_v0_std": null
+      "eval_return_acrobot_v1_std": null
     },
     {
-      "timestamp": "2026-03-31T01:43:16.849896+00:00",
+      "timestamp": "2026-03-30T03:44:59.248943+00:00",
       "model": "baseline:c51",
       "is_final": true,
       "seed": "123",
       "eval_return_cartpole_v1": 500.0,
       "eval_return_lunarlander_v2": 245.29,
-      "eval_return_mountaincar_v0": -129.7,
+      "eval_return_acrobot_v1": null,
       "eval_return_cartpole_v1_std": null,
       "eval_return_lunarlander_v2_std": null,
-      "eval_return_mountaincar_v0_std": null
+      "eval_return_acrobot_v1_std": null
     },
     {
-      "timestamp": "2026-03-31T01:43:16.849896+00:00",
+      "timestamp": "2026-03-30T03:44:59.248943+00:00",
       "model": "baseline:c51",
       "is_final": true,
       "seed": "456",
       "eval_return_cartpole_v1": 500.0,
       "eval_return_lunarlander_v2": 272.1,
-      "eval_return_mountaincar_v0": -200.0,
+      "eval_return_acrobot_v1": null,
       "eval_return_cartpole_v1_std": null,
       "eval_return_lunarlander_v2_std": null,
-      "eval_return_mountaincar_v0_std": null
+      "eval_return_acrobot_v1_std": null
     },
     {
-      "timestamp": "2026-03-31T01:43:16.849896+00:00",
+      "timestamp": "2026-03-30T03:44:59.248943+00:00",
       "model": "baseline:c51",
       "is_final": true,
       "seed": "mean",
       "eval_return_cartpole_v1": 500.0,
       "eval_return_lunarlander_v2": 255.04999999999998,
-      "eval_return_mountaincar_v0": -153.1,
+      "eval_return_acrobot_v1": null,
       "eval_return_cartpole_v1_std": 0.0,
       "eval_return_lunarlander_v2_std": 14.817290575540474,
-      "eval_return_mountaincar_v0_std": 40.61662221307922
+      "eval_return_acrobot_v1_std": null
     }
   ]
 }

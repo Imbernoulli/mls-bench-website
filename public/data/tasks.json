@@ -3421,6 +3421,55 @@
     "has_agent_logs": false
   },
   {
+    "id": "marl-mixing-network",
+    "category": "other",
+    "category_label": "Other",
+    "description_md": "# Cooperative MARL: Value Decomposition Mixing Network\n\n## Objective\nImprove cooperative multi-agent reinforcement learning by designing a better value decomposition mixing network. You can modify the `CustomMixer` class (lines 13-49) and add custom imports (lines 7-8) in `custom.py`.\n\n## Background\nIn cooperative MARL, agents share a common reward but each agent has only a partial observation. Value decomposition methods learn individual agent Q-values and combine them into a joint `Q_tot` using a mixing network. The quality of this mixing network directly determines how well individual agents can coordinate.\n\nThe training uses EPyMARL with Q-learning on three PettingZoo MPE cooperative tasks:\n- **simple_spread**: 3 agents must spread out to cover 3 landmarks while avoiding collisions.\n- **simple_reference**: agents must communicate landmark goals and coordinate movement.\n- **simple_speaker_listener**: a speaker and listener must coordinate through communication to reach the correct target.\n\nThe default mixer is a simple learnable weighted sum that does not condition on the global state. Each setup trains for 500K environment timesteps with epsilon-greedy exploration.\n\n## Interface\nYour `CustomMixer` must:\n- Inherit from `nn.Module`\n- Accept `args` in `__init__` with attributes: `n_agents`, `state_shape`, `mixing_embed_dim`\n- Implement `forward(self, agent_qs, states)` where:\n  - `agent_qs`: shape `(batch, T, n_agents)` — individual agent Q-values\n  - `states`: shape `(batch, T, state_dim)` — global state information\n  - Returns `q_tot`: shape `(batch, T, 1)` — joint action value\n\n## Reference Implementations\n- **VDN** (`vdn.py`): Simple sum, `Q_tot = sum(Q_i)`. No parameters, no state conditioning.\n- **LinearMixer**: Learnable weighted sum with a bias term. State-agnostic but more flexible than VDN.\n- **QMIX** (`qmix.py`): Uses hypernetworks conditioned on global state to generate mixing weights. Enforces monotonicity via absolute value on weights.\n\n## Evaluation\nFinal performance is measured by mean episode return over 32 test episodes with greedy policy, evaluated separately on all three setups and recorded to the leaderboard under setup-specific metric keys.\n",
+    "baselines": [
+      "vdn",
+      "linear_mixer",
+      "qmix"
+    ],
+    "environments": [
+      "simple-spread",
+      "simple-reference",
+      "simple-speaker-listener"
+    ],
+    "packages": [
+      "epymarl"
+    ],
+    "files": [
+      {
+        "filename": "epymarl/src/modules/mixers/custom.py",
+        "edit_ranges": [
+          {
+            "start": 7,
+            "end": 8
+          },
+          {
+            "start": 13,
+            "end": 49
+          }
+        ]
+      },
+      {
+        "filename": "epymarl/src/modules/mixers/vdn.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "epymarl/src/modules/mixers/qmix.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "epymarl/src/learners/q_learner.py",
+        "edit_ranges": []
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
     "id": "mas-topology",
     "category": "dl",
     "category_label": "Deep Learning",
@@ -5506,7 +5555,7 @@
     "environments": [
       "cartpole-v1",
       "lunarlander-v2",
-      "mountaincar-v0"
+      "acrobot-v1"
     ],
     "packages": [
       "cleanrl"

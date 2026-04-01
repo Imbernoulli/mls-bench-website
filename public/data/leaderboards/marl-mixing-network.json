@@ -1,0 +1,61 @@
+{
+  "task_id": "marl-mixing-network",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "test_return_mean_simple_spread",
+    "test_return_std_simple_spread",
+    "test_return_mean_simple_reference",
+    "test_return_std_simple_reference",
+    "test_return_mean_simple_speaker_listener",
+    "test_return_std_simple_speaker_listener"
+  ],
+  "metric_columns": [
+    "test_return_mean_simple_spread",
+    "test_return_std_simple_spread",
+    "test_return_mean_simple_reference",
+    "test_return_std_simple_reference",
+    "test_return_mean_simple_speaker_listener",
+    "test_return_std_simple_speaker_listener"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-03-31T04:06:46+00:00",
+      "model": "baseline:vdn",
+      "is_final": true,
+      "seed": "42",
+      "test_return_mean_simple_spread": -44.7079,
+      "test_return_std_simple_spread": 10.4266,
+      "test_return_mean_simple_reference": -36.211,
+      "test_return_std_simple_reference": 12.9157,
+      "test_return_mean_simple_speaker_listener": -31.0599,
+      "test_return_std_simple_speaker_listener": 23.5857
+    },
+    {
+      "timestamp": "2026-03-31T04:06:46+00:00",
+      "model": "baseline:linear_mixer",
+      "is_final": true,
+      "seed": "42",
+      "test_return_mean_simple_spread": -54.7526,
+      "test_return_std_simple_spread": 13.6171,
+      "test_return_mean_simple_reference": -36.1347,
+      "test_return_std_simple_reference": 11.5541,
+      "test_return_mean_simple_speaker_listener": -33.4943,
+      "test_return_std_simple_speaker_listener": 21.6221
+    },
+    {
+      "timestamp": "2026-03-31T04:34:41+00:00",
+      "model": "baseline:qmix",
+      "is_final": true,
+      "seed": "42",
+      "test_return_mean_simple_spread": -52.6202,
+      "test_return_std_simple_spread": 13.5202,
+      "test_return_mean_simple_reference": -36.9926,
+      "test_return_std_simple_reference": 10.2401,
+      "test_return_mean_simple_speaker_listener": -19.3397,
+      "test_return_std_simple_speaker_listener": 15.4592
+    }
+  ]
+}

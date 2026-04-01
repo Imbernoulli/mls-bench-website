@@ -185,6 +185,13 @@
       "llm-ttt-adaptation"
     ]
   },
+  "other": {
+    "id": "other",
+    "label": "Other",
+    "tasks": [
+      "marl-mixing-network"
+    ]
+  },
   "ml": {
     "id": "ml",
     "label": "Classical ML",
