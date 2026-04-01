@@ -27,10 +27,10 @@ export default function LeaderboardPage() {
     const lb = getLeaderboardStatic(task.id);
     if (!lb) continue;
 
-    // Get mean rows only, filter out null models
-    const validRows = lb.rows.filter((r) => r.model != null);
-    const meanRows = validRows.filter((r) => r.seed === "mean" ||
-      !validRows.some((r2) => r2.model === r.model && r2.seed === "mean"));
+    // Only final submissions, filter out null models
+    const finalRows = lb.rows.filter((r) => r.model != null && r.is_final === true);
+    const meanRows = finalRows.filter((r) => r.seed === "mean" ||
+      !finalRows.some((r2) => r2.model === r.model && r2.seed === "mean"));
 
     const baselineRows = meanRows.filter((r) =>
       (r.model as string).startsWith("baseline:")

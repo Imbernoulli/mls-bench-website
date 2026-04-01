@@ -11,12 +11,13 @@ export default function LeaderboardTable({ data }: Props) {
   const [showPerSeed, setShowPerSeed] = useState(false);
 
   const rows = useMemo(() => {
-    const validRows = data.rows.filter((r) => r.model != null);
-    if (showPerSeed) return validRows;
+    // Only show final submissions (is_final=true)
+    const finalRows = data.rows.filter((r) => r.model != null && r.is_final === true);
+    if (showPerSeed) return finalRows;
     const meanModels = new Set(
-      validRows.filter((r) => r.seed === "mean").map((r) => r.model as string)
+      finalRows.filter((r) => r.seed === "mean").map((r) => r.model as string)
     );
-    return validRows.filter(
+    return finalRows.filter(
       (r) => r.seed === "mean" || !meanModels.has(r.model as string)
     );
   }, [data.rows, showPerSeed]);

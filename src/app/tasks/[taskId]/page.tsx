@@ -34,7 +34,16 @@ export default async function TaskDetailPage({
 
   const leaderboard = getLeaderboardStatic(taskId);
   const convoIndex = getConversationIndexStatic();
-  const conversations = convoIndex[taskId] || [];
+
+  // Only show conversations for models that have final results
+  const finalModels = new Set(
+    (leaderboard?.rows || [])
+      .filter((r) => r.is_final === true && !(r.model as string).startsWith("baseline:"))
+      .map((r) => r.model as string)
+  );
+  const conversations = (convoIndex[taskId] || []).filter(
+    (c) => finalModels.has(c.model)
+  );
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
