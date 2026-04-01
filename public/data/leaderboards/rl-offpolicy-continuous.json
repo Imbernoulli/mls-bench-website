@@ -635,6 +635,42 @@
       "elapsed_halfcheetah-v4_std": 0.0,
       "elapsed_reacher-v4_std": 0.0,
       "elapsed_ant-v4_std": 141.4508159514583
+    },
+    {
+      "timestamp": "2026-04-01T14:04:58.307138+00:00",
+      "model": "gpt-5.4-pro",
+      "is_final": false,
+      "seed": "42",
+      "eval_return_halfcheetah_v4": 10278.22,
+      "eval_return_reacher_v4": -3.7,
+      "eval_return_ant_v4": 3631.34,
+      "eval_return_halfcheetah_v4_std": null,
+      "eval_return_reacher_v4_std": null,
+      "eval_return_ant_v4_std": null,
+      "elapsed_halfcheetah-v4": 10086.0,
+      "elapsed_reacher-v4": 10086.0,
+      "elapsed_ant-v4": 10495.0,
+      "elapsed_halfcheetah-v4_std": null,
+      "elapsed_reacher-v4_std": null,
+      "elapsed_ant-v4_std": null
+    },
+    {
+      "timestamp": "2026-04-01T14:25:31.579921+00:00",
+      "model": "gpt-5.4-pro",
+      "is_final": true,
+      "seed": "42",
+      "eval_return_halfcheetah_v4": 10278.22,
+      "eval_return_reacher_v4": -3.7,
+      "eval_return_ant_v4": 3631.34,
+      "eval_return_halfcheetah_v4_std": null,
+      "eval_return_reacher_v4_std": null,
+      "eval_return_ant_v4_std": null,
+      "elapsed_halfcheetah-v4": 10086.0,
+      "elapsed_reacher-v4": 10086.0,
+      "elapsed_ant-v4": 10495.0,
+      "elapsed_halfcheetah-v4_std": null,
+      "elapsed_reacher-v4_std": null,
+      "elapsed_ant-v4_std": null
     }
   ]
 }
