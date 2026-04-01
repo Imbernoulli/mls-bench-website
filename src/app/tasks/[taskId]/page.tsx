@@ -5,6 +5,7 @@ import {
   getConversationIndexStatic,
 } from "@/lib/data";
 import LeaderboardTable from "@/components/LeaderboardTable";
+import TaskDescription from "@/components/TaskDescription";
 
 export function generateStaticParams() {
   const tasks = getTasksStatic();
@@ -74,10 +75,9 @@ export default async function TaskDetailPage({
       {/* Task description */}
       <section className="mt-8">
         <h2 className="text-xl font-semibold mb-4">Description</h2>
-        <div
-          className="prose prose-sm dark:prose-invert max-w-none rounded-xl border border-border bg-card p-6"
-          dangerouslySetInnerHTML={{ __html: task.description_html }}
-        />
+        <div className="rounded-lg border border-border bg-card p-6">
+          <TaskDescription markdown={task.description_md || ""} />
+        </div>
       </section>
 
       {/* Editable files */}

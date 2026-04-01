@@ -3,6 +3,7 @@ export interface TaskMeta {
   category: string;
   category_label: string;
   description_html: string;
+  description_md: string;
   baselines: string[];
   environments: string[];
   packages: string[];
