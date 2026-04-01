@@ -8,7 +8,16 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Cell,
 } from "recharts";
+
+const COLORS = [
+  "#10a37f", "#6366f1", "#f59e0b", "#ef4444", "#8b5cf6",
+  "#ec4899", "#06b6d4", "#84cc16", "#f97316", "#2563eb",
+  "#14b8a6", "#e11d48", "#0ea5e9", "#a855f7", "#d946ef",
+  "#22c55e", "#eab308", "#3b82f6", "#f43f5e", "#7c3aed",
+  "#0891b2", "#65a30d", "#ea580c", "#4f46e5",
+];
 
 interface Props {
   data: { name: string; count: number; id: string }[];
@@ -38,7 +47,11 @@ export default function CategoryChart({ data }: Props) {
             fontSize: "13px",
           }}
         />
-        <Bar dataKey="count" fill="#10a37f" radius={[0, 3, 3, 0]} />
+        <Bar dataKey="count" radius={[0, 3, 3, 0]}>
+          {data.map((_, index) => (
+            <Cell key={index} fill={COLORS[index % COLORS.length]} />
+          ))}
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   );

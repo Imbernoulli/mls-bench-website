@@ -66,8 +66,8 @@ function MessageBubble({ msg }: { msg: ConversationMessage }) {
               Thinking ({msg.thinking.length.toLocaleString()} chars)
             </button>
             {showThinking && (
-              <div className="mt-2 rounded-md border border-border bg-background p-3 max-h-96 overflow-y-auto">
-                <MarkdownContent content={msg.thinking} className="text-muted-foreground" />
+              <div className="mt-2 rounded-md border border-border bg-background p-3 max-h-96 overflow-y-auto whitespace-pre-wrap text-xs text-muted-foreground leading-relaxed">
+                {msg.thinking}
               </div>
             )}
           </div>
