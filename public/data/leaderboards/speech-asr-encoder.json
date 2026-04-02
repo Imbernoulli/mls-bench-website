@@ -6,7 +6,8 @@
     "is_final",
     "seed",
     "elapsed_commonvoice-es",
-    "elapsed_commonvoice-es_std"
+    "elapsed_commonvoice-es_std",
+    "elapsed_mls-spanish"
   ],
   "metric_columns": [],
   "rows": [
@@ -16,7 +17,8 @@
       "is_final": false,
       "seed": "42",
       "elapsed_commonvoice-es": 0.0,
-      "elapsed_commonvoice-es_std": null
+      "elapsed_commonvoice-es_std": null,
+      "elapsed_mls-spanish": null
     },
     {
       "timestamp": "2026-03-30T14:00:44.734197+00:00",
@@ -24,7 +26,8 @@
       "is_final": false,
       "seed": "123",
       "elapsed_commonvoice-es": 0.0,
-      "elapsed_commonvoice-es_std": null
+      "elapsed_commonvoice-es_std": null,
+      "elapsed_mls-spanish": null
     },
     {
       "timestamp": "2026-03-30T14:00:44.734601+00:00",
@@ -32,7 +35,8 @@
       "is_final": false,
       "seed": "456",
       "elapsed_commonvoice-es": 0.0,
-      "elapsed_commonvoice-es_std": null
+      "elapsed_commonvoice-es_std": null,
+      "elapsed_mls-spanish": null
     },
     {
       "timestamp": "2026-03-30T14:00:44.734821+00:00",
@@ -40,7 +44,8 @@
       "is_final": false,
       "seed": "mean",
       "elapsed_commonvoice-es": 0.0,
-      "elapsed_commonvoice-es_std": 0.0
+      "elapsed_commonvoice-es_std": 0.0,
+      "elapsed_mls-spanish": null
     },
     {
       "timestamp": "2026-03-30T14:16:56.448809+00:00",
@@ -48,7 +53,8 @@
       "is_final": false,
       "seed": "42",
       "elapsed_commonvoice-es": 0.0,
-      "elapsed_commonvoice-es_std": null
+      "elapsed_commonvoice-es_std": null,
+      "elapsed_mls-spanish": null
     },
     {
       "timestamp": "2026-03-30T14:16:56.450227+00:00",
@@ -56,7 +62,8 @@
       "is_final": false,
       "seed": "123",
       "elapsed_commonvoice-es": 0.0,
-      "elapsed_commonvoice-es_std": null
+      "elapsed_commonvoice-es_std": null,
+      "elapsed_mls-spanish": null
     },
     {
       "timestamp": "2026-03-30T14:16:56.450434+00:00",
@@ -64,7 +71,8 @@
       "is_final": false,
       "seed": "456",
       "elapsed_commonvoice-es": 0.0,
-      "elapsed_commonvoice-es_std": null
+      "elapsed_commonvoice-es_std": null,
+      "elapsed_mls-spanish": null
     },
     {
       "timestamp": "2026-03-30T14:16:56.450640+00:00",
@@ -72,7 +80,8 @@
       "is_final": false,
       "seed": "mean",
       "elapsed_commonvoice-es": 0.0,
-      "elapsed_commonvoice-es_std": 0.0
+      "elapsed_commonvoice-es_std": 0.0,
+      "elapsed_mls-spanish": null
     },
     {
       "timestamp": "2026-03-30T14:20:13.185690+00:00",
@@ -80,7 +89,8 @@
       "is_final": false,
       "seed": "42",
       "elapsed_commonvoice-es": 0.0,
-      "elapsed_commonvoice-es_std": null
+      "elapsed_commonvoice-es_std": null,
+      "elapsed_mls-spanish": null
     },
     {
       "timestamp": "2026-03-30T14:20:18.260554+00:00",
@@ -88,7 +98,8 @@
       "is_final": false,
       "seed": "123",
       "elapsed_commonvoice-es": 0.0,
-      "elapsed_commonvoice-es_std": null
+      "elapsed_commonvoice-es_std": null,
+      "elapsed_mls-spanish": null
     },
     {
       "timestamp": "2026-03-30T14:20:19.766774+00:00",
@@ -96,7 +107,8 @@
       "is_final": false,
       "seed": "456",
       "elapsed_commonvoice-es": 0.0,
-      "elapsed_commonvoice-es_std": null
+      "elapsed_commonvoice-es_std": null,
+      "elapsed_mls-spanish": null
     },
     {
       "timestamp": "2026-03-30T14:20:23.770198+00:00",
@@ -104,7 +116,17 @@
       "is_final": false,
       "seed": "mean",
       "elapsed_commonvoice-es": 0.0,
-      "elapsed_commonvoice-es_std": 0.0
+      "elapsed_commonvoice-es_std": 0.0,
+      "elapsed_mls-spanish": null
+    },
+    {
+      "timestamp": "2026-04-01T04:26:14.341295+00:00",
+      "model": "baseline:branchformer",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_commonvoice-es": null,
+      "elapsed_commonvoice-es_std": null,
+      "elapsed_mls-spanish": 0.0
     }
   ]
 }

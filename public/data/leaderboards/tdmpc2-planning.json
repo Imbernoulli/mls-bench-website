@@ -1,0 +1,42 @@
+{
+  "task_id": "tdmpc2-planning",
+  "columns": [
+    "model",
+    "is_final",
+    "seed",
+    "episode_reward_walker_walk",
+    "episode_reward_cheetah_run",
+    "episode_reward_cartpole_swingup"
+  ],
+  "metric_columns": [
+    "episode_reward_walker_walk",
+    "episode_reward_cheetah_run",
+    "episode_reward_cartpole_swingup"
+  ],
+  "rows": [
+    {
+      "model": "baseline:cem",
+      "is_final": true,
+      "seed": "42",
+      "episode_reward_walker_walk": 977.16,
+      "episode_reward_cheetah_run": 805.52,
+      "episode_reward_cartpole_swingup": 882.05
+    },
+    {
+      "model": "baseline:icem",
+      "is_final": true,
+      "seed": "42",
+      "episode_reward_walker_walk": 980.67,
+      "episode_reward_cheetah_run": 470.21,
+      "episode_reward_cartpole_swingup": 883.16
+    },
+    {
+      "model": "baseline:mppi",
+      "is_final": true,
+      "seed": "42",
+      "episode_reward_walker_walk": 981.6,
+      "episode_reward_cheetah_run": 843.3,
+      "episode_reward_cartpole_swingup": 881.14
+    }
+  ]
+}

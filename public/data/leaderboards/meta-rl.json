@@ -1,0 +1,127 @@
+{
+  "task_id": "meta-rl",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "meta_test_return_cheetah_vel",
+    "meta_test_return_sparse_point_robot",
+    "meta_test_return_point_robot"
+  ],
+  "metric_columns": [
+    "meta_test_return_cheetah_vel",
+    "meta_test_return_sparse_point_robot",
+    "meta_test_return_point_robot"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-04-01T16:10:43.139965+00:00",
+      "model": "baseline:mlp_encoder",
+      "is_final": true,
+      "seed": "42",
+      "meta_test_return_cheetah_vel": -162.2612,
+      "meta_test_return_sparse_point_robot": 1.2005,
+      "meta_test_return_point_robot": -13.4342
+    },
+    {
+      "timestamp": "2026-04-01T16:10:43.139965+00:00",
+      "model": "baseline:mlp_encoder",
+      "is_final": true,
+      "seed": "123",
+      "meta_test_return_cheetah_vel": -170.8645,
+      "meta_test_return_sparse_point_robot": 4.4909,
+      "meta_test_return_point_robot": -11.7762
+    },
+    {
+      "timestamp": "2026-04-01T16:10:43.139965+00:00",
+      "model": "baseline:mlp_encoder",
+      "is_final": true,
+      "seed": "456",
+      "meta_test_return_cheetah_vel": -104.786,
+      "meta_test_return_sparse_point_robot": 3.0658,
+      "meta_test_return_point_robot": -11.4201
+    },
+    {
+      "timestamp": "2026-04-01T16:10:43.139965+00:00",
+      "model": "baseline:mlp_encoder",
+      "is_final": true,
+      "seed": "mean",
+      "meta_test_return_cheetah_vel": -145.97056666666666,
+      "meta_test_return_sparse_point_robot": 2.9190666666666667,
+      "meta_test_return_point_robot": -12.210166666666666
+    },
+    {
+      "timestamp": "2026-04-01T16:10:43.139965+00:00",
+      "model": "baseline:recurrent_encoder",
+      "is_final": true,
+      "seed": "42",
+      "meta_test_return_cheetah_vel": -213.8105,
+      "meta_test_return_sparse_point_robot": 1.0517,
+      "meta_test_return_point_robot": -12.0281
+    },
+    {
+      "timestamp": "2026-04-01T16:10:43.139965+00:00",
+      "model": "baseline:recurrent_encoder",
+      "is_final": true,
+      "seed": "123",
+      "meta_test_return_cheetah_vel": -139.1245,
+      "meta_test_return_sparse_point_robot": 0.0,
+      "meta_test_return_point_robot": -10.3201
+    },
+    {
+      "timestamp": "2026-04-01T16:10:43.139965+00:00",
+      "model": "baseline:recurrent_encoder",
+      "is_final": true,
+      "seed": "456",
+      "meta_test_return_cheetah_vel": -192.196,
+      "meta_test_return_sparse_point_robot": 2.1276,
+      "meta_test_return_point_robot": -12.1781
+    },
+    {
+      "timestamp": "2026-04-01T16:10:43.139965+00:00",
+      "model": "baseline:recurrent_encoder",
+      "is_final": true,
+      "seed": "mean",
+      "meta_test_return_cheetah_vel": -181.71033333333332,
+      "meta_test_return_sparse_point_robot": 1.0597666666666667,
+      "meta_test_return_point_robot": -11.508766666666666
+    },
+    {
+      "timestamp": "2026-04-01T16:10:43.139965+00:00",
+      "model": "baseline:attention_encoder",
+      "is_final": true,
+      "seed": "42",
+      "meta_test_return_cheetah_vel": -95.017,
+      "meta_test_return_sparse_point_robot": 1.2005,
+      "meta_test_return_point_robot": -10.4356
+    },
+    {
+      "timestamp": "2026-04-01T16:10:43.139965+00:00",
+      "model": "baseline:attention_encoder",
+      "is_final": true,
+      "seed": "123",
+      "meta_test_return_cheetah_vel": -117.2364,
+      "meta_test_return_sparse_point_robot": 3.5159,
+      "meta_test_return_point_robot": -11.3075
+    },
+    {
+      "timestamp": "2026-04-01T16:10:43.139965+00:00",
+      "model": "baseline:attention_encoder",
+      "is_final": true,
+      "seed": "456",
+      "meta_test_return_cheetah_vel": -83.0689,
+      "meta_test_return_sparse_point_robot": 2.4709,
+      "meta_test_return_point_robot": -12.6718
+    },
+    {
+      "timestamp": "2026-04-01T16:10:43.139965+00:00",
+      "model": "baseline:attention_encoder",
+      "is_final": true,
+      "seed": "mean",
+      "meta_test_return_cheetah_vel": -98.44076666666666,
+      "meta_test_return_sparse_point_robot": 2.3957666666666664,
+      "meta_test_return_point_robot": -11.471633333333333
+    }
+  ]
+}

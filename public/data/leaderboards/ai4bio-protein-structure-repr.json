@@ -7,63 +7,44 @@
     "seed",
     "elapsed_EC",
     "elapsed_GO-BP",
-    "elapsed_Fold"
+    "elapsed_Fold",
+    "f1_max_GO-BP",
+    "test_loss_GO-BP",
+    "accuracy_Fold",
+    "test_loss_Fold"
   ],
-  "metric_columns": [],
+  "metric_columns": [
+    "f1_max_GO-BP",
+    "test_loss_GO-BP",
+    "accuracy_Fold",
+    "test_loss_Fold"
+  ],
   "rows": [
     {
-      "timestamp": "2026-03-31T04:58:51.680815+00:00",
-      "model": "baseline:schnet",
-      "is_final": false,
-      "seed": "42",
-      "elapsed_EC": 13.0,
-      "elapsed_GO-BP": 0.0,
-      "elapsed_Fold": 13.0
-    },
-    {
-      "timestamp": "2026-03-31T04:58:51.789227+00:00",
-      "model": "baseline:egnn",
-      "is_final": false,
-      "seed": "42",
-      "elapsed_EC": 14.0,
-      "elapsed_GO-BP": 0.0,
-      "elapsed_Fold": 13.0
-    },
-    {
-      "timestamp": "2026-03-31T04:58:53.065625+00:00",
+      "timestamp": "2026-04-01T09:15:31.210169+00:00",
       "model": "baseline:gearnet",
       "is_final": false,
       "seed": "42",
-      "elapsed_EC": 13.0,
+      "elapsed_EC": 1473.0,
       "elapsed_GO-BP": 0.0,
-      "elapsed_Fold": 13.0
+      "elapsed_Fold": 450.0,
+      "f1_max_GO-BP": 0.004358,
+      "test_loss_GO-BP": 0.160216,
+      "accuracy_Fold": null,
+      "test_loss_Fold": null
     },
     {
-      "timestamp": "2026-03-31T05:26:12.966324+00:00",
+      "timestamp": "2026-04-01T10:03:38.124706+00:00",
       "model": "baseline:egnn",
       "is_final": false,
       "seed": "42",
-      "elapsed_EC": 14.0,
+      "elapsed_EC": 4625.0,
       "elapsed_GO-BP": 0.0,
-      "elapsed_Fold": 14.0
-    },
-    {
-      "timestamp": "2026-03-31T05:26:12.976317+00:00",
-      "model": "baseline:gearnet",
-      "is_final": false,
-      "seed": "42",
-      "elapsed_EC": 14.0,
-      "elapsed_GO-BP": 0.0,
-      "elapsed_Fold": 14.0
-    },
-    {
-      "timestamp": "2026-03-31T05:26:13.056981+00:00",
-      "model": "baseline:schnet",
-      "is_final": false,
-      "seed": "42",
-      "elapsed_EC": 14.0,
-      "elapsed_GO-BP": 0.0,
-      "elapsed_Fold": 14.0
+      "elapsed_Fold": 1199.0,
+      "f1_max_GO-BP": null,
+      "test_loss_GO-BP": null,
+      "accuracy_Fold": 0.179666,
+      "test_loss_Fold": 4.835683
     }
   ]
 }

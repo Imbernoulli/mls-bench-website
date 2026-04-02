@@ -1,0 +1,46 @@
+{
+  "task_id": "robomimic-obs-encoder",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "val_action_mse_lift_ph",
+    "val_action_mse_can_ph",
+    "val_action_mse_square_ph"
+  ],
+  "metric_columns": [
+    "val_action_mse_lift_ph",
+    "val_action_mse_can_ph",
+    "val_action_mse_square_ph"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-04-01T21:25:13.299387+00:00",
+      "model": "baseline:mlp_per_modality",
+      "is_final": true,
+      "seed": "42",
+      "val_action_mse_lift_ph": 0.021805,
+      "val_action_mse_can_ph": 0.034855,
+      "val_action_mse_square_ph": 0.036498
+    },
+    {
+      "timestamp": "2026-04-01T21:27:49.036577+00:00",
+      "model": "baseline:attention_fusion",
+      "is_final": true,
+      "seed": "42",
+      "val_action_mse_lift_ph": 0.019769,
+      "val_action_mse_can_ph": 0.037371,
+      "val_action_mse_square_ph": 0.035382
+    },
+    {
+      "timestamp": "2026-04-01T21:30:26.392451+00:00",
+      "model": "baseline:gated_fusion",
+      "is_final": true,
+      "seed": "42",
+      "val_action_mse_lift_ph": 0.021748,
+      "val_action_mse_can_ph": 0.035061,
+      "val_action_mse_square_ph": 0.038022
+    }
+  ]
+}

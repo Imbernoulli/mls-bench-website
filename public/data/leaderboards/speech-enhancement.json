@@ -8,9 +8,22 @@
     "elapsed_voicebank-demand",
     "elapsed_dns-challenge",
     "elapsed_voicebank-demand_std",
-    "elapsed_dns-challenge_std"
+    "elapsed_dns-challenge_std",
+    "si_snr_voicebank-demand",
+    "pesq_voicebank-demand",
+    "stoi_voicebank-demand",
+    "si_snr_noisy-vctk-56spk",
+    "pesq_noisy-vctk-56spk",
+    "stoi_noisy-vctk-56spk"
   ],
-  "metric_columns": [],
+  "metric_columns": [
+    "si_snr_voicebank-demand",
+    "pesq_voicebank-demand",
+    "stoi_voicebank-demand",
+    "si_snr_noisy-vctk-56spk",
+    "pesq_noisy-vctk-56spk",
+    "stoi_noisy-vctk-56spk"
+  ],
   "rows": [
     {
       "timestamp": "2026-03-30T13:58:39.930207+00:00",
@@ -20,7 +33,13 @@
       "elapsed_voicebank-demand": 0.0,
       "elapsed_dns-challenge": 0.0,
       "elapsed_voicebank-demand_std": null,
-      "elapsed_dns-challenge_std": null
+      "elapsed_dns-challenge_std": null,
+      "si_snr_voicebank-demand": null,
+      "pesq_voicebank-demand": null,
+      "stoi_voicebank-demand": null,
+      "si_snr_noisy-vctk-56spk": null,
+      "pesq_noisy-vctk-56spk": null,
+      "stoi_noisy-vctk-56spk": null
     },
     {
       "timestamp": "2026-03-30T13:58:39.933794+00:00",
@@ -30,7 +49,13 @@
       "elapsed_voicebank-demand": 0.0,
       "elapsed_dns-challenge": 0.0,
       "elapsed_voicebank-demand_std": null,
-      "elapsed_dns-challenge_std": null
+      "elapsed_dns-challenge_std": null,
+      "si_snr_voicebank-demand": null,
+      "pesq_voicebank-demand": null,
+      "stoi_voicebank-demand": null,
+      "si_snr_noisy-vctk-56spk": null,
+      "pesq_noisy-vctk-56spk": null,
+      "stoi_noisy-vctk-56spk": null
     },
     {
       "timestamp": "2026-03-30T13:58:39.934322+00:00",
@@ -40,7 +65,13 @@
       "elapsed_voicebank-demand": 0.0,
       "elapsed_dns-challenge": 0.0,
       "elapsed_voicebank-demand_std": null,
-      "elapsed_dns-challenge_std": null
+      "elapsed_dns-challenge_std": null,
+      "si_snr_voicebank-demand": null,
+      "pesq_voicebank-demand": null,
+      "stoi_voicebank-demand": null,
+      "si_snr_noisy-vctk-56spk": null,
+      "pesq_noisy-vctk-56spk": null,
+      "stoi_noisy-vctk-56spk": null
     },
     {
       "timestamp": "2026-03-30T13:58:39.934569+00:00",
@@ -50,7 +81,13 @@
       "elapsed_voicebank-demand": 0.0,
       "elapsed_dns-challenge": 0.0,
       "elapsed_voicebank-demand_std": 0.0,
-      "elapsed_dns-challenge_std": 0.0
+      "elapsed_dns-challenge_std": 0.0,
+      "si_snr_voicebank-demand": null,
+      "pesq_voicebank-demand": null,
+      "stoi_voicebank-demand": null,
+      "si_snr_noisy-vctk-56spk": null,
+      "pesq_noisy-vctk-56spk": null,
+      "stoi_noisy-vctk-56spk": null
     },
     {
       "timestamp": "2026-03-30T14:06:39.922412+00:00",
@@ -60,7 +97,13 @@
       "elapsed_voicebank-demand": 0.0,
       "elapsed_dns-challenge": 0.0,
       "elapsed_voicebank-demand_std": null,
-      "elapsed_dns-challenge_std": null
+      "elapsed_dns-challenge_std": null,
+      "si_snr_voicebank-demand": null,
+      "pesq_voicebank-demand": null,
+      "stoi_voicebank-demand": null,
+      "si_snr_noisy-vctk-56spk": null,
+      "pesq_noisy-vctk-56spk": null,
+      "stoi_noisy-vctk-56spk": null
     },
     {
       "timestamp": "2026-03-30T14:06:39.924618+00:00",
@@ -70,7 +113,13 @@
       "elapsed_voicebank-demand": 0.0,
       "elapsed_dns-challenge": 0.0,
       "elapsed_voicebank-demand_std": null,
-      "elapsed_dns-challenge_std": null
+      "elapsed_dns-challenge_std": null,
+      "si_snr_voicebank-demand": null,
+      "pesq_voicebank-demand": null,
+      "stoi_voicebank-demand": null,
+      "si_snr_noisy-vctk-56spk": null,
+      "pesq_noisy-vctk-56spk": null,
+      "stoi_noisy-vctk-56spk": null
     },
     {
       "timestamp": "2026-03-30T14:06:39.924858+00:00",
@@ -80,7 +129,13 @@
       "elapsed_voicebank-demand": 0.0,
       "elapsed_dns-challenge": 0.0,
       "elapsed_voicebank-demand_std": null,
-      "elapsed_dns-challenge_std": null
+      "elapsed_dns-challenge_std": null,
+      "si_snr_voicebank-demand": null,
+      "pesq_voicebank-demand": null,
+      "stoi_voicebank-demand": null,
+      "si_snr_noisy-vctk-56spk": null,
+      "pesq_noisy-vctk-56spk": null,
+      "stoi_noisy-vctk-56spk": null
     },
     {
       "timestamp": "2026-03-30T14:06:39.925080+00:00",
@@ -90,7 +145,13 @@
       "elapsed_voicebank-demand": 0.0,
       "elapsed_dns-challenge": 0.0,
       "elapsed_voicebank-demand_std": 0.0,
-      "elapsed_dns-challenge_std": 0.0
+      "elapsed_dns-challenge_std": 0.0,
+      "si_snr_voicebank-demand": null,
+      "pesq_voicebank-demand": null,
+      "stoi_voicebank-demand": null,
+      "si_snr_noisy-vctk-56spk": null,
+      "pesq_noisy-vctk-56spk": null,
+      "stoi_noisy-vctk-56spk": null
     },
     {
       "timestamp": "2026-03-30T14:10:44.826514+00:00",
@@ -100,7 +161,13 @@
       "elapsed_voicebank-demand": 0.0,
       "elapsed_dns-challenge": 0.0,
       "elapsed_voicebank-demand_std": null,
-      "elapsed_dns-challenge_std": null
+      "elapsed_dns-challenge_std": null,
+      "si_snr_voicebank-demand": null,
+      "pesq_voicebank-demand": null,
+      "stoi_voicebank-demand": null,
+      "si_snr_noisy-vctk-56spk": null,
+      "pesq_noisy-vctk-56spk": null,
+      "stoi_noisy-vctk-56spk": null
     },
     {
       "timestamp": "2026-03-30T14:10:44.828083+00:00",
@@ -110,7 +177,13 @@
       "elapsed_voicebank-demand": 0.0,
       "elapsed_dns-challenge": 0.0,
       "elapsed_voicebank-demand_std": null,
-      "elapsed_dns-challenge_std": null
+      "elapsed_dns-challenge_std": null,
+      "si_snr_voicebank-demand": null,
+      "pesq_voicebank-demand": null,
+      "stoi_voicebank-demand": null,
+      "si_snr_noisy-vctk-56spk": null,
+      "pesq_noisy-vctk-56spk": null,
+      "stoi_noisy-vctk-56spk": null
     },
     {
       "timestamp": "2026-03-30T14:10:44.828330+00:00",
@@ -120,7 +193,13 @@
       "elapsed_voicebank-demand": 0.0,
       "elapsed_dns-challenge": 0.0,
       "elapsed_voicebank-demand_std": null,
-      "elapsed_dns-challenge_std": null
+      "elapsed_dns-challenge_std": null,
+      "si_snr_voicebank-demand": null,
+      "pesq_voicebank-demand": null,
+      "stoi_voicebank-demand": null,
+      "si_snr_noisy-vctk-56spk": null,
+      "pesq_noisy-vctk-56spk": null,
+      "stoi_noisy-vctk-56spk": null
     },
     {
       "timestamp": "2026-03-30T14:10:44.828566+00:00",
@@ -130,7 +209,29 @@
       "elapsed_voicebank-demand": 0.0,
       "elapsed_dns-challenge": 0.0,
       "elapsed_voicebank-demand_std": 0.0,
-      "elapsed_dns-challenge_std": 0.0
+      "elapsed_dns-challenge_std": 0.0,
+      "si_snr_voicebank-demand": null,
+      "pesq_voicebank-demand": null,
+      "stoi_voicebank-demand": null,
+      "si_snr_noisy-vctk-56spk": null,
+      "pesq_noisy-vctk-56spk": null,
+      "stoi_noisy-vctk-56spk": null
+    },
+    {
+      "timestamp": "2026-04-01T07:29:11.382821+00:00",
+      "model": "baseline:dccrn",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_voicebank-demand": 0.0,
+      "elapsed_dns-challenge": null,
+      "elapsed_voicebank-demand_std": null,
+      "elapsed_dns-challenge_std": null,
+      "si_snr_voicebank-demand": 18.665,
+      "pesq_voicebank-demand": 2.6142,
+      "stoi_voicebank-demand": 0.9393,
+      "si_snr_noisy-vctk-56spk": 18.6788,
+      "pesq_noisy-vctk-56spk": 2.7104,
+      "stoi_noisy-vctk-56spk": 0.9411
     }
   ]
 }

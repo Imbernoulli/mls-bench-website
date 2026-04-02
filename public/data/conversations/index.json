@@ -1,4 +1,28 @@
 {
+  "llm-offline-rl": [
+    {
+      "model": "deepseek-reasoner",
+      "slug": "deepseek-reasoner",
+      "total_steps": 1
+    }
+  ],
+  "rl-offline-adroit": [
+    {
+      "model": "anthropic/claude-opus-4.6",
+      "slug": "anthropic--claude-opus-4.6",
+      "total_steps": 0
+    },
+    {
+      "model": "google/gemini-3.1-pro-preview",
+      "slug": "google--gemini-3.1-pro-preview",
+      "total_steps": 0
+    },
+    {
+      "model": "gpt-5.4-pro",
+      "slug": "gpt-5.4-pro",
+      "total_steps": 0
+    }
+  ],
   "rl-offline-continuous": [
     {
       "model": "anthropic/claude-opus-4.6",
@@ -65,7 +89,34 @@
       "total_steps": 20
     }
   ],
+  "rl-value-atari": [
+    {
+      "model": "anthropic/claude-opus-4.6",
+      "slug": "anthropic--claude-opus-4.6",
+      "total_steps": 2
+    },
+    {
+      "model": "google/gemini-3.1-pro-preview",
+      "slug": "google--gemini-3.1-pro-preview",
+      "total_steps": 2
+    },
+    {
+      "model": "gpt-5.4-pro",
+      "slug": "gpt-5.4-pro",
+      "total_steps": 0
+    }
+  ],
   "rl-value-discrete": [
+    {
+      "model": "anthropic/claude-opus-4.6",
+      "slug": "anthropic--claude-opus-4.6",
+      "total_steps": 0
+    },
+    {
+      "model": "google/gemini-3.1-pro-preview",
+      "slug": "google--gemini-3.1-pro-preview",
+      "total_steps": 2
+    },
     {
       "model": "gpt-5.4-pro",
       "slug": "gpt-5.4-pro",

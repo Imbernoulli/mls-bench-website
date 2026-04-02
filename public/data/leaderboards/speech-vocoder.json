@@ -6,9 +6,18 @@
     "is_final",
     "seed",
     "elapsed_ljspeech",
-    "elapsed_ljspeech_std"
+    "elapsed_ljspeech_std",
+    "mel_loss_ljspeech",
+    "pesq_ljspeech",
+    "mel_loss_aishell3-5spk",
+    "pesq_aishell3-5spk"
   ],
-  "metric_columns": [],
+  "metric_columns": [
+    "mel_loss_ljspeech",
+    "pesq_ljspeech",
+    "mel_loss_aishell3-5spk",
+    "pesq_aishell3-5spk"
+  ],
   "rows": [
     {
       "timestamp": "2026-03-30T13:51:02.104000+00:00",
@@ -16,7 +25,11 @@
       "is_final": false,
       "seed": "42",
       "elapsed_ljspeech": 1.0,
-      "elapsed_ljspeech_std": null
+      "elapsed_ljspeech_std": null,
+      "mel_loss_ljspeech": null,
+      "pesq_ljspeech": null,
+      "mel_loss_aishell3-5spk": null,
+      "pesq_aishell3-5spk": null
     },
     {
       "timestamp": "2026-03-30T13:51:02.106460+00:00",
@@ -24,7 +37,11 @@
       "is_final": false,
       "seed": "123",
       "elapsed_ljspeech": 1.0,
-      "elapsed_ljspeech_std": null
+      "elapsed_ljspeech_std": null,
+      "mel_loss_ljspeech": null,
+      "pesq_ljspeech": null,
+      "mel_loss_aishell3-5spk": null,
+      "pesq_aishell3-5spk": null
     },
     {
       "timestamp": "2026-03-30T13:51:02.106912+00:00",
@@ -32,7 +49,11 @@
       "is_final": false,
       "seed": "456",
       "elapsed_ljspeech": 1.0,
-      "elapsed_ljspeech_std": null
+      "elapsed_ljspeech_std": null,
+      "mel_loss_ljspeech": null,
+      "pesq_ljspeech": null,
+      "mel_loss_aishell3-5spk": null,
+      "pesq_aishell3-5spk": null
     },
     {
       "timestamp": "2026-03-30T13:51:02.107216+00:00",
@@ -40,7 +61,11 @@
       "is_final": false,
       "seed": "mean",
       "elapsed_ljspeech": 1.0,
-      "elapsed_ljspeech_std": 0.0
+      "elapsed_ljspeech_std": 0.0,
+      "mel_loss_ljspeech": null,
+      "pesq_ljspeech": null,
+      "mel_loss_aishell3-5spk": null,
+      "pesq_aishell3-5spk": null
     },
     {
       "timestamp": "2026-03-30T13:56:05.307414+00:00",
@@ -48,7 +73,11 @@
       "is_final": false,
       "seed": "42",
       "elapsed_ljspeech": 2.0,
-      "elapsed_ljspeech_std": null
+      "elapsed_ljspeech_std": null,
+      "mel_loss_ljspeech": null,
+      "pesq_ljspeech": null,
+      "mel_loss_aishell3-5spk": null,
+      "pesq_aishell3-5spk": null
     },
     {
       "timestamp": "2026-03-30T13:56:05.310179+00:00",
@@ -56,7 +85,11 @@
       "is_final": false,
       "seed": "123",
       "elapsed_ljspeech": 1.0,
-      "elapsed_ljspeech_std": null
+      "elapsed_ljspeech_std": null,
+      "mel_loss_ljspeech": null,
+      "pesq_ljspeech": null,
+      "mel_loss_aishell3-5spk": null,
+      "pesq_aishell3-5spk": null
     },
     {
       "timestamp": "2026-03-30T13:56:05.310432+00:00",
@@ -64,7 +97,11 @@
       "is_final": false,
       "seed": "456",
       "elapsed_ljspeech": 1.0,
-      "elapsed_ljspeech_std": null
+      "elapsed_ljspeech_std": null,
+      "mel_loss_ljspeech": null,
+      "pesq_ljspeech": null,
+      "mel_loss_aishell3-5spk": null,
+      "pesq_aishell3-5spk": null
     },
     {
       "timestamp": "2026-03-30T13:56:05.310708+00:00",
@@ -72,7 +109,11 @@
       "is_final": false,
       "seed": "mean",
       "elapsed_ljspeech": 1.3333333333333333,
-      "elapsed_ljspeech_std": 0.5773502691896257
+      "elapsed_ljspeech_std": 0.5773502691896257,
+      "mel_loss_ljspeech": null,
+      "pesq_ljspeech": null,
+      "mel_loss_aishell3-5spk": null,
+      "pesq_aishell3-5spk": null
     },
     {
       "timestamp": "2026-03-30T13:56:13.374584+00:00",
@@ -80,7 +121,11 @@
       "is_final": false,
       "seed": "42",
       "elapsed_ljspeech": 1.0,
-      "elapsed_ljspeech_std": null
+      "elapsed_ljspeech_std": null,
+      "mel_loss_ljspeech": null,
+      "pesq_ljspeech": null,
+      "mel_loss_aishell3-5spk": null,
+      "pesq_aishell3-5spk": null
     },
     {
       "timestamp": "2026-03-30T13:56:13.377351+00:00",
@@ -88,7 +133,11 @@
       "is_final": false,
       "seed": "123",
       "elapsed_ljspeech": 1.0,
-      "elapsed_ljspeech_std": null
+      "elapsed_ljspeech_std": null,
+      "mel_loss_ljspeech": null,
+      "pesq_ljspeech": null,
+      "mel_loss_aishell3-5spk": null,
+      "pesq_aishell3-5spk": null
     },
     {
       "timestamp": "2026-03-30T13:56:13.377674+00:00",
@@ -96,7 +145,11 @@
       "is_final": false,
       "seed": "456",
       "elapsed_ljspeech": 1.0,
-      "elapsed_ljspeech_std": null
+      "elapsed_ljspeech_std": null,
+      "mel_loss_ljspeech": null,
+      "pesq_ljspeech": null,
+      "mel_loss_aishell3-5spk": null,
+      "pesq_aishell3-5spk": null
     },
     {
       "timestamp": "2026-03-30T13:56:13.377932+00:00",
@@ -104,7 +157,47 @@
       "is_final": false,
       "seed": "mean",
       "elapsed_ljspeech": 1.0,
-      "elapsed_ljspeech_std": 0.0
+      "elapsed_ljspeech_std": 0.0,
+      "mel_loss_ljspeech": null,
+      "pesq_ljspeech": null,
+      "mel_loss_aishell3-5spk": null,
+      "pesq_aishell3-5spk": null
+    },
+    {
+      "timestamp": "2026-04-01T04:26:04.590099+00:00",
+      "model": "baseline:hifigan",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_ljspeech": 5421.0,
+      "elapsed_ljspeech_std": null,
+      "mel_loss_ljspeech": 0.0787,
+      "pesq_ljspeech": 1.8295,
+      "mel_loss_aishell3-5spk": 0.0159,
+      "pesq_aishell3-5spk": 1.5738
+    },
+    {
+      "timestamp": "2026-04-01T04:38:55.100546+00:00",
+      "model": "baseline:univnet",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_ljspeech": 3862.0,
+      "elapsed_ljspeech_std": null,
+      "mel_loss_ljspeech": 0.0815,
+      "pesq_ljspeech": 1.4601,
+      "mel_loss_aishell3-5spk": 0.0185,
+      "pesq_aishell3-5spk": 1.2944
+    },
+    {
+      "timestamp": "2026-04-01T07:41:42.966959+00:00",
+      "model": "baseline:melgan",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_ljspeech": 3614.0,
+      "elapsed_ljspeech_std": null,
+      "mel_loss_ljspeech": 0.0877,
+      "pesq_ljspeech": 1.3405,
+      "mel_loss_aishell3-5spk": 0.0198,
+      "pesq_aishell3-5spk": 1.291
     }
   ]
 }

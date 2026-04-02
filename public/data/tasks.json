@@ -98,8 +98,8 @@
         "filename": "chimera-bench/custom_cdr.py",
         "edit_ranges": [
           {
-            "start": 223,
-            "end": 515
+            "start": 225,
+            "end": 519
           }
         ]
       },
@@ -403,8 +403,8 @@
     "description_md": "# Task: Molecular Property Prediction\n\n## Research Question\nDesign a molecular representation model for predicting chemical properties (toxicity, solubility, lipophilicity, etc.) from molecular structure. The goal is to learn effective molecular representations that generalize across diverse property prediction tasks.\n\n## Background\nMolecular property prediction is a core task in drug discovery and materials science. Given a molecule (as a SMILES string → molecular graph + optional 3D coordinates), the model must predict one or more chemical properties. Key challenges include:\n- **Molecular representation**: How to encode atoms, bonds, and 3D geometry into informative features.\n- **Multi-task learning**: Some datasets have multiple targets with missing labels (e.g., Tox21 has 12 assays).\n- **Scaffold generalization**: The scaffold split ensures the model generalizes to structurally novel molecules.\n\nExisting approaches include:\n- **D-MPNN**: Directed message passing on bonds (not atoms) to avoid \"message collision.\"\n- **AttentiveFP**: Graph attention with GRU readout and learned molecular fingerprints.\n- **Uni-Mol**: SE(3)-invariant Transformer with 3D distance attention bias, using pre-trained weights.\n\n## What to Implement\nImplement the `MoleculeModel` class in `custom_molprop.py`. You must implement:\n1. `__init__(self, atom_dim, edge_dim, num_tasks, task_type)`: Set up your model architecture.\n2. `forward(self, batch) -> Tensor`: Return predictions of shape `[B, num_tasks]`.\n\nThe starter code provides a simple GIN (Graph Isomorphism Network) with mean pooling.\n\n## Batch Format (MolBatch)\n```python\n@dataclass\nclass MolBatch:\n    # Sparse graph format (for GNN models)\n    x: Tensor              # [total_atoms, atom_dim] node features\n    edge_index: Tensor     # [2, total_edges] COO format\n    edge_attr: Tensor      # [total_edges, edge_dim] bond features\n    batch_idx: Tensor      # [total_atoms] graph assignment (0..B-1)\n\n    # Dense format (for Transformer models)\n    atom_features: Tensor  # [B, max_atoms, atom_dim] zero-padded\n    positions: Tensor      # [B, max_atoms, 3] 3D coordinates (RDKit ETKDG+MMFF)\n    dist_matrix: Tensor    # [B, max_atoms, max_atoms] pairwise distances\n    mask: Tensor           # [B, max_atoms] 1=real atom, 0=padding\n\n    # Targets\n    targets: Tensor        # [B, num_tasks]\n    target_mask: Tensor    # [B, num_tasks] 1=valid label, 0=missing\n```\n\n## Atom Features (ATOM_DIM = 136)\nOne-hot encodings of: atomic_num (118), degree (6), formal_charge (5), num_Hs (5), hybridization (5), aromatic (1), in_ring (1).\n\n## Bond Features (EDGE_DIM = 9)\nOne-hot encodings of: bond_type (4), stereo (3), conjugated (1), in_ring (1).\n\n## Evaluation\nThe model is tested on 6 MoleculeNet benchmarks with scaffold split:\n\n### Classification (metric: ROC-AUC, higher is better):\n- **BBBP**: Blood-brain barrier penetration (2,039 molecules, 1 task)\n- **BACE**: Beta-secretase 1 inhibition (1,513 molecules, 1 task)\n- **Tox21**: Toxicity across 12 assays (7,831 molecules, 12 tasks, multi-task with missing labels)\n\n### Regression (metric: RMSE, lower is better):\n- **ESOL**: Aqueous solubility (1,128 molecules, 1 task)\n- **FreeSolv**: Hydration free energy (642 molecules, 1 task)\n- **Lipophilicity**: Octanol/water partition coefficient (4,200 molecules, 1 task)\n\n## Editable Region\nLines 107-197 of `custom_molprop.py` are editable (between `EDITABLE SECTION START` and `EDITABLE SECTION END` markers). You may define helper classes, layers, or functions within this region. The region must contain a `MoleculeModel` class with the specified interface.\n\n## Available Resources\n- 3D conformers pre-computed via RDKit ETKDG+MMFF (available in `batch.positions` and `batch.dist_matrix`)\n- Uni-Mol pre-trained weights at `/data/unimol_weights/mol_pre_all_h_220816.pt`\n",
     "baselines": [
       "dmpnn",
-      "attentivefp",
-      "unimol"
+      "unimol",
+      "gin"
     ],
     "environments": [
       "BBBP",
@@ -1096,13 +1096,11 @@
     "id": "cv-classification-loss",
     "category": "cv",
     "category_label": "Computer Vision",
-    "description_md": "# CV Classification Loss Function Design\n\n## Research Question\nDesign a novel classification loss function for deep convolutional neural networks that improves test accuracy across different architectures and datasets.\n\n## Background\nThe cross-entropy loss is the standard training objective for classification networks, but it has known limitations: it treats all misclassifications equally, assigns high confidence to correct predictions without margin, and does not adapt to training dynamics. Researchers have proposed alternatives:\n\n- **Label Smoothing** (Szegedy et al., 2016): Softens hard targets to prevent overconfidence, CE with targets = (1-eps)*one_hot + eps/C\n- **Focal Loss** (Lin et al., ICCV 2017): Down-weights easy examples via (1-pt)^gamma modulation\n- **PolyLoss** (Leng et al., ICLR 2022): Extends CE with polynomial correction terms, CE + eps*(1-pt)\n\nHowever, these methods are either static or address only specific failure modes. There is room to design loss functions that combine multiple insights: confidence calibration, curriculum-style epoch adaptation, class-count awareness, or learned temperature scaling.\n\n## What You Can Modify\nThe `compute_loss(logits, targets, config)` function (lines 165-185) in `custom_loss.py`. This function receives raw logits, integer targets, and a config dict, and must return a differentiable scalar loss.\n\nYou can modify:\n- The loss formulation (cross-entropy variants, margin losses, etc.)\n- Confidence-based reweighting schemes\n- Epoch-dependent curriculum strategies using `config['epoch']` and `config['total_epochs']`\n- Class-count-dependent behavior using `config['num_classes']`\n- Temperature or logit scaling\n- Auxiliary regularization terms (entropy, logit penalties, etc.)\n\nThe `config` dict provides: `num_classes` (int), `epoch` (int, 0-indexed), `total_epochs` (int).\n\n**Important**: The evaluation loss (for test_loss reporting) always uses standard cross-entropy. Your loss function only affects training.\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better)\n- **Architectures & datasets**:\n  - ResNet-20 on CIFAR-10 (shallow residual, 10 classes)\n  - ResNet-56 on CIFAR-100 (deeper residual, 100 classes)\n  - VGG-16-BN on CIFAR-100 (deep non-residual with BatchNorm, 100 classes)\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n\n## Hints\n- Label smoothing prevents overconfident predictions but uses a fixed smoothing rate — adaptive smoothing based on training progress could be better\n- Focal loss focuses on hard examples, but the optimal gamma may differ between early and late training\n- Combining multiple loss modifications (smoothing + reweighting + regularization) may yield synergistic benefits\n- The loss can be epoch-aware: warm up with standard CE, then transition to a more aggressive loss\n- Temperature scaling of logits before softmax can improve calibration and generalization\n- Logit penalty terms (e.g., penalizing large logit norms) can act as implicit regularization\n- Consider that CIFAR-10 (10 classes) and CIFAR-100 (100 classes) may benefit from different loss behaviors — use `config['num_classes']` to adapt\n",
+    "description_md": "# CV Classification Loss Function Design\n\n## Research Question\nDesign a novel classification loss function for deep convolutional neural networks that improves test accuracy across different architectures and datasets.\n\n## Background\nThe cross-entropy loss is the standard training objective for classification networks, but it has known limitations: it treats all misclassifications equally, assigns high confidence to correct predictions without margin, and does not adapt to training dynamics. Researchers have proposed alternatives:\n\n- **Label Smoothing** (Szegedy et al., 2016): Softens hard targets to prevent overconfidence, CE with targets = (1-eps)*one_hot + eps/C\n- **Focal Loss** (Lin et al., ICCV 2017): Down-weights easy examples via (1-pt)^gamma modulation\n- **PolyLoss** (Leng et al., ICLR 2022): Extends CE with polynomial correction terms, CE + eps*(1-pt)\n\nHowever, these methods are either static or address only specific failure modes. There is room to design loss functions that combine multiple insights: confidence calibration, curriculum-style epoch adaptation, class-count awareness, or learned temperature scaling.\n\n## What You Can Modify\nThe `compute_loss(logits, targets, config)` function (lines 165-185) in `custom_loss.py`. This function receives raw logits, integer targets, and a config dict, and must return a differentiable scalar loss.\n\nYou can modify:\n- The loss formulation (cross-entropy variants, margin losses, etc.)\n- Confidence-based reweighting schemes\n- Epoch-dependent curriculum strategies using `config['epoch']` and `config['total_epochs']`\n- Class-count-dependent behavior using `config['num_classes']`\n- Temperature or logit scaling\n- Auxiliary regularization terms (entropy, logit penalties, etc.)\n\nThe `config` dict provides: `num_classes` (int), `epoch` (int, 0-indexed), `total_epochs` (int).\n\n**Important**: The evaluation loss (for test_loss reporting) always uses standard cross-entropy. Your loss function only affects training.\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better)\n- **Architectures & datasets**:\n  - ResNet-56 on CIFAR-100 (deep residual, 100 classes)\n  - VGG-16-BN on CIFAR-100 (deep non-residual with BatchNorm, 100 classes)\n  - MobileNetV2 on FashionMNIST (lightweight inverted-residual, 10 classes) — *hidden, evaluated on final submission only*\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n\n## Hints\n- Label smoothing prevents overconfident predictions but uses a fixed smoothing rate — adaptive smoothing based on training progress could be better\n- Focal loss focuses on hard examples, but the optimal gamma may differ between early and late training\n- Combining multiple loss modifications (smoothing + reweighting + regularization) may yield synergistic benefits\n- The loss can be epoch-aware: warm up with standard CE, then transition to a more aggressive loss\n- Temperature scaling of logits before softmax can improve calibration and generalization\n- Logit penalty terms (e.g., penalizing large logit norms) can act as implicit regularization\n- Consider that CIFAR-10 (10 classes) and CIFAR-100 (100 classes) may benefit from different loss behaviors — use `config['num_classes']` to adapt\n",
     "baselines": [
       "label_smoothing",
       "focal_loss",
-      "poly_loss",
-      "logit_adjusted",
-      "symmetric_ce"
+      "poly_loss"
     ],
     "environments": [
       "resnet56-cifar100",
@@ -1131,13 +1129,11 @@
     "id": "cv-data-augmentation",
     "category": "cv",
     "category_label": "Computer Vision",
-    "description_md": "# CV Data Augmentation Strategy Design\n\n## Research Question\nDesign a novel data augmentation strategy for image classification that improves test accuracy across different architectures and datasets.\n\n## Background\nData augmentation is a key regularization technique for training deep neural networks on limited data. By applying transformations to training images, augmentation increases effective dataset diversity and reduces overfitting. Classic and modern methods include:\n\n- **Standard** (baseline): RandomCrop with padding + RandomHorizontalFlip — the minimal CIFAR augmentation\n- **Cutout** (DeVries & Taylor, 2017): Randomly masks square regions, forcing the network to use broader spatial context\n- **RandAugment** (Cubuk et al., 2020): Applies N randomly selected operations at uniform magnitude M, avoiding expensive search\n- **TrivialAugmentWide** (Mueller & Hutter, 2021): Single random operation with random magnitude per image, zero hyperparameters\n\nHowever, these methods do not consider dataset-specific properties, the interaction between augmentation and model capacity, or combinations of geometric, photometric, and erasing transforms. There is room to design augmentation strategies that are more effective or efficient.\n\n## What You Can Modify\nThe `build_train_transform(config)` function (lines 165-194) in `custom_augment.py`. This function receives a config dict and must return a `transforms.Compose` pipeline that includes `ToTensor()` and `Normalize()`.\n\nYou can modify:\n- Which geometric transforms to apply (crop, flip, rotation, affine, perspective)\n- Which photometric transforms to apply (color jitter, equalize, posterize, solarize)\n- Erasing/masking strategies (cutout, random erasing)\n- Automated augmentation policies (AutoAugment, RandAugment, TrivialAugment)\n- Custom transform classes (defined inside the function)\n- The ordering and composition of transforms\n- Any transform that operates on PIL images (before ToTensor) or tensors (after ToTensor)\n\nThe `config` dict provides: `img_size` (32), `mean` (tuple), `std` (tuple), `dataset` ('cifar10' or 'cifar100'). You may use dataset-specific augmentation if desired.\n\n**Important**: The pipeline MUST include `transforms.ToTensor()` and `transforms.Normalize(config['mean'], config['std'])` to produce properly normalized tensors for the model.\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better)\n- **Architectures & datasets**:\n  - ResNet-20 on CIFAR-10 (shallow residual, 10 classes)\n  - ResNet-56 on CIFAR-100 (deeper residual, 100 classes)\n  - VGG-16-BN on CIFAR-100 (deep non-residual with BatchNorm, 100 classes)\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Weight init**: Standard Kaiming normal (fixed)\n\n## Hints\n- Combining geometric and erasing transforms often works better than either alone\n- Stronger augmentation helps more on harder tasks (CIFAR-100 > CIFAR-10)\n- Too aggressive augmentation can hurt small models (ResNet-20) while helping larger ones\n- The order of PIL transforms vs tensor transforms matters — some operate on PIL images, others on tensors\n- Consider dataset-dependent augmentation strength using `config['dataset']`\n- Random erasing (torchvision.transforms.RandomErasing) is a built-in alternative to Cutout\n- Color jitter and grayscale conversion can improve robustness to color-based shortcuts\n- Mixing strategies like CutMix/MixUp require changes to the training loop and are NOT possible here — focus on per-image transforms\n",
+    "description_md": "# CV Data Augmentation Strategy Design\n\n## Research Question\nDesign a novel data augmentation strategy for image classification that improves test accuracy across different architectures and datasets.\n\n## Background\nData augmentation is a key regularization technique for training deep neural networks on limited data. By applying transformations to training images, augmentation increases effective dataset diversity and reduces overfitting. Classic and modern methods include:\n\n- **Standard** (baseline): RandomCrop with padding + RandomHorizontalFlip — the minimal CIFAR augmentation\n- **Cutout** (DeVries & Taylor, 2017): Randomly masks square regions, forcing the network to use broader spatial context\n- **RandAugment** (Cubuk et al., 2020): Applies N randomly selected operations at uniform magnitude M, avoiding expensive search\n- **TrivialAugmentWide** (Mueller & Hutter, 2021): Single random operation with random magnitude per image, zero hyperparameters\n\nHowever, these methods do not consider dataset-specific properties, the interaction between augmentation and model capacity, or combinations of geometric, photometric, and erasing transforms. There is room to design augmentation strategies that are more effective or efficient.\n\n## What You Can Modify\nThe `build_train_transform(config)` function (lines 165-194) in `custom_augment.py`. This function receives a config dict and must return a `transforms.Compose` pipeline that includes `ToTensor()` and `Normalize()`.\n\nYou can modify:\n- Which geometric transforms to apply (crop, flip, rotation, affine, perspective)\n- Which photometric transforms to apply (color jitter, equalize, posterize, solarize)\n- Erasing/masking strategies (cutout, random erasing)\n- Automated augmentation policies (AutoAugment, RandAugment, TrivialAugment)\n- Custom transform classes (defined inside the function)\n- The ordering and composition of transforms\n- Any transform that operates on PIL images (before ToTensor) or tensors (after ToTensor)\n\nThe `config` dict provides: `img_size` (32), `mean` (tuple), `std` (tuple), `dataset` ('cifar10' or 'cifar100'). You may use dataset-specific augmentation if desired.\n\n**Important**: The pipeline MUST include `transforms.ToTensor()` and `transforms.Normalize(config['mean'], config['std'])` to produce properly normalized tensors for the model.\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better)\n- **Architectures & datasets**:\n  - ResNet-20 on CIFAR-10 (shallow residual, 10 classes)\n  - ResNet-56 on CIFAR-100 (deeper residual, 100 classes)\n  - MobileNetV2 on FashionMNIST (lightweight inverted-residual, 10 classes) — *hidden, evaluated on final submission only*\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Weight init**: Standard Kaiming normal (fixed)\n\n## Hints\n- Combining geometric and erasing transforms often works better than either alone\n- Stronger augmentation helps more on harder tasks (CIFAR-100 > CIFAR-10)\n- Too aggressive augmentation can hurt small models (ResNet-20) while helping larger ones\n- The order of PIL transforms vs tensor transforms matters — some operate on PIL images, others on tensors\n- Consider dataset-dependent augmentation strength using `config['dataset']`\n- Random erasing (torchvision.transforms.RandomErasing) is a built-in alternative to Cutout\n- Color jitter and grayscale conversion can improve robustness to color-based shortcuts\n- Mixing strategies like CutMix/MixUp require changes to the training loop and are NOT possible here — focus on per-image transforms\n",
     "baselines": [
       "cutout",
       "randaugment",
-      "trivialaugment",
-      "random_erasing",
-      "augmix"
+      "trivialaugment"
     ],
     "environments": [
       "resnet20-cifar10",
@@ -1512,13 +1508,11 @@
     "id": "cv-multitask-loss",
     "category": "cv",
     "category_label": "Computer Vision",
-    "description_md": "# CV Multi-Task Loss Combination Strategy Design\n\n## Research Question\nDesign a novel multi-task loss combination strategy for jointly training fine-grained (100-class) and coarse (20-superclass) classification on CIFAR-100 that maximizes fine-class test accuracy.\n\n## Background\nCIFAR-100 contains 100 fine classes organized into 20 coarse superclasses. Training a model with two classification heads (fine + coarse) provides a natural multi-task learning setup where the coarse task acts as an auxiliary signal. The key challenge is how to combine the two losses effectively.\n\nClassic approaches include:\n- **Equal weighting**: Simply sum the losses (baseline default)\n- **Uncertainty weighting** (Kendall et al., 2018): Learn task-specific uncertainty as log-variance parameters\n- **Dynamic Weight Average** (Liu et al., 2019): Weight tasks by their relative loss change rate\n- **PCGrad** (Yu et al., NeurIPS 2020): Project conflicting task gradients onto each other's normal plane to reduce gradient interference\n\nThe coarse labels encode semantic hierarchy — knowing that \"maple tree\" and \"oak tree\" are both \"trees\" provides structural information that can improve fine-grained recognition. The challenge is balancing the auxiliary coarse signal against the primary fine-class objective across different architectures and training stages.\n\n## What You Can Modify\nThe `MultiTaskLoss` class (lines 195-216) in `custom_mtl.py`. This class receives individual task losses and must combine them into a single scalar loss.\n\nYou can modify:\n- The `__init__` method: add learnable parameters (log-variances, weights, etc.)\n- The `forward` method: implement any combination strategy\n- Use `epoch` and `total_epochs` for curriculum/scheduling approaches\n- Add any auxiliary state (e.g., loss history buffers)\n\nThe `forward` method receives:\n- `fine_loss`: scalar tensor, cross-entropy for 100-class fine prediction\n- `coarse_loss`: scalar tensor, cross-entropy for 20-class coarse prediction\n- `epoch`: int, current epoch (0-indexed)\n- `total_epochs`: int, total number of training epochs\n\nNote: The `MultiTaskLoss` parameters are included in the optimizer, so learnable parameters will be trained.\n\n## Evaluation\n- **Metric**: Best fine-class test accuracy (%, higher is better)\n- **Architectures** (all on CIFAR-100 with fine+coarse heads):\n  - ResNet-20 (shallow residual network)\n  - ResNet-56 (deeper residual network)\n  - VGG-16-BN (deep non-residual with BatchNorm)\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n\n## Hints\n- The coarse task is easier — it converges faster and has lower loss, so equal weighting may over-emphasize it later in training\n- Learnable task weights can adapt during training but need regularization to avoid degenerate solutions\n- The loss magnitudes differ (100-class CE is typically larger than 20-class CE), so raw loss ratios may be informative\n- Curriculum approaches that emphasize coarse structure early and fine-grained discrimination late align with how representations develop\n- Consider gradient-based approaches: the coarse and fine gradients may conflict on shared representations — methods like PCGrad resolve this by projecting away conflicting components\n- Temperature parameters in softmax-based weighting control how aggressively to rebalance\n- The strategy should work across architectures — avoid architecture-specific tuning\n",
+    "description_md": "# CV Multi-Task Loss Combination Strategy Design\n\n## Research Question\nDesign a novel multi-task loss combination strategy for jointly training fine-grained (100-class) and coarse (20-superclass) classification on CIFAR-100 that maximizes fine-class test accuracy.\n\n## Background\nCIFAR-100 contains 100 fine classes organized into 20 coarse superclasses. Training a model with two classification heads (fine + coarse) provides a natural multi-task learning setup where the coarse task acts as an auxiliary signal. The key challenge is how to combine the two losses effectively.\n\nClassic approaches include:\n- **Equal weighting**: Simply sum the losses (baseline default)\n- **Uncertainty weighting** (Kendall et al., 2018): Learn task-specific uncertainty as log-variance parameters\n- **Dynamic Weight Average** (Liu et al., 2019): Weight tasks by their relative loss change rate\n- **PCGrad** (Yu et al., NeurIPS 2020): Project conflicting task gradients onto each other's normal plane to reduce gradient interference\n\nThe coarse labels encode semantic hierarchy — knowing that \"maple tree\" and \"oak tree\" are both \"trees\" provides structural information that can improve fine-grained recognition. The challenge is balancing the auxiliary coarse signal against the primary fine-class objective across different architectures and training stages.\n\n## What You Can Modify\nThe `MultiTaskLoss` class (lines 195-216) in `custom_mtl.py`. This class receives individual task losses and must combine them into a single scalar loss.\n\nYou can modify:\n- The `__init__` method: add learnable parameters (log-variances, weights, etc.)\n- The `forward` method: implement any combination strategy\n- Use `epoch` and `total_epochs` for curriculum/scheduling approaches\n- Add any auxiliary state (e.g., loss history buffers)\n\nThe `forward` method receives:\n- `fine_loss`: scalar tensor, cross-entropy for 100-class fine prediction\n- `coarse_loss`: scalar tensor, cross-entropy for 20-class coarse prediction\n- `epoch`: int, current epoch (0-indexed)\n- `total_epochs`: int, total number of training epochs\n\nNote: The `MultiTaskLoss` parameters are included in the optimizer, so learnable parameters will be trained.\n\n## Evaluation\n- **Metric**: Best fine-class test accuracy (%, higher is better)\n- **Architectures** (all on CIFAR-100 with fine+coarse heads):\n  - ResNet-20 (shallow residual network)\n  - ResNet-56 (deeper residual network)\n  - VGG-16-BN (deep non-residual with BatchNorm) — *hidden, evaluated on final submission only*\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n\n## Hints\n- The coarse task is easier — it converges faster and has lower loss, so equal weighting may over-emphasize it later in training\n- Learnable task weights can adapt during training but need regularization to avoid degenerate solutions\n- The loss magnitudes differ (100-class CE is typically larger than 20-class CE), so raw loss ratios may be informative\n- Curriculum approaches that emphasize coarse structure early and fine-grained discrimination late align with how representations develop\n- Consider gradient-based approaches: the coarse and fine gradients may conflict on shared representations — methods like PCGrad resolve this by projecting away conflicting components\n- Temperature parameters in softmax-based weighting control how aggressively to rebalance\n- The strategy should work across architectures — avoid architecture-specific tuning\n",
     "baselines": [
       "uncertainty",
       "dwa",
-      "pcgrad",
-      "gradnorm",
-      "random_loss_weight"
+      "pcgrad"
     ],
     "environments": [
       "resnet20-cifar100mt",
@@ -1547,13 +1541,11 @@
     "id": "cv-pooling-aggregation",
     "category": "cv",
     "category_label": "Computer Vision",
-    "description_md": "# CV Global Pooling / Feature Aggregation Design\n\n## Research Question\nDesign a novel global pooling or feature aggregation strategy for image classification that improves test accuracy across different CNN architectures and datasets.\n\n## Background\nGlobal pooling is the final spatial aggregation step in modern CNNs, reducing feature maps from [B, C, H, W] to [B, C] before the classifier head. The standard approach is Global Average Pooling (GAP), which computes the spatial mean per channel. While simple and effective, GAP discards spatial structure and treats all positions equally. Alternative strategies include:\n\n- **Global Max Pooling (GMP)**: Selects the strongest activation per channel, capturing the most salient features but ignoring distribution information.\n- **Generalized Mean (GeM) Pooling** (Radenovic et al., 2018): Learnable power-mean that interpolates between average and max pooling.\n- **Average + Max**: Element-wise combination of GAP and GMP, capturing both mean-field and peak statistics.\n\nThere is room to design pooling strategies that better capture the spatial statistics of feature maps, adapt to different architectures, or learn task-specific aggregation patterns.\n\n## What You Can Modify\nThe `CustomPool` class (lines 31-48) in `custom_pool.py`. This class receives a 4D tensor [B, C, H, W] and must return a 2D tensor [B, C].\n\nYou can modify:\n- The aggregation function (mean, max, learned weights, attention, higher-order statistics)\n- Whether to use learnable parameters\n- How spatial information is summarized (single-point, multi-scale, distribution-based)\n- Channel-wise or spatial-wise weighting mechanisms\n- Any combination of the above\n\nConstraints:\n- Input: [B, C, H, W] tensor (C varies by architecture: 64 for ResNet, 512 for VGG)\n- Output: [B, C] tensor (must match input channel dimension exactly)\n- Must work with variable spatial sizes (8x8 for ResNet on CIFAR, 1x1 for VGG on CIFAR)\n- No access to training data or labels within the pooling layer\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better)\n- **Architectures & datasets**:\n  - ResNet-20 on CIFAR-10 (shallow residual, 10 classes)\n  - ResNet-56 on CIFAR-100 (deeper residual, 100 classes)\n  - VGG-16-BN on CIFAR-100 (deep non-residual with BatchNorm, 100 classes)\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n\n## Hints\n- GAP and GMP capture different statistics; combining them or learning the mixture ratio may help\n- Spatial attention mechanisms (e.g., channel-wise squeeze-and-excitation before pooling) can focus on informative regions\n- Second-order statistics (covariance pooling) have shown benefits in fine-grained recognition\n- For ResNet on CIFAR, the final feature map is 8x8 (64 spatial positions); for VGG it is 1x1 after all max-pools, so the pooling layer should gracefully handle both cases\n- Learnable pooling parameters add capacity but must be regularized to avoid overfitting\n- Consider the interaction between pooling and the downstream linear classifier\n",
+    "description_md": "# CV Global Pooling / Feature Aggregation Design\n\n## Research Question\nDesign a novel global pooling or feature aggregation strategy for image classification that improves test accuracy across different CNN architectures and datasets.\n\n## Background\nGlobal pooling is the final spatial aggregation step in modern CNNs, reducing feature maps from [B, C, H, W] to [B, C] before the classifier head. The standard approach is Global Average Pooling (GAP), which computes the spatial mean per channel. While simple and effective, GAP discards spatial structure and treats all positions equally. Alternative strategies include:\n\n- **Global Max Pooling (GMP)**: Selects the strongest activation per channel, capturing the most salient features but ignoring distribution information.\n- **Generalized Mean (GeM) Pooling** (Radenovic et al., 2018): Learnable power-mean that interpolates between average and max pooling.\n- **Average + Max**: Element-wise combination of GAP and GMP, capturing both mean-field and peak statistics.\n\nThere is room to design pooling strategies that better capture the spatial statistics of feature maps, adapt to different architectures, or learn task-specific aggregation patterns.\n\n## What You Can Modify\nThe `CustomPool` class (lines 31-48) in `custom_pool.py`. This class receives a 4D tensor [B, C, H, W] and must return a 2D tensor [B, C].\n\nYou can modify:\n- The aggregation function (mean, max, learned weights, attention, higher-order statistics)\n- Whether to use learnable parameters\n- How spatial information is summarized (single-point, multi-scale, distribution-based)\n- Channel-wise or spatial-wise weighting mechanisms\n- Any combination of the above\n\nConstraints:\n- Input: [B, C, H, W] tensor (C varies by architecture: 64 for ResNet-56, 512 for VGG-16-BN, 1280 for MobileNetV2)\n- Output: [B, C] tensor (must match input channel dimension exactly)\n- Must work with variable spatial sizes (8×8 for ResNet on CIFAR, 1×1 for VGG after max-pools, 1×1 for MobileNetV2)\n- No access to training data or labels within the pooling layer\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better)\n- **Architectures & datasets**:\n  - ResNet-56 on CIFAR-100 (deep residual, 100 classes; final feature map 8×8, C=64)\n  - VGG-16-BN on CIFAR-100 (deep non-residual with BatchNorm, 100 classes; final feature map 1×1 after max-pools, C=512)\n  - MobileNetV2 on FashionMNIST (lightweight inverted-residual, 10 classes) — *hidden, evaluated on final submission only*\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n\n## Hints\n- GAP and GMP capture different statistics; combining them or learning the mixture ratio may help\n- Spatial attention mechanisms (e.g., channel-wise squeeze-and-excitation before pooling) can focus on informative regions\n- Second-order statistics (covariance pooling) have shown benefits in fine-grained recognition\n- For ResNet on CIFAR, the final feature map is 8x8 (64 spatial positions); for VGG it is 1x1 after all max-pools, so the pooling layer should gracefully handle both cases\n- Learnable pooling parameters add capacity but must be regularized to avoid overfitting\n- Consider the interaction between pooling and the downstream linear classifier\n",
     "baselines": [
       "global_max",
       "gem",
-      "avg_max",
-      "softpool",
-      "attention_pool"
+      "avg_max"
     ],
     "environments": [
       "resnet56-cifar100",
@@ -1582,12 +1574,10 @@
     "id": "cv-sample-weighting",
     "category": "cv",
     "category_label": "Computer Vision",
-    "description_md": "# CV Sample Reweighting Strategy Design\n\n## Research Question\nDesign a novel sample reweighting strategy for class-imbalanced image classification that improves test accuracy on long-tail distributed datasets across different architectures and imbalance ratios.\n\n## Background\nReal-world datasets often exhibit long-tail class distributions where a few head classes dominate while many tail classes have very few samples. Standard training with uniform loss weighting biases the model toward frequent classes, degrading performance on rare ones. Sample reweighting assigns per-class weights to the cross-entropy loss to counteract this imbalance. Classic approaches include:\n\n- **Inverse frequency**: weight[c] = total / (C * count[c]) — directly compensates for imbalance\n- **Effective number** (Cui et al., CVPR 2019): models data overlap using E_n = (1 - beta^n) / (1 - beta)\n- **Square-root inverse**: weight[c] = 1/sqrt(count[c]) — a gentler smoothed variant\n\nHowever, these methods are hand-designed heuristics. There is room to design strategies that consider the imbalance ratio, number of classes, or other dataset properties to better balance learning across head and tail classes.\n\n## What You Can Modify\nThe `compute_class_weights(class_counts, num_classes, config)` function (lines 164-195) in `custom_weighting.py`. This function receives per-class sample counts and must return a weight tensor for `nn.CrossEntropyLoss(weight=...)`.\n\nYou can modify:\n- The functional form mapping class counts to weights (inverse, power-law, logarithmic, piecewise, etc.)\n- Use of the `config` dict: `imbalance_ratio`, `dataset`, `arch`, `total_samples`\n- Normalization strategy (sum to C, sum to 1, unnormalized, etc.)\n- Any pure-computation logic (no access to training data or model parameters)\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better) on the balanced test set\n- **Benchmarks** (all long-tail imbalanced):\n  - ResNet-32 on CIFAR-10-LT (imbalance ratio = 100, 10 classes)\n  - ResNet-32 on CIFAR-100-LT (imbalance ratio = 100, 100 classes)\n  - VGG-16-BN on CIFAR-100-LT (imbalance ratio = 50, 100 classes)\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n\n## Hints\n- Pure inverse frequency can overfit to rare classes; smoothing helps (sqrt, log, power-law with tunable exponent)\n- The effective number approach models diminishing marginal value of additional samples — consider other functional forms with the same intuition\n- Different imbalance ratios and class counts may benefit from different weight scaling — the config provides both\n- Normalizing weights to sum to num_classes keeps the loss scale consistent across strategies\n- Consider the interaction between weight magnitude and learning rate — very large weights on rare classes can cause training instability\n- Focal-loss-inspired approaches reweight based on prediction confidence, but here we only have access to class counts (static reweighting)\n",
+    "description_md": "# CV Sample Reweighting Strategy Design\n\n## Research Question\nDesign a novel sample reweighting strategy for class-imbalanced image classification that improves test accuracy on long-tail distributed datasets across different architectures and imbalance ratios.\n\n## Background\nReal-world datasets often exhibit long-tail class distributions where a few head classes dominate while many tail classes have very few samples. Standard training with uniform loss weighting biases the model toward frequent classes, degrading performance on rare ones. Sample reweighting assigns per-class weights to the cross-entropy loss to counteract this imbalance. Classic approaches include:\n\n- **Inverse frequency**: weight[c] = total / (C * count[c]) — directly compensates for imbalance\n- **Effective number** (Cui et al., CVPR 2019): models data overlap using E_n = (1 - beta^n) / (1 - beta)\n- **Square-root inverse**: weight[c] = 1/sqrt(count[c]) — a gentler smoothed variant\n\nHowever, these methods are hand-designed heuristics. There is room to design strategies that consider the imbalance ratio, number of classes, or other dataset properties to better balance learning across head and tail classes.\n\n## What You Can Modify\nThe `compute_class_weights(class_counts, num_classes, config)` function (lines 164-195) in `custom_weighting.py`. This function receives per-class sample counts and must return a weight tensor for `nn.CrossEntropyLoss(weight=...)`.\n\nYou can modify:\n- The functional form mapping class counts to weights (inverse, power-law, logarithmic, piecewise, etc.)\n- Use of the `config` dict: `imbalance_ratio`, `dataset`, `arch`, `total_samples`\n- Normalization strategy (sum to C, sum to 1, unnormalized, etc.)\n- Any pure-computation logic (no access to training data or model parameters)\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better) on the balanced test set\n- **Benchmarks** (all long-tail imbalanced):\n  - ResNet-32 on CIFAR-10-LT (imbalance ratio = 100, 10 classes)\n  - ResNet-32 on CIFAR-100-LT (imbalance ratio = 100, 100 classes)\n  - VGG-16-BN on CIFAR-100-LT (imbalance ratio = 50, 100 classes) — *hidden, evaluated on final submission only*\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n\n## Hints\n- Pure inverse frequency can overfit to rare classes; smoothing helps (sqrt, log, power-law with tunable exponent)\n- The effective number approach models diminishing marginal value of additional samples — consider other functional forms with the same intuition\n- Different imbalance ratios and class counts may benefit from different weight scaling — the config provides both\n- Normalizing weights to sum to num_classes keeps the loss scale consistent across strategies\n- Consider the interaction between weight magnitude and learning rate — very large weights on rare classes can cause training instability\n- Focal-loss-inspired approaches reweight based on prediction confidence, but here we only have access to class counts (static reweighting)\n",
     "baselines": [
       "inverse_freq",
       "effective_number",
-      "sqrt_inverse",
-      "ldam_weights",
       "balanced_softmax"
     ],
     "environments": [
@@ -1685,13 +1675,11 @@
     "id": "dl-activation-function",
     "category": "dl",
     "category_label": "Deep Learning",
-    "description_md": "# DL Activation Function Design\n\n## Research Question\nDesign a novel activation function for deep convolutional neural networks that improves test accuracy across different architectures (ResNet, VGG) and datasets (CIFAR-10, CIFAR-100).\n\n## Background\nActivation functions introduce nonlinearity into neural networks and critically affect training dynamics and generalization. Classic choices include:\n\n- **ReLU** (2010): max(0, x) — simple, sparse, but zero gradient for negative inputs (\"dying ReLU\")\n- **GELU** (2016): x * Phi(x) — smooth approximation weighting by Gaussian CDF\n- **Swish/SiLU** (2017): x * sigmoid(x) — self-gated, smooth, non-monotonic\n- **Mish** (2019): x * tanh(softplus(x)) — self-regularized, smooth\n\nHowever, these functions do not consider architectural context (residual connections, batch normalization, network depth) or adapt to the data distribution. There is room to design activation functions that better interact with modern network components.\n\n## What You Can Modify\nThe `CustomActivation` class (lines 31-48) in `custom_activation.py`. This is an `nn.Module` used as a drop-in replacement for ReLU throughout the network.\n\nYou can modify:\n- The forward computation (any element-wise or channel-wise operation)\n- Learnable parameters (registered in `__init__`)\n- The shape of the activation curve (monotonic, non-monotonic, bounded, etc.)\n- Negative-domain behavior (zero, linear, bounded, learnable)\n- Any stateless or stateful activation logic\n\nThe activation is used in:\n- ResNet: BasicBlock (2x per block) + initial conv\n- VGG: after every Conv-BN pair + in the classifier head\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better)\n- **Architectures & datasets**:\n  - ResNet-20 on CIFAR-10 (shallow residual, 10 classes)\n  - ResNet-56 on CIFAR-100 (deeper residual, 100 classes)\n  - VGG-16-BN on CIFAR-100 (deep non-residual with BatchNorm, 100 classes)\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n\n## Hints\n- Smooth activations (GELU, SiLU, Mish) often outperform ReLU on CIFAR — the gradient landscape is easier to optimize\n- Non-zero negative outputs prevent \"dying neurons\" but too much negative flow can hurt sparsity\n- Learnable parameters (e.g., PReLU's negative slope, or parametric gating) can adapt per-channel but add complexity\n- The interaction with BatchNorm matters: BN re-centers activations, so the activation's behavior near zero is critical\n- Residual networks sum the activation output with the shortcut — bounded activations may limit gradient flow through skip connections\n- VGG is deeper without shortcuts, making it more sensitive to activation choice — this is where novel designs can shine\n- Computational cost matters: activation is called many times per forward pass\n",
+    "description_md": "# DL Activation Function Design\n\n## Research Question\nDesign a novel activation function for deep convolutional neural networks that improves test accuracy across different architectures (ResNet, VGG) and datasets (CIFAR-10, CIFAR-100).\n\n## Background\nActivation functions introduce nonlinearity into neural networks and critically affect training dynamics and generalization. Classic choices include:\n\n- **ReLU** (2010): max(0, x) — simple, sparse, but zero gradient for negative inputs (\"dying ReLU\")\n- **GELU** (2016): x * Phi(x) — smooth approximation weighting by Gaussian CDF\n- **Swish/SiLU** (2017): x * sigmoid(x) — self-gated, smooth, non-monotonic\n- **Mish** (2019): x * tanh(softplus(x)) — self-regularized, smooth\n\nHowever, these functions do not consider architectural context (residual connections, batch normalization, network depth) or adapt to the data distribution. There is room to design activation functions that better interact with modern network components.\n\n## What You Can Modify\nThe `CustomActivation` class (lines 31-48) in `custom_activation.py`. This is an `nn.Module` used as a drop-in replacement for ReLU throughout the network.\n\nYou can modify:\n- The forward computation (any element-wise or channel-wise operation)\n- Learnable parameters (registered in `__init__`)\n- The shape of the activation curve (monotonic, non-monotonic, bounded, etc.)\n- Negative-domain behavior (zero, linear, bounded, learnable)\n- Any stateless or stateful activation logic\n\nThe activation is used in:\n- ResNet: BasicBlock (2x per block) + initial conv\n- VGG: after every Conv-BN pair + in the classifier head\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better)\n- **Architectures & datasets**:\n  - ResNet-20 on CIFAR-10 (shallow residual, 10 classes)\n  - VGG-16-BN on CIFAR-100 (deep non-residual with BatchNorm, 100 classes)\n  - MobileNetV2 on FashionMNIST (lightweight inverted-residual with ReLU6 baseline, 10 classes) — *hidden, evaluated on final submission only*\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n\n## Hints\n- Smooth activations (GELU, SiLU, Mish) often outperform ReLU on CIFAR — the gradient landscape is easier to optimize\n- Non-zero negative outputs prevent \"dying neurons\" but too much negative flow can hurt sparsity\n- Learnable parameters (e.g., PReLU's negative slope, or parametric gating) can adapt per-channel but add complexity\n- The interaction with BatchNorm matters: BN re-centers activations, so the activation's behavior near zero is critical\n- Residual networks sum the activation output with the shortcut — bounded activations may limit gradient flow through skip connections\n- VGG is deeper without shortcuts, making it more sensitive to activation choice — this is where novel designs can shine\n- Computational cost matters: activation is called many times per forward pass\n",
     "baselines": [
       "gelu",
       "silu",
-      "mish",
-      "starrelu",
-      "squared_relu"
+      "mish"
     ],
     "environments": [
       "resnet20-cifar10",
@@ -1720,13 +1708,11 @@
     "id": "dl-lr-schedule",
     "category": "dl",
     "category_label": "Deep Learning",
-    "description_md": "# DL Learning Rate Schedule Design\n\n## Research Question\nDesign a novel learning rate schedule for training deep convolutional neural networks that improves convergence speed and final test accuracy across different architectures and datasets.\n\n## Background\nLearning rate scheduling is critical for training deep neural networks effectively. A fixed learning rate often leads to suboptimal results — too high causes instability, too low results in slow convergence. Classic schedules include:\n\n- **Step decay** (He et al., 2016): Divide LR by 10 at fixed milestones (e.g., 50% and 75% of training)\n- **Cosine annealing** (Loshchilov & Hutter, 2017): Smooth decay following a cosine curve from base_lr to 0\n- **Warmup + cosine** (Goyal et al., 2017): Linear warmup phase followed by cosine decay, stabilizes large-batch training\n\nHowever, these schedules are designed without considering architecture-specific properties (depth, residual connections, batch normalization) or dataset characteristics. There is room to design schedules that adapt to the training context.\n\n## What You Can Modify\nThe `get_lr(epoch, total_epochs, base_lr, config)` function (lines 155-178) in `custom_schedule.py`. This function is called once per epoch to compute the learning rate.\n\nYou can modify:\n- The shape of the LR decay curve (cosine, polynomial, exponential, linear, piecewise, ...)\n- Whether and how long to warm up\n- The minimum/final learning rate\n- Architecture-aware scheduling (config provides 'arch' and 'dataset')\n- Any epoch-dependent logic (cyclic restarts, sharp transitions, plateau regions, ...)\n\nThe `config` dict provides: `arch` (str: 'resnet20', 'resnet56', 'vgg16bn'), `dataset` (str: 'cifar10', 'cifar100').\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better)\n- **Architectures & datasets**:\n  - ResNet-20 on CIFAR-10 (shallow residual, 10 classes)\n  - ResNet-56 on CIFAR-100 (deeper residual, 100 classes)\n  - VGG-16-BN on CIFAR-100 (deep non-residual with BatchNorm, 100 classes)\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), 200 epochs, NO built-in scheduler\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n- **Weight init**: Kaiming normal (fixed, not editable)\n\n## Hints\n- Cosine annealing is a strong baseline; beating it requires careful design\n- Warmup helps stabilize early training, especially for deeper models like ResNet-56\n- Step decay gives sharp transitions that can cause temporary instability but allow aggressive early learning\n- Cyclic learning rates (Smith, 2017) can escape local minima by periodically increasing LR\n- The optimal schedule may differ between architectures — ResNets with skip connections are more robust to LR changes than VGG\n- Consider combining multiple phases: warmup → high LR → structured decay → fine-tuning\n- Polynomial decay with different exponents offers a family of schedules between linear and step\n- The interaction between LR schedule and momentum/weight decay affects the effective update magnitude\n",
+    "description_md": "# DL Learning Rate Schedule Design\n\n## Research Question\nDesign a novel learning rate schedule for training deep convolutional neural networks that improves convergence speed and final test accuracy across different architectures and datasets.\n\n## Background\nLearning rate scheduling is critical for training deep neural networks effectively. A fixed learning rate often leads to suboptimal results — too high causes instability, too low results in slow convergence. Classic schedules include:\n\n- **Step decay** (He et al., 2016): Divide LR by 10 at fixed milestones (e.g., 50% and 75% of training)\n- **Cosine annealing** (Loshchilov & Hutter, 2017): Smooth decay following a cosine curve from base_lr to 0\n- **Warmup + cosine** (Goyal et al., 2017): Linear warmup phase followed by cosine decay, stabilizes large-batch training\n\nHowever, these schedules are designed without considering architecture-specific properties (depth, residual connections, batch normalization) or dataset characteristics. There is room to design schedules that adapt to the training context.\n\n## What You Can Modify\nThe `get_lr(epoch, total_epochs, base_lr, config)` function (lines 155-178) in `custom_schedule.py`. This function is called once per epoch to compute the learning rate.\n\nYou can modify:\n- The shape of the LR decay curve (cosine, polynomial, exponential, linear, piecewise, ...)\n- Whether and how long to warm up\n- The minimum/final learning rate\n- Architecture-aware scheduling (config provides 'arch' and 'dataset')\n- Any epoch-dependent logic (cyclic restarts, sharp transitions, plateau regions, ...)\n\nThe `config` dict provides: `arch` (str: 'resnet20', 'resnet56', 'mobilenetv2'), `dataset` (str: 'cifar10', 'cifar100', 'fmnist').\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better)\n- **Architectures & datasets**:\n  - ResNet-20 on CIFAR-10 (shallow residual, 10 classes)\n  - ResNet-56 on CIFAR-100 (deeper residual, 100 classes)\n  - MobileNetV2 on FashionMNIST (lightweight inverted-residual, 10 classes) — *hidden, evaluated on final submission only*\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), 200 epochs, NO built-in scheduler\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n- **Weight init**: Kaiming normal (fixed, not editable)\n\n## Hints\n- Cosine annealing is a strong baseline; beating it requires careful design\n- Warmup helps stabilize early training, especially for deeper models like ResNet-56\n- Step decay gives sharp transitions that can cause temporary instability but allow aggressive early learning\n- Cyclic learning rates (Smith, 2017) can escape local minima by periodically increasing LR\n- The optimal schedule may differ between architectures — ResNets with skip connections are more robust to LR changes than VGG\n- Consider combining multiple phases: warmup → high LR → structured decay → fine-tuning\n- Polynomial decay with different exponents offers a family of schedules between linear and step\n- The interaction between LR schedule and momentum/weight decay affects the effective update magnitude\n",
     "baselines": [
       "cosine",
-      "step_decay",
       "warmup_cosine",
-      "one_cycle",
-      "polynomial_decay"
+      "one_cycle"
     ],
     "environments": [
       "resnet20-cifar10",
@@ -1755,13 +1741,11 @@
     "id": "dl-normalization",
     "category": "dl",
     "category_label": "Deep Learning",
-    "description_md": "# DL Normalization Layer Design\n\n## Research Question\nDesign a novel normalization layer for deep convolutional neural networks that improves training stability and final test accuracy across different architectures and datasets.\n\n## Background\nNormalization layers are critical components in modern deep networks, controlling internal covariate shift and enabling stable training at higher learning rates. Classic methods include:\n\n- **BatchNorm** (Ioffe & Szegedy, 2015): Normalizes across the batch dimension per channel. The de facto standard, but depends on batch statistics and behaves differently at train/test time.\n- **GroupNorm** (Wu & He, 2018): Divides channels into groups and normalizes within each group. Batch-size independent.\n- **InstanceNorm** (Ulyanov et al., 2016): Normalizes each channel independently per instance. Common in style transfer.\n- **LayerNorm** (Ba et al., 2016): Normalizes across all channels for each sample. Standard in transformers but less common in CNNs.\n\nHowever, each method has limitations: BatchNorm degrades with small batches, GroupNorm requires choosing the number of groups, InstanceNorm discards inter-channel information, and LayerNorm may not suit spatial feature maps well. There is room to design normalization strategies that combine strengths of multiple approaches or introduce novel normalization statistics.\n\n## What You Can Modify\nThe `CustomNorm` class (lines 31-45) in `custom_norm.py`. This class must be a drop-in replacement for `nn.BatchNorm2d`:\n\n- Constructor takes `num_features` (number of channels C)\n- Input shape: `[B, C, H, W]`\n- Output shape: `[B, C, H, W]`\n\nYou can modify:\n- The normalization statistics (mean/variance computation: over batch, channel, spatial, or combinations)\n- Learnable affine parameters (scale and shift)\n- The normalization grouping strategy\n- Combining multiple normalization approaches\n- Adaptive or input-dependent normalization\n- Any other normalization design that maintains the interface\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better)\n- **Architectures & datasets**:\n  - ResNet-20 on CIFAR-10 (shallow residual, 10 classes)\n  - ResNet-56 on CIFAR-100 (deeper residual, 100 classes)\n  - ResNet-110 on CIFAR-100 (very deep residual, 100 classes)\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n\n## Hints\n- BatchNorm's batch dependency is both a regularizer and a limitation — can you get the regularization effect without the batch dependency?\n- GroupNorm with 32 groups is standard, but the optimal number of groups may depend on the layer width\n- Combining normalization over different dimensions (e.g., batch + instance, or group + layer) can capture complementary statistics\n- Switchable or weighted normalization across multiple modes can adapt to different layer depths\n- Consider the interaction between normalization and residual connections — the normalization in shortcut paths may benefit from different treatment\n- EvoNorm (Liu et al., 2020) showed that combining normalization with activation can be beneficial\n- Filter Response Normalization (Singh & Krishnan, 2020) normalizes over spatial dimensions per channel per instance, without batch dependency\n",
+    "description_md": "# DL Normalization Layer Design\n\n## Research Question\nDesign a novel normalization layer for deep convolutional neural networks that improves training stability and final test accuracy across different architectures and datasets.\n\n## Background\nNormalization layers are critical components in modern deep networks, controlling internal covariate shift and enabling stable training at higher learning rates. Classic methods include:\n\n- **BatchNorm** (Ioffe & Szegedy, 2015): Normalizes across the batch dimension per channel. The de facto standard, but depends on batch statistics and behaves differently at train/test time.\n- **GroupNorm** (Wu & He, 2018): Divides channels into groups and normalizes within each group. Batch-size independent.\n- **InstanceNorm** (Ulyanov et al., 2016): Normalizes each channel independently per instance. Common in style transfer.\n- **LayerNorm** (Ba et al., 2016): Normalizes across all channels for each sample. Standard in transformers but less common in CNNs.\n\nHowever, each method has limitations: BatchNorm degrades with small batches, GroupNorm requires choosing the number of groups, InstanceNorm discards inter-channel information, and LayerNorm may not suit spatial feature maps well. There is room to design normalization strategies that combine strengths of multiple approaches or introduce novel normalization statistics.\n\n## What You Can Modify\nThe `CustomNorm` class (lines 31-45) in `custom_norm.py`. This class must be a drop-in replacement for `nn.BatchNorm2d`:\n\n- Constructor takes `num_features` (number of channels C)\n- Input shape: `[B, C, H, W]`\n- Output shape: `[B, C, H, W]`\n\nYou can modify:\n- The normalization statistics (mean/variance computation: over batch, channel, spatial, or combinations)\n- Learnable affine parameters (scale and shift)\n- The normalization grouping strategy\n- Combining multiple normalization approaches\n- Adaptive or input-dependent normalization\n- Any other normalization design that maintains the interface\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better)\n- **Architectures & datasets**:\n  - ResNet-56 on CIFAR-100 (deep residual, 100 classes)\n  - MobileNetV2 on FashionMNIST (lightweight inverted-residual, 10 classes)\n  - ResNet-110 on CIFAR-100 (very deep residual, 100 classes) — *hidden, evaluated on final submission only*\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n\n## Hints\n- BatchNorm's batch dependency is both a regularizer and a limitation — can you get the regularization effect without the batch dependency?\n- GroupNorm with 32 groups is standard, but the optimal number of groups may depend on the layer width\n- Combining normalization over different dimensions (e.g., batch + instance, or group + layer) can capture complementary statistics\n- Switchable or weighted normalization across multiple modes can adapt to different layer depths\n- Consider the interaction between normalization and residual connections — the normalization in shortcut paths may benefit from different treatment\n- EvoNorm (Liu et al., 2020) showed that combining normalization with activation can be beneficial\n- Filter Response Normalization (Singh & Krishnan, 2020) normalizes over spatial dimensions per channel per instance, without batch dependency\n",
     "baselines": [
       "group_norm",
-      "instance_norm",
-      "evonorm",
-      "switchable_norm",
-      "batch_instance_norm"
+      "batch_instance_norm",
+      "switchable_norm"
     ],
     "environments": [
       "resnet56-cifar100",
@@ -1790,13 +1774,11 @@
     "id": "dl-regularization",
     "category": "dl",
     "category_label": "Deep Learning",
-    "description_md": "# DL Regularization Strategy Design\n\n## Research Question\nDesign a novel regularization strategy for deep convolutional neural networks that improves generalization (test accuracy) across different architectures and datasets.\n\n## Background\nRegularization is essential for preventing overfitting and improving generalization in deep neural networks. Beyond standard weight decay (L2 penalty), many regularization techniques have been proposed:\n\n- **DropBlock-inspired spatial co-activation penalty** (Ghiasi et al., 2018): Penalizes local spatial co-activation in feature maps, discouraging reliance on contiguous regions — captures the core insight of DropBlock as a loss-based regularizer\n- **Confidence penalty** (Pereyra et al., 2017): Penalizes low-entropy output distributions to prevent overconfidence\n- **Orthogonal regularization** (Brock et al., 2017): Encourages weight matrices to be orthogonal, preserving gradient flow\n\nHowever, these methods typically apply a fixed penalty throughout training and do not adapt to training dynamics, model architecture, or the relationship between different layer types. There is room to design regularization strategies that are more adaptive, architecture-aware, or that combine multiple complementary penalties.\n\n## What You Can Modify\nThe `compute_regularization(model, inputs, outputs, targets, config)` function (lines 155-183) in `custom_reg.py`. This function is called every training step and returns a scalar loss that is added to the cross-entropy loss.\n\nYou can use:\n- **model**: the full `nn.Module` — iterate over `model.named_parameters()` or `model.named_modules()` for weight-based penalties\n- **inputs**: `[B, 3, 32, 32]` — the input batch (for input-dependent regularization)\n- **outputs**: `[B, num_classes]` — the model logits (for output-based penalties like confidence/entropy)\n- **targets**: `[B]` — integer class labels\n- **config**: dict with `num_classes` (int), `epoch` (int, 0-indexed), `total_epochs` (int)\n\nDesign ideas:\n- Weight-based: L1/L2 norms, orthogonality, spectral norms, weight correlation\n- Output-based: entropy, confidence penalty, label smoothing effect, logit penalties\n- Activation-based: sparsity, diversity (requires forward hooks)\n- Epoch-dependent: warm-up schedules, annealing, curriculum regularization\n- Architecture-aware: different penalties for conv vs linear, depth-dependent scaling\n\nNote: Standard L2 weight decay (5e-4) is already applied via the optimizer. Your regularization term is *additional*.\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better)\n- **Architectures & datasets**:\n  - ResNet-20 on CIFAR-10 (shallow residual, 10 classes)\n  - ResNet-56 on CIFAR-100 (deeper residual, 100 classes)\n  - VGG-16-BN on CIFAR-100 (deep non-residual with BatchNorm, 100 classes)\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n\n## Hints\n- The default template returns 0 (no extra regularization), so the baseline is standard training with weight decay only\n- Confidence penalty works well when the model is prone to overconfidence, especially on CIFAR-100 with many classes\n- Orthogonal regularization can help gradient flow in deep networks like VGG-16 and ResNet-56\n- Combining weight-based and output-based penalties can be complementary\n- Epoch-dependent scheduling (e.g., increasing regularization strength as training progresses) can prevent underfitting in early epochs\n- The `config['epoch']` and `config['total_epochs']` fields enable training-phase-aware regularization\n- Be careful with regularization strength — too strong and the model underfits, too weak and it has no effect\n",
+    "description_md": "# DL Regularization Strategy Design\n\n## Research Question\nDesign a novel regularization strategy for deep convolutional neural networks that improves generalization (test accuracy) across different architectures and datasets.\n\n## Background\nRegularization is essential for preventing overfitting and improving generalization in deep neural networks. Beyond standard weight decay (L2 penalty), many regularization techniques have been proposed:\n\n- **DropBlock-inspired spatial co-activation penalty** (Ghiasi et al., 2018): Penalizes local spatial co-activation in feature maps, discouraging reliance on contiguous regions — captures the core insight of DropBlock as a loss-based regularizer\n- **Confidence penalty** (Pereyra et al., 2017): Penalizes low-entropy output distributions to prevent overconfidence\n- **Orthogonal regularization** (Brock et al., 2017): Encourages weight matrices to be orthogonal, preserving gradient flow\n\nHowever, these methods typically apply a fixed penalty throughout training and do not adapt to training dynamics, model architecture, or the relationship between different layer types. There is room to design regularization strategies that are more adaptive, architecture-aware, or that combine multiple complementary penalties.\n\n## What You Can Modify\nThe `compute_regularization(model, inputs, outputs, targets, config)` function (lines 155-183) in `custom_reg.py`. This function is called every training step and returns a scalar loss that is added to the cross-entropy loss.\n\nYou can use:\n- **model**: the full `nn.Module` — iterate over `model.named_parameters()` or `model.named_modules()` for weight-based penalties\n- **inputs**: `[B, 3, 32, 32]` — the input batch (for input-dependent regularization)\n- **outputs**: `[B, num_classes]` — the model logits (for output-based penalties like confidence/entropy)\n- **targets**: `[B]` — integer class labels\n- **config**: dict with `num_classes` (int), `epoch` (int, 0-indexed), `total_epochs` (int)\n\nDesign ideas:\n- Weight-based: L1/L2 norms, orthogonality, spectral norms, weight correlation\n- Output-based: entropy, confidence penalty, label smoothing effect, logit penalties\n- Activation-based: sparsity, diversity (requires forward hooks)\n- Epoch-dependent: warm-up schedules, annealing, curriculum regularization\n- Architecture-aware: different penalties for conv vs linear, depth-dependent scaling\n\nNote: Standard L2 weight decay (5e-4) is already applied via the optimizer. Your regularization term is *additional*.\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better)\n- **Architectures & datasets**:\n  - ResNet-56 on CIFAR-100 (deep residual, 100 classes)\n  - VGG-16-BN on CIFAR-100 (deep non-residual with BatchNorm, 100 classes)\n  - MobileNetV2 on FashionMNIST (lightweight inverted-residual, 10 classes) — *hidden, evaluated on final submission only*\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n\n## Hints\n- The default template returns 0 (no extra regularization), so the baseline is standard training with weight decay only\n- Confidence penalty works well when the model is prone to overconfidence, especially on CIFAR-100 with many classes\n- Orthogonal regularization can help gradient flow in deep networks like VGG-16 and ResNet-56\n- Combining weight-based and output-based penalties can be complementary\n- Epoch-dependent scheduling (e.g., increasing regularization strength as training progresses) can prevent underfitting in early epochs\n- The `config['epoch']` and `config['total_epochs']` fields enable training-phase-aware regularization\n- Be careful with regularization strength — too strong and the model underfits, too weak and it has no effect\n",
     "baselines": [
       "dropblock",
       "confidence_penalty",
-      "orthogonal_reg",
-      "l2_reg",
-      "spectral_penalty"
+      "orthogonal_reg"
     ],
     "environments": [
       "resnet56-cifar100",
@@ -1825,7 +1807,7 @@
     "id": "dl-residual-connection",
     "category": "dl",
     "category_label": "Deep Learning",
-    "description_md": "# DL Residual Connection Block Design\n\n## Research Question\nDesign a novel residual/skip connection block for deep convolutional neural networks that improves test accuracy across different depths and datasets.\n\n## Background\nResidual connections (He et al., 2016) enabled training of very deep networks by providing identity shortcut paths. The basic residual block adds the input to the output of two stacked 3x3 convolutions. Several improvements have been proposed:\n\n- **Pre-activation ResBlock** (He et al., 2016 v2): BN-ReLU-Conv order instead of Conv-BN-ReLU, enabling cleaner gradient flow\n- **Gated Residual** (ReZero / learnable scaling): A learnable scalar gate scales the residual branch before addition, allowing the network to learn optimal residual contribution per block\n- **Dense Shortcut** (DenseNet-inspired): Concatenates shortcut and residual features then fuses with 1x1 conv, giving richer feature combination than simple addition\n- **ResNeXt** (Xie et al., 2017): Grouped convolutions for multi-branch aggregation\n- **Res2Net** (Gao et al., 2019): Multi-scale feature extraction within a single residual block\n\nThere is room for novel block designs that better balance gradient flow, feature reuse, and computational efficiency, particularly for varying network depths.\n\n## What You Can Modify\nThe `CustomBlock` class (lines 31-61) in `custom_residual.py`. This is the residual block used by the ResNet backbone.\n\nYou can modify:\n- The internal convolution structure (number, kernel sizes, grouping)\n- The activation function placement and type\n- The normalization layer placement and type\n- The shortcut/skip connection design\n- Channel attention or spatial attention mechanisms\n- The `expansion` class attribute (1 for basic, 4 for bottleneck, etc.)\n- Any additional modules within the block\n\nConstraints:\n- The block must accept `(in_planes, planes, stride)` constructor arguments\n- The block must have an `expansion` class attribute\n- `forward(x)` must return a tensor with channels = `planes * expansion`\n- The shortcut must handle dimension mismatches (stride != 1 or channel mismatch)\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better)\n- **Architectures & datasets**:\n  - ResNet-20 ([3,3,3]) on CIFAR-10 (shallow, 10 classes)\n  - ResNet-56 ([9,9,9]) on CIFAR-100 (deep, 100 classes)\n  - ResNet-110 ([18,18,18]) on CIFAR-100 (very deep, 100 classes — tests gradient flow)\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n\n## Hints\n- Pre-activation order (BN-ReLU-Conv) provides cleaner gradient flow, especially important for ResNet-110\n- Learnable residual scaling (gated residual) lets each block adapt its contribution, similar to per-layer scaling in transformers\n- Dense/concatenation shortcuts preserve more information than additive shortcuts but increase computation\n- Consider combining ideas: e.g., pre-activation + gating, or dense shortcut with channel attention\n- Stochastic depth or shake-shake regularization within the block can help generalization\n- Channel attention (SE) adds minimal parameters but can improve accuracy significantly\n- The ResNet-110 benchmark specifically tests whether your block design handles very deep networks well\n",
+    "description_md": "# DL Residual Connection Block Design\n\n## Research Question\nDesign a novel residual/skip connection block for deep convolutional neural networks that improves test accuracy across different depths and datasets.\n\n## Background\nResidual connections (He et al., 2016) enabled training of very deep networks by providing identity shortcut paths. The basic residual block adds the input to the output of two stacked 3x3 convolutions. Several improvements have been proposed:\n\n- **Pre-activation ResBlock** (He et al., 2016 v2): BN-ReLU-Conv order instead of Conv-BN-ReLU, enabling cleaner gradient flow\n- **Gated Residual** (ReZero / learnable scaling): A learnable scalar gate scales the residual branch before addition, allowing the network to learn optimal residual contribution per block\n- **Dense Shortcut** (DenseNet-inspired): Concatenates shortcut and residual features then fuses with 1x1 conv, giving richer feature combination than simple addition\n- **ResNeXt** (Xie et al., 2017): Grouped convolutions for multi-branch aggregation\n- **Res2Net** (Gao et al., 2019): Multi-scale feature extraction within a single residual block\n\nThere is room for novel block designs that better balance gradient flow, feature reuse, and computational efficiency, particularly for varying network depths.\n\n## What You Can Modify\nThe `CustomBlock` class (lines 31-61) in `custom_residual.py`. This is the residual block used by the ResNet backbone.\n\nYou can modify:\n- The internal convolution structure (number, kernel sizes, grouping)\n- The activation function placement and type\n- The normalization layer placement and type\n- The shortcut/skip connection design\n- Channel attention or spatial attention mechanisms\n- The `expansion` class attribute (1 for basic, 4 for bottleneck, etc.)\n- Any additional modules within the block\n\nConstraints:\n- The block must accept `(in_planes, planes, stride)` constructor arguments\n- The block must have an `expansion` class attribute\n- `forward(x)` must return a tensor with channels = `planes * expansion`\n- The shortcut must handle dimension mismatches (stride != 1 or channel mismatch)\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better)\n- **Architectures & datasets**:\n  - ResNet-20 ([3,3,3]) on CIFAR-10 (shallow, 10 classes)\n  - ResNet-56 ([9,9,9]) on CIFAR-100 (deep, 100 classes)\n  - ResNet-110 ([18,18,18]) on CIFAR-100 (very deep, 100 classes — tests gradient flow) — *hidden, evaluated on final submission only*\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n\n## Hints\n- Pre-activation order (BN-ReLU-Conv) provides cleaner gradient flow, especially important for ResNet-110\n- Learnable residual scaling (gated residual) lets each block adapt its contribution, similar to per-layer scaling in transformers\n- Dense/concatenation shortcuts preserve more information than additive shortcuts but increase computation\n- Consider combining ideas: e.g., pre-activation + gating, or dense shortcut with channel attention\n- Stochastic depth or shake-shake regularization within the block can help generalization\n- Channel attention (SE) adds minimal parameters but can improve accuracy significantly\n- The ResNet-110 benchmark specifically tests whether your block design handles very deep networks well\n",
     "baselines": [
       "pre_activation",
       "gated_residual",
@@ -1858,13 +1840,11 @@
     "id": "dl-weight-initialization",
     "category": "dl",
     "category_label": "Deep Learning",
-    "description_md": "# DL Weight Initialization Strategy Design\n\n## Research Question\nDesign a novel weight initialization strategy for deep convolutional neural networks that improves convergence speed and final test accuracy across different architectures and datasets.\n\n## Background\nWeight initialization is fundamental to training deep neural networks. Poor initialization leads to vanishing/exploding gradients, slow convergence, or suboptimal generalization. Classic methods include:\n\n- **Kaiming/He** (2015): Accounts for ReLU nonlinearity, N(0, sqrt(2/fan_out))\n- **Orthogonal** (2014): Preserves gradient norms via orthogonal matrices\n- **Fixup** (2019): Scales the last conv in each residual block by L^(-0.5) where L is the number of blocks, controlling variance accumulation across depth; zero-initializes the last BN per block so residual branches start near identity\n\nHowever, these methods each address only one aspect of initialization. There is room to design strategies that jointly account for residual connections, batch normalization's re-scaling effect, depth-dependent scaling, and the interaction between different layer types (convolution vs classifier).\n\n## What You Can Modify\nThe `initialize_weights(model, config)` function (lines 147-180) in `custom_init.py`. This function receives the fully constructed model and a config dict, and must initialize all parameters.\n\nYou can modify:\n- How `nn.Conv2d` weights are initialized (distribution, fan-in/fan-out, gain)\n- How `nn.BatchNorm2d` parameters (weight/bias) are initialized\n- How `nn.Linear` weights and biases are initialized\n- Per-layer or depth-dependent scaling strategies\n- Special handling for residual shortcut projections vs main-path convolutions\n- Any data-independent initialization logic (no training data access)\n\nThe `config` dict provides: `arch` (str), `num_classes` (int), `depth` (int = number of Conv2d + Linear layers). You can also iterate over `model.named_modules()` or `model.named_parameters()`.\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better)\n- **Architectures & datasets**:\n  - ResNet-20 on CIFAR-10 (shallow residual, 10 classes)\n  - ResNet-56 on CIFAR-100 (deeper residual, 100 classes)\n  - VGG-16-BN on CIFAR-100 (deep non-residual with BatchNorm, 100 classes)\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n\n## Hints\n- Kaiming init assumes infinite width; finite-width corrections may help\n- BatchNorm re-normalizes activations, partially absorbing initialization variance — but the initial scale still affects early training dynamics\n- Residual networks have two signal paths; initializing the residual branch smaller (e.g., scaling by 1/sqrt(depth)) stabilizes deep networks\n- VGG has no skip connections, making it more sensitive to initialization — this is where novel strategies can show the biggest gains\n- Consider the interaction between Conv2d kernel size and effective fan-in/fan-out\n- Zero-initializing the last BN in each residual block (Goyal et al., 2017) can improve training\n- The classifier head (Linear) may benefit from different initialization than feature extractors\n",
+    "description_md": "# DL Weight Initialization Strategy Design\n\n## Research Question\nDesign a novel weight initialization strategy for deep convolutional neural networks that improves convergence speed and final test accuracy across different architectures and datasets.\n\n## Background\nWeight initialization is fundamental to training deep neural networks. Poor initialization leads to vanishing/exploding gradients, slow convergence, or suboptimal generalization. Classic methods include:\n\n- **Kaiming/He** (2015): Accounts for ReLU nonlinearity, N(0, sqrt(2/fan_out))\n- **Orthogonal** (2014): Preserves gradient norms via orthogonal matrices\n- **Fixup** (2019): Scales the last conv in each residual block by L^(-0.5) where L is the number of blocks, controlling variance accumulation across depth; zero-initializes the last BN per block so residual branches start near identity\n\nHowever, these methods each address only one aspect of initialization. There is room to design strategies that jointly account for residual connections, batch normalization's re-scaling effect, depth-dependent scaling, and the interaction between different layer types (convolution vs classifier).\n\n## What You Can Modify\nThe `initialize_weights(model, config)` function (lines 147-180) in `custom_init.py`. This function receives the fully constructed model and a config dict, and must initialize all parameters.\n\nYou can modify:\n- How `nn.Conv2d` weights are initialized (distribution, fan-in/fan-out, gain)\n- How `nn.BatchNorm2d` parameters (weight/bias) are initialized\n- How `nn.Linear` weights and biases are initialized\n- Per-layer or depth-dependent scaling strategies\n- Special handling for residual shortcut projections vs main-path convolutions\n- Any data-independent initialization logic (no training data access)\n\nThe `config` dict provides: `arch` (str), `num_classes` (int), `depth` (int = number of Conv2d + Linear layers). You can also iterate over `model.named_modules()` or `model.named_parameters()`.\n\n## Evaluation\n- **Metric**: Best test accuracy (%, higher is better)\n- **Architectures & datasets**:\n  - ResNet-56 on CIFAR-100 (deep residual, 100 classes)\n  - VGG-16-BN on CIFAR-100 (deep non-residual with BatchNorm, 100 classes)\n  - MobileNetV2 on FashionMNIST (lightweight inverted-residual, 10 classes) — *hidden, evaluated on final submission only*\n- **Training**: SGD (lr=0.1, momentum=0.9, wd=5e-4), cosine annealing, 200 epochs\n- **Data augmentation**: RandomCrop(32, pad=4) + RandomHorizontalFlip\n\n## Hints\n- Kaiming init assumes infinite width; finite-width corrections may help\n- BatchNorm re-normalizes activations, partially absorbing initialization variance — but the initial scale still affects early training dynamics\n- Residual networks have two signal paths; initializing the residual branch smaller (e.g., scaling by 1/sqrt(depth)) stabilizes deep networks\n- VGG has no skip connections, making it more sensitive to initialization — this is where novel strategies can show the biggest gains\n- Consider the interaction between Conv2d kernel size and effective fan-in/fan-out\n- Zero-initializing the last BN in each residual block (Goyal et al., 2017) can improve training\n- The classifier head (Linear) may benefit from different initialization than feature extractors\n",
     "baselines": [
       "kaiming_normal",
       "fixup",
-      "orthogonal",
-      "lsuv",
-      "zero_init"
+      "orthogonal"
     ],
     "environments": [
       "resnet56-cifar100",
@@ -2169,6 +2149,43 @@
           {
             "start": 94,
             "end": 127
+          }
+        ]
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "humanoid-ppo-extractor",
+    "category": "other",
+    "category_label": "Other",
+    "description_md": "# Humanoid Control: PPO Feature Extractor Architecture\n\n## Objective\nImprove PPO performance on humanoid locomotion by designing a better feature extractor network architecture. You can modify the `CustomFeatureExtractor` class (lines 20-38) and add custom imports (lines 14-16) in `train_custom.py`.\n\n## Background\nThe training uses Stable Baselines3 PPO with 4 parallel environments on three tasks from humanoid-bench: h1-stand-v0, h1-walk-v0, and h1-run-v0. The Unitree H1 humanoid robot must learn standing, walking, and running locomotion. The feature extractor processes raw proprioceptive observation vectors into feature representations used by the policy and value networks.\n\nThe default feature extractor is a 2-layer MLP with Tanh activations (64 hidden units, 64 output features). Training runs for 1M timesteps with a learning rate of 3e-4.\n\n## Interface\nYour `CustomFeatureExtractor` must:\n- Inherit from `BaseFeaturesExtractor`\n- Call `super().__init__(observation_space, features_dim)` in `__init__`\n- Accept `observation_space` and `features_dim` as constructor arguments\n- Implement `forward(self, observations) -> torch.Tensor` returning a tensor of shape `(batch, features_dim)`\n\n## Evaluation\nFinal performance is measured by mean reward over 20 evaluation episodes with deterministic policy after 1M training timesteps, across all three environments.\n",
+    "baselines": [
+      "wide_mlp",
+      "layernorm_mlp",
+      "residual_mlp"
+    ],
+    "environments": [
+      "h1-stand",
+      "h1-walk",
+      "h1-run"
+    ],
+    "packages": [
+      "humanoid-bench"
+    ],
+    "files": [
+      {
+        "filename": "humanoid-bench/ppo/train_custom.py",
+        "edit_ranges": [
+          {
+            "start": 14,
+            "end": 16
+          },
+          {
+            "start": 20,
+            "end": 38
           }
         ]
       }
@@ -2656,7 +2673,7 @@
     ],
     "rigorous_codebase": false,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "llm-pretrain-attention",
@@ -3601,6 +3618,67 @@
       },
       {
         "filename": "learn2learn/learn2learn/algorithms/gbml.py",
+        "edit_ranges": []
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "meta-rl",
+    "category": "ml",
+    "category_label": "Classical ML",
+    "description_md": "# Meta-RL: Context Encoder for PEARL Task Inference\n\n## Objective\nDesign a context encoder for the PEARL meta-reinforcement learning algorithm that maps transition tuples (state, action, reward) to latent task representations. The encoder should enable effective task inference from limited interaction data, allowing fast adaptation to unseen tasks.\n\n## Background\nPEARL (Probabilistic Embeddings for Actor-critic RL) is a meta-RL algorithm that learns a probabilistic latent task variable z from context transitions. During meta-testing, the agent collects a few transitions from a new task, encodes them into a posterior distribution q(z|c), and conditions its policy on the sampled z.\n\nThe context encoder processes individual transition tuples and outputs Gaussian parameters (mean and log-variance). The PEARLAgent aggregates per-transition outputs via product of Gaussians to form the task posterior. Your goal is to design a better encoder architecture.\n\nYou can modify the `CustomContextEncoder` class (lines 27-53) and add custom imports (lines 21-23) in `custom_encoder.py`.\n\n## Interface\nYour `CustomContextEncoder` must:\n- Extend `PyTorchModule` and call `self.save_init_params(locals())` in `__init__`\n- Accept `hidden_sizes`, `input_size`, `output_size` as constructor arguments\n- Set `self.output_size` attribute in `__init__`\n- Implement `forward(self, input, return_preactivations=False)` returning tensors of shape `(*, output_size)`\n- Implement `reset(self, num_tasks=1)` to reset any stateful components\n\n## Environments\nThe encoder is evaluated across three environments with different reward structures and task complexities:\n\n1. **Half-Cheetah Velocity** (`cheetah-vel`): 30 train / 10 test tasks. Target velocities in [0, 3] m/s. Obs dim 20, action dim 6. Dense reward based on velocity matching. Tests encoding quality on a continuous task distribution with high-dimensional observations.\n\n2. **Sparse Point Robot** (`sparse-point-robot`): 40 train / 10 test tasks. Goals on a half-circle, sparse reward (+1 within goal radius, 0 otherwise). Obs dim 2, action dim 2. Tests the encoder's ability to extract task information from sparse reward signals.\n\n3. **Point Robot** (`point-robot`): 40 train / 10 test tasks. Goals sampled uniformly from [-1, 1]^2. Dense reward (negative L2 distance to goal). Obs dim 2, action dim 2. Tests basic encoding quality on a simple but diverse continuous task distribution.\n\n## Evaluation\nPerformance is measured by `meta_test_return` on each environment: average return on held-out test tasks after 20 meta-training iterations. A good encoder should perform well across all three environments.\n",
+    "baselines": [
+      "mlp_encoder",
+      "recurrent_encoder",
+      "attention_encoder"
+    ],
+    "environments": [
+      "cheetah-vel",
+      "sparse-point-robot",
+      "point-robot"
+    ],
+    "packages": [
+      "oyster"
+    ],
+    "files": [
+      {
+        "filename": "oyster/custom_encoder.py",
+        "edit_ranges": [
+          {
+            "start": 21,
+            "end": 23
+          },
+          {
+            "start": 27,
+            "end": 53
+          }
+        ]
+      },
+      {
+        "filename": "oyster/launch_custom.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "oyster/rlkit/torch/networks.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "oyster/rlkit/torch/sac/agent.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "oyster/rlkit/torch/sac/sac.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "oyster/rlkit/core/rl_algorithm.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "oyster/configs/default.py",
         "edit_ranges": []
       }
     ],
@@ -5211,31 +5289,11 @@
             "end": 416
           }
         ]
-      },
-      {
-        "filename": "CORL/algorithms/offline/any_percent_bc.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "CORL/algorithms/offline/awac.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "CORL/algorithms/offline/rebrac.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "CORL/algorithms/offline/iql.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "CORL/algorithms/offline/td3_bc.py",
-        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "rl-offline-continuous",
@@ -5264,22 +5322,6 @@
             "end": 397
           }
         ]
-      },
-      {
-        "filename": "CORL/algorithms/offline/any_percent_bc.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "CORL/algorithms/offline/td3_bc.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "CORL/algorithms/offline/iql.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "CORL/algorithms/offline/cql.py",
-        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,
@@ -5348,22 +5390,6 @@
             "end": 477
           }
         ]
-      },
-      {
-        "filename": "CORL/algorithms/finetune/awac.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "CORL/algorithms/finetune/spot.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "CORL/algorithms/finetune/cal_ql.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "CORL/algorithms/finetune/iql.py",
-        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,
@@ -5397,18 +5423,6 @@
             "end": 364
           }
         ]
-      },
-      {
-        "filename": "katakomba/algorithms/small_scale/bc_chaotic_lstm.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "katakomba/algorithms/small_scale/cql_chaotic_lstm.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "katakomba/algorithms/small_scale/iql_chaotic_lstm.py",
-        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,
@@ -5442,18 +5456,6 @@
             "end": 244
           }
         ]
-      },
-      {
-        "filename": "cleanrl/cleanrl/sac_continuous_action.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "cleanrl/cleanrl/td3_continuous_action.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "cleanrl/cleanrl/ddpg_continuous_action.py",
-        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,
@@ -5487,14 +5489,6 @@
             "end": 221
           }
         ]
-      },
-      {
-        "filename": "cleanrl/cleanrl/ppo_continuous_action.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "cleanrl/cleanrl/rpo_continuous_action.py",
-        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,
@@ -5528,19 +5522,11 @@
             "end": 249
           }
         ]
-      },
-      {
-        "filename": "cleanrl/cleanrl/dqn_atari.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "cleanrl/cleanrl/c51_atari.py",
-        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "rl-value-discrete",
@@ -5569,19 +5555,110 @@
             "end": 242
           }
         ]
-      },
-      {
-        "filename": "cleanrl/cleanrl/dqn.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "cleanrl/cleanrl/c51.py",
-        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,
     "allow_create": false,
     "has_agent_logs": true
+  },
+  {
+    "id": "robomimic-bc-loss",
+    "category": "other",
+    "category_label": "Other",
+    "description_md": "# Behavioral Cloning: Loss Function Design for Robot Imitation Learning\n\n## Research Question\nDesign an improved loss function for behavioral cloning (BC) in robot manipulation. The loss measures the discrepancy between the policy's predicted actions and expert demonstration actions, directly influencing how well the agent imitates expert behavior.\n\n## What You Can Modify\nThe `CustomBCLoss` class (lines 28-48) in `custom_bc_loss.py`. This class receives predicted and target action tensors and must return a scalar loss.\n\nInterface:\n- **Input**: `pred_actions: [B, 7]` and `target_actions: [B, 7]` -- 7-dim robot actions (6D end-effector delta + 1D gripper)\n- **Output**: scalar loss tensor\n\nYou may add parameters to `__init__`, define helper methods, and use any PyTorch operations.\n\n## Evaluation\n- **Metric**: `val_action_mse` -- validation action prediction MSE on held-out demonstrations (lower is better)\n- **Task**: Lift (pick up a cube from a table)\n- **Dataset**: 200 proficient human demonstrations, low-dimensional observations\n- **Policy**: 2-layer MLP (1024, 1024) with ReLU and Tanh output\n- **Training**: 200 epochs, Adam optimizer (lr=1e-4), batch size 256\n\n## Hints\n- The default MSE loss treats all action dimensions equally, but positional (first 6D) and gripper (last 1D) components may benefit from different treatment.\n- **Huber loss** (SmoothL1) is less sensitive to outlier actions and may improve robustness.\n- **Cosine similarity** on the positional component can improve directional accuracy of end-effector movements.\n- Actions are bounded in [-1, 1] (Tanh output). Loss functions that respect this bounded structure may be beneficial.\n- Consider per-dimension weighting, adaptive loss scaling, or mixture objectives.\n- Log-cosh loss provides smooth L1-like behavior without the non-differentiable kink.\n",
+    "baselines": [
+      "huber",
+      "weighted_mse_cosine",
+      "log_cosh"
+    ],
+    "environments": [
+      "lift_ph",
+      "can_ph",
+      "square_ph"
+    ],
+    "packages": [
+      "robomimic"
+    ],
+    "files": [
+      {
+        "filename": "robomimic/custom_bc_loss.py",
+        "edit_ranges": [
+          {
+            "start": 28,
+            "end": 48
+          }
+        ]
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "robomimic-iql-vf",
+    "category": "other",
+    "category_label": "Other",
+    "description_md": "# Implicit Q-Learning: Value Function Loss Design for Offline Robot Learning\n\n## Research Question\nDesign an improved value function loss for Implicit Q-Learning (IQL) in offline robot manipulation. IQL avoids querying out-of-distribution actions by learning V(s) via asymmetric regression against Q(s,a) estimates. The loss function determines how V(s) approximates the upper quantile of Q-values, directly affecting policy quality.\n\n## What You Can Modify\nThe `custom_vf_loss` function (lines 29-46) in `custom_iql_vf.py`. This function computes the loss for training the value network V(s).\n\nInterface:\n- **Input**:\n  - `vf_pred: [B, 1]` -- predicted state values V(s)\n  - `q_target: [B, 1]` -- target Q-values Q(s,a) from the critic ensemble (detached)\n  - `quantile: float` -- asymmetry parameter tau (default 0.9)\n- **Output**: scalar loss tensor\n\nYou may restructure the function body, add helper computations, and use any PyTorch operations.\n\n## Evaluation\n- **Metric**: `val_vf_loss` -- validation value function loss (lower is better)\n- **Task**: Lift (offline demonstrations from proficient humans)\n- **Dataset**: ~200 demonstrations with (s, a, r, s', done) transitions\n- **Training**: IQL with Q-ensemble (2 critics), Gaussian actor, 200 epochs x 1000 steps\n- **Hyperparameters**: discount=0.99, target_tau=0.005, adv_beta=3.0\n\n## Background\nIQL's key insight is learning V(s) without maximizing over actions:\n- **Expectile regression** (default): asymmetric L2 loss that pushes V(s) toward the tau-th expectile of Q(s,a). When `tau=0.9`, overestimation (V > Q) is penalized 9x more than underestimation.\n- The value function feeds into the actor via advantage weighting: `w(s,a) = exp((Q(s,a) - V(s)) / beta)`, so V(s) quality directly impacts policy learning.\n\n## Hints\n- **Quantile regression** (asymmetric L1) is more robust to outlier Q-values than expectile regression (asymmetric L2).\n- **Gumbel regression** from Extreme Q-Learning (Garg et al., 2023) uses extreme value theory: if V(s) approximates the maximum of Q(s,a), the Gumbel distribution is the natural loss.\n- Consider combining L1 and L2 components, using adaptive asymmetry, or adding regularization to prevent V(s) from diverging.\n- The quantile parameter controls the conservatism-optimism tradeoff: higher quantile = more optimistic V(s) estimates.\n- Smooth approximations to quantile regression (e.g., pinball loss with Huber kernel) can improve optimization stability.\n",
+    "baselines": [
+      "quantile_regression",
+      "gumbel_regression",
+      "huber_pinball"
+    ],
+    "environments": [
+      "lift_ph",
+      "can_ph",
+      "square_ph"
+    ],
+    "packages": [
+      "robomimic"
+    ],
+    "files": [
+      {
+        "filename": "robomimic/custom_iql_vf.py",
+        "edit_ranges": [
+          {
+            "start": 29,
+            "end": 46
+          }
+        ]
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "robomimic-obs-encoder",
+    "category": "other",
+    "category_label": "Other",
+    "description_md": "# Behavioral Cloning: Observation Encoder Design for Robot State Fusion\n\n## Research Question\nDesign an improved observation encoder that fuses multiple robot state modalities for behavioral cloning. In robot manipulation, observations consist of heterogeneous components (end-effector pose, gripper state, object state) that may benefit from non-trivial fusion strategies beyond simple concatenation.\n\n## What You Can Modify\nThe `CustomObsEncoder` class (lines 29-56) in `custom_obs_encoder.py`. This module receives a dictionary of observation tensors and must return a fused feature vector.\n\nInterface:\n- **Input**: `obs_dict` -- dictionary with keys:\n  - `robot0_eef_pos`: [B, 3] end-effector position\n  - `robot0_eef_quat`: [B, 4] end-effector quaternion orientation\n  - `robot0_gripper_qpos`: [B, 2] gripper joint positions\n  - `object`: [B, D_obj] object state\n- **Output**: [B, output_dim] fused feature vector\n- **Required attribute**: `self.output_dim` (int) -- dimensionality of the output\n\nYou may add parameters to `__init__`, define helper methods, and add learnable layers.\n\n## Evaluation\n- **Metric**: `val_action_mse` -- validation action prediction MSE on held-out demonstrations (lower is better)\n- **Task**: Can (pick up a can and place it in a target location)\n- **Dataset**: ~300 proficient human demonstrations, low-dimensional observations\n- **Policy**: 2-layer MLP (1024, 1024) with ReLU on top of encoder output\n- **Training**: 200 epochs, Adam optimizer (lr=1e-4), batch size 256\n\n## Hints\n- The default concatenation encoder ignores the semantic differences between observation modalities (positions vs quaternions vs gripper states).\n- **Per-modality MLPs** can learn modality-specific transformations before fusion (e.g., normalizing quaternion representations).\n- **Attention-based fusion** can model cross-modality interactions (e.g., how gripper state relates to object state).\n- **Feature normalization** (LayerNorm, BatchNorm) before fusion can help when modalities have different scales.\n- Consider the geometric structure: quaternions live on a hypersphere, positions in Euclidean space, and gripper states in a bounded interval.\n- The encoder's `output_dim` attribute must match the actual output dimension for the downstream MLP to work correctly.\n",
+    "baselines": [
+      "mlp_per_modality",
+      "attention_fusion",
+      "gated_fusion"
+    ],
+    "environments": [
+      "lift_ph",
+      "can_ph",
+      "square_ph"
+    ],
+    "packages": [
+      "robomimic"
+    ],
+    "files": [
+      {
+        "filename": "robomimic/custom_obs_encoder.py",
+        "edit_ranges": [
+          {
+            "start": 29,
+            "end": 56
+          }
+        ]
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
   },
   {
     "id": "safe-rl",
@@ -6105,6 +6182,92 @@
     "has_agent_logs": false
   },
   {
+    "id": "tdmpc2-planning",
+    "category": "other",
+    "category_label": "Other",
+    "description_md": "# Planning Algorithm for Model-Based RL\n\n## Objective\nDesign and implement a custom trajectory optimization algorithm for online planning in model-based reinforcement learning. Your code goes in the `custom_plan()` function in `custom_planner.py`. This function is called at every environment step to select actions using the learned world model.\n\n## Background\nTD-MPC2 uses **Model Predictive Path Integral (MPPI)** for planning. At each step, the agent:\n1. Samples `num_pi_trajs=24` trajectories from the learned policy as warm-starts\n2. Iterates `iterations=6` rounds of:\n   - Samples `num_samples=512` action sequences from N(mean, std)\n   - Rolls out each trajectory through the latent dynamics model for `horizon=3` steps\n   - Estimates trajectory value using predicted rewards + terminal Q-value\n   - Selects `num_elites=64` best trajectories\n   - Updates mean/std using softmax-weighted (temperature=0.5) elite statistics\n3. Selects final action via Gumbel-softmax sampling from elites\n\nAlternative planning approaches could improve sample efficiency, convergence speed, or final performance:\n- **Cross-Entropy Method (CEM)**: simpler elite selection without softmax weighting\n- **iCEM**: improved CEM with temporally correlated noise and keep-elites\n- **Gradient-based planning**: backpropagating through the world model\n- **Hybrid approaches**: combining sampling with gradient refinement\n- **Adaptive methods**: adjusting sampling parameters during optimization\n\n## What You Can Modify\nThe `custom_plan()` function (lines 15-120) in `custom_planner.py`. You have access to:\n- `agent.model`: WorldModel with `encode`, `next`, `pi`, `Q`, `reward` methods\n- `agent._estimate_value(z, actions, task)`: evaluates trajectory returns\n- `agent._prev_mean`: warm-start buffer from previous planning step\n- `agent.cfg`: all configuration parameters (horizon, num_samples, etc.)\n- `common.math`: utility functions (gumbel_softmax_sample, two_hot_inv, etc.)\n\n## Evaluation\n- **Metric**: Episode reward (higher is better)\n- **Environments**: DMControl walker-walk and cheetah-run\n- **Model**: TD-MPC2 with 1M parameters, 200K training steps\n- **Note**: The planning algorithm affects both data collection quality during training and action selection during evaluation\n\n## Key Constraints\n- The function must return a single action tensor of shape `(action_dim,)` clamped to `[-1, 1]`\n- The function runs under `@torch.no_grad()` — no gradient computation\n- Must update `agent._prev_mean` for temporal consistency across steps\n- Planning budget: keep total computation comparable to the default (6 iterations x 512 samples)\n",
+    "baselines": [
+      "cem",
+      "icem",
+      "mppi"
+    ],
+    "environments": [
+      "walker-walk",
+      "cheetah-run",
+      "cartpole-swingup"
+    ],
+    "packages": [
+      "tdmpc2"
+    ],
+    "files": [
+      {
+        "filename": "tdmpc2/tdmpc2/common/custom_planner.py",
+        "edit_ranges": [
+          {
+            "start": 15,
+            "end": 120
+          }
+        ]
+      },
+      {
+        "filename": "tdmpc2/tdmpc2/tdmpc2.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "tdmpc2/tdmpc2/common/world_model.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "tdmpc2/tdmpc2/common/math.py",
+        "edit_ranges": []
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "tdmpc2-simnorm",
+    "category": "other",
+    "category_label": "Other",
+    "description_md": "# Latent Representation Normalization for Model-Based RL\n\n## Objective\nDesign and implement a custom normalization technique for latent state representations in model-based reinforcement learning. Your code goes in the `CustomSimNorm` class in `custom_simnorm.py`. This normalization is applied as the final activation in both the encoder and dynamics networks of the TD-MPC2 world model.\n\n## Background\nTD-MPC2 learns an implicit world model in a latent space and uses it for planning. The latent representation geometry is critical for stable learning. The default approach uses **SimNorm (Simplicial Normalization)**, which reshapes the latent vector into groups of 8 and applies softmax within each group, constraining each group to lie on a simplex.\n\nAlternative normalization strategies could improve learning stability, representation quality, or computational efficiency:\n- **L2 normalization**: projects onto a hypersphere\n- **RMSNorm**: root-mean-square normalization without mean centering\n- **Spectral normalization**: controls the Lipschitz constant\n- **Gumbel-softmax**: adds stochasticity to the simplex projection\n- **Hybrid approaches**: combining different normalization strategies\n\n## What You Can Modify\nThe `CustomSimNorm` class (lines 16-43) in `custom_simnorm.py`:\n- `__init__(self, cfg)`: initialize parameters (cfg.simnorm_dim = 8)\n- `forward(self, x)`: normalize the latent vector (must preserve shape)\n\n## Evaluation\n- **Metric**: Episode reward (higher is better)\n- **Environments**: DMControl walker-walk and cheetah-run\n- **Model**: TD-MPC2 with 1M parameters, 200K training steps\n- **Baselines**: SimNorm (~800 reward on walker-walk), L2Norm, RMSNorm\n\n## Architecture Context\nThe normalization is used in:\n1. **Encoder** (`layers.py: enc()`): maps observations to latent states\n2. **Dynamics** (`world_model.py: __init__`): predicts next latent state from current state + action\n\nBoth use SimNorm as the final activation in their MLP stacks. The latent dimension is 128 with simnorm_dim=8 (16 groups).\n",
+    "baselines": [
+      "l2norm",
+      "rmsnorm",
+      "identity"
+    ],
+    "environments": [
+      "walker-walk",
+      "cheetah-run",
+      "cartpole-swingup"
+    ],
+    "packages": [
+      "tdmpc2"
+    ],
+    "files": [
+      {
+        "filename": "tdmpc2/tdmpc2/common/custom_simnorm.py",
+        "edit_ranges": [
+          {
+            "start": 16,
+            "end": 43
+          }
+        ]
+      },
+      {
+        "filename": "tdmpc2/tdmpc2/common/layers.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "tdmpc2/tdmpc2/common/world_model.py",
+        "edit_ranges": []
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
     "id": "ts-anomaly-detection",
     "category": "ts",
     "category_label": "Time Series",
@@ -6134,111 +6297,51 @@
       },
       {
         "filename": "Time-Series-Library/models/DLinear.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/models/TimesNet.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/models/PatchTST.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/AutoCorrelation.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Autoformer_EncDec.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Conv_Blocks.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Crossformer_EncDec.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Embed.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/FourierCorrelation.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/SelfAttention_Family.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/StandardNorm.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Transformer_EncDec.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       }
     ],
     "rigorous_codebase": false,
@@ -6275,111 +6378,51 @@
       },
       {
         "filename": "Time-Series-Library/models/DLinear.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/models/TimesNet.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/models/PatchTST.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/AutoCorrelation.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Autoformer_EncDec.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Conv_Blocks.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Crossformer_EncDec.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Embed.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/FourierCorrelation.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/SelfAttention_Family.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/StandardNorm.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Transformer_EncDec.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       }
     ],
     "rigorous_codebase": false,
@@ -6417,111 +6460,51 @@
       },
       {
         "filename": "Time-Series-Library/models/DLinear.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/models/PatchTST.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/models/iTransformer.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/AutoCorrelation.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Autoformer_EncDec.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Conv_Blocks.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Crossformer_EncDec.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Embed.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/FourierCorrelation.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/SelfAttention_Family.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/StandardNorm.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Transformer_EncDec.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       }
     ],
     "rigorous_codebase": false,
@@ -6558,111 +6541,51 @@
       },
       {
         "filename": "Time-Series-Library/models/DLinear.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/models/TimesNet.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/models/PatchTST.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/AutoCorrelation.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Autoformer_EncDec.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Conv_Blocks.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Crossformer_EncDec.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Embed.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/FourierCorrelation.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/SelfAttention_Family.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/StandardNorm.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Transformer_EncDec.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       }
     ],
     "rigorous_codebase": false,
@@ -6701,111 +6624,51 @@
       },
       {
         "filename": "Time-Series-Library/models/DLinear.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/models/PatchTST.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/models/iTransformer.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/AutoCorrelation.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Autoformer_EncDec.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Conv_Blocks.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Crossformer_EncDec.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Embed.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/FourierCorrelation.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/SelfAttention_Family.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/StandardNorm.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Transformer_EncDec.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       }
     ],
     "rigorous_codebase": false,
@@ -6843,114 +6706,99 @@
       },
       {
         "filename": "Time-Series-Library/models/DLinear.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/models/TimesNet.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/models/PatchTST.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/AutoCorrelation.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Autoformer_EncDec.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Conv_Blocks.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Crossformer_EncDec.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/Embed.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/FourierCorrelation.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/SelfAttention_Family.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "edit_ranges": []
       },
       {
         "filename": "Time-Series-Library/layers/StandardNorm.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "Time-Series-Library/layers/Transformer_EncDec.py",
+        "edit_ranges": []
+      }
+    ],
+    "rigorous_codebase": false,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "ttt-memory",
+    "category": "other",
+    "category_label": "Other",
+    "description_md": "# Test-Time Memory Management Strategy for Titans\n\n## Objective\nDesign a better test-time memory management strategy for the Titans neural memory module. The memory is a small MLP that learns at inference time — for each input token, it decides what to store, measures how surprising the input is, and updates its parameters accordingly. Your goal is to minimize test MSE on time series forecasting tasks by improving how the memory learns.\n\n## Background\nTitans (Learning to Memorize at Test Time) uses a neural memory module (NeuralMemory) within the MAC architecture. The memory management strategy has four components:\n\n1. **init_memory_state()** — Initialize projections and optimizer state (K/V linear layers, learning rates, momentum buffers, etc.)\n2. **compute_keys_values()** — Transform input into key-value pairs that determine what gets stored in memory\n3. **compute_surprise()** — Measure how novel/surprising the current input is (the loss signal that drives updates)\n4. **apply_update()** — Update the memory's parameters based on gradients (the optimization rule)\n\nThe default uses MSE-based surprise with SGD+momentum and weight decay. You can modify any or all of these components.\n\n## What You Can Modify\nEdit the four functions in `custom_memory.py` (lines 14-98). You may:\n- Change the key/value computation (different projections, normalization, etc.)\n- Design a new surprise metric (contrastive loss, cosine similarity, information-theoretic measures, etc.)\n- Implement a different optimizer (Adam, RMSprop, natural gradient, etc.)\n- Add gating mechanisms (only update when surprise exceeds a threshold)\n- Change hyperparameters (learning rate, momentum, weight decay)\n- Add auxiliary state to the memory object in init_memory_state()\n\n## Evaluation\nThe strategy is evaluated on three benchmarks (lower MSE is better):\n- **sinwave**: Synthetic sine wave forecasting (context_window=16, 20 epochs)\n- **weather**: Real-world weather data forecasting (context_window=16, 20 epochs)\n- **sinwave-long**: Longer-context sine wave forecasting (context_window=32, 30 epochs) — tests memory capacity\n\n## Constraints\n- You cannot modify files outside of `custom_memory.py`\n- The four function signatures must remain the same\n- The memory module must remain compatible with the MACTitan architecture\n- No new file creation allowed\n",
+    "baselines": [
+      "titans_default",
+      "adam_gated",
+      "contrastive_ema"
+    ],
+    "environments": [
+      "sinwave",
+      "weather",
+      "sinwave-long"
+    ],
+    "packages": [
+      "titans-lmm"
+    ],
+    "files": [
+      {
+        "filename": "titans-lmm/custom_memory.py",
         "edit_ranges": [
           {
-            "start": -1,
-            "end": -1
+            "start": 9,
+            "end": 98
           }
         ]
       },
       {
-        "filename": "Time-Series-Library/layers/Transformer_EncDec.py",
-        "edit_ranges": [
-          {
-            "start": -1,
-            "end": -1
-          }
-        ]
+        "filename": "titans-lmm/neural_memory.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "titans-lmm/titans.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "titans-lmm/train_utils.py",
+        "edit_ranges": []
       }
     ],
-    "rigorous_codebase": false,
+    "rigorous_codebase": true,
     "allow_create": false,
     "has_agent_logs": false
   }

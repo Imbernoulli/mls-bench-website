@@ -1,0 +1,42 @@
+{
+  "task_id": "tdmpc2-simnorm",
+  "columns": [
+    "model",
+    "is_final",
+    "seed",
+    "episode_reward_walker_walk",
+    "episode_reward_cheetah_run",
+    "episode_reward_cartpole_swingup"
+  ],
+  "metric_columns": [
+    "episode_reward_walker_walk",
+    "episode_reward_cheetah_run",
+    "episode_reward_cartpole_swingup"
+  ],
+  "rows": [
+    {
+      "model": "baseline:l2norm",
+      "is_final": true,
+      "seed": "42",
+      "episode_reward_walker_walk": 979.81,
+      "episode_reward_cheetah_run": 760.09,
+      "episode_reward_cartpole_swingup": 869.19
+    },
+    {
+      "model": "baseline:rmsnorm",
+      "is_final": true,
+      "seed": "42",
+      "episode_reward_walker_walk": 979.57,
+      "episode_reward_cheetah_run": 722.01,
+      "episode_reward_cartpole_swingup": 880.29
+    },
+    {
+      "model": "baseline:identity",
+      "is_final": true,
+      "seed": "42",
+      "episode_reward_walker_walk": 979.18,
+      "episode_reward_cheetah_run": 722.65,
+      "episode_reward_cartpole_swingup": 861.77
+    }
+  ]
+}

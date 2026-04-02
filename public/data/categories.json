@@ -137,6 +137,20 @@
       "graph-temporal"
     ]
   },
+  "other": {
+    "id": "other",
+    "label": "Other",
+    "tasks": [
+      "humanoid-ppo-extractor",
+      "marl-mixing-network",
+      "robomimic-bc-loss",
+      "robomimic-iql-vf",
+      "robomimic-obs-encoder",
+      "tdmpc2-planning",
+      "tdmpc2-simnorm",
+      "ttt-memory"
+    ]
+  },
   "rl": {
     "id": "rl",
     "label": "Reinforcement Learning",
@@ -185,19 +199,13 @@
       "llm-ttt-adaptation"
     ]
   },
-  "other": {
-    "id": "other",
-    "label": "Other",
-    "tasks": [
-      "marl-mixing-network"
-    ]
-  },
   "ml": {
     "id": "ml",
     "label": "Classical ML",
     "tasks": [
       "meta-fewshot-classification",
       "meta-inner-loop-optimizer",
+      "meta-rl",
       "ml-active-learning",
       "ml-anomaly-detection",
       "ml-calibration",

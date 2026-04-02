@@ -1,0 +1,46 @@
+{
+  "task_id": "robomimic-iql-vf",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "val_vf_loss_lift_ph",
+    "val_vf_loss_can_ph",
+    "val_vf_loss_square_ph"
+  ],
+  "metric_columns": [
+    "val_vf_loss_lift_ph",
+    "val_vf_loss_can_ph",
+    "val_vf_loss_square_ph"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-04-01T22:16:17.378705+00:00",
+      "model": "baseline:gumbel_regression",
+      "is_final": true,
+      "seed": "42",
+      "val_vf_loss_lift_ph": 0.0,
+      "val_vf_loss_can_ph": 0.0,
+      "val_vf_loss_square_ph": 3e-06
+    },
+    {
+      "timestamp": "2026-04-01T23:02:16.005994+00:00",
+      "model": "baseline:huber_pinball",
+      "is_final": true,
+      "seed": "42",
+      "val_vf_loss_lift_ph": 2e-06,
+      "val_vf_loss_can_ph": 4e-06,
+      "val_vf_loss_square_ph": 2.2e-05
+    },
+    {
+      "timestamp": "2026-04-02T00:43:52.514259+00:00",
+      "model": "baseline:quantile_regression",
+      "is_final": true,
+      "seed": "42",
+      "val_vf_loss_lift_ph": 0.00054,
+      "val_vf_loss_can_ph": 0.000741,
+      "val_vf_loss_square_ph": 0.001077
+    }
+  ]
+}

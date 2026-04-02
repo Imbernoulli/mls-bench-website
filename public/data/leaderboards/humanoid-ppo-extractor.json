@@ -1,0 +1,61 @@
+{
+  "task_id": "humanoid-ppo-extractor",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "mean_reward_h1_stand",
+    "std_reward_h1_stand",
+    "mean_reward_h1_walk",
+    "std_reward_h1_walk",
+    "mean_reward_h1_run",
+    "std_reward_h1_run"
+  ],
+  "metric_columns": [
+    "mean_reward_h1_stand",
+    "std_reward_h1_stand",
+    "mean_reward_h1_walk",
+    "std_reward_h1_walk",
+    "mean_reward_h1_run",
+    "std_reward_h1_run"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-03-31T09:13:00",
+      "model": "wide_mlp",
+      "is_final": true,
+      "seed": "42",
+      "mean_reward_h1_stand": 42.82,
+      "std_reward_h1_stand": 9.89,
+      "mean_reward_h1_walk": 18.79,
+      "std_reward_h1_walk": 2.68,
+      "mean_reward_h1_run": 9.64,
+      "std_reward_h1_run": 2.85
+    },
+    {
+      "timestamp": "2026-03-31T09:13:00",
+      "model": "layernorm_mlp",
+      "is_final": true,
+      "seed": "42",
+      "mean_reward_h1_stand": 32.74,
+      "std_reward_h1_stand": 3.03,
+      "mean_reward_h1_walk": 25.76,
+      "std_reward_h1_walk": 4.38,
+      "mean_reward_h1_run": 11.36,
+      "std_reward_h1_run": 4.37
+    },
+    {
+      "timestamp": "2026-03-31T09:13:00",
+      "model": "residual_mlp",
+      "is_final": true,
+      "seed": "42",
+      "mean_reward_h1_stand": 35.71,
+      "std_reward_h1_stand": 2.51,
+      "mean_reward_h1_walk": 24.15,
+      "std_reward_h1_walk": 6.72,
+      "mean_reward_h1_run": 9.66,
+      "std_reward_h1_run": 2.06
+    }
+  ]
+}

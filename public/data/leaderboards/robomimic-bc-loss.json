@@ -1,0 +1,46 @@
+{
+  "task_id": "robomimic-bc-loss",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "val_action_mse_lift_ph",
+    "val_action_mse_can_ph",
+    "val_action_mse_square_ph"
+  ],
+  "metric_columns": [
+    "val_action_mse_lift_ph",
+    "val_action_mse_can_ph",
+    "val_action_mse_square_ph"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-04-01T21:20:04.840892+00:00",
+      "model": "baseline:huber",
+      "is_final": true,
+      "seed": "42",
+      "val_action_mse_lift_ph": 0.023348,
+      "val_action_mse_can_ph": 0.038994,
+      "val_action_mse_square_ph": 0.038654
+    },
+    {
+      "timestamp": "2026-04-01T21:21:38.202651+00:00",
+      "model": "baseline:weighted_mse_cosine",
+      "is_final": true,
+      "seed": "42",
+      "val_action_mse_lift_ph": 0.031615,
+      "val_action_mse_can_ph": 0.039076,
+      "val_action_mse_square_ph": 0.039488
+    },
+    {
+      "timestamp": "2026-04-01T21:22:54.869328+00:00",
+      "model": "baseline:log_cosh",
+      "is_final": true,
+      "seed": "42",
+      "val_action_mse_lift_ph": 0.023317,
+      "val_action_mse_can_ph": 0.039081,
+      "val_action_mse_square_ph": 0.038517
+    }
+  ]
+}
