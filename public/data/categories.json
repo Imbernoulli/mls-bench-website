@@ -114,8 +114,7 @@
       "jepa-planning",
       "jepa-prediction-loss",
       "jepa-regularizer",
-      "mas-topology",
-      "normalization"
+      "mas-topology"
     ]
   },
   "fed": {
@@ -157,6 +156,7 @@
     "tasks": [
       "irl-reward-learning",
       "libero-lifelong",
+      "rl-intrinsic-exploration",
       "rl-offline-adroit",
       "rl-offline-continuous",
       "rl-offline-discrete",
@@ -166,6 +166,7 @@
       "rl-onpolicy-continuous",
       "rl-value-atari",
       "rl-value-discrete",
+      "safe-exploration-fixed-budget",
       "safe-rl"
     ]
   },
@@ -214,6 +215,8 @@
       "ml-ensemble-boosting",
       "ml-feature-selection",
       "ml-missing-data-imputation",
+      "ml-selective-deferral",
+      "ml-subgroup-calibration-shift",
       "ml-svm-kernel",
       "ml-tree-split-criterion"
     ]

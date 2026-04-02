@@ -1266,6 +1266,7 @@
     ],
     "environments": [
       "sd15",
+      "sd20",
       "sdxl"
     ],
     "packages": [
@@ -1340,6 +1341,7 @@
     ],
     "environments": [
       "sd15",
+      "sd20",
       "sdxl"
     ],
     "packages": [
@@ -3989,6 +3991,75 @@
     "has_agent_logs": false
   },
   {
+    "id": "ml-selective-deferral",
+    "category": "ml",
+    "category_label": "Classical ML",
+    "description_md": "# Selective Deferral Under Subgroup Shift\n\n## Research Question\nDesign a practical selective prediction and deferral policy for high-stakes tabular decisions.\n\nThe task isolates one modular question: given a fixed base classifier, what acceptance / deferral rule best trades off selective risk, subgroup fairness, and overall discrimination?\n\n## Background\nSelective prediction systems should be able to say \"I do not know\" when the classifier is uncertain. In high-stakes settings, that deferral can be handed to a human reviewer or a slower backup process. The benchmark studies whether a policy can:\n\n- keep selective risk low at a fixed target coverage,\n- avoid concentrating deferrals on one subgroup,\n- preserve AUROC as a confidence ranking signal, and\n- remain simple enough to run offline on modest compute.\n\n## Task\nModify the `SelectivePolicy` class in `custom_selective.py`. The rest of the pipeline is fixed: dataset loading, train / calibration / test splitting, base model training, and metric computation.\n\nThe policy receives calibration-time base-model probabilities and subgroup labels, then decides whether each test example should be accepted or deferred. You may implement a single global threshold, a learned deferral score, subgroup-specific thresholds, or any other compact policy that fits the interface.\n\n## Evaluation\nThe benchmark runs on four offline tabular proxies from `scikit-learn`:\n\n- `breast_cancer`\n- `diabetes` (binarized around the training-set median)\n- `california` (binarized around the training-set median)\n- `madelon`\n\nEach dataset is split into train / calibration / test partitions. Subgroups are formed from a stable feature threshold so that worst-group behavior can be measured.\n\nMetrics:\n\n- `selective_risk_at80`: classification error on accepted examples at 80% target coverage\n- `worst_group_selective_risk`: worst subgroup error on accepted examples\n- `deferral_rate_gap`: max subgroup deferral rate minus min subgroup deferral rate\n- `auroc`: AUROC of the acceptance score for predicting correctness\n\n## Baselines\n- `confidence_thresholding`: tune one confidence threshold to hit the target coverage\n- `conformal_abstention`: split-conformal abstention with a coverage target\n- `learned_deferral`: train a compact meta-model that predicts whether the base model will be correct\n- `groupwise_thresholding`: subgroup-specific thresholds as a stronger reference baseline\n\n## Practical Notes\nThis task intentionally uses datasets that are already available offline in the repository's `scikit-learn` package setup, so no shared package edit is required.\n\nIf you want the exact adult / ACSIncome / COMPAS / Law School datasets from the prompt, that would require a shared package-data follow-up, which I have not implemented here.\n",
+    "baselines": [
+      "confidence_thresholding",
+      "conformal_abstention",
+      "learned_deferral",
+      "groupwise_thresholding"
+    ],
+    "environments": [
+      "breast_cancer",
+      "diabetes",
+      "california",
+      "madelon"
+    ],
+    "packages": [
+      "scikit-learn"
+    ],
+    "files": [
+      {
+        "filename": "scikit-learn/custom_selective.py",
+        "edit_ranges": [
+          {
+            "start": 161,
+            "end": 195
+          }
+        ]
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "ml-subgroup-calibration-shift",
+    "category": "ml",
+    "category_label": "Classical ML",
+    "description_md": "# Subgroup Calibration Under Distribution Shift\n\n## Research Question\nDesign a post-hoc calibration method that remains reliable when subgroup composition shifts between calibration and test time.\n\n## Background\nMany calibration methods look good on average but fail on protected or operational subgroups once the test distribution shifts. This task isolates that failure mode. The fixed pipeline trains a tabular classifier, then applies a user-defined calibration mapping on held-out calibration data before evaluation on shifted test data.\n\nClassical baselines include:\n- **Temperature scaling**: one global temperature for all samples\n- **Isotonic regression**: non-parametric monotone calibration\n- **Beta calibration**: a richer parametric mapping on probabilities\n- **Group-wise temperature scaling**: separate temperatures per subgroup\n\n## Task\nModify the `CalibrationMethod` class in `custom_subgroup_calibration.py`. The fixed code loads data, creates a shifted split, trains the base classifier, and computes metrics. Your method only controls the post-hoc calibration mapping.\n\n```python\nclass CalibrationMethod:\n    def fit(self, probs, labels, groups=None):\n        ...\n\n    def predict_proba(self, probs, groups=None):\n        ...\n```\n\nInputs are positive-class probabilities from the base classifier. `groups` contains subgroup IDs when available and may be ignored by group-agnostic methods.\n\n## Evaluation\nThis benchmark uses three lightweight tabular proxies that are already available in the current scikit-learn package setup. We would normally prefer Adult, ACSIncome, COMPAS, and Law School Admissions, but those require package-level data changes that are outside this task directory. To keep the benchmark runnable offline, we use cached scikit-learn datasets with similar calibration and subgroup-shift behavior:\n\n- **breast_cancer**: binary classification on the scikit-learn breast cancer dataset\n- **california_housing**: binary high-value/low-value decision built from California housing\n- **diabetes**: binary high-risk/low-risk decision built from the diabetes target\n\nFor each dataset, the split is intentionally shifted:\n- a domain score determines the held-out test tail\n- subgroup labels are quartiles of a separate proxy feature\n- calibration is fit on the source region and evaluated on the shifted region\n\n## Metrics\nLower is better for:\n- **worst_group_ece**\n- **brier**\n- **max_subgroup_gap**\n\nHigher is better for:\n- **subgroup_auroc**\n\n## Notes\n- The task is deliberately low compute and should run with a small tabular classifier.\n- If you need the exact Adult/ACSIncome/COMPAS/Law School datasets, they should be added through a package-level data change, not inside this task directory.\n",
+    "baselines": [
+      "temperature_scaling",
+      "isotonic_regression",
+      "beta_calibration",
+      "group_temperature_scaling"
+    ],
+    "environments": [
+      "breast_cancer",
+      "california_housing",
+      "diabetes"
+    ],
+    "packages": [
+      "scikit-learn"
+    ],
+    "files": [
+      {
+        "filename": "scikit-learn/custom_subgroup_calibration.py",
+        "edit_ranges": [
+          {
+            "start": 72,
+            "end": 91
+          }
+        ]
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
     "id": "ml-svm-kernel",
     "category": "ml",
     "category_label": "Classical ML",
@@ -4132,39 +4203,6 @@
       {
         "filename": "SpargeAttn/Triton_SpargeAttn/triton_kernel_example.py",
         "edit_ranges": []
-      }
-    ],
-    "rigorous_codebase": true,
-    "allow_create": false,
-    "has_agent_logs": false
-  },
-  {
-    "id": "normalization",
-    "category": "dl",
-    "category_label": "Deep Learning",
-    "description_md": "# Normalization Replacement for Transformers\n\n## Objective\nDesign and implement a custom normalization technique to replace LayerNorm in Transformer architectures. Your code goes in the `CustomNorm` class in `custom_norm.py`. The `convert_ln_to_custom` function recursively swaps all `nn.LayerNorm` with your `CustomNorm`.\n\n## Background\nLayerNorm is ubiquitous in Transformers. Recent work explores alternatives like RMSNorm (removes mean centering) and Derf (replaces normalization with a point-wise activation). This task uses the Derf codebase which provides training pipelines for three Transformer architectures.\n\n## Evaluation\nYour `CustomNorm` is injected into each model via `convert_ln_to_custom()` and evaluated on:\n1. **DeiT-Small** (22M params) on CIFAR-100 — metric: top-1 accuracy\n2. **DiT-S/4** (33M params) on CIFAR-10 pixel-space diffusion — metric: training loss\n3. **GPT-2** (124M params) on OpenWebText via nanoGPT — metric: validation loss\n\nThroughput (samples/sec) and peak GPU memory (MB) are also measured per model.\n\n**Note**: DiT uses `nn.LayerNorm(hidden_size, elementwise_affine=False)` in some layers — your CustomNorm must support `elementwise_affine=False`.\n",
-    "baselines": [
-      "layernorm",
-      "rmsnorm",
-      "derf"
-    ],
-    "environments": [
-      "vit-cifar100",
-      "dit-cifar10",
-      "gpt2-openwebtext"
-    ],
-    "packages": [
-      "Derf"
-    ],
-    "files": [
-      {
-        "filename": "Derf/custom_norm.py",
-        "edit_ranges": [
-          {
-            "start": 16,
-            "end": 65
-          }
-        ]
       }
     ],
     "rigorous_codebase": true,
@@ -5056,7 +5094,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "quant-graph-stock",
@@ -5106,7 +5144,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "quant-order-execution",
@@ -5160,7 +5198,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "quant-portfolio-opt",
@@ -5210,7 +5248,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "quant-stock-prediction",
@@ -5255,6 +5293,47 @@
       },
       {
         "filename": "qlib/qlib/model/base.py",
+        "edit_ranges": []
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": true
+  },
+  {
+    "id": "rl-intrinsic-exploration",
+    "category": "rl",
+    "category_label": "Reinforcement Learning",
+    "description_md": "# RL Intrinsic Exploration: Sparse-Reward Novelty Bonus Design\n\n## Research Question\nDesign an intrinsic exploration mechanism that improves sparse-reward discovery in hard-exploration Atari environments.\n\n## Background\nIn sparse-reward reinforcement learning, external rewards arrive too infrequently for vanilla policy optimization to learn efficiently. A common solution is to add an **intrinsic reward** that encourages novelty, surprise, or state-space coverage.\n\nThis task isolates that question. The PPO training loop, Atari preprocessing, policy/value architecture, and optimization setup are fixed. The only thing you should redesign is the intrinsic bonus module and how its signal is mixed into learning.\n\nReference algorithm families include:\n- **No bonus / vanilla PPO**: learns only from clipped extrinsic reward\n- **RND**: rewards prediction error against a fixed random target network\n- **ICM**: rewards forward-dynamics prediction error in learned feature space\n\n## Task\nModify the editable section of `custom_intrinsic_exploration.py`:\n- `IntrinsicBonusModule`: define how intrinsic rewards are computed and trained\n- `mix_advantages(...)`: define how extrinsic and intrinsic advantages are combined\n\nThe editable code must keep the public interface intact:\n- `initialize(envs)`\n- `trainable_parameters()`\n- `update_batch_stats(batch_obs, batch_next_obs)`\n- `compute_bonus(obs, next_obs, actions)`\n- `normalize_rollout_rewards(rollout_intrinsic)`\n- `loss(batch_obs, batch_next_obs, batch_actions)`\n- `mix_advantages(ext_advantages, int_advantages, args)`\n\n## Evaluation\nThe agent is trained with the same fixed PPO-style loop on three sparse-reward Atari environments:\n- **MontezumaRevenge-v5**\n- **Venture-v5**\n- **PrivateEye-v5**\n\n`MontezumaRevenge-v5` and `Venture-v5` are visible during development. `PrivateEye-v5` is held out as the hidden evaluation environment.\n\nMetrics:\n- `eval_return`: mean evaluation episodic return at a fixed training budget\n- `auc`: area under the evaluation-return curve across training\n- `nonzero_rate`: fraction of evaluation episodes that achieve non-zero score\n\nImprovement must transfer across multiple games; a method that only helps one environment is not sufficient.\n\n## Hints\n- Intrinsic rewards are often unstable unless normalized over time\n- Sparse-reward exploration benefits from balancing short-term novelty and longer-horizon return\n- Atari observations are image stacks; your bonus can use current state, next state, and action\n- A useful intrinsic signal should help discovery without overwhelming the extrinsic objective\n",
+    "baselines": [
+      "ppo",
+      "rnd",
+      "icm"
+    ],
+    "environments": [
+      "montezuma-revenge-v5",
+      "venture-v5",
+      "private-eye-v5"
+    ],
+    "packages": [
+      "cleanrl"
+    ],
+    "files": [
+      {
+        "filename": "cleanrl/cleanrl/custom_intrinsic_exploration.py",
+        "edit_ranges": [
+          {
+            "start": 179,
+            "end": 218
+          }
+        ]
+      },
+      {
+        "filename": "cleanrl/cleanrl/ppo_rnd_envpool.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "cleanrl/cleanrl/ppo_atari_envpool.py",
         "edit_ranges": []
       }
     ],
@@ -5370,7 +5449,6 @@
     "baselines": [
       "iql",
       "awac",
-      "cal_ql",
       "spot"
     ],
     "environments": [
@@ -5654,6 +5732,64 @@
             "end": 56
           }
         ]
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "safe-exploration-fixed-budget",
+    "category": "rl",
+    "category_label": "Reinforcement Learning",
+    "description_md": "# Safe Exploration Under Fixed Cost Budgets\n\n## Research Question\nDesign a constraint-handling mechanism for safe reinforcement learning when the cost budget is fixed and must be respected across different environments.\n\nThe task isolates one modular question: given a PPO-style safe RL scaffold, what update rule best keeps episode cost under a budget while retaining reward?\n\n## Background\nSafe exploration is not just about reducing cost on average. In many settings the agent must satisfy a hard budget during training and evaluation, which makes the controller for the cost multiplier the key algorithmic choice.\n\nThis benchmark focuses on a single transferable component:\n- how the Lagrange multiplier is updated,\n- how reward and cost advantages are combined, and\n- how aggressively the policy should react when the budget is overshot.\n\n## Task\nModify the `CustomLag` class in `custom_lag.py`. The rest of the pipeline is fixed: PPO backbone, OmniSafe training loop, and evaluation script.\n\nYour implementation receives episode cost statistics from the logger and must control the policy update so that cost stays within a fixed budget.\n\n## Evaluation\nThe benchmark runs on three Safety-Gymnasium environments that stress different control geometries:\n\n- `SafetyPointGoal1-v0`\n- `SafetyCarGoal1-v0`\n- `SafetyPointButton1-v0`\n\nEach environment is trained for 1M steps with a fixed cost budget of 25.0.\n\n## Metrics\nHigher is better for:\n- `ep_ret`\n- `budget_success_rate`\n\nLower is better for:\n- `ep_cost`\n\nThe budget success rate is 1 when the final episode cost is at or below the fixed budget, and 0 otherwise.\n\n## Baselines\n- `naive`: pure PPO, ignores cost\n- `ppo_lag`: standard Lagrangian PPO with Adam multiplier updates\n- `pid_lag`: PID-style multiplier control\n- `budget_margin_lag`: budget-aware Lagrangian proxy that reacts more aggressively to budget overshoot\n\n## Notes\nThis task intentionally reuses the existing OmniSafe scaffold so that all baselines are expressed as edits to the same code path.\n\nThe exact CUP / APPO / Simmer family was not ported here because those implementations are heavier than this benchmark needs. The `budget_margin_lag` baseline is a practical MLS-Bench substitute that captures the same budget-first behavior without introducing a new training stack.\n",
+    "baselines": [
+      "naive",
+      "ppo_lag",
+      "pid_lag",
+      "budget_margin_lag"
+    ],
+    "environments": [
+      "SafetyPointGoal1-v0",
+      "SafetyCarGoal1-v0",
+      "SafetyPointButton1-v0"
+    ],
+    "packages": [
+      "omnisafe"
+    ],
+    "files": [
+      {
+        "filename": "omnisafe/omnisafe/algorithms/on_policy/naive_lagrange/custom_lag.py",
+        "edit_ranges": [
+          {
+            "start": 20,
+            "end": 20
+          },
+          {
+            "start": 48,
+            "end": 70
+          }
+        ]
+      },
+      {
+        "filename": "omnisafe/omnisafe/algorithms/on_policy/naive_lagrange/ppo_lag.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "omnisafe/omnisafe/algorithms/on_policy/pid_lagrange/cppo_pid.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "omnisafe/omnisafe/common/lagrange.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "omnisafe/omnisafe/common/pid_lagrange.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "omnisafe/omnisafe/algorithms/on_policy/base/ppo.py",
+        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,

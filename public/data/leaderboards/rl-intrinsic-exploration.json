@@ -1,0 +1,11 @@
+{
+  "task_id": "rl-intrinsic-exploration",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed"
+  ],
+  "metric_columns": [],
+  "rows": []
+}

@@ -10,7 +10,13 @@
     "eval_return_pong_v4",
     "eval_return_breakout_v4_std",
     "eval_return_seaquest_v4_std",
-    "eval_return_pong_v4_std"
+    "eval_return_pong_v4_std",
+    "elapsed_breakout-v4",
+    "elapsed_seaquest-v4",
+    "elapsed_pong-v4",
+    "elapsed_breakout-v4_std",
+    "elapsed_seaquest-v4_std",
+    "elapsed_pong-v4_std"
   ],
   "metric_columns": [
     "eval_return_breakout_v4",
@@ -28,7 +34,13 @@
       "eval_return_pong_v4": 20.9,
       "eval_return_breakout_v4_std": null,
       "eval_return_seaquest_v4_std": null,
-      "eval_return_pong_v4_std": null
+      "eval_return_pong_v4_std": null,
+      "elapsed_breakout-v4": null,
+      "elapsed_seaquest-v4": null,
+      "elapsed_pong-v4": null,
+      "elapsed_breakout-v4_std": null,
+      "elapsed_seaquest-v4_std": null,
+      "elapsed_pong-v4_std": null
     },
     {
       "timestamp": "2026-03-31T01:43:16.849048+00:00",
@@ -40,7 +52,13 @@
       "eval_return_pong_v4": 20.9,
       "eval_return_breakout_v4_std": null,
       "eval_return_seaquest_v4_std": null,
-      "eval_return_pong_v4_std": null
+      "eval_return_pong_v4_std": null,
+      "elapsed_breakout-v4": null,
+      "elapsed_seaquest-v4": null,
+      "elapsed_pong-v4": null,
+      "elapsed_breakout-v4_std": null,
+      "elapsed_seaquest-v4_std": null,
+      "elapsed_pong-v4_std": null
     },
     {
       "timestamp": "2026-03-31T01:43:16.849048+00:00",
@@ -52,7 +70,13 @@
       "eval_return_pong_v4": 21.0,
       "eval_return_breakout_v4_std": null,
       "eval_return_seaquest_v4_std": null,
-      "eval_return_pong_v4_std": null
+      "eval_return_pong_v4_std": null,
+      "elapsed_breakout-v4": null,
+      "elapsed_seaquest-v4": null,
+      "elapsed_pong-v4": null,
+      "elapsed_breakout-v4_std": null,
+      "elapsed_seaquest-v4_std": null,
+      "elapsed_pong-v4_std": null
     },
     {
       "timestamp": "2026-03-31T01:43:16.849048+00:00",
@@ -64,7 +88,13 @@
       "eval_return_pong_v4": 20.933333333333334,
       "eval_return_breakout_v4_std": 69.6650079547353,
       "eval_return_seaquest_v4_std": 2739.5228294966505,
-      "eval_return_pong_v4_std": 0.0577350269189634
+      "eval_return_pong_v4_std": 0.0577350269189634,
+      "elapsed_breakout-v4": null,
+      "elapsed_seaquest-v4": null,
+      "elapsed_pong-v4": null,
+      "elapsed_breakout-v4_std": null,
+      "elapsed_seaquest-v4_std": null,
+      "elapsed_pong-v4_std": null
     },
     {
       "timestamp": "2026-03-31T01:43:16.849048+00:00",
@@ -76,7 +106,13 @@
       "eval_return_pong_v4": 20.0,
       "eval_return_breakout_v4_std": null,
       "eval_return_seaquest_v4_std": null,
-      "eval_return_pong_v4_std": null
+      "eval_return_pong_v4_std": null,
+      "elapsed_breakout-v4": null,
+      "elapsed_seaquest-v4": null,
+      "elapsed_pong-v4": null,
+      "elapsed_breakout-v4_std": null,
+      "elapsed_seaquest-v4_std": null,
+      "elapsed_pong-v4_std": null
     },
     {
       "timestamp": "2026-03-31T01:43:16.849048+00:00",
@@ -88,7 +124,13 @@
       "eval_return_pong_v4": 20.4,
       "eval_return_breakout_v4_std": null,
       "eval_return_seaquest_v4_std": null,
-      "eval_return_pong_v4_std": null
+      "eval_return_pong_v4_std": null,
+      "elapsed_breakout-v4": null,
+      "elapsed_seaquest-v4": null,
+      "elapsed_pong-v4": null,
+      "elapsed_breakout-v4_std": null,
+      "elapsed_seaquest-v4_std": null,
+      "elapsed_pong-v4_std": null
     },
     {
       "timestamp": "2026-03-31T01:43:16.849048+00:00",
@@ -100,7 +142,13 @@
       "eval_return_pong_v4": 20.4,
       "eval_return_breakout_v4_std": null,
       "eval_return_seaquest_v4_std": null,
-      "eval_return_pong_v4_std": null
+      "eval_return_pong_v4_std": null,
+      "elapsed_breakout-v4": null,
+      "elapsed_seaquest-v4": null,
+      "elapsed_pong-v4": null,
+      "elapsed_breakout-v4_std": null,
+      "elapsed_seaquest-v4_std": null,
+      "elapsed_pong-v4_std": null
     },
     {
       "timestamp": "2026-03-31T01:43:16.849048+00:00",
@@ -112,7 +160,13 @@
       "eval_return_pong_v4": 20.266666666666666,
       "eval_return_breakout_v4_std": 88.3081158973134,
       "eval_return_seaquest_v4_std": 260.81666613415126,
-      "eval_return_pong_v4_std": 0.2309401076758495
+      "eval_return_pong_v4_std": 0.2309401076758495,
+      "elapsed_breakout-v4": null,
+      "elapsed_seaquest-v4": null,
+      "elapsed_pong-v4": null,
+      "elapsed_breakout-v4_std": null,
+      "elapsed_seaquest-v4_std": null,
+      "elapsed_pong-v4_std": null
     },
     {
       "timestamp": "2026-03-31T01:43:16.849048+00:00",
@@ -124,7 +178,13 @@
       "eval_return_pong_v4": 20.4,
       "eval_return_breakout_v4_std": null,
       "eval_return_seaquest_v4_std": null,
-      "eval_return_pong_v4_std": null
+      "eval_return_pong_v4_std": null,
+      "elapsed_breakout-v4": null,
+      "elapsed_seaquest-v4": null,
+      "elapsed_pong-v4": null,
+      "elapsed_breakout-v4_std": null,
+      "elapsed_seaquest-v4_std": null,
+      "elapsed_pong-v4_std": null
     },
     {
       "timestamp": "2026-03-31T01:43:16.849048+00:00",
@@ -136,7 +196,13 @@
       "eval_return_pong_v4": 20.6,
       "eval_return_breakout_v4_std": null,
       "eval_return_seaquest_v4_std": null,
-      "eval_return_pong_v4_std": null
+      "eval_return_pong_v4_std": null,
+      "elapsed_breakout-v4": null,
+      "elapsed_seaquest-v4": null,
+      "elapsed_pong-v4": null,
+      "elapsed_breakout-v4_std": null,
+      "elapsed_seaquest-v4_std": null,
+      "elapsed_pong-v4_std": null
     },
     {
       "timestamp": "2026-03-31T01:43:16.849048+00:00",
@@ -148,7 +214,13 @@
       "eval_return_pong_v4": 21.0,
       "eval_return_breakout_v4_std": null,
       "eval_return_seaquest_v4_std": null,
-      "eval_return_pong_v4_std": null
+      "eval_return_pong_v4_std": null,
+      "elapsed_breakout-v4": null,
+      "elapsed_seaquest-v4": null,
+      "elapsed_pong-v4": null,
+      "elapsed_breakout-v4_std": null,
+      "elapsed_seaquest-v4_std": null,
+      "elapsed_pong-v4_std": null
     },
     {
       "timestamp": "2026-03-31T01:43:16.849048+00:00",
@@ -160,7 +232,85 @@
       "eval_return_pong_v4": 20.666666666666668,
       "eval_return_breakout_v4_std": 64.69786189151334,
       "eval_return_seaquest_v4_std": 1254.9810091524625,
-      "eval_return_pong_v4_std": 0.3055050463303898
+      "eval_return_pong_v4_std": 0.3055050463303898,
+      "elapsed_breakout-v4": null,
+      "elapsed_seaquest-v4": null,
+      "elapsed_pong-v4": null,
+      "elapsed_breakout-v4_std": null,
+      "elapsed_seaquest-v4_std": null,
+      "elapsed_pong-v4_std": null
+    },
+    {
+      "timestamp": "2026-04-02T13:49:21.990175+00:00",
+      "model": "google/gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "eval_return_breakout_v4": null,
+      "eval_return_seaquest_v4": 9774.0,
+      "eval_return_pong_v4": 20.7,
+      "eval_return_breakout_v4_std": null,
+      "eval_return_seaquest_v4_std": null,
+      "eval_return_pong_v4_std": null,
+      "elapsed_breakout-v4": 15.0,
+      "elapsed_seaquest-v4": 28374.0,
+      "elapsed_pong-v4": 28241.0,
+      "elapsed_breakout-v4_std": null,
+      "elapsed_seaquest-v4_std": null,
+      "elapsed_pong-v4_std": null
+    },
+    {
+      "timestamp": "2026-04-02T13:49:21.990667+00:00",
+      "model": "google/gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "123",
+      "eval_return_breakout_v4": null,
+      "eval_return_seaquest_v4": 5634.0,
+      "eval_return_pong_v4": 20.7,
+      "eval_return_breakout_v4_std": null,
+      "eval_return_seaquest_v4_std": null,
+      "eval_return_pong_v4_std": null,
+      "elapsed_breakout-v4": 16.0,
+      "elapsed_seaquest-v4": 28374.0,
+      "elapsed_pong-v4": 28241.0,
+      "elapsed_breakout-v4_std": null,
+      "elapsed_seaquest-v4_std": null,
+      "elapsed_pong-v4_std": null
+    },
+    {
+      "timestamp": "2026-04-02T13:49:21.991105+00:00",
+      "model": "google/gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "456",
+      "eval_return_breakout_v4": null,
+      "eval_return_seaquest_v4": 7428.0,
+      "eval_return_pong_v4": 21.0,
+      "eval_return_breakout_v4_std": null,
+      "eval_return_seaquest_v4_std": null,
+      "eval_return_pong_v4_std": null,
+      "elapsed_breakout-v4": 16.0,
+      "elapsed_seaquest-v4": 28241.0,
+      "elapsed_pong-v4": 28241.0,
+      "elapsed_breakout-v4_std": null,
+      "elapsed_seaquest-v4_std": null,
+      "elapsed_pong-v4_std": null
+    },
+    {
+      "timestamp": "2026-04-02T13:49:21.991298+00:00",
+      "model": "google/gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "mean",
+      "eval_return_breakout_v4": null,
+      "eval_return_seaquest_v4": 7612.0,
+      "eval_return_pong_v4": 20.8,
+      "eval_return_breakout_v4_std": null,
+      "eval_return_seaquest_v4_std": 2076.1242737370035,
+      "eval_return_pong_v4_std": 0.17320508075688815,
+      "elapsed_breakout-v4": 15.666666666666666,
+      "elapsed_seaquest-v4": 28329.666666666668,
+      "elapsed_pong-v4": 28241.0,
+      "elapsed_breakout-v4_std": 0.5773502691896257,
+      "elapsed_seaquest-v4_std": 76.78758580222022,
+      "elapsed_pong-v4_std": 0.0
     }
   ]
 }
