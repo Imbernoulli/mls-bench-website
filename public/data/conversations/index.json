@@ -1,4 +1,89 @@
 {
+  "causal-discovery-discrete": [
+    {
+      "model": "anthropic/claude-opus-4.6",
+      "slug": "anthropic--claude-opus-4.6",
+      "total_steps": 6
+    },
+    {
+      "model": "google/gemini-3.1-pro-preview",
+      "slug": "google--gemini-3.1-pro-preview",
+      "total_steps": 7
+    },
+    {
+      "model": "gpt-5.4-pro",
+      "slug": "gpt-5.4-pro",
+      "total_steps": 5
+    }
+  ],
+  "causal-observational-linear-gaussian": [
+    {
+      "model": "anthropic/claude-opus-4.6",
+      "slug": "anthropic--claude-opus-4.6",
+      "total_steps": 6
+    },
+    {
+      "model": "google/gemini-3.1-pro-preview",
+      "slug": "google--gemini-3.1-pro-preview",
+      "total_steps": 9
+    },
+    {
+      "model": "gpt-5.4-pro",
+      "slug": "gpt-5.4-pro",
+      "total_steps": 5
+    }
+  ],
+  "causal-observational-linear-non-gaussian": [
+    {
+      "model": "anthropic/claude-opus-4.6",
+      "slug": "anthropic--claude-opus-4.6",
+      "total_steps": 5
+    },
+    {
+      "model": "google/gemini-3.1-pro-preview",
+      "slug": "google--gemini-3.1-pro-preview",
+      "total_steps": 7
+    },
+    {
+      "model": "gpt-5.4-pro",
+      "slug": "gpt-5.4-pro",
+      "total_steps": 5
+    }
+  ],
+  "causal-observational-nonlinear": [
+    {
+      "model": "anthropic/claude-opus-4.6",
+      "slug": "anthropic--claude-opus-4.6",
+      "total_steps": 6
+    },
+    {
+      "model": "google/gemini-3.1-pro-preview",
+      "slug": "google--gemini-3.1-pro-preview",
+      "total_steps": 7
+    },
+    {
+      "model": "gpt-5.4-pro",
+      "slug": "gpt-5.4-pro",
+      "total_steps": 5
+    }
+  ],
+  "causal-treatment-effect": [
+    {
+      "model": "anthropic/claude-opus-4.6",
+      "slug": "anthropic--claude-opus-4.6",
+      "total_steps": 4
+    },
+    {
+      "model": "google/gemini-3.1-pro-preview",
+      "slug": "google--gemini-3.1-pro-preview",
+      "total_steps": 7
+    },
+    {
+      "model": "gpt-5.4-pro",
+      "slug": "gpt-5.4-pro",
+      "total_steps": 6
+    }
+  ],
   "llm-offline-rl": [
     {
       "model": "deepseek-reasoner",
@@ -256,6 +341,74 @@
       "model": "gpt-5.4-pro",
       "slug": "gpt-5.4-pro",
       "total_steps": 7
+    }
+  ],
+  "security-adversarial-attack-black-box-score": [
+    {
+      "model": "anthropic/claude-opus-4.6",
+      "slug": "anthropic--claude-opus-4.6",
+      "total_steps": 5
+    },
+    {
+      "model": "google/gemini-3.1-pro-preview",
+      "slug": "google--gemini-3.1-pro-preview",
+      "total_steps": 7
+    },
+    {
+      "model": "gpt-5.4-pro",
+      "slug": "gpt-5.4-pro",
+      "total_steps": 5
+    }
+  ],
+  "security-adversarial-attack-sparse-l0": [
+    {
+      "model": "anthropic/claude-opus-4.6",
+      "slug": "anthropic--claude-opus-4.6",
+      "total_steps": 5
+    },
+    {
+      "model": "google/gemini-3.1-pro-preview",
+      "slug": "google--gemini-3.1-pro-preview",
+      "total_steps": 7
+    },
+    {
+      "model": "gpt-5.4-pro",
+      "slug": "gpt-5.4-pro",
+      "total_steps": 5
+    }
+  ],
+  "security-adversarial-attack-white-box-linf": [
+    {
+      "model": "anthropic/claude-opus-4.6",
+      "slug": "anthropic--claude-opus-4.6",
+      "total_steps": 5
+    },
+    {
+      "model": "google/gemini-3.1-pro-preview",
+      "slug": "google--gemini-3.1-pro-preview",
+      "total_steps": 7
+    },
+    {
+      "model": "gpt-5.4-pro",
+      "slug": "gpt-5.4-pro",
+      "total_steps": 5
+    }
+  ],
+  "security-adversarial-training": [
+    {
+      "model": "anthropic/claude-opus-4.6",
+      "slug": "anthropic--claude-opus-4.6",
+      "total_steps": 5
+    },
+    {
+      "model": "google/gemini-3.1-pro-preview",
+      "slug": "google--gemini-3.1-pro-preview",
+      "total_steps": 8
+    },
+    {
+      "model": "gpt-5.4-pro",
+      "slug": "gpt-5.4-pro",
+      "total_steps": 5
     }
   ]
 }

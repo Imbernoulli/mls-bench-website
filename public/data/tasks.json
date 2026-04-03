@@ -755,7 +755,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "causal-observational-linear-gaussian",
@@ -803,7 +803,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "causal-observational-linear-non-gaussian",
@@ -850,7 +850,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "causal-observational-nonlinear",
@@ -898,7 +898,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "causal-treatment-effect",
@@ -934,7 +934,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "cl-regularization",
@@ -5775,7 +5775,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "security-adversarial-attack-sparse-l0",
@@ -5819,7 +5819,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "security-adversarial-attack-white-box-linf",
@@ -5859,7 +5859,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "security-adversarial-training",
@@ -5900,7 +5900,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "speech-asr-encoder",
