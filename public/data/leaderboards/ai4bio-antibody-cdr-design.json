@@ -31,9 +31,27 @@
   ],
   "rows": [
     {
+      "timestamp": "2026-04-01T10:09:10.051692+00:00",
+      "model": "baseline:diffab",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_antigen_fold": 915.0,
+      "elapsed_temporal": 1174.0,
+      "elapsed_epitope_group": 661.0,
+      "aar_epitope_group": 0.57609,
+      "rmsd_epitope_group": 2.459935,
+      "tm_score_epitope_group": 0.346749,
+      "aar_antigen_fold": 0.568592,
+      "rmsd_antigen_fold": 2.461711,
+      "tm_score_antigen_fold": 0.351941,
+      "aar_temporal": 0.564724,
+      "rmsd_temporal": 2.583173,
+      "tm_score_temporal": 0.343028
+    },
+    {
       "timestamp": "2026-04-01T09:58:13.549769+00:00",
       "model": "baseline:dymean",
-      "is_final": false,
+      "is_final": true,
       "seed": "42",
       "elapsed_antigen_fold": 474.0,
       "elapsed_temporal": 471.0,
@@ -51,7 +69,7 @@
     {
       "timestamp": "2026-04-01T10:00:09.533921+00:00",
       "model": "baseline:mean",
-      "is_final": false,
+      "is_final": true,
       "seed": "42",
       "elapsed_antigen_fold": 568.0,
       "elapsed_temporal": 565.0,
@@ -65,24 +83,6 @@
       "aar_temporal": 0.572131,
       "rmsd_temporal": 1.044779,
       "tm_score_temporal": 0.405045
-    },
-    {
-      "timestamp": "2026-04-01T10:09:10.051692+00:00",
-      "model": "baseline:diffab",
-      "is_final": false,
-      "seed": "42",
-      "elapsed_antigen_fold": 915.0,
-      "elapsed_temporal": 1174.0,
-      "elapsed_epitope_group": 661.0,
-      "aar_epitope_group": 0.57609,
-      "rmsd_epitope_group": 2.459935,
-      "tm_score_epitope_group": 0.346749,
-      "aar_antigen_fold": 0.568592,
-      "rmsd_antigen_fold": 2.461711,
-      "tm_score_antigen_fold": 0.351941,
-      "aar_temporal": 0.564724,
-      "rmsd_temporal": 2.583173,
-      "tm_score_temporal": 0.343028
     }
   ]
 }

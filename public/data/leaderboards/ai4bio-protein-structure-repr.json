@@ -21,22 +21,9 @@
   ],
   "rows": [
     {
-      "timestamp": "2026-04-01T09:15:31.210169+00:00",
-      "model": "baseline:gearnet",
-      "is_final": false,
-      "seed": "42",
-      "elapsed_EC": 1473.0,
-      "elapsed_GO-BP": 0.0,
-      "elapsed_Fold": 450.0,
-      "f1_max_GO-BP": 0.004358,
-      "test_loss_GO-BP": 0.160216,
-      "accuracy_Fold": null,
-      "test_loss_Fold": null
-    },
-    {
       "timestamp": "2026-04-01T10:03:38.124706+00:00",
       "model": "baseline:egnn",
-      "is_final": false,
+      "is_final": true,
       "seed": "42",
       "elapsed_EC": 4625.0,
       "elapsed_GO-BP": 0.0,
@@ -45,6 +32,19 @@
       "test_loss_GO-BP": null,
       "accuracy_Fold": 0.179666,
       "test_loss_Fold": 4.835683
+    },
+    {
+      "timestamp": "2026-04-01T09:15:31.210169+00:00",
+      "model": "baseline:gearnet",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_EC": 1473.0,
+      "elapsed_GO-BP": 0.0,
+      "elapsed_Fold": 450.0,
+      "f1_max_GO-BP": 0.004358,
+      "test_loss_GO-BP": 0.160216,
+      "accuracy_Fold": null,
+      "test_loss_Fold": null
     }
   ]
 }

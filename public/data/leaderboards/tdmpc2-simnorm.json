@@ -15,6 +15,14 @@
   ],
   "rows": [
     {
+      "model": "baseline:identity",
+      "is_final": true,
+      "seed": "42",
+      "episode_reward_walker_walk": 979.18,
+      "episode_reward_cheetah_run": 722.65,
+      "episode_reward_cartpole_swingup": 861.77
+    },
+    {
       "model": "baseline:l2norm",
       "is_final": true,
       "seed": "42",
@@ -29,14 +37,6 @@
       "episode_reward_walker_walk": 979.57,
       "episode_reward_cheetah_run": 722.01,
       "episode_reward_cartpole_swingup": 880.29
-    },
-    {
-      "model": "baseline:identity",
-      "is_final": true,
-      "seed": "42",
-      "episode_reward_walker_walk": 979.18,
-      "episode_reward_cheetah_run": 722.65,
-      "episode_reward_cartpole_swingup": 861.77
     }
   ]
 }

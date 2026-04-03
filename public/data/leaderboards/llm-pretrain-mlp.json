@@ -20,44 +20,22 @@
   ],
   "rows": [
     {
-      "timestamp": "2026-03-07T06:48:40.889076+00:00",
-      "model": "baseline:relu_squared",
-      "is_final": true,
-      "seed": "42",
-      "val_loss_gpt-124m": 3.9274,
-      "val_loss_gpt-1.5b": null,
-      "wikitext2_ppl_gpt-124m": null,
-      "wikitext103_ppl_gpt-124m": null,
-      "lambada_ppl_gpt-124m": null
-    },
-    {
-      "timestamp": "2026-03-07T06:48:40.889076+00:00",
-      "model": "baseline:swiglu",
-      "is_final": true,
-      "seed": "42",
-      "val_loss_gpt-124m": 3.9156,
-      "val_loss_gpt-1.5b": 3.6596,
-      "wikitext2_ppl_gpt-124m": null,
-      "wikitext103_ppl_gpt-124m": null,
-      "lambada_ppl_gpt-124m": null
-    },
-    {
-      "timestamp": "2026-03-07T06:48:40.889076+00:00",
+      "timestamp": "2026-03-08T09:47:05.597227+00:00",
       "model": "baseline:geglu",
       "is_final": true,
       "seed": "42",
       "val_loss_gpt-124m": 3.9156,
       "val_loss_gpt-1.5b": 3.6639,
-      "wikitext2_ppl_gpt-124m": null,
-      "wikitext103_ppl_gpt-124m": null,
-      "lambada_ppl_gpt-124m": null
+      "wikitext2_ppl_gpt-124m": 66.82,
+      "wikitext103_ppl_gpt-124m": 66.82,
+      "lambada_ppl_gpt-124m": 94.95
     },
     {
       "timestamp": "2026-03-08T08:18:31.482846+00:00",
       "model": "baseline:relu_squared",
       "is_final": true,
       "seed": "42",
-      "val_loss_gpt-124m": 2.6126,
+      "val_loss_gpt-124m": 3.9274,
       "val_loss_gpt-1.5b": null,
       "wikitext2_ppl_gpt-124m": 66.18,
       "wikitext103_ppl_gpt-124m": 66.18,
@@ -68,22 +46,11 @@
       "model": "baseline:swiglu",
       "is_final": true,
       "seed": "42",
-      "val_loss_gpt-124m": 2.6273,
-      "val_loss_gpt-1.5b": null,
+      "val_loss_gpt-124m": 3.9156,
+      "val_loss_gpt-1.5b": 3.6596,
       "wikitext2_ppl_gpt-124m": 67.15,
       "wikitext103_ppl_gpt-124m": 67.15,
       "lambada_ppl_gpt-124m": 95.55
-    },
-    {
-      "timestamp": "2026-03-08T09:47:05.597227+00:00",
-      "model": "baseline:geglu",
-      "is_final": true,
-      "seed": "42",
-      "val_loss_gpt-124m": 2.6242,
-      "val_loss_gpt-1.5b": null,
-      "wikitext2_ppl_gpt-124m": 66.82,
-      "wikitext103_ppl_gpt-124m": 66.82,
-      "lambada_ppl_gpt-124m": 94.95
     }
   ]
 }

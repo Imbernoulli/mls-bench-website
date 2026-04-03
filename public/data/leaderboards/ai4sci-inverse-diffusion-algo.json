@@ -31,6 +31,30 @@
       "relative l2_navier-stokes": null
     },
     {
+      "timestamp": "2026-03-30T19:26:05.162389+00:00",
+      "model": "baseline:dpg",
+      "is_final": true,
+      "seed": "42",
+      "psnr_inv-scatter": null,
+      "ssim_inv-scatter": null,
+      "elapsed_inv-scatter": 0.0,
+      "elapsed_navier-stokes": 0.0,
+      "elapsed_blackhole": 10.0,
+      "relative l2_navier-stokes": null
+    },
+    {
+      "timestamp": "2026-04-01T11:58:59.393180+00:00",
+      "model": "baseline:lgd",
+      "is_final": true,
+      "seed": "42",
+      "psnr_inv-scatter": 30.18370086669922,
+      "ssim_inv-scatter": 0.8961241221427918,
+      "elapsed_inv-scatter": 0.0,
+      "elapsed_navier-stokes": 0.0,
+      "elapsed_blackhole": 16.0,
+      "relative l2_navier-stokes": 1.1470652759075164
+    },
+    {
       "timestamp": "2026-03-29T12:12:34.006045+00:00",
       "model": "baseline:reddiff",
       "is_final": true,
@@ -43,52 +67,16 @@
       "relative l2_navier-stokes": null
     },
     {
-      "timestamp": "2026-03-30T19:26:05.162389+00:00",
-      "model": "baseline:dpg",
-      "is_final": false,
-      "seed": "42",
-      "psnr_inv-scatter": null,
-      "ssim_inv-scatter": null,
-      "elapsed_inv-scatter": 0.0,
-      "elapsed_navier-stokes": 0.0,
-      "elapsed_blackhole": 10.0,
-      "relative l2_navier-stokes": null
-    },
-    {
-      "timestamp": "2026-03-31T00:45:27.831035+00:00",
-      "model": "baseline:reddiff",
-      "is_final": false,
-      "seed": "42",
-      "psnr_inv-scatter": null,
-      "ssim_inv-scatter": null,
-      "elapsed_inv-scatter": null,
-      "elapsed_navier-stokes": null,
-      "elapsed_blackhole": 11.0,
-      "relative l2_navier-stokes": null
-    },
-    {
       "timestamp": "2026-04-01T11:53:07.066797+00:00",
       "model": "baseline:reddiff",
-      "is_final": false,
+      "is_final": true,
       "seed": "42",
       "psnr_inv-scatter": 38.250870876312256,
       "ssim_inv-scatter": 0.9822562122344971,
       "elapsed_inv-scatter": 0.0,
       "elapsed_navier-stokes": 0.0,
-      "elapsed_blackhole": 17.0,
+      "elapsed_blackhole": 11.0,
       "relative l2_navier-stokes": 1.0436365365982057
-    },
-    {
-      "timestamp": "2026-04-01T11:58:59.393180+00:00",
-      "model": "baseline:lgd",
-      "is_final": false,
-      "seed": "42",
-      "psnr_inv-scatter": 30.18370086669922,
-      "ssim_inv-scatter": 0.8961241221427918,
-      "elapsed_inv-scatter": 0.0,
-      "elapsed_navier-stokes": 0.0,
-      "elapsed_blackhole": 16.0,
-      "relative l2_navier-stokes": 1.1470652759075164
     }
   ]
 }

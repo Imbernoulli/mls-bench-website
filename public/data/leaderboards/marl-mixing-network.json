@@ -23,18 +23,6 @@
   "rows": [
     {
       "timestamp": "2026-03-31T04:06:46+00:00",
-      "model": "baseline:vdn",
-      "is_final": true,
-      "seed": "42",
-      "test_return_mean_simple_spread": -44.7079,
-      "test_return_std_simple_spread": 10.4266,
-      "test_return_mean_simple_reference": -36.211,
-      "test_return_std_simple_reference": 12.9157,
-      "test_return_mean_simple_speaker_listener": -31.0599,
-      "test_return_std_simple_speaker_listener": 23.5857
-    },
-    {
-      "timestamp": "2026-03-31T04:06:46+00:00",
       "model": "baseline:linear_mixer",
       "is_final": true,
       "seed": "42",
@@ -56,6 +44,18 @@
       "test_return_std_simple_reference": 10.2401,
       "test_return_mean_simple_speaker_listener": -19.3397,
       "test_return_std_simple_speaker_listener": 15.4592
+    },
+    {
+      "timestamp": "2026-03-31T04:06:46+00:00",
+      "model": "baseline:vdn",
+      "is_final": true,
+      "seed": "42",
+      "test_return_mean_simple_spread": -44.7079,
+      "test_return_std_simple_spread": 10.4266,
+      "test_return_mean_simple_reference": -36.211,
+      "test_return_std_simple_reference": 12.9157,
+      "test_return_mean_simple_speaker_listener": -31.0599,
+      "test_return_std_simple_speaker_listener": 23.5857
     }
   ]
 }

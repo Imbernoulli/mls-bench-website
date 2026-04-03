@@ -14,7 +14,7 @@
   ],
   "rows": [
     {
-      "timestamp": "2026-03-20T12:16:40.543503+00:00",
+      "timestamp": "2026-03-23T11:18:44.270113+00:00",
       "model": "baseline:epsilon",
       "is_final": true,
       "seed": "42",
@@ -22,44 +22,12 @@
       "best_fid": 21.7
     },
     {
-      "timestamp": "2026-03-21T03:42:15.182934+00:00",
-      "model": "baseline:epsilon",
-      "is_final": true,
-      "seed": "42",
-      "fid": 7.23,
-      "best_fid": 7.45
-    },
-    {
-      "timestamp": "2026-03-21T14:08:51.396712+00:00",
-      "model": "baseline:epsilon",
-      "is_final": true,
-      "seed": "42",
-      "fid": 5.18,
-      "best_fid": 5.34
-    },
-    {
-      "timestamp": "2026-03-23T08:27:47.142538+00:00",
+      "timestamp": "2026-03-23T09:42:35.594060+00:00",
       "model": "baseline:x0pred",
       "is_final": true,
       "seed": "42",
       "fid": 163.83,
       "best_fid": 162.98
-    },
-    {
-      "timestamp": "2026-03-23T09:42:35.594060+00:00",
-      "model": "baseline:x0pred",
-      "is_final": true,
-      "seed": "42",
-      "fid": 66.23,
-      "best_fid": 66.24
-    },
-    {
-      "timestamp": "2026-03-23T11:18:44.270113+00:00",
-      "model": "baseline:epsilon",
-      "is_final": true,
-      "seed": "42",
-      "fid": 27.72,
-      "best_fid": 27.66
     }
   ]
 }

@@ -26,14 +26,6 @@
         ]
       },
       {
-        "filename": "stabletoolbench/toolbench/inference/Algorithms/DFS.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "stabletoolbench/toolbench/inference/Algorithms/single_chain.py",
-        "edit_ranges": []
-      },
-      {
         "filename": "stabletoolbench/toolbench/inference/Tree/Tree.py",
         "edit_ranges": []
       }
@@ -213,26 +205,6 @@
             "end": 238
           }
         ]
-      },
-      {
-        "filename": "ProteinInvBench/PInvBench/src/models/proteinmpnn_model.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "ProteinInvBench/PInvBench/src/models/pifold_model.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "ProteinInvBench/PInvBench/src/models/gvp_model.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "ProteinInvBench/PInvBench/src/modules/proteinmpnn_module.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "ProteinInvBench/PInvBench/src/modules/graphtrans_module.py",
-        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,
@@ -266,22 +238,6 @@
             "end": 252
           }
         ]
-      },
-      {
-        "filename": "ProteinWorkshop/proteinworkshop/models/graph_encoders/schnet.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "ProteinWorkshop/proteinworkshop/models/graph_encoders/egnn.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "ProteinWorkshop/proteinworkshop/models/graph_encoders/gear_net.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "ProteinWorkshop/proteinworkshop/models/graph_encoders/layers/egnn.py",
-        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,
@@ -354,22 +310,6 @@
             "end": -1
           }
         ]
-      },
-      {
-        "filename": "InverseBench/algo/dps.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "InverseBench/algo/daps.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "InverseBench/algo/reddiff.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "InverseBench/algo/lgd.py",
-        "edit_ranges": []
       },
       {
         "filename": "InverseBench/algo/base.py",
@@ -544,10 +484,6 @@
         ]
       },
       {
-        "filename": "CBGBench/repo/models/diffusion/targetdiff.py",
-        "edit_ranges": []
-      },
-      {
         "filename": "CBGBench/repo/models/diffusion/_base.py",
         "edit_ranges": []
       },
@@ -619,14 +555,6 @@
       },
       {
         "filename": "HypSeek/unimol/losses/lorentz.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "HypSeek/unimol/losses/three_hybrid_loss.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "HypSeek/unimol/models/three_hybrid_model.py",
         "edit_ranges": []
       }
     ],
@@ -741,18 +669,6 @@
             "end": 215
           }
         ]
-      },
-      {
-        "filename": "naslib/naslib/optimizers/discrete/re/optimizer.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "naslib/naslib/optimizers/discrete/rs/optimizer.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "naslib/naslib/optimizers/oneshot/darts/optimizer.py",
-        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,
@@ -2289,19 +2205,7 @@
         ]
       },
       {
-        "filename": "imitation/src/imitation/algorithms/adversarial/gail.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "imitation/src/imitation/algorithms/adversarial/airl.py",
-        "edit_ranges": []
-      },
-      {
         "filename": "imitation/src/imitation/rewards/reward_nets.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "imitation/src/imitation/algorithms/bc.py",
         "edit_ranges": []
       }
     ],
@@ -3267,10 +3171,6 @@
             "end": 72
           }
         ]
-      },
-      {
-        "filename": "verl/verl/trainer/ppo/core_algos.py",
-        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,
@@ -3305,10 +3205,6 @@
       },
       {
         "filename": "verl/verl/trainer/ppo/custom_advantage.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "verl/verl/trainer/ppo/core_algos.py",
         "edit_ranges": []
       }
     ],
@@ -3558,18 +3454,6 @@
         ]
       },
       {
-        "filename": "easy-few-shot-learning/easyfsl/methods/prototypical_networks.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "easy-few-shot-learning/easyfsl/methods/matching_networks.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "easy-few-shot-learning/easyfsl/methods/relation_networks.py",
-        "edit_ranges": []
-      },
-      {
         "filename": "easy-few-shot-learning/easyfsl/methods/few_shot_classifier.py",
         "edit_ranges": []
       },
@@ -3609,14 +3493,6 @@
             "end": 254
           }
         ]
-      },
-      {
-        "filename": "learn2learn/learn2learn/algorithms/maml.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "learn2learn/learn2learn/algorithms/meta_sgd.py",
-        "edit_ranges": []
       },
       {
         "filename": "learn2learn/learn2learn/algorithms/gbml.py",
@@ -3721,18 +3597,6 @@
       },
       {
         "filename": "badge/query_strategies/strategy.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "badge/query_strategies/badge_sampling.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "badge/query_strategies/least_confidence.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "badge/query_strategies/entropy_sampling.py",
         "edit_ranges": []
       }
     ],
@@ -4154,10 +4018,6 @@
             "end": 208
           }
         ]
-      },
-      {
-        "filename": "eplb/eplb.py",
-        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,
@@ -4448,18 +4308,6 @@
             "end": 321
           }
         ]
-      },
-      {
-        "filename": "SMPyBandits/SMPyBandits/Policies/UCB.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "SMPyBandits/SMPyBandits/Policies/Thompson.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "SMPyBandits/SMPyBandits/Policies/klUCB.py",
-        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,
@@ -4493,10 +4341,6 @@
             "end": 604
           }
         ]
-      },
-      {
-        "filename": "PBB/pbb/bounds.py",
-        "edit_ranges": []
       },
       {
         "filename": "PBB/pbb/models.py",
@@ -4574,22 +4418,6 @@
         ]
       },
       {
-        "filename": "penalized-bilevel-gradient-descent/V-PBGD/toy/toy.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "penalized-bilevel-gradient-descent/V-PBGD/data-hyper-cleaning/data_hyper_clean.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "penalized-bilevel-gradient-descent/G-PBGD/data_hyper_clean_gpbgd.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "penalized-bilevel-gradient-descent/RHG/data_hyper_clean_rhg.py",
-        "edit_ranges": []
-      },
-      {
         "filename": "penalized-bilevel-gradient-descent/RHG/hypergrad/hypergradients.py",
         "edit_ranges": []
       }
@@ -4626,18 +4454,6 @@
             "end": 75
           }
         ]
-      },
-      {
-        "filename": "RAIN/README.md",
-        "edit_ranges": []
-      },
-      {
-        "filename": "RAIN/src/bilinear_func/exp_gnorm.m",
-        "edit_ranges": []
-      },
-      {
-        "filename": "RAIN/src/delta_func/exp_gnorm.m",
-        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,
@@ -5829,14 +5645,6 @@
         ]
       },
       {
-        "filename": "omnisafe/omnisafe/algorithms/on_policy/naive_lagrange/ppo_lag.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "omnisafe/omnisafe/algorithms/on_policy/pid_lagrange/cppo_pid.py",
-        "edit_ranges": []
-      },
-      {
         "filename": "omnisafe/omnisafe/common/lagrange.py",
         "edit_ranges": []
       },
@@ -5887,10 +5695,6 @@
       {
         "filename": "torchattacks/bench/run_eval.py",
         "edit_ranges": []
-      },
-      {
-        "filename": "torchattacks/torchattacks/attacks/square.py",
-        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,
@@ -5934,23 +5738,7 @@
         "edit_ranges": []
       },
       {
-        "filename": "torchattacks/torchattacks/attacks/onepixel.py",
-        "edit_ranges": []
-      },
-      {
         "filename": "torchattacks/torchattacks/attacks/_differential_evolution.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "torchattacks/torchattacks/attacks/sparsefool.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "torchattacks/torchattacks/attacks/jsma.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "torchattacks/torchattacks/attacks/pixle.py",
         "edit_ranges": []
       }
     ],
@@ -5992,10 +5780,6 @@
       },
       {
         "filename": "torchattacks/bench/run_eval.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "torchattacks/torchattacks/attacks/pgd.py",
         "edit_ranges": []
       }
     ],
@@ -6041,10 +5825,6 @@
       {
         "filename": "torchattacks/bench/models.py",
         "edit_ranges": []
-      },
-      {
-        "filename": "torchattacks/torchattacks/attacks/pgd.py",
-        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,
@@ -6078,14 +5858,6 @@
             "end": 220
           }
         ]
-      },
-      {
-        "filename": "speechbrain/speechbrain/lobes/models/transformer/Conformer.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "speechbrain/speechbrain/lobes/models/transformer/Branchformer.py",
-        "edit_ranges": []
       },
       {
         "filename": "speechbrain/speechbrain/nnet/attention.py",
@@ -6275,34 +6047,6 @@
             "end": 71
           }
         ]
-      },
-      {
-        "filename": "BasicTS/src/basicts/models/STID/arch/stid_arch.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "BasicTS/src/basicts/models/StemGNN/arch/stemgnn_arch.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "BasicTS/src/basicts/models/DLinear/arch/dlinear_arch.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "BasicTS/src/basicts/models/iTransformer/arch/itransformer_arch.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "BasicTS/src/basicts/models/TimesNet/arch/timesnet_arch.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "BasicTS/src/basicts/models/SOFTS/arch/softs_arch.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "BasicTS/src/basicts/models/TimeMixer/arch/timemixer_arch.py",
-        "edit_ranges": []
       },
       {
         "filename": "BasicTS/src/basicts/modules/mlps.py",

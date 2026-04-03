@@ -25,15 +25,6 @@
       "val_action_mse_square_ph": 0.038654
     },
     {
-      "timestamp": "2026-04-01T21:21:38.202651+00:00",
-      "model": "baseline:weighted_mse_cosine",
-      "is_final": true,
-      "seed": "42",
-      "val_action_mse_lift_ph": 0.031615,
-      "val_action_mse_can_ph": 0.039076,
-      "val_action_mse_square_ph": 0.039488
-    },
-    {
       "timestamp": "2026-04-01T21:22:54.869328+00:00",
       "model": "baseline:log_cosh",
       "is_final": true,
@@ -41,6 +32,15 @@
       "val_action_mse_lift_ph": 0.023317,
       "val_action_mse_can_ph": 0.039081,
       "val_action_mse_square_ph": 0.038517
+    },
+    {
+      "timestamp": "2026-04-01T21:21:38.202651+00:00",
+      "model": "baseline:weighted_mse_cosine",
+      "is_final": true,
+      "seed": "42",
+      "val_action_mse_lift_ph": 0.031615,
+      "val_action_mse_can_ph": 0.039076,
+      "val_action_mse_square_ph": 0.039488
     }
   ]
 }

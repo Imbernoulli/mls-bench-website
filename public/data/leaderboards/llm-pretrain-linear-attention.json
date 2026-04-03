@@ -18,7 +18,7 @@
     {
       "timestamp": "2026-03-30T03:28:23.711416+00:00",
       "model": "baseline:gla",
-      "is_final": false,
+      "is_final": true,
       "seed": "42",
       "val_loss_gpt-124m": 2.7349,
       "wikitext2_ppl_gpt-124m": 98.91,

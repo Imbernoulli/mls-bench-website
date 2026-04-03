@@ -23,18 +23,6 @@
   "rows": [
     {
       "timestamp": "2026-03-31T09:13:00",
-      "model": "wide_mlp",
-      "is_final": true,
-      "seed": "42",
-      "mean_reward_h1_stand": 42.82,
-      "std_reward_h1_stand": 9.89,
-      "mean_reward_h1_walk": 18.79,
-      "std_reward_h1_walk": 2.68,
-      "mean_reward_h1_run": 9.64,
-      "std_reward_h1_run": 2.85
-    },
-    {
-      "timestamp": "2026-03-31T09:13:00",
       "model": "layernorm_mlp",
       "is_final": true,
       "seed": "42",
@@ -56,6 +44,18 @@
       "std_reward_h1_walk": 6.72,
       "mean_reward_h1_run": 9.66,
       "std_reward_h1_run": 2.06
+    },
+    {
+      "timestamp": "2026-03-31T09:13:00",
+      "model": "wide_mlp",
+      "is_final": true,
+      "seed": "42",
+      "mean_reward_h1_stand": 42.82,
+      "std_reward_h1_stand": 9.89,
+      "mean_reward_h1_walk": 18.79,
+      "std_reward_h1_walk": 2.68,
+      "mean_reward_h1_run": 9.64,
+      "std_reward_h1_run": 2.85
     }
   ]
 }

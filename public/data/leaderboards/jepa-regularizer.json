@@ -26,21 +26,21 @@
     },
     {
       "timestamp": "2026-03-27T01:22:30+00:00",
-      "model": "vicreg",
-      "is_final": true,
-      "seed": "42",
-      "val_acc_resnet18": 80.54,
-      "val_acc_resnet34": 79.55,
-      "val_acc_resnet50": 81.64
-    },
-    {
-      "timestamp": "2026-03-27T01:22:30+00:00",
       "model": "sigreg",
       "is_final": true,
       "seed": "42",
       "val_acc_resnet18": 83.01,
       "val_acc_resnet34": 83.42,
       "val_acc_resnet50": 84.19
+    },
+    {
+      "timestamp": "2026-03-27T01:22:30+00:00",
+      "model": "vicreg",
+      "is_final": true,
+      "seed": "42",
+      "val_acc_resnet18": 80.54,
+      "val_acc_resnet34": 79.55,
+      "val_acc_resnet50": 81.64
     }
   ]
 }

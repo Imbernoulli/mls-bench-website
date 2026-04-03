@@ -19,21 +19,9 @@
   ],
   "rows": [
     {
-      "timestamp": "2026-04-01T12:01:12.432795+00:00",
-      "model": "baseline:transformer",
-      "is_final": false,
-      "seed": "42",
-      "elapsed_Beta": 136.0,
-      "elapsed_Fluorescence": null,
-      "elapsed_Solubility": null,
-      "spearman_Beta": 0.092329,
-      "pearson_Beta": 0.092457,
-      "mse_Beta": 0.103928
-    },
-    {
       "timestamp": "2026-04-01T12:07:04.880080+00:00",
       "model": "baseline:cnn",
-      "is_final": false,
+      "is_final": true,
       "seed": "42",
       "elapsed_Beta": 318.0,
       "elapsed_Fluorescence": null,
@@ -45,7 +33,7 @@
     {
       "timestamp": "2026-04-01T12:12:09.036092+00:00",
       "model": "baseline:dgl_gcn",
-      "is_final": false,
+      "is_final": true,
       "seed": "42",
       "elapsed_Beta": 285.0,
       "elapsed_Fluorescence": null,
@@ -53,6 +41,18 @@
       "spearman_Beta": 0.229821,
       "pearson_Beta": 0.264394,
       "mse_Beta": 0.103564
+    },
+    {
+      "timestamp": "2026-04-01T12:01:12.432795+00:00",
+      "model": "baseline:transformer",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_Beta": 136.0,
+      "elapsed_Fluorescence": null,
+      "elapsed_Solubility": null,
+      "spearman_Beta": 0.092329,
+      "pearson_Beta": 0.092457,
+      "mse_Beta": 0.103928
     }
   ]
 }

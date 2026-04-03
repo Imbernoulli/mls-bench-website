@@ -24,7 +24,7 @@
     {
       "timestamp": "2026-03-31T05:02:24.297186+00:00",
       "model": "baseline:cnn",
-      "is_final": false,
+      "is_final": true,
       "seed": "42",
       "elapsed_BLAT_ECOLX": 103.0,
       "elapsed_ESTA_BACSU": 103.0,
@@ -37,24 +37,9 @@
       "spearman_RASH_HUMAN": 0.80192
     },
     {
-      "timestamp": "2026-03-31T05:02:24.319097+00:00",
-      "model": "baseline:ridge",
-      "is_final": false,
-      "seed": "42",
-      "elapsed_BLAT_ECOLX": 109.0,
-      "elapsed_ESTA_BACSU": 109.0,
-      "elapsed_RASH_HUMAN": 109.0,
-      "elapsed_BLAT_ECOLX_std": null,
-      "elapsed_ESTA_BACSU_std": null,
-      "elapsed_RASH_HUMAN_std": null,
-      "spearman_BLAT_ECOLX": 0.744926,
-      "spearman_ESTA_BACSU": 0.116434,
-      "spearman_RASH_HUMAN": 0.687599
-    },
-    {
       "timestamp": "2026-03-31T05:04:24.322732+00:00",
       "model": "baseline:mlp",
-      "is_final": false,
+      "is_final": true,
       "seed": "42",
       "elapsed_BLAT_ECOLX": 200.0,
       "elapsed_ESTA_BACSU": 200.0,
@@ -65,6 +50,21 @@
       "spearman_BLAT_ECOLX": 0.864425,
       "spearman_ESTA_BACSU": 0.643367,
       "spearman_RASH_HUMAN": 0.794414
+    },
+    {
+      "timestamp": "2026-03-31T05:02:24.319097+00:00",
+      "model": "baseline:ridge",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 109.0,
+      "elapsed_ESTA_BACSU": 109.0,
+      "elapsed_RASH_HUMAN": 109.0,
+      "elapsed_BLAT_ECOLX_std": null,
+      "elapsed_ESTA_BACSU_std": null,
+      "elapsed_RASH_HUMAN_std": null,
+      "spearman_BLAT_ECOLX": 0.744926,
+      "spearman_ESTA_BACSU": 0.116434,
+      "spearman_RASH_HUMAN": 0.687599
     }
   ]
 }

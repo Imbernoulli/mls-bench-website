@@ -21,42 +21,6 @@
   ],
   "rows": [
     {
-      "timestamp": "2026-03-07T06:48:40.889076+00:00",
-      "model": "baseline:relu_sq_torch",
-      "is_final": true,
-      "seed": "42",
-      "val_loss_gpt-124m": 3.9277,
-      "val_loss_gpt-1.5b": null,
-      "val_loss_gpt-124m_std": null,
-      "wikitext2_ppl_gpt-124m": null,
-      "wikitext103_ppl_gpt-124m": null,
-      "lambada_ppl_gpt-124m": null
-    },
-    {
-      "timestamp": "2026-03-07T06:48:40.889076+00:00",
-      "model": "baseline:triton_relu_sq_fused",
-      "is_final": true,
-      "seed": "42",
-      "val_loss_gpt-124m": 3.9309,
-      "val_loss_gpt-1.5b": null,
-      "val_loss_gpt-124m_std": null,
-      "wikitext2_ppl_gpt-124m": null,
-      "wikitext103_ppl_gpt-124m": null,
-      "lambada_ppl_gpt-124m": null
-    },
-    {
-      "timestamp": "2026-03-07T17:21:46.784465+00:00",
-      "model": "baseline:relu_sq_torch",
-      "is_final": true,
-      "seed": "42",
-      "val_loss_gpt-124m": 3.3189,
-      "val_loss_gpt-1.5b": null,
-      "val_loss_gpt-124m_std": null,
-      "wikitext2_ppl_gpt-124m": null,
-      "wikitext103_ppl_gpt-124m": null,
-      "lambada_ppl_gpt-124m": null
-    },
-    {
       "timestamp": "2026-03-07T17:21:46.786836+00:00",
       "model": "baseline:relu_sq_torch",
       "is_final": true,
@@ -67,6 +31,18 @@
       "wikitext2_ppl_gpt-124m": null,
       "wikitext103_ppl_gpt-124m": null,
       "lambada_ppl_gpt-124m": null
+    },
+    {
+      "timestamp": "2026-03-11T02:41:38.000000+00:00",
+      "model": "baseline:relu_sq_torch",
+      "is_final": true,
+      "seed": "42",
+      "val_loss_gpt-124m": 3.9277,
+      "val_loss_gpt-1.5b": null,
+      "val_loss_gpt-124m_std": null,
+      "wikitext2_ppl_gpt-124m": 67.61,
+      "wikitext103_ppl_gpt-124m": null,
+      "lambada_ppl_gpt-124m": 94.88
     },
     {
       "timestamp": "2026-03-07T17:21:46.787070+00:00",
@@ -93,16 +69,16 @@
       "lambada_ppl_gpt-124m": null
     },
     {
-      "timestamp": "2026-03-07T19:41:24.305899+00:00",
-      "model": "baseline:triton_relu_sq_fused",
+      "timestamp": "2026-03-14T06:03:51.016178+00:00",
+      "model": "baseline:triton_gelu",
       "is_final": true,
       "seed": "42",
-      "val_loss_gpt-124m": 3.3193,
+      "val_loss_gpt-124m": 2.6231,
       "val_loss_gpt-1.5b": null,
       "val_loss_gpt-124m_std": null,
-      "wikitext2_ppl_gpt-124m": null,
+      "wikitext2_ppl_gpt-124m": 67.03,
       "wikitext103_ppl_gpt-124m": null,
-      "lambada_ppl_gpt-124m": null
+      "lambada_ppl_gpt-124m": 95.81
     },
     {
       "timestamp": "2026-03-07T19:41:24.307518+00:00",
@@ -115,6 +91,18 @@
       "wikitext2_ppl_gpt-124m": null,
       "wikitext103_ppl_gpt-124m": null,
       "lambada_ppl_gpt-124m": null
+    },
+    {
+      "timestamp": "2026-03-11T02:41:38.000000+00:00",
+      "model": "baseline:triton_relu_sq_fused",
+      "is_final": true,
+      "seed": "42",
+      "val_loss_gpt-124m": 3.9309,
+      "val_loss_gpt-1.5b": null,
+      "val_loss_gpt-124m_std": null,
+      "wikitext2_ppl_gpt-124m": 67.57,
+      "wikitext103_ppl_gpt-124m": null,
+      "lambada_ppl_gpt-124m": 95.21
     },
     {
       "timestamp": "2026-03-07T19:41:24.307748+00:00",
@@ -139,66 +127,6 @@
       "wikitext2_ppl_gpt-124m": null,
       "wikitext103_ppl_gpt-124m": null,
       "lambada_ppl_gpt-124m": null
-    },
-    {
-      "timestamp": "2026-03-08T12:22:56.235212+00:00",
-      "model": "baseline:triton_gelu",
-      "is_final": true,
-      "seed": "42",
-      "val_loss_gpt-124m": null,
-      "val_loss_gpt-1.5b": null,
-      "val_loss_gpt-124m_std": null,
-      "wikitext2_ppl_gpt-124m": null,
-      "wikitext103_ppl_gpt-124m": null,
-      "lambada_ppl_gpt-124m": null
-    },
-    {
-      "timestamp": "2026-03-09T06:52:13.518612+00:00",
-      "model": "baseline:triton_gelu",
-      "is_final": true,
-      "seed": "42",
-      "val_loss_gpt-124m": null,
-      "val_loss_gpt-1.5b": null,
-      "val_loss_gpt-124m_std": null,
-      "wikitext2_ppl_gpt-124m": null,
-      "wikitext103_ppl_gpt-124m": null,
-      "lambada_ppl_gpt-124m": null
-    },
-    {
-      "timestamp": "2026-03-14T06:03:51.016178+00:00",
-      "model": "baseline:triton_gelu",
-      "is_final": true,
-      "seed": "42",
-      "val_loss_gpt-124m": 2.6231,
-      "val_loss_gpt-1.5b": null,
-      "val_loss_gpt-124m_std": null,
-      "wikitext2_ppl_gpt-124m": 67.03,
-      "wikitext103_ppl_gpt-124m": null,
-      "lambada_ppl_gpt-124m": 95.81
-    },
-    {
-      "timestamp": "2026-03-11T02:41:38.000000+00:00",
-      "model": "baseline:relu_sq_torch",
-      "is_final": true,
-      "seed": "42",
-      "val_loss_gpt-124m": 2.6166,
-      "val_loss_gpt-1.5b": null,
-      "val_loss_gpt-124m_std": null,
-      "wikitext2_ppl_gpt-124m": 67.61,
-      "wikitext103_ppl_gpt-124m": null,
-      "lambada_ppl_gpt-124m": 94.88
-    },
-    {
-      "timestamp": "2026-03-11T02:41:38.000000+00:00",
-      "model": "baseline:triton_relu_sq_fused",
-      "is_final": true,
-      "seed": "42",
-      "val_loss_gpt-124m": 2.6218,
-      "val_loss_gpt-1.5b": null,
-      "val_loss_gpt-124m_std": null,
-      "wikitext2_ppl_gpt-124m": 67.57,
-      "wikitext103_ppl_gpt-124m": null,
-      "lambada_ppl_gpt-124m": 95.21
     }
   ]
 }
