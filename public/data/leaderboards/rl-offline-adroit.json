@@ -313,6 +313,24 @@
       "elapsed_door-cloned-v1_std": 44.45597072760118
     },
     {
+      "timestamp": "2026-04-03T07:07:02.087190+00:00",
+      "model": "gpt-5.4-pro",
+      "is_final": true,
+      "seed": "42",
+      "d4rl_score_pen_human_v1": 117.889,
+      "d4rl_score_hammer_human_v1": 1.608,
+      "d4rl_score_door_cloned_v1": 6.524,
+      "d4rl_score_pen_human_v1_std": null,
+      "d4rl_score_hammer_human_v1_std": null,
+      "d4rl_score_door_cloned_v1_std": null,
+      "elapsed_pen-human-v1": 23864.0,
+      "elapsed_hammer-human-v1": 24560.0,
+      "elapsed_door-cloned-v1": 24615.0,
+      "elapsed_pen-human-v1_std": null,
+      "elapsed_hammer-human-v1_std": null,
+      "elapsed_door-cloned-v1_std": null
+    },
+    {
       "timestamp": "2026-04-02T12:16:59.965839+00:00",
       "model": "anthropic/claude-opus-4.6",
       "is_final": false,
@@ -475,7 +493,7 @@
       "elapsed_door-cloned-v1_std": null
     },
     {
-      "timestamp": "2026-04-02T22:22:47.668188+00:00",
+      "timestamp": "2026-04-03T07:01:24.267208+00:00",
       "model": "gpt-5.4-pro",
       "is_final": false,
       "seed": "42",
@@ -485,8 +503,8 @@
       "d4rl_score_pen_human_v1_std": null,
       "d4rl_score_hammer_human_v1_std": null,
       "d4rl_score_door_cloned_v1_std": null,
-      "elapsed_pen-human-v1": null,
-      "elapsed_hammer-human-v1": null,
+      "elapsed_pen-human-v1": 23864.0,
+      "elapsed_hammer-human-v1": 24560.0,
       "elapsed_door-cloned-v1": 34455.0,
       "elapsed_pen-human-v1_std": null,
       "elapsed_hammer-human-v1_std": null,

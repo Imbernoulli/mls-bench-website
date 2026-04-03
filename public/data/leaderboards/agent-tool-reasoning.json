@@ -1,0 +1,50 @@
+{
+  "task_id": "agent-tool-reasoning",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "pass_rate",
+    "avg_queries",
+    "give_up_rate",
+    "elapsed_G1-instruction"
+  ],
+  "metric_columns": [
+    "pass_rate",
+    "avg_queries",
+    "give_up_rate"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-04-03T07:00:20.999286+00:00",
+      "model": "baseline:dfs_ranked",
+      "is_final": true,
+      "seed": "42",
+      "pass_rate": 0.7353,
+      "avg_queries": 36.3,
+      "give_up_rate": 0.0,
+      "elapsed_G1-instruction": 8879.7
+    },
+    {
+      "timestamp": "2026-04-03T02:09:35.675465+00:00",
+      "model": "baseline:dfsdt",
+      "is_final": true,
+      "seed": "42",
+      "pass_rate": 0.82,
+      "avg_queries": 19.7,
+      "give_up_rate": 0.02,
+      "elapsed_G1-instruction": 10503.4
+    },
+    {
+      "timestamp": "2026-04-02T05:54:44.899725+00:00",
+      "model": "baseline:greedy_chain",
+      "is_final": true,
+      "seed": "42",
+      "pass_rate": 0.5644,
+      "avg_queries": 3.4,
+      "give_up_rate": 0.0307,
+      "elapsed_G1-instruction": 6503.8
+    }
+  ]
+}

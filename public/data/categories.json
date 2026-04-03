@@ -195,6 +195,7 @@
       "llm-pretrain-weight-averaging",
       "llm-rl-advantage",
       "llm-rl-baseline",
+      "llm-scaling-law-discovery",
       "llm-sft-loss",
       "llm-ttrl-reward",
       "llm-ttt-adaptation"

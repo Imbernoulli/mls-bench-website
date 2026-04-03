@@ -1,0 +1,50 @@
+{
+  "task_id": "mas-topology",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "pass_at_1",
+    "passed",
+    "total",
+    "elapsed_humaneval-4"
+  ],
+  "metric_columns": [
+    "pass_at_1",
+    "passed",
+    "total"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-04-01T10:00:09.626445+00:00",
+      "model": "baseline:chain",
+      "is_final": true,
+      "seed": "42",
+      "pass_at_1": 0.4545,
+      "passed": 15.0,
+      "total": 33.0,
+      "elapsed_humaneval-4": 3659.5
+    },
+    {
+      "timestamp": "2026-04-02T00:05:37.357461+00:00",
+      "model": "baseline:layered",
+      "is_final": true,
+      "seed": "42",
+      "pass_at_1": 0.3636,
+      "passed": 12.0,
+      "total": 33.0,
+      "elapsed_humaneval-4": 6931.2
+    },
+    {
+      "timestamp": "2026-04-01T23:51:20.115157+00:00",
+      "model": "baseline:star",
+      "is_final": true,
+      "seed": "42",
+      "pass_at_1": 0.4242,
+      "passed": 14.0,
+      "total": 33.0,
+      "elapsed_humaneval-4": 6080.8
+    }
+  ]
+}

@@ -238,7 +238,7 @@
     {
       "model": "gpt-5.4-pro",
       "slug": "gpt-5.4-pro",
-      "total_steps": 4
+      "total_steps": 6
     }
   ],
   "rl-value-discrete": [

@@ -4,8 +4,36 @@
     "timestamp",
     "model",
     "is_final",
-    "seed"
+    "seed",
+    "eval_return_montezuma_revenge_v5",
+    "auc_montezuma_revenge_v5",
+    "nonzero_rate_montezuma_revenge_v5",
+    "best_eval_return_montezuma_revenge_v5",
+    "elapsed_montezuma-revenge-v5",
+    "eval_return_venture_v5",
+    "auc_venture_v5",
+    "nonzero_rate_venture_v5",
+    "best_eval_return_venture_v5",
+    "elapsed_venture-v5",
+    "eval_return_private_eye_v5",
+    "auc_private_eye_v5",
+    "nonzero_rate_private_eye_v5",
+    "best_eval_return_private_eye_v5",
+    "elapsed_private-eye-v5"
   ],
-  "metric_columns": [],
+  "metric_columns": [
+    "eval_return_montezuma_revenge_v5",
+    "auc_montezuma_revenge_v5",
+    "nonzero_rate_montezuma_revenge_v5",
+    "best_eval_return_montezuma_revenge_v5",
+    "eval_return_venture_v5",
+    "auc_venture_v5",
+    "nonzero_rate_venture_v5",
+    "best_eval_return_venture_v5",
+    "eval_return_private_eye_v5",
+    "auc_private_eye_v5",
+    "nonzero_rate_private_eye_v5",
+    "best_eval_return_private_eye_v5"
+  ],
   "rows": []
 }

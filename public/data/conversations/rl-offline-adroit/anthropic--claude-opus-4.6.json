@@ -73,6 +73,19 @@
       "tool_input": {
         "error": "Failed to parse tool arguments: Expecting ',' delimiter: line 1 column 73 (char 72)"
       }
+    },
+    {
+      "step": 5,
+      "role": "assistant",
+      "tool_name": "submit",
+      "tool_input": {
+        "n": 2
+      }
+    },
+    {
+      "step": 5,
+      "role": "tool_result",
+      "result": "[submit] Submitting result from test #2 as final.\n\n[Test #2] (1 test remaining; call submit(n=2) to submit this result)\n\n### pen-human-v1 (scripts/pen.sh)\nTraining metrics (last steps):\nTRAIN_METRICS step=996000 value_loss=8.6624 critic_loss=154.3203 actor_loss=-375.4684 beta=3.0000\nTRAIN_METRICS step=997000 value_loss=37.6828 critic_loss=98.3834 actor_loss=-525.7670 beta=3.0000\nTRAIN_METRICS step=998000 value_loss=13.1060 critic_loss=122.6612 actor_loss=-201.5057 beta=3.0000\nTRAIN_METRICS step=999000 value_loss=16.6531 critic_loss=50.0746 actor_loss=-383.7168 beta=3.0000\nTRAIN_METRICS step=1000000 value_loss=27.3323 critic_loss=122.6432 actor_loss=-330.8565 beta=3.0000\nD4RL evaluation (pen-human-v1):\nEvaluation over 10 episodes: 2938.018 , D4RL score: 95.343\nEvaluation over 10 episodes: 2932.963 , D4RL score: 95.173\nEvaluation over 10 episodes: 2927.962 , D4RL score: 95.005\nFinal D4RL score: 95.005\n\n### hammer-human-v1 (scripts/hammer.sh)\nTraining metrics (last steps):\nTRAIN_METRICS step=996000 value_loss=75.6034 critic_loss=590.2727 actor_loss=-356.0750 beta=3.0000\nTRAIN_METRICS step=997000 value_loss=66.3167 critic_loss=361.0361 actor_loss=-289.1242 beta=3.0000\nTRAIN_METRICS step=998000 value_loss=281.2454 critic_loss=900.3145 actor_loss=-130.2986 beta=3.0000\nTRAIN_METRICS step=999000 value_loss=72.7187 critic_loss=465.4625 actor_loss=-299.2280 beta=3.0000\nTRAIN_METRICS step=1000000 value_loss=62.4448 critic_loss=719.7411 actor_loss=-268.8901 beta=3.0000\nD4RL evaluation (hammer-human-v1):\nEvaluation over 10 episodes: 113.516 , D4RL score: 2.972\nEvaluation over 10 episodes: 148.125 , D4RL score: 3.237\nEvaluation over 10 episodes: 61.524 , D4RL score: 2.574\nFinal D4RL score: 2.574\n\n[Leaderboard] Results saved: {'d4rl_score_pen_human_v1': 95.005, 'elapsed_pen-human-v1': 14195, 'd4rl_score_hammer_human_v1': 2.574, 'elapsed_hammer-human-v1': 14814, 'd4rl_score_door_cloned_v1': 0.838, 'elapsed_door-cloned-v1': 14835}"
     }
   ],
   "task_id": "rl-offline-adroit",
