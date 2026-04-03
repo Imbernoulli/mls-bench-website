@@ -38,6 +38,20 @@
       "perplexity_CATH4.3": 8.1644
     },
     {
+      "timestamp": "2026-04-03T14:02:07.292007+00:00",
+      "model": "baseline:pifold",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_TS50": 39.0,
+      "elapsed_TS50_std": null,
+      "recovery_TS50": null,
+      "perplexity_TS50": null,
+      "recovery_CATH4.2": null,
+      "perplexity_CATH4.2": null,
+      "recovery_CATH4.3": null,
+      "perplexity_CATH4.3": null
+    },
+    {
       "timestamp": "2026-04-01T10:33:23.066691+00:00",
       "model": "baseline:proteinmpnn",
       "is_final": true,

@@ -16,7 +16,8 @@
     "psnr_blackhole",
     "blur_psnr (f=10)_blackhole",
     "blur_psnr (f=15)_blackhole",
-    "blur_psnr (f=20)_blackhole"
+    "blur_psnr (f=20)_blackhole",
+    "blur_psnr (f_blackhole"
   ],
   "metric_columns": [
     "psnr_inv-scatter",
@@ -27,26 +28,28 @@
     "psnr_blackhole",
     "blur_psnr (f=10)_blackhole",
     "blur_psnr (f=15)_blackhole",
-    "blur_psnr (f=20)_blackhole"
+    "blur_psnr (f=20)_blackhole",
+    "blur_psnr (f_blackhole"
   ],
   "rows": [
     {
-      "timestamp": "2026-03-27T15:48:31.456660+00:00",
+      "timestamp": "2026-04-03T12:08:58.090407+00:00",
       "model": "baseline:dpg",
       "is_final": true,
       "seed": "42",
       "psnr_inv-scatter": 12.706412925720215,
       "ssim_inv-scatter": 0.49905061081051827,
       "elapsed_inv-scatter": 0.0,
-      "elapsed_navier-stokes": null,
-      "elapsed_blackhole": null,
-      "relative l2_navier-stokes": null,
-      "cp_chi2_blackhole": null,
-      "camp_chi2_blackhole": null,
-      "psnr_blackhole": null,
+      "elapsed_navier-stokes": 0.0,
+      "elapsed_blackhole": 71742.0,
+      "relative l2_navier-stokes": 0.37898298650979995,
+      "cp_chi2_blackhole": 2.172127540111542,
+      "camp_chi2_blackhole": 11.774692091941834,
+      "psnr_blackhole": 11.425034614368945,
       "blur_psnr (f=10)_blackhole": null,
       "blur_psnr (f=15)_blackhole": null,
-      "blur_psnr (f=20)_blackhole": null
+      "blur_psnr (f=20)_blackhole": null,
+      "blur_psnr (f_blackhole": 20.0
     },
     {
       "timestamp": "2026-03-30T19:26:05.162389+00:00",
@@ -64,7 +67,8 @@
       "psnr_blackhole": null,
       "blur_psnr (f=10)_blackhole": null,
       "blur_psnr (f=15)_blackhole": null,
-      "blur_psnr (f=20)_blackhole": null
+      "blur_psnr (f=20)_blackhole": null,
+      "blur_psnr (f_blackhole": null
     },
     {
       "timestamp": "2026-04-03T05:13:41+00:00",
@@ -82,7 +86,8 @@
       "psnr_blackhole": 21.514060815568772,
       "blur_psnr (f=10)_blackhole": 21.514061393737794,
       "blur_psnr (f=15)_blackhole": 24.22154857635498,
-      "blur_psnr (f=20)_blackhole": 25.524990215301514
+      "blur_psnr (f=20)_blackhole": 25.524990215301514,
+      "blur_psnr (f_blackhole": null
     },
     {
       "timestamp": "2026-04-01T11:58:59.393180+00:00",
@@ -100,7 +105,8 @@
       "psnr_blackhole": null,
       "blur_psnr (f=10)_blackhole": null,
       "blur_psnr (f=15)_blackhole": null,
-      "blur_psnr (f=20)_blackhole": null
+      "blur_psnr (f=20)_blackhole": null,
+      "blur_psnr (f_blackhole": null
     },
     {
       "timestamp": "2026-04-03T05:13:41+00:00",
@@ -118,7 +124,8 @@
       "psnr_blackhole": 21.772492768506485,
       "blur_psnr (f=10)_blackhole": 21.77249355316162,
       "blur_psnr (f=15)_blackhole": 23.920603370666505,
-      "blur_psnr (f=20)_blackhole": 24.860019397735595
+      "blur_psnr (f=20)_blackhole": 24.860019397735595,
+      "blur_psnr (f_blackhole": null
     },
     {
       "timestamp": "2026-04-01T11:53:07.066797+00:00",
@@ -136,7 +143,8 @@
       "psnr_blackhole": null,
       "blur_psnr (f=10)_blackhole": null,
       "blur_psnr (f=15)_blackhole": null,
-      "blur_psnr (f=20)_blackhole": null
+      "blur_psnr (f=20)_blackhole": null,
+      "blur_psnr (f_blackhole": null
     }
   ]
 }

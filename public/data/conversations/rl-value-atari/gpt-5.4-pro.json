@@ -84,6 +84,11 @@
       "step": 6,
       "role": "assistant",
       "tool_name": "test"
+    },
+    {
+      "step": 6,
+      "role": "assistant",
+      "tool_name": "test"
     }
   ],
   "task_id": "rl-value-atari",

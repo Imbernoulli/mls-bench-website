@@ -11,13 +11,17 @@
     "f1_max_GO-BP",
     "test_loss_GO-BP",
     "accuracy_Fold",
-    "test_loss_Fold"
+    "test_loss_Fold",
+    "f1_max_EC",
+    "test_loss_EC"
   ],
   "metric_columns": [
     "f1_max_GO-BP",
     "test_loss_GO-BP",
     "accuracy_Fold",
-    "test_loss_Fold"
+    "test_loss_Fold",
+    "f1_max_EC",
+    "test_loss_EC"
   ],
   "rows": [
     {
@@ -31,7 +35,9 @@
       "f1_max_GO-BP": null,
       "test_loss_GO-BP": null,
       "accuracy_Fold": 0.179666,
-      "test_loss_Fold": 4.835683
+      "test_loss_Fold": 4.835683,
+      "f1_max_EC": null,
+      "test_loss_EC": null
     },
     {
       "timestamp": "2026-04-01T09:15:31.210169+00:00",
@@ -44,7 +50,24 @@
       "f1_max_GO-BP": 0.004358,
       "test_loss_GO-BP": 0.160216,
       "accuracy_Fold": null,
-      "test_loss_Fold": null
+      "test_loss_Fold": null,
+      "f1_max_EC": null,
+      "test_loss_EC": null
+    },
+    {
+      "timestamp": "2026-04-03T14:13:02.373696+00:00",
+      "model": "baseline:schnet",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_EC": 995.0,
+      "elapsed_GO-BP": 0.0,
+      "elapsed_Fold": 310.0,
+      "f1_max_GO-BP": 0.250694,
+      "test_loss_GO-BP": 0.162859,
+      "accuracy_Fold": 0.157382,
+      "test_loss_Fold": 6.01958,
+      "f1_max_EC": 0.006835,
+      "test_loss_EC": 0.019784
     }
   ]
 }

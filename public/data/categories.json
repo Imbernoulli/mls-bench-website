@@ -100,6 +100,21 @@
       "demo-task-2"
     ]
   },
+  "other": {
+    "id": "other",
+    "label": "Other",
+    "tasks": [
+      "dex-retarget",
+      "humanoid-ppo-extractor",
+      "marl-mixing-network",
+      "robomimic-bc-loss",
+      "robomimic-iql-vf",
+      "robomimic-obs-encoder",
+      "tdmpc2-planning",
+      "tdmpc2-simnorm",
+      "ttt-memory"
+    ]
+  },
   "dl": {
     "id": "dl",
     "label": "Deep Learning",
@@ -134,20 +149,6 @@
       "graph-node-classification",
       "graph-signal-propagation",
       "graph-temporal"
-    ]
-  },
-  "other": {
-    "id": "other",
-    "label": "Other",
-    "tasks": [
-      "humanoid-ppo-extractor",
-      "marl-mixing-network",
-      "robomimic-bc-loss",
-      "robomimic-iql-vf",
-      "robomimic-obs-encoder",
-      "tdmpc2-planning",
-      "tdmpc2-simnorm",
-      "ttt-memory"
     ]
   },
   "rl": {

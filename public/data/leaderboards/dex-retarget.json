@@ -1,0 +1,76 @@
+{
+  "task_id": "dex-retarget",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "allegro_mpjpe_mm",
+    "allegro_smoothness",
+    "allegro_fps",
+    "svh_mpjpe_mm",
+    "svh_smoothness",
+    "svh_fps",
+    "leap_mpjpe_mm",
+    "leap_smoothness",
+    "leap_fps"
+  ],
+  "metric_columns": [
+    "allegro_mpjpe_mm",
+    "allegro_smoothness",
+    "allegro_fps",
+    "svh_mpjpe_mm",
+    "svh_smoothness",
+    "svh_fps",
+    "leap_mpjpe_mm",
+    "leap_smoothness",
+    "leap_fps"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-03-31T17:53:01.170231+00:00",
+      "model": "baseline:dexpilot",
+      "is_final": true,
+      "seed": "42",
+      "allegro_mpjpe_mm": 4972.2743,
+      "allegro_smoothness": 0.08439,
+      "allegro_fps": 77.4,
+      "svh_mpjpe_mm": 4058.8019,
+      "svh_smoothness": 0.056651,
+      "svh_fps": 111.4,
+      "leap_mpjpe_mm": 4958.5161,
+      "leap_smoothness": 0.165982,
+      "leap_fps": 65.7
+    },
+    {
+      "timestamp": "2026-03-31T17:49:10.614371+00:00",
+      "model": "baseline:position",
+      "is_final": true,
+      "seed": "42",
+      "allegro_mpjpe_mm": 21.6242,
+      "allegro_smoothness": 0.051237,
+      "allegro_fps": 106.7,
+      "svh_mpjpe_mm": 12.0318,
+      "svh_smoothness": 0.042909,
+      "svh_fps": 131.6,
+      "leap_mpjpe_mm": 22.4161,
+      "leap_smoothness": 0.056102,
+      "leap_fps": 99.2
+    },
+    {
+      "timestamp": "2026-03-31T17:52:36.637706+00:00",
+      "model": "baseline:vector",
+      "is_final": true,
+      "seed": "42",
+      "allegro_mpjpe_mm": 4970.8095,
+      "allegro_smoothness": 0.050865,
+      "allegro_fps": 101.8,
+      "svh_mpjpe_mm": 4061.9097,
+      "svh_smoothness": 0.04277,
+      "svh_fps": 159.9,
+      "leap_mpjpe_mm": 4967.1985,
+      "leap_smoothness": 0.053462,
+      "leap_fps": 91.7
+    }
+  ]
+}

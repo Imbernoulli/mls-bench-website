@@ -59,6 +59,11 @@
       "step": 4,
       "role": "assistant",
       "tool_name": "test"
+    },
+    {
+      "step": 4,
+      "role": "assistant",
+      "tool_name": "test"
     }
   ],
   "task_id": "rl-offline-adroit",

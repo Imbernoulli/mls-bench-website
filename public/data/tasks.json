@@ -722,18 +722,9 @@
     ],
     "environments": [
       "Cancer",
-      "Earthquake",
-      "Survey",
-      "Asia",
-      "Sachs",
       "Child",
-      "Insurance",
-      "Water",
-      "Mildew",
       "Alarm",
-      "Barley",
       "Hailfinder",
-      "Hepar2",
       "Win95pts"
     ],
     "packages": [
@@ -781,12 +772,8 @@
       "ER10",
       "ER20",
       "SF50",
-      "ER10-Hard",
-      "ER20-Hard",
       "SF50-Hard",
-      "ER10-Noisy",
-      "ER20-Noisy",
-      "SF50-Noisy"
+      "ER20-Noisy"
     ],
     "packages": [
       "causal-learn"
@@ -830,13 +817,10 @@
     ],
     "environments": [
       "ER10",
-      "ER15",
       "SF12",
       "ER30",
       "ER50",
-      "ER50-LowSample",
-      "SF100",
-      "ER20-Dense"
+      "SF100"
     ],
     "packages": [
       "causal-learn"
@@ -881,12 +865,9 @@
     ],
     "environments": [
       "ER8-MLP",
-      "ER12-GP",
       "SF10-Mixed",
       "ER15-Sigmoid",
-      "ER20-Mixed",
       "SF20-GP",
-      "ER12-LowSample",
       "ER20-Gauss"
     ],
     "packages": [
@@ -1583,6 +1564,51 @@
             "end": 131
           }
         ]
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "dex-retarget",
+    "category": "other",
+    "category_label": "Other",
+    "description_md": "# Hand Retargeting Optimizer Design\n\n## Objective\nDesign a better retargeting optimizer that maps human hand joint positions to robot hand joint angles. You should implement `get_objective_function()` in `custom_optimizer.py`, which returns a closure used by nlopt (LD_SLSQP) to solve the inverse kinematics optimization.\n\n## Background\nHand retargeting maps human hand poses to dexterous robot hand configurations. Given target 3D positions for key robot links (fingertips, finger mids), the optimizer finds joint angles that minimize position error while maintaining smoothness across frames.\n\nThe evaluation tests your optimizer on **three different robot hands** with varying kinematics and DOF counts:\n- **Allegro Hand Right** (16 DOF, 4 fingers, 8 target links)\n- **Schunk SVH Hand Right** (9 DOF, 5 fingers, 10 target links)\n- **LEAP Hand Right** (16 DOF, 4 fingers, 8 target links)\n\nYour implementation must generalize across all three hands without hand-specific logic.\n\n## What to Implement\nEdit `custom_optimizer.py` to implement a high-quality objective function. You can modify:\n- The `get_objective_function()` method\n- The EDITABLE AREA above the class (for helper functions, custom losses, etc.)\n\nThe objective function closure `objective(x, grad) -> float` must:\n1. Construct the full robot joint configuration from `x` (optimized joints) and `fixed_qpos`\n2. Compute forward kinematics to get current link positions\n3. Compute a scalar loss measuring retargeting quality\n4. Fill `grad[:]` with the analytical gradient if `grad.size > 0` (required for LD_SLSQP)\n5. Return the scalar loss value\n\n## Available Utilities\n- `self.robot.compute_forward_kinematics(qpos)` — compute FK for full joint vector\n- `self.robot.get_link_pose(link_index)` — returns 4x4 homogeneous transform\n- `self.robot.compute_single_link_local_jacobian(qpos, link_index)` — returns 6xN Jacobian (body frame)\n- `self.target_link_indices` — pinocchio frame IDs for the target links\n- `self.idx_pin2target` / `self.idx_pin2fixed` — index mappings for optimized vs fixed joints\n- `self.adaptor` — kinematic adaptor for mimic joints (handle if not None)\n- `torch.nn.SmoothL1Loss` (Huber loss) — commonly used for robust position matching\n\n## Evaluation Metrics\n- **MPJPE (mm)**: Mean per-joint position error — primary metric, lower is better\n- **Smoothness**: Mean absolute jerk of joint trajectory — lower is better\n- **FPS**: Optimization throughput — higher is better\n\nThe evaluation runs retargeting over a 200-frame synthetic trajectory of smooth hand motions on each of the three robot hands.\n\n## Tips\n- Providing analytical gradients (via the Jacobian) dramatically improves convergence\n- Huber / SmoothL1 loss is more robust than plain L2 for position matching\n- A small regularization term `norm_delta * ||x - last_qpos||^2` improves temporal smoothness\n- The Jacobian from `compute_single_link_local_jacobian` is in the link's local frame — rotate it by the link's rotation matrix to get the world-frame Jacobian\n- Use `self.target_link_indices` and `self.idx_pin2target` rather than hardcoded indices so your solution generalizes across robot hands\n",
+    "baselines": [
+      "position",
+      "vector",
+      "dexpilot"
+    ],
+    "environments": [
+      "allegro",
+      "svh",
+      "leap"
+    ],
+    "packages": [
+      "dex-retargeting"
+    ],
+    "files": [
+      {
+        "filename": "dex-retargeting/src/dex_retargeting/custom_optimizer.py",
+        "edit_ranges": [
+          {
+            "start": -1,
+            "end": -1
+          }
+        ]
+      },
+      {
+        "filename": "dex-retargeting/src/dex_retargeting/optimizer.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "dex-retargeting/src/dex_retargeting/robot_wrapper.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "dex-retargeting/src/dex_retargeting/seq_retarget.py",
+        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,
@@ -5727,7 +5753,6 @@
       "VGG11BN-C10",
       "MobileNetV2-C10",
       "ResNet20-C100",
-      "VGG11BN-C100",
       "MobileNetV2-C100"
     ],
     "packages": [
@@ -5768,7 +5793,6 @@
       "VGG11BN-C10",
       "MobileNetV2-C10",
       "ResNet20-C100",
-      "VGG11BN-C100",
       "MobileNetV2-C100"
     ],
     "packages": [
@@ -5811,7 +5835,6 @@
     "environments": [
       "ResNet20-C10",
       "VGG11BN-C10",
-      "MobileNetV2-C10",
       "ResNet20-C100",
       "VGG11BN-C100",
       "MobileNetV2-C100"
@@ -5845,15 +5868,12 @@
     "description_md": "# Adversarial Training for Model Robustness\n\n## Research Question\nHow to design better adversarial training methods to enhance model robustness against L_inf adversarial attacks?\n\n## Background\nAdversarial training is the most effective approach for improving neural network robustness against adversarial examples. The standard method (Madry et al., 2018) trains on PGD-generated adversarial examples using cross-entropy loss, but suffers from a trade-off between clean accuracy and robust accuracy. Advanced methods like TRADES and MART address this through different loss formulations that decouple the robustness objective from clean classification.\n\n## Task\nImplement a novel adversarial training method in `bench/custom_adv_train.py` by modifying the `AdversarialTrainer` class. Your method should improve robust accuracy against white-box L_inf attacks while maintaining reasonable clean accuracy.\n\n## Interface\nYou must implement the `AdversarialTrainer` class with two methods:\n\n- `__init__(self, model, eps, alpha, attack_steps, num_classes, **kwargs)`: Initialize your trainer.\n  - `model`: The neural network to train (nn.Module).\n  - `eps`: L_inf perturbation budget (0.3 for MNIST, 8/255 for CIFAR).\n  - `alpha`: Step size for inner PGD attack.\n  - `attack_steps`: Number of PGD steps for adversarial example generation.\n  - `num_classes`: Number of output classes (10 or 100).\n\n- `train_step(self, images, labels, optimizer) -> dict`: Perform one training step.\n  - `images`: Clean images, shape `(N, C, H, W)`, values in `[0, 1]`.\n  - `labels`: Ground truth labels, shape `(N,)`.\n  - `optimizer`: SGD optimizer (lr, momentum, weight_decay already configured).\n  - Returns: dict with at least `'loss'` key (float).\n\nThe training loop, learning rate schedule (cosine annealing), model architecture, and data loading are handled externally. You only control the adversarial training procedure within each step.\n\n## Evaluation\nAfter training, models are evaluated on:\n- **Clean accuracy**: Accuracy on unperturbed test images.\n- **Robust accuracy (FGSM)**: Accuracy under 1-step FGSM attack.\n- **Robust accuracy (PGD-50)**: Accuracy under 50-step PGD attack (**primary metric**).\n\nFour scenarios (model + dataset):\n- SmallCNN on MNIST (eps = 0.3)\n- PreActResNet-18 on CIFAR-10 (eps = 8/255)\n- VGG-11-BN on CIFAR-10 (eps = 8/255)\n- PreActResNet-18 on CIFAR-100 (eps = 8/255)\n\nHigher robust accuracy (PGD-50) across all scenarios is better.\n\n## Baselines\n- `standard`: Vanilla training (no adversarial examples). High clean accuracy, ~0% robust accuracy.\n- `pgdat`: PGD Adversarial Training (Madry et al., 2018). Trains on PGD adversarial examples with CE loss.\n- `trades`: TRADES (Zhang et al., 2019). Balances clean and robust accuracy via KL divergence regularization.\n- `mart`: MART (Wang et al., 2020). Misclassification-aware regularization that focuses on hard examples.\n- `awp`: AWP + TRADES (Wu et al., 2020). Adversarial weight perturbation on top of TRADES — current SOTA.\n\n## Hints\n- The key design choices are: (1) how to generate adversarial examples during training, (2) what loss function to optimize, and (3) how to balance clean vs. robust accuracy.\n- Consider the role of the inner maximization (adversarial example generation) and outer minimization (model parameter update).\n- Techniques from the literature include: curriculum-based perturbation scheduling, sample-wise adaptive perturbation strength, consistency regularization between clean and adversarial predictions, and combining multiple attack strategies during training.\n",
     "baselines": [
       "standard",
-      "pgdat",
       "trades",
-      "mart",
       "awp"
     ],
     "environments": [
       "SmallCNN-MNIST",
       "PreActResNet18-C10",
-      "VGG11BN-C10",
       "PreActResNet18-C100"
     ],
     "packages": [
