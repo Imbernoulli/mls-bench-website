@@ -145,7 +145,7 @@
     {
       "model": "anthropic/claude-opus-4.6",
       "slug": "anthropic--claude-opus-4.6",
-      "total_steps": 4
+      "total_steps": 5
     },
     {
       "model": "google/gemini-3.1-pro-preview",
@@ -155,7 +155,7 @@
     {
       "model": "gpt-5.4-pro",
       "slug": "gpt-5.4-pro",
-      "total_steps": 2
+      "total_steps": 4
     }
   ],
   "rl-offline-continuous": [
@@ -228,17 +228,17 @@
     {
       "model": "anthropic/claude-opus-4.6",
       "slug": "anthropic--claude-opus-4.6",
-      "total_steps": 2
+      "total_steps": 6
     },
     {
       "model": "google/gemini-3.1-pro-preview",
       "slug": "google--gemini-3.1-pro-preview",
-      "total_steps": 5
+      "total_steps": 7
     },
     {
       "model": "gpt-5.4-pro",
       "slug": "gpt-5.4-pro",
-      "total_steps": 2
+      "total_steps": 4
     }
   ],
   "rl-value-discrete": [
