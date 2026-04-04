@@ -12,7 +12,7 @@
   "metric_columns": [],
   "rows": [
     {
-      "timestamp": "2026-04-03T10:49:02.039760+00:00",
+      "timestamp": "2026-03-30T19:10:10.819445+00:00",
       "model": "baseline:diffbp",
       "is_final": true,
       "seed": "42",
@@ -21,13 +21,40 @@
       "elapsed_frag": 8.0
     },
     {
+      "timestamp": "2026-03-31T00:25:15.597601+00:00",
+      "model": "baseline:diffbp",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_denovo": null,
+      "elapsed_linker": 318.0,
+      "elapsed_frag": 8.0
+    },
+    {
+      "timestamp": "2026-04-03T10:49:02.039760+00:00",
+      "model": "baseline:diffbp",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_denovo": null,
+      "elapsed_linker": 77951.0,
+      "elapsed_frag": 80179.0
+    },
+    {
+      "timestamp": "2026-03-30T19:10:08.705828+00:00",
+      "model": "baseline:pocket2mol",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_denovo": null,
+      "elapsed_linker": null,
+      "elapsed_frag": 9.0
+    },
+    {
       "timestamp": "2026-03-31T00:43:15.893938+00:00",
       "model": "baseline:pocket2mol",
       "is_final": true,
       "seed": "42",
       "elapsed_denovo": 24718.0,
       "elapsed_linker": 7.0,
-      "elapsed_frag": 9.0
+      "elapsed_frag": 7.0
     },
     {
       "timestamp": "2026-03-30T09:17:39.070944+00:00",
@@ -39,13 +66,22 @@
       "elapsed_frag": null
     },
     {
+      "timestamp": "2026-03-30T19:09:21.049074+00:00",
+      "model": "baseline:targetdiff",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_denovo": null,
+      "elapsed_linker": 1.0,
+      "elapsed_frag": 9.0
+    },
+    {
       "timestamp": "2026-03-31T00:43:11.997144+00:00",
       "model": "baseline:targetdiff",
       "is_final": true,
       "seed": "42",
       "elapsed_denovo": 24763.0,
-      "elapsed_linker": 1.0,
-      "elapsed_frag": 9.0
+      "elapsed_linker": 8.0,
+      "elapsed_frag": 7.0
     }
   ]
 }

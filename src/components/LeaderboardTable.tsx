@@ -47,11 +47,14 @@ export default function LeaderboardTable({ data }: Props) {
     return String(v);
   };
 
-  const formatModel = (model: string): { name: string; isBaseline: boolean } => {
+  const formatModel = (model: string): { name: string; type: "baseline" | "vanilla" | "agent" } => {
     if (model.startsWith("baseline:")) {
-      return { name: model.replace("baseline:", ""), isBaseline: true };
+      return { name: model.replace("baseline:", ""), type: "baseline" };
     }
-    return { name: model, isBaseline: false };
+    if (model.startsWith("vanilla:")) {
+      return { name: model.replace("vanilla:", ""), type: "vanilla" };
+    }
+    return { name: model, type: "agent" };
   };
 
   if (rows.length === 0) {
@@ -89,8 +92,13 @@ export default function LeaderboardTable({ data }: Props) {
           </thead>
           <tbody>
             {rows.map((row, i) => {
-              const { name, isBaseline } = formatModel(row.model as string);
+              const { name, type } = formatModel(row.model as string);
               const isMean = row.seed === "mean";
+              const badgeStyles = {
+                baseline: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+                vanilla: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
+                agent: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+              };
               return (
                 <tr
                   key={i}
@@ -101,13 +109,9 @@ export default function LeaderboardTable({ data }: Props) {
                   <td className="px-4 py-2">{name}</td>
                   <td className="px-4 py-2">
                     <span
-                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                        isBaseline
-                          ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                          : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
-                      }`}
+                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${badgeStyles[type]}`}
                     >
-                      {isBaseline ? "baseline" : "agent"}
+                      {type}
                     </span>
                   </td>
                   {showPerSeed && (

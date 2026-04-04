@@ -41,6 +41,21 @@
       "valid_MP-20": null
     },
     {
+      "timestamp": "2026-03-30T19:09:12.724134+00:00",
+      "model": "baseline:geobfn",
+      "is_final": true,
+      "seed": "42",
+      "atom_stable_QM9": null,
+      "mol_stable_QM9": null,
+      "valid_QM9": null,
+      "unique_QM9": null,
+      "elapsed_QM9": null,
+      "elapsed_GEOM-DRUG": 0.0,
+      "comp_valid_MP-20": null,
+      "struct_valid_MP-20": null,
+      "valid_MP-20": null
+    },
+    {
       "timestamp": "2026-04-03T13:21:31.316971+00:00",
       "model": "baseline:geobfn",
       "is_final": true,
@@ -71,7 +86,7 @@
       "valid_MP-20": 0.039
     },
     {
-      "timestamp": "2026-04-03T13:23:37.677414+00:00",
+      "timestamp": "2026-03-27T15:25:08.881973+00:00",
       "model": "baseline:geoldm",
       "is_final": true,
       "seed": "42",
@@ -80,6 +95,21 @@
       "valid_QM9": 0.8842,
       "unique_QM9": 0.004185,
       "elapsed_QM9": 40252.0,
+      "elapsed_GEOM-DRUG": null,
+      "comp_valid_MP-20": null,
+      "struct_valid_MP-20": null,
+      "valid_MP-20": null
+    },
+    {
+      "timestamp": "2026-04-03T13:23:37.677414+00:00",
+      "model": "baseline:geoldm",
+      "is_final": true,
+      "seed": "42",
+      "atom_stable_QM9": null,
+      "mol_stable_QM9": null,
+      "valid_QM9": null,
+      "unique_QM9": null,
+      "elapsed_QM9": 2.0,
       "elapsed_GEOM-DRUG": 0.0,
       "comp_valid_MP-20": null,
       "struct_valid_MP-20": null,

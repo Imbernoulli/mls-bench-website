@@ -22,7 +22,7 @@
   ],
   "rows": [
     {
-      "timestamp": "2026-03-25T08:27:31.573215+00:00",
+      "timestamp": "2026-03-24T15:11:22.075843+00:00",
       "model": "baseline:gain",
       "is_final": true,
       "seed": "123",
@@ -36,7 +36,21 @@
       "downstream_score_wine_std": null
     },
     {
-      "timestamp": "2026-03-25T08:27:31.571379+00:00",
+      "timestamp": "2026-03-25T08:27:31.573215+00:00",
+      "model": "baseline:gain",
+      "is_final": true,
+      "seed": "123",
+      "rmse_breast_cancer": 0.440273,
+      "downstream_score_breast_cancer": 0.952601,
+      "rmse_wine": 0.688362,
+      "downstream_score_wine": 0.938571,
+      "rmse_breast_cancer_std": null,
+      "downstream_score_breast_cancer_std": null,
+      "rmse_wine_std": null,
+      "downstream_score_wine_std": null
+    },
+    {
+      "timestamp": "2026-03-24T15:11:22.075220+00:00",
       "model": "baseline:gain",
       "is_final": true,
       "seed": "42",
@@ -50,7 +64,21 @@
       "downstream_score_wine_std": null
     },
     {
-      "timestamp": "2026-03-25T08:27:31.573564+00:00",
+      "timestamp": "2026-03-25T08:27:31.571379+00:00",
+      "model": "baseline:gain",
+      "is_final": true,
+      "seed": "42",
+      "rmse_breast_cancer": 0.507258,
+      "downstream_score_breast_cancer": 0.945536,
+      "rmse_wine": 0.798362,
+      "downstream_score_wine": 0.920952,
+      "rmse_breast_cancer_std": null,
+      "downstream_score_breast_cancer_std": null,
+      "rmse_wine_std": null,
+      "downstream_score_wine_std": null
+    },
+    {
+      "timestamp": "2026-03-24T15:11:22.076089+00:00",
       "model": "baseline:gain",
       "is_final": true,
       "seed": "456",
@@ -64,7 +92,21 @@
       "downstream_score_wine_std": null
     },
     {
-      "timestamp": "2026-03-25T08:27:31.573896+00:00",
+      "timestamp": "2026-03-25T08:27:31.573564+00:00",
+      "model": "baseline:gain",
+      "is_final": true,
+      "seed": "456",
+      "rmse_breast_cancer": 0.480751,
+      "downstream_score_breast_cancer": 0.952585,
+      "rmse_wine": 0.695734,
+      "downstream_score_wine": 0.949683,
+      "rmse_breast_cancer_std": null,
+      "downstream_score_breast_cancer_std": null,
+      "rmse_wine_std": null,
+      "downstream_score_wine_std": null
+    },
+    {
+      "timestamp": "2026-03-24T15:11:22.076313+00:00",
       "model": "baseline:gain",
       "is_final": true,
       "seed": "mean",
@@ -76,6 +118,20 @@
       "downstream_score_breast_cancer_std": 0.0030521714128360204,
       "rmse_wine_std": 0.03423735180082317,
       "downstream_score_wine_std": 0.021249653040304805
+    },
+    {
+      "timestamp": "2026-03-25T08:27:31.573896+00:00",
+      "model": "baseline:gain",
+      "is_final": true,
+      "seed": "mean",
+      "rmse_breast_cancer": 0.476094,
+      "downstream_score_breast_cancer": 0.9502406666666667,
+      "rmse_wine": 0.727486,
+      "downstream_score_wine": 0.9364020000000001,
+      "rmse_breast_cancer_std": 0.03373445261153645,
+      "downstream_score_breast_cancer_std": 0.004074368703656217,
+      "rmse_wine_std": 0.061490992250898026,
+      "downstream_score_wine_std": 0.014487788340530135
     },
     {
       "timestamp": "2026-03-24T15:08:12.284774+00:00",

@@ -33,6 +33,127 @@
       "drift_score": 0.0,
       "scene_retention_precision": 0.0,
       "trace_mode": "video_chunk_trace"
+    },
+    {
+      "baseline": "recent_window",
+      "workload": "dmlab_long_prediction",
+      "budget": "tight_history_budget",
+      "temporal_quality_main": 71.7599,
+      "peak_kv_memory_mb": 1.0,
+      "fps": 17.4417,
+      "drift_score": 0.0,
+      "scene_retention_precision": 0.0,
+      "trace_mode": "video_chunk_trace"
+    },
+    {
+      "baseline": "recent_window",
+      "workload": "minecraft_scene_cut",
+      "budget": "tight_history_budget",
+      "temporal_quality_main": 66.2461,
+      "peak_kv_memory_mb": 1.0,
+      "fps": 17.4417,
+      "drift_score": 0.0365,
+      "scene_retention_precision": 1.0,
+      "trace_mode": "video_chunk_trace"
+    },
+    {
+      "baseline": "packcache",
+      "workload": "ucf101_short_prediction",
+      "budget": "medium_history_budget",
+      "temporal_quality_main": 79.9276,
+      "peak_kv_memory_mb": 4.95,
+      "fps": 14.8232,
+      "drift_score": 0.0,
+      "scene_retention_precision": 0.0,
+      "trace_mode": "video_chunk_trace"
+    },
+    {
+      "baseline": "packcache",
+      "workload": "dmlab_long_prediction",
+      "budget": "tight_history_budget",
+      "temporal_quality_main": 81.5794,
+      "peak_kv_memory_mb": 4.5,
+      "fps": 17.2375,
+      "drift_score": 0.0,
+      "scene_retention_precision": 0.0,
+      "trace_mode": "video_chunk_trace"
+    },
+    {
+      "baseline": "packcache",
+      "workload": "minecraft_scene_cut",
+      "budget": "tight_history_budget",
+      "temporal_quality_main": 60.9224,
+      "peak_kv_memory_mb": 3.0,
+      "fps": 17.325,
+      "drift_score": 0.1005,
+      "scene_retention_precision": 1.0,
+      "trace_mode": "video_chunk_trace"
+    },
+    {
+      "baseline": "causalcache_vdm",
+      "workload": "ucf101_short_prediction",
+      "budget": "medium_history_budget",
+      "temporal_quality_main": 79.4309,
+      "peak_kv_memory_mb": 2.7,
+      "fps": 14.9036,
+      "drift_score": 0.0,
+      "scene_retention_precision": 0.0,
+      "trace_mode": "video_chunk_trace"
+    },
+    {
+      "baseline": "causalcache_vdm",
+      "workload": "dmlab_long_prediction",
+      "budget": "tight_history_budget",
+      "temporal_quality_main": 83.6207,
+      "peak_kv_memory_mb": 4.35,
+      "fps": 17.2462,
+      "drift_score": 0.0,
+      "scene_retention_precision": 0.0,
+      "trace_mode": "video_chunk_trace"
+    },
+    {
+      "baseline": "causalcache_vdm",
+      "workload": "minecraft_scene_cut",
+      "budget": "tight_history_budget",
+      "temporal_quality_main": 44.4445,
+      "peak_kv_memory_mb": 5.45,
+      "fps": 17.1821,
+      "drift_score": 0.6429,
+      "scene_retention_precision": 0.0,
+      "trace_mode": "video_chunk_trace"
+    },
+    {
+      "baseline": "flowcache",
+      "workload": "ucf101_short_prediction",
+      "budget": "medium_history_budget",
+      "temporal_quality_main": 88.3286,
+      "peak_kv_memory_mb": 11.0,
+      "fps": 14.6071,
+      "drift_score": 0.0,
+      "scene_retention_precision": 0.0,
+      "trace_mode": "video_chunk_trace"
+    },
+    {
+      "baseline": "flowcache",
+      "workload": "dmlab_long_prediction",
+      "budget": "tight_history_budget",
+      "temporal_quality_main": 89.9395,
+      "peak_kv_memory_mb": 8.54,
+      "fps": 17.0018,
+      "drift_score": 0.0,
+      "scene_retention_precision": 0.0,
+      "trace_mode": "video_chunk_trace"
+    },
+    {
+      "baseline": "flowcache",
+      "workload": "minecraft_scene_cut",
+      "budget": "tight_history_budget",
+      "temporal_quality_main": 72.2131,
+      "peak_kv_memory_mb": 5.0,
+      "fps": 17.2083,
+      "drift_score": 0.0714,
+      "scene_retention_precision": 1.0,
+      "trace_mode": "video_chunk_trace"
     }
   ]
 }

@@ -15,13 +15,25 @@
   "metric_columns": [],
   "rows": [
     {
-      "timestamp": "2026-04-01T03:48:48.059483+00:00",
+      "timestamp": "2026-04-01T02:16:12.586945+00:00",
       "model": "baseline:dpot",
       "is_final": true,
       "seed": "123",
       "elapsed_NS2D": 102.2,
       "elapsed_COMPRESSIBLE2D": 101.9,
       "elapsed_EULER2D": 100.7,
+      "elapsed_NS2D_std": null,
+      "elapsed_COMPRESSIBLE2D_std": null,
+      "elapsed_EULER2D_std": null
+    },
+    {
+      "timestamp": "2026-04-01T03:48:48.059483+00:00",
+      "model": "baseline:dpot",
+      "is_final": true,
+      "seed": "123",
+      "elapsed_NS2D": 0.0,
+      "elapsed_COMPRESSIBLE2D": 0.0,
+      "elapsed_EULER2D": 0.0,
       "elapsed_NS2D_std": null,
       "elapsed_COMPRESSIBLE2D_std": null,
       "elapsed_EULER2D_std": null
@@ -39,7 +51,7 @@
       "elapsed_EULER2D_std": null
     },
     {
-      "timestamp": "2026-04-01T04:23:22.011454+00:00",
+      "timestamp": "2026-04-01T02:16:12.585803+00:00",
       "model": "baseline:dpot",
       "is_final": true,
       "seed": "42",
@@ -51,7 +63,19 @@
       "elapsed_EULER2D_std": null
     },
     {
-      "timestamp": "2026-04-01T06:09:48.177885+00:00",
+      "timestamp": "2026-04-01T04:23:22.011454+00:00",
+      "model": "baseline:dpot",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_NS2D": 133.7,
+      "elapsed_COMPRESSIBLE2D": 0.0,
+      "elapsed_EULER2D": 0.0,
+      "elapsed_NS2D_std": null,
+      "elapsed_COMPRESSIBLE2D_std": null,
+      "elapsed_EULER2D_std": null
+    },
+    {
+      "timestamp": "2026-04-01T05:04:56.955269+00:00",
       "model": "baseline:dpot",
       "is_final": true,
       "seed": "42",
@@ -63,13 +87,37 @@
       "elapsed_EULER2D_std": null
     },
     {
-      "timestamp": "2026-04-01T03:48:48.059952+00:00",
+      "timestamp": "2026-04-01T06:09:48.177885+00:00",
+      "model": "baseline:dpot",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_NS2D": 284.3,
+      "elapsed_COMPRESSIBLE2D": 19.8,
+      "elapsed_EULER2D": null,
+      "elapsed_NS2D_std": null,
+      "elapsed_COMPRESSIBLE2D_std": null,
+      "elapsed_EULER2D_std": null
+    },
+    {
+      "timestamp": "2026-04-01T02:16:12.587572+00:00",
       "model": "baseline:dpot",
       "is_final": true,
       "seed": "456",
       "elapsed_NS2D": 105.9,
       "elapsed_COMPRESSIBLE2D": 107.5,
       "elapsed_EULER2D": 108.2,
+      "elapsed_NS2D_std": null,
+      "elapsed_COMPRESSIBLE2D_std": null,
+      "elapsed_EULER2D_std": null
+    },
+    {
+      "timestamp": "2026-04-01T03:48:48.059952+00:00",
+      "model": "baseline:dpot",
+      "is_final": true,
+      "seed": "456",
+      "elapsed_NS2D": 0.0,
+      "elapsed_COMPRESSIBLE2D": 0.0,
+      "elapsed_EULER2D": 0.0,
       "elapsed_NS2D_std": null,
       "elapsed_COMPRESSIBLE2D_std": null,
       "elapsed_EULER2D_std": null
@@ -87,7 +135,7 @@
       "elapsed_EULER2D_std": null
     },
     {
-      "timestamp": "2026-04-01T03:48:48.060397+00:00",
+      "timestamp": "2026-04-01T02:16:12.588203+00:00",
       "model": "baseline:dpot",
       "is_final": true,
       "seed": "mean",
@@ -99,13 +147,37 @@
       "elapsed_EULER2D_std": 3.7501111094650694
     },
     {
-      "timestamp": "2026-04-01T04:42:43.189407+00:00",
+      "timestamp": "2026-04-01T03:48:48.060397+00:00",
+      "model": "baseline:dpot",
+      "is_final": true,
+      "seed": "mean",
+      "elapsed_NS2D": 44.56666666666666,
+      "elapsed_COMPRESSIBLE2D": 0.0,
+      "elapsed_EULER2D": 0.0,
+      "elapsed_NS2D_std": 77.19173099065296,
+      "elapsed_COMPRESSIBLE2D_std": 0.0,
+      "elapsed_EULER2D_std": 0.0
+    },
+    {
+      "timestamp": "2026-04-01T02:06:12.391077+00:00",
       "model": "baseline:icon",
       "is_final": true,
       "seed": "123",
       "elapsed_NS2D": 115.7,
       "elapsed_COMPRESSIBLE2D": 113.1,
       "elapsed_EULER2D": 113.1,
+      "elapsed_NS2D_std": null,
+      "elapsed_COMPRESSIBLE2D_std": null,
+      "elapsed_EULER2D_std": null
+    },
+    {
+      "timestamp": "2026-04-01T04:42:43.189407+00:00",
+      "model": "baseline:icon",
+      "is_final": true,
+      "seed": "123",
+      "elapsed_NS2D": 0.0,
+      "elapsed_COMPRESSIBLE2D": 0.0,
+      "elapsed_EULER2D": 0.0,
       "elapsed_NS2D_std": null,
       "elapsed_COMPRESSIBLE2D_std": null,
       "elapsed_EULER2D_std": null
@@ -123,7 +195,7 @@
       "elapsed_EULER2D_std": null
     },
     {
-      "timestamp": "2026-04-01T04:42:43.188295+00:00",
+      "timestamp": "2026-04-01T02:06:12.390079+00:00",
       "model": "baseline:icon",
       "is_final": true,
       "seed": "42",
@@ -135,7 +207,19 @@
       "elapsed_EULER2D_std": null
     },
     {
-      "timestamp": "2026-04-01T06:06:01.146448+00:00",
+      "timestamp": "2026-04-01T04:42:43.188295+00:00",
+      "model": "baseline:icon",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_NS2D": 0.0,
+      "elapsed_COMPRESSIBLE2D": 0.0,
+      "elapsed_EULER2D": 173.4,
+      "elapsed_NS2D_std": null,
+      "elapsed_COMPRESSIBLE2D_std": null,
+      "elapsed_EULER2D_std": null
+    },
+    {
+      "timestamp": "2026-04-01T05:04:31.174533+00:00",
       "model": "baseline:icon",
       "is_final": true,
       "seed": "42",
@@ -147,7 +231,19 @@
       "elapsed_EULER2D_std": null
     },
     {
-      "timestamp": "2026-04-01T04:47:56.311624+00:00",
+      "timestamp": "2026-04-01T06:06:01.146448+00:00",
+      "model": "baseline:icon",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_NS2D": 23.0,
+      "elapsed_COMPRESSIBLE2D": 27.3,
+      "elapsed_EULER2D": null,
+      "elapsed_NS2D_std": null,
+      "elapsed_COMPRESSIBLE2D_std": null,
+      "elapsed_EULER2D_std": null
+    },
+    {
+      "timestamp": "2026-04-01T02:06:12.391613+00:00",
       "model": "baseline:icon",
       "is_final": true,
       "seed": "456",
@@ -159,7 +255,19 @@
       "elapsed_EULER2D_std": null
     },
     {
-      "timestamp": "2026-04-01T04:42:43.190246+00:00",
+      "timestamp": "2026-04-01T04:47:56.311624+00:00",
+      "model": "baseline:icon",
+      "is_final": true,
+      "seed": "456",
+      "elapsed_NS2D": 0.0,
+      "elapsed_COMPRESSIBLE2D": 0.0,
+      "elapsed_EULER2D": 0.0,
+      "elapsed_NS2D_std": null,
+      "elapsed_COMPRESSIBLE2D_std": null,
+      "elapsed_EULER2D_std": null
+    },
+    {
+      "timestamp": "2026-04-01T02:06:12.392116+00:00",
       "model": "baseline:icon",
       "is_final": true,
       "seed": "mean",
@@ -171,13 +279,37 @@
       "elapsed_EULER2D_std": 23.226924032251883
     },
     {
-      "timestamp": "2026-04-01T03:48:48.461384+00:00",
+      "timestamp": "2026-04-01T04:42:43.190246+00:00",
+      "model": "baseline:icon",
+      "is_final": true,
+      "seed": "mean",
+      "elapsed_NS2D": 0.0,
+      "elapsed_COMPRESSIBLE2D": 0.0,
+      "elapsed_EULER2D": 57.800000000000004,
+      "elapsed_NS2D_std": 0.0,
+      "elapsed_COMPRESSIBLE2D_std": 0.0,
+      "elapsed_EULER2D_std": 100.1125366774811
+    },
+    {
+      "timestamp": "2026-04-01T02:09:11.492347+00:00",
       "model": "baseline:mpp",
       "is_final": true,
       "seed": "123",
       "elapsed_NS2D": 113.0,
       "elapsed_COMPRESSIBLE2D": 114.7,
       "elapsed_EULER2D": 113.0,
+      "elapsed_NS2D_std": null,
+      "elapsed_COMPRESSIBLE2D_std": null,
+      "elapsed_EULER2D_std": null
+    },
+    {
+      "timestamp": "2026-04-01T03:48:48.461384+00:00",
+      "model": "baseline:mpp",
+      "is_final": true,
+      "seed": "123",
+      "elapsed_NS2D": 0.0,
+      "elapsed_COMPRESSIBLE2D": 0.0,
+      "elapsed_EULER2D": 0.0,
       "elapsed_NS2D_std": null,
       "elapsed_COMPRESSIBLE2D_std": null,
       "elapsed_EULER2D_std": null
@@ -195,7 +327,7 @@
       "elapsed_EULER2D_std": null
     },
     {
-      "timestamp": "2026-04-01T03:48:48.457742+00:00",
+      "timestamp": "2026-04-01T02:09:11.491669+00:00",
       "model": "baseline:mpp",
       "is_final": true,
       "seed": "42",
@@ -207,7 +339,19 @@
       "elapsed_EULER2D_std": null
     },
     {
-      "timestamp": "2026-04-01T06:06:15.791450+00:00",
+      "timestamp": "2026-04-01T03:48:48.457742+00:00",
+      "model": "baseline:mpp",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_NS2D": 0.0,
+      "elapsed_COMPRESSIBLE2D": 0.0,
+      "elapsed_EULER2D": 0.0,
+      "elapsed_NS2D_std": null,
+      "elapsed_COMPRESSIBLE2D_std": null,
+      "elapsed_EULER2D_std": null
+    },
+    {
+      "timestamp": "2026-04-01T05:04:55.302071+00:00",
       "model": "baseline:mpp",
       "is_final": true,
       "seed": "42",
@@ -219,13 +363,37 @@
       "elapsed_EULER2D_std": null
     },
     {
-      "timestamp": "2026-04-01T04:48:00.718453+00:00",
+      "timestamp": "2026-04-01T06:06:15.791450+00:00",
+      "model": "baseline:mpp",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_NS2D": 24.9,
+      "elapsed_COMPRESSIBLE2D": 16.8,
+      "elapsed_EULER2D": null,
+      "elapsed_NS2D_std": null,
+      "elapsed_COMPRESSIBLE2D_std": null,
+      "elapsed_EULER2D_std": null
+    },
+    {
+      "timestamp": "2026-04-01T02:09:11.492636+00:00",
       "model": "baseline:mpp",
       "is_final": true,
       "seed": "456",
       "elapsed_NS2D": 123.7,
       "elapsed_COMPRESSIBLE2D": 118.4,
       "elapsed_EULER2D": 120.5,
+      "elapsed_NS2D_std": null,
+      "elapsed_COMPRESSIBLE2D_std": null,
+      "elapsed_EULER2D_std": null
+    },
+    {
+      "timestamp": "2026-04-01T04:48:00.718453+00:00",
+      "model": "baseline:mpp",
+      "is_final": true,
+      "seed": "456",
+      "elapsed_NS2D": 0.0,
+      "elapsed_COMPRESSIBLE2D": 0.0,
+      "elapsed_EULER2D": 0.0,
       "elapsed_NS2D_std": null,
       "elapsed_COMPRESSIBLE2D_std": null,
       "elapsed_EULER2D_std": null
@@ -243,7 +411,7 @@
       "elapsed_EULER2D_std": null
     },
     {
-      "timestamp": "2026-04-01T03:48:48.463202+00:00",
+      "timestamp": "2026-04-01T02:09:11.492930+00:00",
       "model": "baseline:mpp",
       "is_final": true,
       "seed": "mean",
@@ -253,6 +421,18 @@
       "elapsed_NS2D_std": 17.16517792897392,
       "elapsed_COMPRESSIBLE2D_std": 16.472097619914717,
       "elapsed_EULER2D_std": 19.163246071581924
+    },
+    {
+      "timestamp": "2026-04-01T03:48:48.463202+00:00",
+      "model": "baseline:mpp",
+      "is_final": true,
+      "seed": "mean",
+      "elapsed_NS2D": 0.0,
+      "elapsed_COMPRESSIBLE2D": 0.0,
+      "elapsed_EULER2D": 0.0,
+      "elapsed_NS2D_std": 0.0,
+      "elapsed_COMPRESSIBLE2D_std": 0.0,
+      "elapsed_EULER2D_std": 0.0
     }
   ]
 }
