@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getTasksStatic, getCategoriesStatic } from "@/lib/data";
-import CategoryChart from "@/components/CategoryChart";
+import CategoryTreemap from "@/components/CategoryTreemap";
 
 export default function HomePage() {
   const tasks = getTasksStatic();
@@ -118,10 +118,11 @@ export default function HomePage() {
         <div className="mx-auto max-w-4xl px-4">
           <h2 className="text-xl font-semibold">Task Distribution</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {totalTasks} tasks across {totalCategories} categories.
+            {totalTasks} tasks across {totalCategories} categories. Click a
+            category to explore.
           </p>
           <div className="mt-8">
-            <CategoryChart data={catData} />
+            <CategoryTreemap data={catData} />
           </div>
         </div>
       </section>
