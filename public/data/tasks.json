@@ -643,72 +643,6 @@
     "has_agent_logs": false
   },
   {
-    "id": "automl-nas-search",
-    "category": "automl",
-    "category_label": "AutoML",
-    "description_md": "# AutoML: Neural Architecture Search Strategy\n\n## Objective\nDesign and implement a novel NAS (Neural Architecture Search) optimizer that efficiently discovers high-performing architectures in the NAS-Bench-201 search space. Your code goes in the `NASOptimizer` class in `custom_nas_search.py`. Three reference implementations (Random Search, REA, DARTS) are provided as read-only.\n\n## Background\nNeural Architecture Search automates the design of neural network architectures. The NAS-Bench-201 benchmark provides a tabular lookup of all 15625 possible architectures (5 operations x 6 edges in a cell) pre-evaluated on multiple datasets. This eliminates the need for actual training — you query the benchmark API for any architecture's accuracy. The challenge is designing a search strategy that finds the best architecture using as few queries as possible. Approaches range from random search to evolutionary algorithms, Bayesian optimization, reinforcement learning, and differentiable methods.\n\n## Search Space\n- Cell with 4 nodes (1 input, 2 intermediate, 1 output) and 6 edges\n- 5 operations per edge: skip_connect, none, nor_conv_3x3, nor_conv_1x1, avg_pool_3x3\n- Total: 5^6 = 15625 architectures\n- Architecture represented as a list of 6 integers in [0, 4]\n\n## Evaluation\nTested on three image classification datasets from NAS-Bench-201: CIFAR-10, CIFAR-100, and ImageNet16-120. Metric: test accuracy of the best architecture found (higher is better). Search budget: 500 iterations per dataset.\n",
-    "baselines": [
-      "random_search",
-      "rea",
-      "darts"
-    ],
-    "environments": [
-      "CIFAR-10",
-      "CIFAR-100",
-      "ImageNet16-120"
-    ],
-    "packages": [
-      "naslib"
-    ],
-    "files": [
-      {
-        "filename": "naslib/custom_nas_search.py",
-        "edit_ranges": [
-          {
-            "start": 135,
-            "end": 215
-          }
-        ]
-      }
-    ],
-    "rigorous_codebase": true,
-    "allow_create": false,
-    "has_agent_logs": false
-  },
-  {
-    "id": "bo-acquisition-function",
-    "category": "bo",
-    "category_label": "Bayesian Optimization",
-    "description_md": "# Bayesian Optimization: Custom Acquisition Function Design\n\n## Research Question\nDesign a novel acquisition function for Bayesian Optimization that achieves better sample efficiency (lower simple regret) than standard approaches like Expected Improvement, Upper Confidence Bound, and Knowledge Gradient.\n\n## Background\nBayesian Optimization (BO) is a sequential model-based strategy for optimizing expensive black-box functions. At each iteration, a Gaussian Process (GP) surrogate is fitted to past observations, and an **acquisition function** determines which point to evaluate next by trading off exploration (sampling uncertain regions) and exploitation (sampling near current best).\n\nClassic acquisition functions include:\n- **Expected Improvement (EI)**: Computes the expected amount by which a candidate improves over the current best.\n- **Upper Confidence Bound (UCB)**: Adds an exploration bonus proportional to posterior uncertainty.\n- **Knowledge Gradient (KG)**: Estimates the value of information from one additional observation.\n\nWhile these are effective, they have known limitations: EI can be too greedy in later iterations, UCB requires tuning the exploration parameter, and KG is computationally expensive. There is ongoing research into acquisition functions that better balance exploration and exploitation, adapt to the optimization landscape, or leverage higher-order information from the GP posterior.\n\n## Task\nImplement a custom acquisition function by modifying the `CustomAcquisition` class in `botorch/custom_bo.py`. You should implement both `__init__` and `forward` methods. The class inherits from BoTorch's `AcquisitionFunction` base class.\n\n## Interface\n```python\nclass CustomAcquisition(AcquisitionFunction):\n    def __init__(self, model, best_f: Tensor):\n        \"\"\"\n        Args:\n            model: fitted SingleTaskGP model\n            best_f: best observed objective value (scalar Tensor)\n        \"\"\"\n        super().__init__(model=model)\n        self.register_buffer(\"best_f\", best_f)\n\n    @t_batch_mode_transform(expected_q=1)\n    def forward(self, X: Tensor) -> Tensor:\n        \"\"\"Score candidate points.\n\n        Args:\n            X: candidates, shape (batch, 1, dim) after t_batch_mode_transform\n        Returns:\n            acquisition values, shape (batch,) — higher is better\n        \"\"\"\n```\n\nThe GP model provides:\n- `self.model.posterior(X)` returns a posterior with `.mean` (shape `(batch, q, 1)`) and `.variance` (shape `(batch, q, 1)`)\n- `self.best_f` is the current best observed value\n\nYou may use `torch.distributions.Normal` for CDF/PDF computations.\n\n## Evaluation\nEvaluated on three benchmarks (simple regret = optimal_value - best_found, **lower is better**):\n- **Branin** (2D synthetic, 5 initial + 50 BO iterations, negated for maximization, optimum ~ -0.398)\n- **Hartmann6** (6D synthetic, 10 initial + 80 BO iterations, optimum ~ 3.322)\n- **MLP HPO** (4D simulated hyperparameter tuning, 8 initial + 60 BO iterations, optimum ~ 0.962)\n\nEach benchmark runs with multiple seeds; the mean simple regret across seeds is the primary metric.\n\n## Hints\n- Consider combining ideas from multiple acquisition functions (e.g., EI with exploration bonuses).\n- The GP posterior provides both mean and variance; second-order information (variance of the variance) can also be useful.\n- Adaptive strategies that change behavior based on iteration progress or posterior properties can outperform fixed strategies.\n- Thompson Sampling, Entropy Search, and Portfolio methods are promising research directions.\n- Ensure numerical stability: clamp variances away from zero, handle edge cases where sigma is tiny.\n",
-    "baselines": [
-      "ei",
-      "ucb",
-      "kg"
-    ],
-    "environments": [
-      "branin",
-      "hartmann6",
-      "mlp_hpo"
-    ],
-    "packages": [
-      "botorch"
-    ],
-    "files": [
-      {
-        "filename": "botorch/custom_bo.py",
-        "edit_ranges": [
-          {
-            "start": 114,
-            "end": 155
-          }
-        ]
-      }
-    ],
-    "rigorous_codebase": true,
-    "allow_create": false,
-    "has_agent_logs": false
-  },
-  {
     "id": "causal-discovery-discrete",
     "category": "causal",
     "category_label": "Causal Inference",
@@ -937,59 +871,6 @@
     "has_agent_logs": true
   },
   {
-    "id": "cl-regularization",
-    "category": "cl",
-    "category_label": "Continual Learning",
-    "description_md": "# Continual Learning: Regularization Strategy Optimization\n\n## Objective\nImprove continual learning performance by designing better regularization strategies that prevent catastrophic forgetting. You must implement two functions in `custom_regularization.py`:\n\n1. **`estimate_importance(model, dataset, prev_params, device)`** -- Called once after training on each context finishes. Returns a dict mapping parameter names to importance tensors.\n\n2. **`compute_regularization_loss(model, importance_dict, prev_params_dict)`** -- Called at every training step. Returns a scalar loss that penalizes parameter changes based on their importance.\n\n## Background\nIn continual learning, a model trains on a sequence of tasks (\"contexts\") and must retain performance on earlier ones. Regularization-based methods add a penalty term `reg_strength * R(theta)` to the training loss, where R penalizes changes to parameters deemed important for previous tasks.\n\nThe two dominant approaches are:\n- **EWC** (Elastic Weight Consolidation): Uses the diagonal Fisher Information matrix to estimate importance. Loss is `0.5 * sum(F_i * (theta_i - theta_i^*)^2)`.\n- **SI** (Synaptic Intelligence): Tracks gradient-weighted parameter changes during training to estimate importance online. Loss is `sum(omega_i * (theta_i - theta_i^*)^2)`.\n\nBoth have known weaknesses: EWC's Fisher is a local approximation that may not capture long-range importance; SI's importance can be noisy. Can you design something better?\n\n## Available hooks\n- `model.param_list`: List of generators that yield `(name, param)` pairs for all regularized parameters.\n- `model._custom_W`: Dict tracking per-step gradient-weighted parameter changes (accumulated by the training loop). Useful for SI-style approaches.\n- `model._custom_p_old`: Dict of parameter snapshots from previous training step.\n- `model.gamma`: Decay factor for Fisher accumulation (framework default 1.0; Online EWC typically uses <1, e.g. 0.9).\n- `model.epsilon`: Damping constant (default 0.1, used by SI).\n\n## Evaluation\nTested on **3 benchmarks** of increasing difficulty:\n\n| Benchmark | Scenario | Contexts | Description |\n|-----------|----------|----------|-------------|\n| **Split-MNIST** | Class-incremental | 5 (2 classes each) | Digits split into 5 tasks |\n| **Permuted-MNIST** | Domain-incremental | 10 | Same classes, different pixel permutations |\n| **Split-CIFAR100** | Class-incremental | 10 (10 classes each) | 100 classes split into 10 tasks |\n\nThe primary metric is **average accuracy** across all contexts after all training completes. Higher is better.\n\n## Constraints\n- Only modify the editable region of `custom_regularization.py` (the two function bodies).\n- Do not create new files.\n- The `estimate_importance` function receives the training dataset and can do a forward/backward pass over it.\n- The `compute_regularization_loss` function is called at every training step and must be efficient.\n",
-    "baselines": [
-      "ewc",
-      "si",
-      "online_ewc"
-    ],
-    "environments": [
-      "split-mnist",
-      "perm-mnist",
-      "split-cifar100"
-    ],
-    "packages": [
-      "continual-learning"
-    ],
-    "files": [
-      {
-        "filename": "continual-learning/custom_regularization.py",
-        "edit_ranges": [
-          {
-            "start": 25,
-            "end": 115
-          }
-        ]
-      },
-      {
-        "filename": "continual-learning/models/cl/continual_learner.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "continual-learning/models/classifier.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "continual-learning/train/train_task_based.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "continual-learning/main.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "continual-learning/eval/evaluate.py",
-        "edit_ranges": []
-      }
-    ],
-    "rigorous_codebase": true,
-    "allow_create": false,
-    "has_agent_logs": false
-  },
-  {
     "id": "cv-classification-loss",
     "category": "cv",
     "category_label": "Computer Vision",
@@ -1145,6 +1026,39 @@
       {
         "filename": "dbim-codebase/ddbm/dist_util.py",
         "edit_ranges": []
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "cv-diffusion-architecture",
+    "category": "cv",
+    "category_label": "Computer Vision",
+    "description_md": "# Diffusion Model Architecture Design\n\n## Background\n\nThe UNet backbone is the standard architecture for denoising diffusion models.\nKey design choices include:\n\n- **Block types**: Whether to use pure convolutional blocks (`DownBlock2D` /\n  `UpBlock2D`) or blocks with self-attention (`AttnDownBlock2D` /\n  `AttnUpBlock2D`), and at which resolution levels.\n- **Attention placement**: Self-attention is expensive at high resolutions\n  (32x32) but may improve global coherence. The original DDPM places attention\n  only at 16x16.\n- **Depth and normalization**: `layers_per_block`, `norm_num_groups`,\n  `attention_head_dim`, and other structural hyperparameters.\n- **Custom modules**: Entirely new backbone designs (e.g., hybrid\n  convolution-transformer, gated blocks, multi-scale fusion) as long as they\n  satisfy the input/output interface.\n\n## Research Question\n\nWhat UNet architecture achieves the best FID on unconditional CIFAR-10\ndiffusion, given a fixed training procedure (epsilon prediction, DDIM sampling,\nsame optimizer and schedule)?\n\n## Task\n\nYou are given `custom_train.py`, a self-contained unconditional DDPM training\nscript on CIFAR-10. Everything is fixed except the `build_model(device)`\nfunction.\n\nYour goal is to design a model architecture that achieves **lower FID** than\nthe baselines. The model must satisfy:\n\n- **Input**: `(x, timestep)` where `x` is `[B, 3, 32, 32]`, `timestep` is `[B]`\n- **Output**: an object with `.sample` attribute of shape `[B, 3, 32, 32]`\n- `UNet2DModel` from diffusers satisfies this interface, but you may also build\n  a fully custom `nn.Module`.\n\nChannel widths are provided via the `BLOCK_OUT_CHANNELS` environment variable\n(e.g. `\"128,256,256,256\"`) so the same architecture scales across evaluation\ntiers. `LAYERS_PER_BLOCK` (default 2) is also available.\n\n## Evaluation\n\n- Dataset: CIFAR-10 (32x32, unconditional)\n- Training: fixed epsilon prediction, MSE loss, AdamW lr=2e-4, EMA\n- Model scales:\n  - Small: block_out_channels=(64,128,128,128), ~9M params, batch 128\n  - Medium: block_out_channels=(128,256,256,256), ~36M params, batch 128\n  - Large: block_out_channels=(256,512,512,512), ~140M params, batch 64\n- Training: 35,000 steps per scale, EMA rate 0.9995\n- Metric: FID (lower is better), computed with clean-fid against CIFAR-10\n  train set (50,000 samples)\n- Inference: 50-step DDIM sampling\n\n## Baselines\n\n1. **standard**: Original DDPM architecture (Ho et al., 2020). Self-attention\n   placed only at the 16x16 resolution level. This is the default\n   `google/ddpm-cifar10-32` configuration.\n2. **full-attn**: Self-attention at every resolution level (32x32, 16x16, 8x8,\n   4x4). More expressive but significantly more compute and memory per step.\n3. **no-attn**: Pure convolutional UNet with no per-resolution self-attention.\n   Only the mid-block retains its default self-attention layer. Fastest and\n   fewest parameters.\n\n## Key References\n\n- Ho et al., \"Denoising Diffusion Probabilistic Models\" (NeurIPS 2020)\n- Nichol & Dhariwal, \"Improved Denoising Diffusion Probabilistic Models\" (ICML 2021)\n- Dhariwal & Nichol, \"Diffusion Models Beat GANs on Image Synthesis\" (NeurIPS 2021)\n- Ronneberger et al., \"U-Net: Convolutional Networks for Biomedical Image Segmentation\" (MICCAI 2015)\n",
+    "baselines": [
+      "standard",
+      "full-attn",
+      "no-attn"
+    ],
+    "environments": [
+      "train_small",
+      "train_medium",
+      "train_large"
+    ],
+    "packages": [
+      "diffusers-main"
+    ],
+    "files": [
+      {
+        "filename": "diffusers-main/custom_train.py",
+        "edit_ranges": [
+          {
+            "start": 31,
+            "end": 58
+          }
+        ]
       }
     ],
     "rigorous_codebase": true,
@@ -1851,39 +1765,6 @@
     "has_agent_logs": false
   },
   {
-    "id": "fed-aggregation-strategy",
-    "category": "fed",
-    "category_label": "Federated Learning",
-    "description_md": "# Federated Learning Aggregation Strategy Design\n\n## Research Question\nDesign a novel server-side aggregation strategy for federated learning that achieves better convergence and higher test accuracy under heterogeneous (non-IID) data distributions across clients.\n\n## Background\nFederated Learning (FL) trains a shared global model across many clients without centralizing data. The canonical algorithm, FedAvg, simply averages client model parameters weighted by sample count. However, when client data distributions are heterogeneous (non-IID), FedAvg suffers from \"client drift\" where local updates diverge, leading to slow convergence or poor final accuracy. Research has produced several improvements: FedProx adds a proximal penalty to local objectives, SCAFFOLD uses control variates for variance reduction, and methods like FedNova normalize updates by local steps. The aggregation strategy — how the server combines client updates into the global model — is the core algorithmic component that determines convergence behavior.\n\n## Task\nModify the `ServerAggregator` class in `custom_fl_aggregation.py`. You must implement the `aggregate()` method that takes the current global model state, a list of client updates (model parameters + metadata), and returns the new global model state. You may also customize client selection via `select_clients()`.\n\n## Interface\n```python\nclass ServerAggregator:\n    def __init__(self, global_model, args):\n        # Initialize aggregation state (momentum buffers, control variates, etc.)\n\n    def aggregate(self, global_state_dict, client_updates, round_num):\n        # global_state_dict: OrderedDict of current global model parameters\n        # client_updates: list of (state_dict, num_samples, avg_loss) tuples\n        # round_num: current communication round (0-indexed)\n        # Returns: OrderedDict of updated global model parameters\n\n    def select_clients(self, num_available, num_to_select, round_num):\n        # Returns: list of client indices to participate this round\n```\n\n## Evaluation\nThe aggregation strategy is evaluated on three benchmarks with non-IID data:\n1. **CIFAR-10** with Dirichlet split (alpha=0.1) — 100 clients, image classification\n2. **FEMNIST** (EMNIST ByClass) with Dirichlet split — 100 clients, character recognition\n3. **Shakespeare** (next character prediction) — naturally non-IID by speaker\n\nMetric: **test accuracy** after 200 communication rounds (higher is better). Each round, 10 of 100 clients are selected, each trains for 5 local epochs with SGD (lr=0.01).\n\n## Hints\n- Consider adaptive weighting based on client loss, gradient magnitude, or data quantity\n- Server-side momentum (e.g., FedAvgM) can smooth noisy aggregated updates\n- Variance reduction techniques (control variates, gradient tracking) help correct client drift\n- Robust aggregation methods can mitigate the effect of statistical outliers from extreme non-IID splits\n- Learning rate warmup or decay at the server level may help early-round instability\n- The `round_num` argument enables round-adaptive strategies (e.g., different early vs. late behavior)\n",
-    "baselines": [
-      "fedavg",
-      "fedprox",
-      "scaffold"
-    ],
-    "environments": [
-      "cifar10",
-      "femnist",
-      "shakespeare"
-    ],
-    "packages": [
-      "flower"
-    ],
-    "files": [
-      {
-        "filename": "flower/custom_fl_aggregation.py",
-        "edit_ranges": [
-          {
-            "start": 353,
-            "end": 424
-          }
-        ]
-      }
-    ],
-    "rigorous_codebase": true,
-    "allow_create": false,
-    "has_agent_logs": false
-  },
-  {
     "id": "graph-generation",
     "category": "graph",
     "category_label": "Graph Learning",
@@ -2203,43 +2084,6 @@
     "has_agent_logs": false
   },
   {
-    "id": "irl-reward-learning",
-    "category": "rl",
-    "category_label": "Reinforcement Learning",
-    "description_md": "# Inverse RL: Reward Learning from Expert Demonstrations\n\n## Objective\nDesign and implement an inverse reinforcement learning (IRL) algorithm that learns a reward function from expert demonstrations. Your code goes in `custom_irl.py`, specifically the `RewardNetwork` and `IRLAlgorithm` classes. Three reference implementations (GAIL, AIRL, BC) from the `imitation` library are provided as read-only context.\n\n## Background\nInverse reinforcement learning recovers a reward function that explains observed expert behavior. The learned reward is then used to train a policy via standard RL (PPO in this benchmark). Key challenges include:\n- Designing reward network architectures that capture the structure of expert behavior\n- Balancing discriminator training with policy improvement\n- Avoiding reward hacking where the policy exploits learned reward artifacts\n- Ensuring the learned reward generalizes across different states visited during training\n\nDifferent IRL approaches address these through adversarial training (GAIL), potential-based reward shaping (AIRL), or direct behavioral cloning. Your goal is to design a novel reward network architecture or IRL training algorithm that outperforms these baselines.\n\n## Evaluation\nTrained and evaluated on three MuJoCo locomotion environments using pre-generated expert demonstrations: HalfCheetah-v4, Hopper-v4, Walker2d-v4. Metric: mean episodic return over 10 evaluation episodes (higher is better). The policy is trained using PPO with the learned reward signal.\n",
-    "baselines": [
-      "gail",
-      "airl",
-      "bc"
-    ],
-    "environments": [
-      "halfcheetah-v4",
-      "hopper-v4",
-      "walker2d-v4"
-    ],
-    "packages": [
-      "imitation"
-    ],
-    "files": [
-      {
-        "filename": "imitation/custom_irl.py",
-        "edit_ranges": [
-          {
-            "start": 231,
-            "end": 357
-          }
-        ]
-      },
-      {
-        "filename": "imitation/src/imitation/rewards/reward_nets.py",
-        "edit_ranges": []
-      }
-    ],
-    "rigorous_codebase": true,
-    "allow_create": false,
-    "has_agent_logs": false
-  },
-  {
     "id": "jepa-planning",
     "category": "dl",
     "category_label": "Deep Learning",
@@ -2451,8 +2295,8 @@
   },
   {
     "id": "llm-kv-adaptive-quantization",
-    "category": "llm",
-    "category_label": "Language Models",
+    "category": "mlsys",
+    "category_label": "ML Systems",
     "description_md": "# LLM KV Cache: Adaptive Quantization Policy\n\n## Research Question\n\nDesign an adaptive KV-cache quantization policy for decoder-only LLM inference on top of a tensor-level `Transformers` replay harness. The primary research focus is bit allocation and residual-preservation under a fixed replay contract. Your policy should reduce KV-cache memory while preserving output quality across frozen benchmark slices.\n\n## What You Can Modify\n\nThe editable region is the `AdaptiveQuantPolicy` class in `custom_quant_eval.py`. The core policy problem is:\n\n- choosing bit-widths for keys and values\n- choosing the quantization axis\n- choosing the residual full-precision window\n- selecting a calibration mode for the current workload\n\nThe policy must keep these core methods:\n\n- `choose_bits(layer_id, kv_kind, head_group, token_stats, budget_state) -> int`\n- `choose_axis(layer_id, kv_kind) -> str`\n- `residual_length(layer_id, request_meta) -> int`\n- `calibration_mode(workload_meta, budget_state) -> str`\n\nThe replay harness also supports these optional advanced hooks so that\nsource-backed overlap baselines can be represented faithfully. If a policy does\nnot define them, the harness uses fixed defaults:\n\n- `quantizer_family(layer_id, kv_kind, request_meta) -> str`\n- `group_size(layer_id, kv_kind, request_meta) -> int`\n- `sink_tokens(layer_id, kv_kind, request_meta) -> int`\n- `clip_ratio(layer_id, kv_kind, request_meta) -> float`\n- `quantization_level(layer_id, kv_kind, request_meta) -> str`\n- `quantization_method(layer_id, kv_kind, request_meta) -> str`\n- `symmetric(layer_id, kv_kind, request_meta) -> bool`\n- `outliers_ratio(layer_id, kv_kind, request_meta) -> float`\n- `use_attentions(layer_id, kv_kind, request_meta) -> bool`\n- `bit_range(layer_id, kv_kind, request_meta, budget_state) -> tuple[int, int]`\n- `last_n_attentions(layer_id, kv_kind, request_meta) -> int`\n- `target_quantization_error(layer_id, kv_kind, request_meta) -> float`\n- `q_norm(layer_id, kv_kind, request_meta) -> float`\n\n## What You Cannot Modify\n\n- The model family and deterministic decode replay loop\n- The benchmark workload presets\n- The parser or evaluation metric definitions\n- The underlying `Transformers` model implementation\n\n## Evaluation\n\nThis task currently uses a tensor-level `Transformers` replay loop with:\n\n- visible host model: `Qwen/Qwen2.5-0.5B-Instruct`\n- visible backend: `DynamicCache` snapshots with task-local tensor quantizers\n- external-validity-only follow-up: no packed-cache runtime claims inside the canonical leaderboard\n\nThe visible replay exposes frozen benchmark slices from three public benchmark families:\n\n- `longbench_slice`: excerpted LongBench long-context QA / retrieval\n- `needle_slice`: excerpted passkey retrieval\n- `reasoning_slice`: excerpted benchmark-style STEM reasoning QA\n\nBenchmark provenance for the frozen slices is recorded in `benchmarks/README.md`.\n\nThe visible `test_cmds` currently run:\n\n- `longbench-slice`\n- `needle-slice`\n- `reasoning-slice`\n\nThe parser expects `TEST_METRICS:` lines with at least these fields:\n\n- `quality_main`\n- `quality_delta_vs_ref`\n- `peak_kv_memory_mb`\n- `decode_tokens_per_s`\n- `prefill_latency_ms`\n- `calibration_cost_s`\n- `avg_bits_per_kv_token`\n- `cache_error`\n- `greedy_match_ratio`\n\n## Notes\n\n- The harness runs a real deterministic replay over `Transformers` decode steps.\n- At each replay step it snapshots the real KV tensors, quantizes them with the current policy, restores the quantized cache, and replays the next token prediction.\n- `quality_main` is not a pure exact-match score.\n  It combines:\n  - real next-token replay under quantized caches\n  - a cache-distortion proxy measured on the quantized KV tensors\n- `peak_kv_memory_mb` is a KV-specific memory estimate, not raw device-wide CUDA peak.\n- All visible benchmark commands run sequentially by default.\n- Canonical visible baselines are now:\n  - uniform 4-bit KV quantization\n  - uniform 2-bit KV quantization\n  - source-backed `kivi_overlap_2bit`\n  - source-backed `kivi_overlap_4bit`\n  - source-backed `skvq_overlap_2bit`\n- The retained SOTA-family anchor under the current contract is `kivi_overlap_4bit`.\n  The upstream KIVI repo reports that on LongBench:\n  - for LongChat-7B-32K, `KIVI-4` slightly exceeds the full-precision average (`38.79` vs `38.72`)\n  - for Mistral-7B-Instruct-v0.2, `KIVI-4` essentially matches full precision (`43.53` vs `43.54`)\n- You may use the exposed `Transformers` source tree for reference, especially `src/transformers/cache_utils.py`.\n- The raw `bash scripts/*.sh` commands assume `mid_edit` has already materialized `transformers-kv-lab/custom_quant_eval.py` in the workspace package root.\n- The visible scripts currently impose a uniform upper budget cap of `4` bits per KV entry; lower-bit baselines are evaluated as stricter policies under that shared cap.\n- `kivi_overlap_2bit` and `kivi_overlap_4bit` map to the official repo's public defaults, but they do not reproduce KIVI's packed-cache kernels.\n- `skvq_overlap_2bit` reuses SKVQ's public grouped-quantization, sink-token, window, and clipping primitives, but not reorder/pre-RoPE/custom-kernel paths.\n- Other audited repos such as `QAQ` and `KVQuant` are intentionally left out of the canonical visible set because their runtime assumptions still exceed the current contract.\n",
     "baselines": [
       "uniform_quant_4bit",
@@ -2490,8 +2334,8 @@
   },
   {
     "id": "llm-kv-selection-budgeting",
-    "category": "llm",
-    "category_label": "Language Models",
+    "category": "mlsys",
+    "category_label": "ML Systems",
     "description_md": "# llm-kv-selection-budgeting\n\nDesign a workload-aware KV selection and eviction controller inside a shared `FastKV` benchmark harness.\n\n## Background\n\nTransformer-based LLMs cache key-value (KV) tensors for every attention layer during autoregressive generation. At long context lengths this KV cache dominates GPU memory and forward-pass latency. A large family of methods — SnapKV, H2O, StreamingLLM, FastKV, and others — reduce the cache by selecting a subset of historical tokens per layer while keeping a small uncompressed \"recent window\". These methods differ in (a) how they score and pool historical tokens, (b) how large the recent window is, and (c) whether later layers receive a progressively amplified retention budget.\n\nThis task evaluates KV selection-and-budgeting policies inside a shared `FastKV` runtime harness, measuring the tradeoff between workload quality, inference latency, and effective KV memory footprint.\n\n## Task\n\nModify the `SelectionBudgetPolicy` class in `FastKV/custom_budget_eval.py` (lines 573–595). Implement the four policy methods to control how the shared FastKV runtime allocates KV budget across layers and workloads. The harness translates your semantic policy into the closest official FastKV integration path, runs a reference `fullkv` pass and a compressed candidate pass, then reports quality, latency, and memory metrics.\n\n## Research Question\n\nGiven a workload slice and a shared `FastKV` runtime surface, can you design:\n\n- how much KV budget each layer receives\n- how large the recent uncompressed window should be\n- how historical tokens should be selected for retention\n- whether later layers should receive an amplified retention schedule\n\nso that workload-native quality is preserved while latency and estimated KV memory improve relative to `fullkv`?\n\nThis task does **not** ask you to pick a named baseline family directly. It asks you to implement a single selection/eviction controller cut. The fixed harness then translates that semantic controller into the closest official `FastKV` integration path.\n\n## What You May Edit\n\nYou may edit only the `SelectionBudgetPolicy` class in `FastKV/custom_budget_eval.py`.\n\nThe editable methods are:\n\n- `layer_budget_ratios(workload_meta, num_layers)`\n- `recent_window_tokens(workload_meta, num_layers)`\n- `history_selector(workload_meta)`\n- `late_layer_schedule(workload_meta, num_layers)`\n\nThe harness fixes the outer contract:\n\n- exact `FastKV` monkeypatch/runtime path\n- Hugging Face `generate(..., use_cache=True)` execution\n- a `fullkv` internal reference run\n- benchmark-family data loading and scoring\n- source-native workload scoring and fixed reporting\n\nThe controller cut is the maximum common denominator of the visible integrated\n`FastKV` baselines:\n\n- per-layer retention budget ratio\n- recent uncompressed window\n- historical token selector mode\n- optional late-layer amplification schedule\n\nThe harness infers the runtime family from those semantics and then applies the\nclosest official `FastKV` integration path with post-init per-layer overrides.\nThis keeps baselines and agent implementations on one editable cut.\n\n## Evaluation\n\nThis is a runtime benchmark on top of the official `FastKV` codebase, not an offline replay proxy.\n\nThe canonical default model for this task is:\n\n- `mistralai/Mistral-Nemo-Instruct-2407`\n\nThe runtime still allows overrides via `SELECTION_KV_MODEL` or `--model`, but benchmark-facing comparisons should use one shared model across all baselines, and the intended canonical anchor is now `Mistral-Nemo` rather than the earlier lightweight `TinyLlama` placeholder.\n\nBy default, the task prefers the real benchmark assets under `FastKV/data/` when they are present in the package worktree. The checked-in task-local samples remain only as a portability fallback for dry-runs or lightweight local validation.\n\nThe benchmark inputs come from the same public assets used by the current `FastKV` benchmark line:\n\n- `LongBench`\n  - `hotpotqa_e`\n  - `passage_retrieval_en_e`\n  - `repobench_p_e`\n- `Needle in a Haystack`\n  - `PaulGrahamEssays`\n\nVisible workloads:\n\n- `longbench_hotpotqa`\n- `longbench_passage_retrieval`\n- `longbench_repobench`\n- `needle_paulgraham`\n\nAuxiliary workload retained in code but not canonical:\n\n- `gsm8k_reasoning`\n  - useful as a long-output stress test\n  - currently too weakly discriminative to remain in the canonical leaderboard\n\nThe runtime executes:\n\n1. an unmodified `fullkv` reference generation pass\n2. a patched candidate generation pass using the runtime family inferred from the controller semantics\n\nThe runtime emits a trace line showing whether each workload used:\n\n- `data_source=package`\n- or `data_source=sample`\n\nCanonical remote evaluation should use `data_source=package` for all visible workloads.\n\n## Baselines\n\nVisible canonical baselines are source-backed methods implemented on the shared selection/eviction cut and executed through the official `FastKV` integration path:\n\n- `fullkv`\n- `snapkv`\n- `h2o`\n- `streamingllm`\n- `fastkv`\n\nNotes:\n\n- `fullkv`\n  - `direct`\n  - official uncompressed anchor from the `FastKV` repository\n  - represented by a `none` selector and full budget ratios\n- `fastkv`\n  - `direct`\n  - official `FastKV` method with the public benchmark defaults\n  - represented by pooled historical selection plus a late-layer amplification schedule\n- `snapkv`\n  - `partial`\n  - the runtime path is the official `FastKV` benchmark integration, while this task restores the original `SnapKV` default recipe (`window_size=32`, `kernel_size=5`, `pooling=avgpool`) and uses the shared proportional-retention mode\n- `h2o`\n  - `family-level`\n  - this task uses the official `FastKV` H2O integration path and the public benchmark defaults; it does not claim parity with the original `H2O` runtime\n- `streamingllm`\n  - `family-level`\n  - this task uses the official `FastKV` StreamingLLM integration path and the public benchmark defaults; it does not claim parity with the original `StreamingLLM` runtime\n- `RocketKV` and `R-KV` are intentionally excluded from the canonical visible set because their official open implementations live on different decode-time or two-stage runtimes and have not been ported faithfully into this shared harness.\n- This task should therefore be read as a `FastKV`-grounded retention-controller benchmark over a small set of methods that can share one Hugging Face runtime honestly, not a universal benchmark over every KV compression paper.\n\n## Metrics\n\nThe parser expects:\n\n- `quality_main`\n- `quality_delta_vs_ref`\n- `mean_forward_latency_s`\n- `speedup_vs_ref`\n- `budget_utilization`\n- `peak_kv_memory_mb`\n- `constraint_violation_rate`\n\n`budget_utilization` reports the realized average KV retention ratio under the source-native runtime semantics:\n\n- `1.0` means full-context retention\n- values below `1.0` mean compression\n- source-faithful proportional-retention methods are therefore measured by the ratio they actually realize, not by a forced absolute token-cap reinterpretation\n\n`constraint_violation_rate` is reserved for true contract violations:\n\n- malformed override combinations\n- invalid recent-window settings\n- or real overflow in constant-cap mode\n- runtime OOM on a workload, which is treated as a hard failure for that workload and recorded as a zero-score result rather than aborting the whole baseline\n\nSource-faithful proportional-retention baselines are not marked violating simply because their official memory schedule does not match an external absolute token cap. This task is therefore a source-native retention-controller benchmark, not a strict matched-absolute-cap budgeting benchmark.\n\nWhen a workload hits OOM:\n\n- `quality_main` is forced to `0`\n- `speedup_vs_ref` is forced to `0`\n- `constraint_violation_rate` is forced to `1`\n- the workload still emits a parsable row so the full baseline can finish and land in the leaderboard\n\nAll visible baselines are expected to emit all four visible workloads. If a baseline cannot survive a workload regime, that workload remains in the artifact and receives the OOM-to-zero failure record rather than being dropped from the row.\n\nThe harness still emits diagnostic budget-comparison evidence against the workload token cap:\n\n- `diag_budget_stretch_vs_token_cap`\n- `diag_avg_effective_capacity_tokens`\n- `diag_avg_prompt_tokens`\n\nThese diagnostics are useful for fairness analysis, but they are not primary leaderboard metrics.\n\nScoring is workload-native rather than a single shared heuristic:\n\n- `hotpotqa` uses the upstream LongBench QA F1 scorer\n- `passage_retrieval` uses the upstream retrieval scorer\n- `repobench` uses the upstream code similarity scorer\n- `needle` uses the upstream Rouge-1 retrieval score\n\n`quality_main` keeps the source family scale:\n\n- LongBench stays on the same percent-style scale as upstream reporting\n- Needle stays on the upstream Rouge-style retrieval scale used by the checked-in Needle harness\n\n`fullkv` is both the internal reference path for `quality_delta_vs_ref` and a visible anchor baseline.\n",
     "baselines": [
       "fullkv",
@@ -2526,8 +2370,8 @@
   },
   {
     "id": "llm-kv-structural-reduction",
-    "category": "llm",
-    "category_label": "Language Models",
+    "category": "mlsys",
+    "category_label": "ML Systems",
     "description_md": "# LLM Pretraining: KV-Structural Reduction\n\n## Research Question\nDesign a more KV-efficient causal attention structure for GPT-style pretraining, with the primary focus on the **tradeoff between KV head sharing and latent KV compression**. The editable surface is the full `CausalSelfAttention` structural path so that this tradeoff can be instantiated faithfully inside one block, but the intended scientific question is still narrow:\n\n- how much quality can be preserved by reducing the realized KV state\n- whether grouped/shared KV heads or latent KV bottlenecks give the better quality-memory tradeoff under a fixed small-scale pretraining budget\n\n## What You Can Modify\nOne editable region in `custom_pretrain.py`:\n\n1. **Attention-structure region** (lines 35-154), including:\n   - `build_kv_heads(...)`: how many KV heads are materialized relative to query heads\n   - `cross_layer_share(...)`: optional structural sharing hook inside the attention stack\n   - `latent_kv_project(...)`: whether K/V are compressed into a lower-rank latent space\n   - `CausalSelfAttention`: how the above choices are instantiated inside the attention block, including the internal query/KV projection and attention mixing path\n\n## Intended Task Boundary\n\n- This task studies **KV-state reduction inside the attention block**.\n- The main comparison axes are:\n  - dense MHA vs grouped/shared KV heads\n  - grouped/shared KV heads vs latent KV compression\n- The canonical visible story centers on:\n  - KV head sharing\n  - grouped-query attention\n  - latent KV compression\n- `cross_layer_share(...)` remains available as an auxiliary structural hook inside the same block.\n- The evaluator enforces the top-level boundary of this region with an AST validator:\n  only the allowed helper functions plus `CausalSelfAttention` may appear in the editable span.\n  That keeps edits inside the attention block, even though the internal contents of `CausalSelfAttention` remain flexible.\n\n## Evaluation\n\n- **Primary metric**: validation loss (cross-entropy, lower is better)\n- **Secondary metrics**:\n  - `kv_bytes_per_token` (lower is better; evaluator-derived analytic KV footprint from the realized attention structure)\n  - `head_sharing_ratio` (higher means more aggressive KV head sharing; evaluator-derived from realized head topology)\n  - `latent_rank_ratio` (lower is better only for methods that truly use latent KV compression; evaluator-derived from latent projection dimensions)\n  - `heldout_loss` (lower is better; perplexity-style held-out evaluation on the packaged eval corpus, reported consistently for every visible benchmark)\n  - `generation_toks_per_s` (higher is better; lightweight autoregressive generation throughput on held-out tokens, reported consistently for every visible benchmark)\n- **Visible benchmark regimes**:\n  - `train-ctx1024`: 124M pretraining at `block_size=1024`\n  - `train-ctx256`: 124M short-context pretraining at `block_size=256`\n  - `eval-wikitext2`: 124M pretraining followed by held-out eval and generation-side diagnostics on `WikiText-2`\n  - `eval-wikitext103`: 124M pretraining followed by held-out eval and generation-side diagnostics on `WikiText-103`\n  - `eval-lambada`: 124M pretraining followed by held-out eval and generation-side diagnostics on `LAMBADA`\n- **Training data**: ClimbMix tokenized training split\n- **Held-out eval data**: packaged `eval` dependency (`WikiText-2`, `WikiText-103`, `LAMBADA`)\n- **Training schedule**: same budget family as the existing `nanoGPT` MLS-Bench pretraining tasks\n\n## Hints\n\n- `MHA -> MQA -> GQA -> MLA` is the intended visible baseline chain.\n- `MHA` is the dense unreduced control.\n- `MQA` is the simplest structural anchor:\n  one shared KV head is reused across all query heads.\n- `GQA` keeps full query heads but reduces the number of materialized KV heads.\n- `MLA` should be interpreted as a true latent-KV bottleneck with learned low-rank compression, decoupled positional/non-positional query-key channels, and latent normalization, adapted from the `DeepSeek-V2` / `TransMLA` family into this small `nanoGPT` setting.\n- The task is considered successful when it finds a better quality-memory tradeoff than the fixed visible baseline chain above.\n- Source map for the visible baselines:\n  - `MHA`: dense control\n  - `MQA`: Shazeer 2019 family control\n  - `GQA`: Ainslie et al. 2023 family control\n  - `MLA`: `DeepSeek-V2` / `TransMLA` source-backed core-attention adaptation\n    - the baseline preserves the MLA attention mechanism itself inside the fixed `nanoGPT` substrate\n    - the task evaluates MLA in a from-scratch small-model pretraining setting\n- `cross_layer_share(...)` is optional and live as an auxiliary path alongside the canonical visible baseline chain.\n- Keep the public interface simple:\n  - input: `(B, T, C)`\n  - output: `(B, T, C)`\n- You should expose stable statistics so the parser can compare loss and footprint.\n\n## Baseline Provenance\n\n- `MHA`\n  - dense control baseline\n  - standard GPT-style one-KV-head-per-query-head attention\n- `MQA`\n  - paper-backed family control\n  - Shazeer 2019 `Fast Transformer Decoding: One Write-Head is All You Need`\n- `GQA`\n  - paper-backed family control\n  - Ainslie et al. 2023 `GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints`\n- `MLA`\n  - source-backed family adaptation\n  - canonical source family:\n    - `DeepSeek-V2`\n    - `TransMLA`\n  - implemented here as a core-attention MLA adaptation inside the fixed `nanoGPT` substrate:\n    - decoupled positional/non-positional query-key channels\n    - query-side low-rank path\n    - `kv_a_proj_with_mqa -> kv_a_layernorm -> kv_b_proj`\n    - latent RMSNorm\n    - partial rotary\n\n## Current Snapshot\n\n- Current checked leaderboard snapshot comes from the short pilot recorded in `leaderboard.csv`.\n- In the current tiny/from-scratch short-budget regime:\n  - `GQA` is the strongest visible quality-memory tradeoff baseline\n  - `MHA` is the dense quality control\n  - `MQA` is the strongest non-latent compression anchor\n  - `MLA` is the modern latent-KV anchor in this task substrate\n",
     "baselines": [
       "mha",
@@ -3781,6 +3625,59 @@
     "has_agent_logs": false
   },
   {
+    "id": "ml-continual-regularization",
+    "category": "ml",
+    "category_label": "Classical ML",
+    "description_md": "# Continual Learning: Regularization Strategy Optimization\n\n## Objective\nImprove continual learning performance by designing better regularization strategies that prevent catastrophic forgetting. You must implement two functions in `custom_regularization.py`:\n\n1. **`estimate_importance(model, dataset, prev_params, device)`** -- Called once after training on each context finishes. Returns a dict mapping parameter names to importance tensors.\n\n2. **`compute_regularization_loss(model, importance_dict, prev_params_dict)`** -- Called at every training step. Returns a scalar loss that penalizes parameter changes based on their importance.\n\n## Background\nIn continual learning, a model trains on a sequence of tasks (\"contexts\") and must retain performance on earlier ones. Regularization-based methods add a penalty term `reg_strength * R(theta)` to the training loss, where R penalizes changes to parameters deemed important for previous tasks.\n\nThe two dominant approaches are:\n- **EWC** (Elastic Weight Consolidation): Uses the diagonal Fisher Information matrix to estimate importance. Loss is `0.5 * sum(F_i * (theta_i - theta_i^*)^2)`.\n- **SI** (Synaptic Intelligence): Tracks gradient-weighted parameter changes during training to estimate importance online. Loss is `sum(omega_i * (theta_i - theta_i^*)^2)`.\n\nBoth have known weaknesses: EWC's Fisher is a local approximation that may not capture long-range importance; SI's importance can be noisy. Can you design something better?\n\n## Available hooks\n- `model.param_list`: List of generators that yield `(name, param)` pairs for all regularized parameters.\n- `model._custom_W`: Dict tracking per-step gradient-weighted parameter changes (accumulated by the training loop). Useful for SI-style approaches.\n- `model._custom_p_old`: Dict of parameter snapshots from previous training step.\n- `model.gamma`: Decay factor for Fisher accumulation (framework default 1.0; Online EWC typically uses <1, e.g. 0.9).\n- `model.epsilon`: Damping constant (default 0.1, used by SI).\n\n## Evaluation\nTested on **3 benchmarks** of increasing difficulty:\n\n| Benchmark | Scenario | Contexts | Description |\n|-----------|----------|----------|-------------|\n| **Split-MNIST** | Task-incremental | 5 (2 classes each) | Digits split into 5 tasks |\n| **Permuted-MNIST** | Domain-incremental | 10 | Same classes, different pixel permutations |\n| **Split-CIFAR100** | Task-incremental | 10 (10 classes each) | 100 classes split into 10 tasks |\n\nThe primary metric is **average accuracy** across all contexts after all training completes. Higher is better.\n\n## Constraints\n- Only modify the editable region of `custom_regularization.py` (the two function bodies).\n- Do not create new files.\n- The `estimate_importance` function receives the training dataset and can do a forward/backward pass over it.\n- The `compute_regularization_loss` function is called at every training step and must be efficient.\n",
+    "baselines": [
+      "ewc",
+      "si",
+      "online_ewc"
+    ],
+    "environments": [
+      "split-mnist",
+      "perm-mnist",
+      "split-cifar100"
+    ],
+    "packages": [
+      "continual-learning"
+    ],
+    "files": [
+      {
+        "filename": "continual-learning/custom_regularization.py",
+        "edit_ranges": [
+          {
+            "start": 25,
+            "end": 115
+          }
+        ]
+      },
+      {
+        "filename": "continual-learning/models/cl/continual_learner.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "continual-learning/models/classifier.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "continual-learning/train/train_task_based.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "continual-learning/main.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "continual-learning/eval/evaluate.py",
+        "edit_ranges": []
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
     "id": "ml-dimensionality-reduction",
     "category": "ml",
     "category_label": "Classical ML",
@@ -3875,6 +3772,39 @@
           {
             "start": 86,
             "end": 112
+          }
+        ]
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "ml-federated-aggregation",
+    "category": "ml",
+    "category_label": "Classical ML",
+    "description_md": "# Federated Learning Aggregation Strategy Design\n\n## Research Question\nDesign a novel server-side aggregation strategy for federated learning that achieves better convergence and higher test accuracy under heterogeneous (non-IID) data distributions across clients.\n\n## Background\nFederated Learning (FL) trains a shared global model across many clients without centralizing data. The canonical algorithm, FedAvg, simply averages client model parameters weighted by sample count. However, when client data distributions are heterogeneous (non-IID), FedAvg suffers from \"client drift\" where local updates diverge, leading to slow convergence or poor final accuracy. Research has produced several improvements: FedProx adds a proximal penalty to local objectives, SCAFFOLD uses control variates for variance reduction, and methods like FedNova normalize updates by local steps. The aggregation strategy — how the server combines client updates into the global model — is the core algorithmic component that determines convergence behavior.\n\n## Task\nModify the `ServerAggregator` class in `custom_fl_aggregation.py`. You must implement the `aggregate()` method that takes the current global model state, a list of client updates (model parameters + metadata), and returns the new global model state. You may also customize client selection via `select_clients()`.\n\n## Interface\n```python\nclass ServerAggregator:\n    def __init__(self, global_model, args):\n        # Initialize aggregation state (momentum buffers, control variates, etc.)\n\n    def aggregate(self, global_state_dict, client_updates, round_num):\n        # global_state_dict: OrderedDict of current global model parameters\n        # client_updates: list of (state_dict, num_samples, avg_loss) tuples\n        # round_num: current communication round (0-indexed)\n        # Returns: OrderedDict of updated global model parameters\n\n    def select_clients(self, num_available, num_to_select, round_num):\n        # Returns: list of client indices to participate this round\n```\n\n## Evaluation\nThe aggregation strategy is evaluated on three benchmarks with non-IID data:\n1. **CIFAR-10** with Dirichlet split (alpha=0.1) — 100 clients, image classification\n2. **FEMNIST** (EMNIST ByClass) with Dirichlet split — 100 clients, character recognition\n3. **Shakespeare** (next character prediction) — naturally non-IID by speaker\n\nMetric: **test accuracy** after 200 communication rounds (higher is better). Each round, 10 of 100 clients are selected, each trains for 5 local epochs with SGD (lr=0.01).\n\n## Hints\n- Consider adaptive weighting based on client loss, gradient magnitude, or data quantity\n- Server-side momentum (e.g., FedAvgM) can smooth noisy aggregated updates\n- Variance reduction techniques (control variates, gradient tracking) help correct client drift\n- Robust aggregation methods can mitigate the effect of statistical outliers from extreme non-IID splits\n- Learning rate warmup or decay at the server level may help early-round instability\n- The `round_num` argument enables round-adaptive strategies (e.g., different early vs. late behavior)\n",
+    "baselines": [
+      "fedavg",
+      "fedprox",
+      "scaffold"
+    ],
+    "environments": [
+      "cifar10",
+      "femnist",
+      "shakespeare"
+    ],
+    "packages": [
+      "flower"
+    ],
+    "files": [
+      {
+        "filename": "flower/custom_fl_aggregation.py",
+        "edit_ranges": [
+          {
+            "start": 353,
+            "end": 424
           }
         ]
       }
@@ -4022,6 +3952,51 @@
     "has_agent_logs": false
   },
   {
+    "id": "ml-symbolic-regression",
+    "category": "ml",
+    "category_label": "Classical ML",
+    "description_md": "# Symbolic Regression: GP Search Strategy\n\n## Objective\nDesign and implement a better genetic programming search strategy for symbolic regression. Your code goes in `custom_sr.py`. Three reference implementations (Standard GP, Parsimony GP, Lexicase GP) demonstrate different approaches.\n\n## Background\nSymbolic regression discovers mathematical expressions that fit data. Genetic programming evolves a population of expression trees through selection, crossover, and mutation. Key challenges include balancing exploration vs exploitation, controlling expression complexity (bloat), and escaping local optima. Different approaches address these through fitness shaping, novel selection mechanisms, or improved genetic operators.\n\n## Evaluation\nTested on three standard symbolic regression benchmarks: Nguyen-7 (univariate transcendental), Nguyen-10 (bivariate trigonometric), Koza-3 (univariate polynomial). Metric: R² on held-out test set (higher is better).\n",
+    "baselines": [
+      "standard_gp",
+      "parsimony_gp",
+      "lexicase_gp"
+    ],
+    "environments": [
+      "nguyen7",
+      "nguyen10",
+      "koza3"
+    ],
+    "packages": [
+      "gplearn"
+    ],
+    "files": [
+      {
+        "filename": "gplearn/custom_sr.py",
+        "edit_ranges": [
+          {
+            "start": 228,
+            "end": 306
+          }
+        ]
+      },
+      {
+        "filename": "gplearn/gplearn/genetic.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "gplearn/gplearn/_program.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "gplearn/gplearn/fitness.py",
+        "edit_ranges": []
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
     "id": "ml-tree-split-criterion",
     "category": "ml",
     "category_label": "Classical ML",
@@ -4135,316 +4110,30 @@
     "has_agent_logs": false
   },
   {
-    "id": "opt-convex-acceleration",
+    "id": "optimization-bayesian-acquisition",
     "category": "opt",
     "category_label": "Optimization",
-    "description_md": "# First-Order Acceleration for Convex Optimisation\n\n## Research Question\nCan you design a first-order optimisation method that converges faster than standard gradient descent on smooth, strongly-convex problems?\n\n## Background\nFirst-order methods (gradient descent and its variants) are the workhorses of large-scale optimisation in machine learning and scientific computing.  For L-smooth, mu-strongly-convex objectives, vanilla gradient descent achieves a linear convergence rate of (kappa-1)/(kappa+1) per iteration, where kappa = L/mu is the condition number.  **Acceleration**---pioneered by Polyak (1964) and Nesterov (1983)---can improve this to (sqrt(kappa)-1)/(sqrt(kappa)+1), a quadratic improvement in the exponent.\n\nClassical accelerated methods include:\n- **Heavy Ball** (Polyak 1964): adds a momentum term proportional to x_k - x_{k-1}.\n- **Nesterov Accelerated Gradient** (Nesterov 1983/2004): evaluates the gradient at an extrapolated point, achieving the information-theoretic optimal rate.\n- **Triple Momentum** (Van Scoy, Freeman & Lynch 2018): the fastest known globally convergent first-order method, using three momentum terms.\n- **OGM** (Kim & Fessler 2016): optimised gradient method improving Nesterov's constant by a factor of 2 for smooth (not necessarily strongly) convex problems.\n\n## Task\nModify the three functions in `RAIN/opt_convex_acceleration/custom_optimizer.py` (lines 29-104) to implement a novel or improved first-order optimisation method:\n\n1. `init_state(problem, x0, hyperparameters)` -- initialise algorithm state\n2. `step(state, oracle, problem, hyperparameters)` -- perform one iteration\n3. `get_hyperparameters(problem_name, L, mu, dim)` -- return method parameters\n\nThe default template implements vanilla gradient descent.  Your goal is to achieve lower final sub-optimality f(x_k) - f* across all test problems.\n\n## Interface\n- `oracle.grad(x)` returns the gradient at x (counts as one gradient evaluation)\n- `oracle.f(x)` returns the function value at x\n- `problem.L` is the Lipschitz constant of the gradient\n- `problem.mu` is the strong convexity parameter\n- `problem.dim` is the problem dimension\n- `problem.num_iterations` is the fixed iteration budget\n- Each call to `step()` must make at least one and report exactly as many `oracle.grad` calls as it actually performs\n- `state[\"x\"]` must always contain the current iterate\n\n## Evaluation\nThree problem types are evaluated at each condition number:\n- **Quadratic**: random quadratic with eigenvalues in [1, kappa]\n- **Logistic regression**: L2-regularised logistic regression\n- **Smoothed Lasso**: Nesterov-smoothed L1-regularised least-squares\n\nThree condition-number regimes (evaluated as separate test commands):\n- kappa = 10 (well-conditioned)\n- kappa = 100 (moderate)\n- kappa = 1000 (ill-conditioned)\n\n**Metric**: `log_final_suboptimality` = mean of log10(f(x_k) - f*) across problems (lower/more negative is better).  The leaderboard `score` = -log_final_suboptimality (higher is better).\n\n## Hints\n- The key insight of acceleration is evaluating the gradient at an *extrapolated* point rather than the current iterate.\n- The optimal momentum parameter for strongly-convex problems depends on sqrt(kappa).\n- Adaptive restart (O'Donoghue & Candes 2015) can improve practical convergence by restarting momentum when the objective increases.\n- Anderson acceleration applies fixed-point acceleration to the gradient mapping and can achieve super-linear convergence near the optimum.\n- The step function receives `problem.L` and `problem.mu`, so you can compute kappa = L/mu directly.\n",
+    "description_md": "# Bayesian Optimization: Custom Acquisition Function Design\n\n## Research Question\nDesign a novel acquisition function for Bayesian Optimization that achieves better sample efficiency (lower simple regret) than standard approaches like Expected Improvement, Upper Confidence Bound, and Knowledge Gradient.\n\n## Background\nBayesian Optimization (BO) is a sequential model-based strategy for optimizing expensive black-box functions. At each iteration, a Gaussian Process (GP) surrogate is fitted to past observations, and an **acquisition function** determines which point to evaluate next by trading off exploration (sampling uncertain regions) and exploitation (sampling near current best).\n\nClassic acquisition functions include:\n- **Expected Improvement (EI)**: Computes the expected amount by which a candidate improves over the current best.\n- **Upper Confidence Bound (UCB)**: Adds an exploration bonus proportional to posterior uncertainty.\n- **Knowledge Gradient (KG)**: Estimates the value of information from one additional observation.\n\nWhile these are effective, they have known limitations: EI can be too greedy in later iterations, UCB requires tuning the exploration parameter, and KG is computationally expensive. There is ongoing research into acquisition functions that better balance exploration and exploitation, adapt to the optimization landscape, or leverage higher-order information from the GP posterior.\n\n## Task\nImplement a custom acquisition function by modifying the `CustomAcquisition` class in `botorch/custom_bo.py`. You should implement both `__init__` and `forward` methods. The class inherits from BoTorch's `AcquisitionFunction` base class.\n\n## Interface\n```python\nclass CustomAcquisition(AcquisitionFunction):\n    def __init__(self, model, best_f: Tensor):\n        \"\"\"\n        Args:\n            model: fitted SingleTaskGP model\n            best_f: best observed objective value (scalar Tensor)\n        \"\"\"\n        super().__init__(model=model)\n        self.register_buffer(\"best_f\", best_f)\n\n    @t_batch_mode_transform(expected_q=1)\n    def forward(self, X: Tensor) -> Tensor:\n        \"\"\"Score candidate points.\n\n        Args:\n            X: candidates, shape (batch, 1, dim) after t_batch_mode_transform\n        Returns:\n            acquisition values, shape (batch,) — higher is better\n        \"\"\"\n```\n\nThe GP model provides:\n- `self.model.posterior(X)` returns a posterior with `.mean` (shape `(batch, q, 1)`) and `.variance` (shape `(batch, q, 1)`)\n- `self.best_f` is the current best observed value\n\nYou may use `torch.distributions.Normal` for CDF/PDF computations.\n\n## Evaluation\nEvaluated on three benchmarks (simple regret = optimal_value - best_found, **lower is better**):\n- **Branin** (2D synthetic, 5 initial + 50 BO iterations, negated for maximization, optimum ~ -0.398)\n- **Hartmann6** (6D synthetic, 10 initial + 80 BO iterations, optimum ~ 3.322)\n- **MLP HPO** (4D simulated hyperparameter tuning, 8 initial + 60 BO iterations, optimum ~ 0.962)\n\nEach benchmark runs with multiple seeds; the mean simple regret across seeds is the primary metric.\n\n## Hints\n- Consider combining ideas from multiple acquisition functions (e.g., EI with exploration bonuses).\n- The GP posterior provides both mean and variance; second-order information (variance of the variance) can also be useful.\n- Adaptive strategies that change behavior based on iteration progress or posterior properties can outperform fixed strategies.\n- Thompson Sampling, Entropy Search, and Portfolio methods are promising research directions.\n- Ensure numerical stability: clamp variances away from zero, handle edge cases where sigma is tiny.\n",
     "baselines": [
-      "heavy_ball",
-      "nesterov_agd",
-      "triple_momentum"
+      "ei",
+      "ucb",
+      "kg"
     ],
     "environments": [
-      "kappa10",
-      "kappa100",
-      "kappa1000"
+      "branin",
+      "hartmann6",
+      "mlp_hpo"
     ],
     "packages": [
-      "RAIN"
+      "botorch"
     ],
     "files": [
       {
-        "filename": "RAIN/opt_convex_acceleration/custom_optimizer.py",
+        "filename": "botorch/custom_bo.py",
         "edit_ranges": [
           {
-            "start": 29,
-            "end": 104
-          }
-        ]
-      },
-      {
-        "filename": "RAIN/opt_convex_acceleration/fixed_benchmark.py",
-        "edit_ranges": []
-      }
-    ],
-    "rigorous_codebase": true,
-    "allow_create": false,
-    "has_agent_logs": false
-  },
-  {
-    "id": "opt-dp-sgd",
-    "category": "opt",
-    "category_label": "Optimization",
-    "description_md": "# Differentially Private SGD: Privacy-Utility Optimization\n\n## Research Question\nDesign an improved DP-SGD variant that achieves better privacy-utility tradeoff — higher test accuracy under the same (epsilon, delta)-differential privacy budget.\n\n## Background\nDifferentially Private Stochastic Gradient Descent (DP-SGD) [Abadi et al., 2016] enables training deep learning models with formal privacy guarantees. The core mechanism has two steps: (1) clip each per-sample gradient to a fixed norm C, and (2) add calibrated Gaussian noise proportional to C. The noise level is determined by the desired privacy budget (epsilon, delta).\n\nThe standard approach uses a fixed clipping threshold and constant noise throughout training, which is suboptimal: gradient magnitudes change during training, the fixed threshold either over-clips (losing signal) or under-clips (adding excess noise), and the uniform noise allocation ignores the varying informativeness of gradients across training stages.\n\n## Task\nModify the `DPMechanism` class in `custom_dpsgd.py`. Your mechanism receives per-sample gradients and must return aggregated noised gradients. You control the gradient clipping strategy, noise calibration, and any per-step adaptations.\n\n## Interface\n```python\nclass DPMechanism:\n    def __init__(self, max_grad_norm, noise_multiplier, n_params,\n                 dataset_size, batch_size, epochs, target_epsilon, target_delta):\n        ...\n\n    def clip_and_noise(self, per_sample_grads, step, epoch) -> list[Tensor]:\n        # per_sample_grads: list of tensors [B, *param_shape]\n        # Returns: list of noised gradients [*param_shape]\n        ...\n\n    def get_effective_sigma(self, step, epoch) -> float:\n        # Returns current noise multiplier for privacy accounting\n        ...\n```\n\n## Constraints\n- The total privacy budget (target_epsilon, target_delta) is FIXED and checked externally.\n- The model architecture, data pipeline, optimizer, and training loop are FIXED.\n- Focus on algorithmic innovation in the DP mechanism: clipping strategies, noise schedules, gradient processing.\n- Available imports: `torch`, `math`, `numpy` (via the FIXED section), `scipy.optimize`.\n\n## Evaluation\nTrained and evaluated on three datasets at epsilon=3.0, delta=1e-5:\n- **MNIST** (28x28 grayscale digits, 10 classes)\n- **Fashion-MNIST** (28x28 grayscale clothing, 10 classes)\n- **CIFAR-10** (32x32 color images, 10 classes)\n\nMetric: **test accuracy** (higher is better) under the same privacy budget.\n\n## Hints\n- Adaptive clipping: adjust the clipping threshold based on observed gradient norms (e.g., track quantiles).\n- Noise scheduling: allocate more noise to early training (large gradients) and less to later training (refined gradients).\n- Gradient normalization: normalize per-sample gradients instead of clipping to a fixed threshold.\n- Per-layer strategies: clip/noise at the layer level rather than globally.\n- Momentum-based variance reduction: use gradient momentum to reduce the effective noise impact.\n",
-    "baselines": [
-      "standard_dpsgd",
-      "automatic_clipping",
-      "adaptive_clipping",
-      "noise_decay"
-    ],
-    "environments": [
-      "mnist",
-      "fmnist",
-      "cifar10"
-    ],
-    "packages": [
-      "opacus"
-    ],
-    "files": [
-      {
-        "filename": "opacus/custom_dpsgd.py",
-        "edit_ranges": [
-          {
-            "start": 152,
-            "end": 233
-          }
-        ]
-      }
-    ],
-    "rigorous_codebase": true,
-    "allow_create": false,
-    "has_agent_logs": false
-  },
-  {
-    "id": "opt-evolution-strategy",
-    "category": "opt",
-    "category_label": "Optimization",
-    "description_md": "# Evolutionary Optimization Strategy Design\n\n## Research Question\nDesign a novel combination of selection, crossover, and mutation operators (and/or a novel evolutionary loop) for continuous black-box optimization that outperforms standard approaches across multiple benchmark functions.\n\n## Background\nEvolutionary algorithms (EAs) are population-based metaheuristics for black-box optimization. The three core operators — **selection**, **crossover**, and **mutation** — together with the overall evolutionary loop design, determine an EA's performance. Standard approaches include:\n- **Genetic Algorithms (GA)**: Tournament selection + Simulated Binary Crossover (SBX) + Polynomial Mutation\n- **CMA-ES**: Adapts the covariance matrix of a multivariate Gaussian to guide search\n- **Differential Evolution (DE)**: Uses vector differences between population members for mutation\n\nEach has strengths on different function landscapes (multimodal, ill-conditioned, high-dimensional), but no single strategy dominates all.\n\n## Task\nModify the editable section of `custom_evolution.py` (lines 87-225) to implement a novel or improved evolutionary strategy. You may modify:\n- `custom_select(population, k, toolbox)` — selection operator\n- `custom_crossover(ind1, ind2)` — crossover/recombination operator\n- `custom_mutate(individual, lo, hi)` — mutation operator\n- `run_evolution(...)` — the full evolutionary loop (you can restructure the algorithm entirely)\n\nThe DEAP library (`deap.base`, `deap.creator`, `deap.tools`) is available. You may also use `numpy`, `scipy`, `math`, and `random`.\n\n## Interface\n- **Individuals**: Lists of floats, each with a `.fitness.values` attribute (tuple of one float for minimization).\n- **`run_evolution`** must return `(best_individual, fitness_history)` where `fitness_history` is a list of best fitness per generation.\n- **TRAIN_METRICS**: Print `TRAIN_METRICS gen=G best_fitness=F avg_fitness=A` periodically (every 50 generations).\n- Respect the function signature and return types — the evaluation harness below the editable section is fixed.\n\n## Evaluation\nStrategies are evaluated on 4 benchmarks (all minimization, lower is better):\n| Benchmark | Function | Dimensions | Domain | Global Minimum |\n|-----------|----------|------------|--------|---------------|\n| rastrigin-30d | Rastrigin | 30 | [-5.12, 5.12] | 0 |\n| rosenbrock-30d | Rosenbrock | 30 | [-5, 10] | 0 |\n| ackley-30d | Ackley | 30 | [-32.768, 32.768] | 0 |\n| rastrigin-100d | Rastrigin | 100 | [-5.12, 5.12] | 0 |\n\n**Metrics**: `best_fitness` (final best value, lower is better) and `convergence_gen` (generation reaching near-final fitness).\n\n## Hints\n- Consider adaptive operator selection or parameter control (e.g., adapting crossover/mutation rates during evolution).\n- Hybrid approaches combining ideas from GA, DE, and ES can be effective.\n- Elitism (preserving the best individuals across generations) often helps.\n- For multimodal functions like Rastrigin, maintaining population diversity is crucial.\n- Restart strategies can help escape local optima.\n- The population size and generation count are fixed by the test scripts; focus on operator design.\n",
-    "baselines": [
-      "ga_sbx",
-      "cmaes",
-      "de",
-      "lshade"
-    ],
-    "environments": [
-      "rastrigin-30d",
-      "rosenbrock-30d",
-      "ackley-30d",
-      "rastrigin-100d"
-    ],
-    "packages": [
-      "deap"
-    ],
-    "files": [
-      {
-        "filename": "deap/custom_evolution.py",
-        "edit_ranges": [
-          {
-            "start": 87,
-            "end": 225
-          }
-        ]
-      }
-    ],
-    "rigorous_codebase": true,
-    "allow_create": false,
-    "has_agent_logs": false
-  },
-  {
-    "id": "opt-gradient-compression",
-    "category": "opt",
-    "category_label": "Optimization",
-    "description_md": "# Gradient Compression for Communication-Efficient Distributed Training\n\n## Research Question\nDesign a gradient compression operator that reduces communication cost in distributed training while maintaining convergence quality (test accuracy).\n\n## Background\nIn distributed data-parallel training, gradient communication is often the bottleneck. Workers compute local gradients, which must be aggregated (e.g., via all-reduce) before the optimizer step. Gradient compression reduces the volume of data communicated by applying lossy compression to gradients before transmission.\n\nThree main families of compression exist:\n- **Sparsification**: Keep only a subset of gradient elements (e.g., TopK selects the largest magnitudes)\n- **Quantization**: Reduce the precision of gradient values (e.g., QSGD uses stochastic rounding to discrete levels)\n- **Low-rank approximation**: Approximate gradient matrices with low-rank factors (e.g., PowerSGD)\n\nA key challenge is that naive compression introduces bias or variance that degrades convergence. Error feedback (accumulating compression residuals for the next iteration) is a widely-used technique to correct this.\n\n## Task\nModify the `Compressor` class in `custom_compressor.py`. Your compressor must implement:\n- `__init__(self, compress_ratio)`: Initialize with a target compression ratio (0.01 = 100x compression)\n- `compress(self, tensor, name)`: Compress a gradient tensor, returning `(compressed_tensors, ctx)`\n- `decompress(self, compressed_tensors, ctx)`: Reconstruct the gradient\n\nThe compressor may maintain internal state (e.g., error feedback residuals) across calls. The `name` parameter identifies parameters for per-parameter state tracking.\n\n## Interface\n```python\nclass Compressor:\n    def __init__(self, compress_ratio=0.01): ...\n    def compress(self, tensor, name) -> (list[Tensor], ctx): ...\n    def decompress(self, compressed_tensors, ctx) -> Tensor: ...\n```\n- `compress_ratio`: Fraction of gradient elements/information to retain (0.01 = keep 1%)\n- `compressed_tensors`: List of tensors that would be communicated over the network\n- `ctx`: Local context (not communicated) needed for decompression\n- The decompressed tensor must have the same shape as the original input\n\n## Evaluation\nTrained and evaluated on three settings with 100x compression (compress_ratio=0.01):\n- **ResNet-20 / CIFAR-10** (0.27M params): Small model, standard benchmark\n- **VGG-11-BN / CIFAR-100** (9.8M params): Larger model, harder 100-class problem\n- **ResNet-56 / CIFAR-10** (0.85M params): Deeper model, tests scalability\n\nMetric: **best test accuracy** (higher is better). All settings use SGD with momentum, cosine LR schedule, and 200 training epochs.\n\n## Hints\n- Error feedback is essential for biased compressors (like TopK). Without it, convergence degrades significantly.\n- Combining sparsification with quantization can yield better compression/accuracy tradeoffs.\n- Adaptive compression (different ratios for different layers) can help since gradient statistics vary across layers.\n- The `name` parameter lets you maintain per-parameter state and adapt compression per layer.\n- Consider the interaction between compression and the optimizer's momentum term.\n",
-    "baselines": [
-      "topk_ef",
-      "qsgd",
-      "signsgd"
-    ],
-    "environments": [
-      "resnet20-cifar10",
-      "vgg11-cifar100",
-      "resnet56-cifar10"
-    ],
-    "packages": [
-      "pytorch-vision"
-    ],
-    "files": [
-      {
-        "filename": "pytorch-vision/custom_compressor.py",
-        "edit_ranges": [
-          {
-            "start": 182,
-            "end": 232
-          }
-        ]
-      }
-    ],
-    "rigorous_codebase": true,
-    "allow_create": false,
-    "has_agent_logs": false
-  },
-  {
-    "id": "opt-hyperparameter-search",
-    "category": "opt",
-    "category_label": "Optimization",
-    "description_md": "# Hyperparameter Optimization: Custom Search Strategy Design\n\n## Research Question\nDesign a novel hyperparameter optimization (HPO) strategy that achieves better final validation scores and faster convergence than standard approaches like Random Search, TPE, Hyperband, and their combinations (BOHB, DEHB).\n\n## Background\nHyperparameter optimization is a fundamental problem in machine learning: given a model and dataset, find the hyperparameter configuration that maximizes validation performance within a limited evaluation budget. This is a black-box optimization problem where each function evaluation (training + validation) is expensive.\n\nClassic strategies include:\n- **Random Search**: Samples configurations uniformly. Simple but surprisingly effective, especially when some hyperparameters are more important than others (Bergstra & Bengio, 2012).\n- **TPE (Tree-structured Parzen Estimator)**: Models p(x|y<y*) and p(x|y>=y*) using kernel density estimation and maximizes their ratio (Bergstra et al., 2011).\n- **Hyperband**: Uses multi-fidelity evaluation (early stopping) with successive halving to allocate resources to promising configurations (Li et al., 2017).\n\nState-of-the-art methods combine these ideas:\n- **BOHB**: Replaces random sampling in Hyperband with TPE-guided suggestions (Falkner et al., 2018).\n- **DEHB**: Uses Differential Evolution within Hyperband's multi-fidelity framework (Awad et al., 2021).\n- **CMA-ES**: Adapts a full covariance matrix of a Gaussian distribution for efficient continuous optimization (Hansen & Ostermeier, 2001).\n\nThere is ongoing research into strategies that better adapt to the optimization landscape, leverage multi-fidelity evaluations more effectively, or combine model-based search with evolutionary approaches.\n\n## Task\nImplement a custom HPO strategy by modifying the `CustomHPOStrategy` class in `scikit-learn/custom_hpo.py`. You should implement both `__init__` and `suggest` methods. The class is called repeatedly in a sequential loop where each call proposes one configuration to evaluate.\n\n## Interface\n```python\nclass CustomHPOStrategy:\n    def __init__(self, seed: int = 42):\n        \"\"\"Initialize the strategy with a random seed.\"\"\"\n        self.seed = seed\n        self.rng = np.random.RandomState(seed)\n\n    def suggest(\n        self,\n        space: SearchSpace,\n        history: List[Trial],\n        budget_left: int,\n    ) -> Tuple[Dict[str, Any], float]:\n        \"\"\"Propose the next configuration to evaluate.\n\n        Args:\n            space: SearchSpace with .params (list of HParam), .dim,\n                   .sample_uniform(rng), .clip(config)\n            history: list of Trial(config, score, budget) from past evals\n            budget_left: remaining budget in full-fidelity units\n\n        Returns:\n            config: dict mapping hyperparameter names to values\n            fidelity: float in (0, 1] for multi-fidelity evaluation\n        \"\"\"\n```\n\nThe search space provides:\n- `space.params` -- list of HParam objects with name, type (\"float\"/\"int\"/\"categorical\"), low, high, log_scale, choices\n- `space.sample_uniform(rng)` -- sample a random valid configuration\n- `space.clip(config)` -- clip values to valid ranges\n\nEach Trial records:\n- `trial.config` -- the hyperparameter configuration dict\n- `trial.score` -- observed validation score (higher is better)\n- `trial.budget` -- fidelity fraction used (1.0 = full evaluation)\n\nThe fidelity parameter controls evaluation cost: lower fidelity means cheaper but noisier evaluation (e.g., fewer boosting rounds, fewer CV folds, fewer MLP epochs).\n\n## Evaluation\nEvaluated on three ML model tuning benchmarks (**higher best_val_score is better, higher convergence_auc is better**):\n\n- **XGBoost** (6D: n_estimators, max_depth, learning_rate, subsample, min_samples_split, min_samples_leaf; GradientBoostingRegressor on California Housing; budget=50)\n- **SVM** (3D: C, gamma, kernel; SVC on Breast Cancer; budget=40)\n- **Neural Net** (6D: hidden layers, learning rate, alpha, batch_size, activation; MLP on Diabetes; budget=40)\n\nMetrics:\n- **best_val_score**: Best validation score found within the budget (primary metric)\n- **convergence_auc**: Area under the normalized convergence curve (higher = found good configs earlier)\n\nEach benchmark runs with multiple seeds; mean metrics across seeds are reported.\n\n## Hints\n- Consider combining model-based search (surrogate models like GPs or KDE) with multi-fidelity scheduling (evaluate cheap low-fidelity first, promote good ones).\n- Evolutionary strategies (DE, CMA-ES) can efficiently explore continuous spaces; combine them with density-based selection.\n- Adaptive exploration-exploitation tradeoffs that change based on remaining budget or observed improvement rate can be effective.\n- For mixed spaces (continuous + categorical), consider separate handling or encodings for different parameter types.\n- Warm-starting surrogates from low-fidelity observations can accelerate high-fidelity search.\n- Ensure numerical stability and handle edge cases (empty history, single observation, all same scores).\n",
-    "baselines": [
-      "random_search",
-      "tpe",
-      "hyperband",
-      "dehb",
-      "bohb",
-      "optuna_cma"
-    ],
-    "environments": [
-      "xgboost",
-      "svm",
-      "nn"
-    ],
-    "packages": [
-      "scikit-learn"
-    ],
-    "files": [
-      {
-        "filename": "scikit-learn/custom_hpo.py",
-        "edit_ranges": [
-          {
-            "start": 255,
-            "end": 326
-          }
-        ]
-      }
-    ],
-    "rigorous_codebase": true,
-    "allow_create": false,
-    "has_agent_logs": false
-  },
-  {
-    "id": "opt-multi-objective",
-    "category": "opt",
-    "category_label": "Optimization",
-    "description_md": "# Multi-Objective Optimization: Custom Evolutionary Strategy Design\n\n## Research Question\nDesign a novel multi-objective evolutionary algorithm (MOEA) strategy that achieves better convergence, diversity, and spread on standard benchmark problems than classic approaches like NSGA-II, MOEA/D, and SPEA2.\n\n## Background\nMulti-objective optimization aims to find a set of Pareto-optimal solutions that represent the best trade-offs among conflicting objectives. Evolutionary algorithms are the dominant approach, differing primarily in three components:\n\n- **Parent selection**: How to choose individuals for mating (e.g., tournament with crowding distance, reference-vector-based).\n- **Variation**: How to produce offspring via crossover and mutation operators.\n- **Environmental selection (survival)**: How to prune the combined parent+offspring pool back to population size (e.g., non-dominated sorting + crowding, decomposition into subproblems, indicator-based selection).\n\nClassic algorithms include:\n- **NSGA-II** (Deb et al., 2002): Non-dominated sorting + crowding distance for diversity.\n- **MOEA/D** (Zhang & Li, 2007): Decomposes the problem into scalar subproblems using weight vectors.\n- **SPEA2** (Zitzler et al., 2001): Strength-based fitness with density estimation via k-nearest neighbors.\n\nState-of-the-art methods include:\n- **NSGA-III** (Deb & Jain, 2014): Reference-point-based selection for many-objective problems.\n- **RVEA** (Cheng et al., 2016): Angle-penalized distance with adaptive reference vectors.\n- **AGE-MOEA** (Panichella, 2019): Adaptive geometry estimation for survival selection.\n\nThere is active research into strategies that combine ideas across these paradigms, adapt to problem geometry, or use novel diversity maintenance mechanisms.\n\n## Task\nImplement a custom multi-objective evolutionary strategy by modifying the `CustomMOEA` class in `deap/custom_moea.py`. You should implement the `select`, `vary`, `survive`, and optionally `on_generation` methods. The algorithm must work for both 2-objective and 3-objective problems.\n\n## Interface\n```python\nclass CustomMOEA:\n    def __init__(self, pop_size, n_obj, n_var, bounds, cx_eta=20.0, mut_eta=20.0, mut_prob=None):\n        \"\"\"Initialize the MOEA with problem parameters.\"\"\"\n\n    def select(self, population: list, k: int) -> list:\n        \"\"\"Select k parents from the population for mating.\n        Returns: list of k selected individuals.\"\"\"\n\n    def vary(self, parents: list) -> list:\n        \"\"\"Apply crossover and mutation to produce offspring.\n        Returns: list of offspring (fitness invalidated).\"\"\"\n\n    def survive(self, population: list, offspring: list) -> list:\n        \"\"\"Environmental selection: choose pop_size individuals from combined pool.\n        Returns: list of pop_size individuals for next generation.\"\"\"\n\n    def on_generation(self, gen: int, population: list):\n        \"\"\"Optional per-generation callback for adaptive strategies.\"\"\"\n```\n\nIndividual interface:\n- `ind.fitness.values` -> tuple of objective values (all minimized)\n- `ind.fitness.dominates(other.fitness)` -> bool\n- `ind.fitness.valid` -> bool (True if evaluated)\n\nAvailable DEAP utilities:\n- `tools.sortNondominated(pop, k)` -> list of fronts\n- `tools.selTournamentDCD(pop, k)` -> tournament selection (needs crowding dist)\n- `tools.selNSGA3(pop, k, ref_points)` -> NSGA-III selection\n- `tools.cxSimulatedBinaryBounded(ind1, ind2, eta, low, up)` -> SBX crossover\n- `tools.mutPolynomialBounded(ind, eta, low, up, indpb)` -> polynomial mutation\n- `tools.uniform_reference_points(nobj, p)` -> generate reference points\n- `compute_crowding_distance(individuals)` -> sets `.fitness.crowding_dist`\n- `get_nondominated(population)` -> first non-dominated front\n\n## Evaluation\nEvaluated on four benchmark problems (run with multiple seeds):\n- **ZDT1** (2D objectives, convex front, 30 variables, 200 generations)\n- **ZDT3** (2D objectives, disconnected front, 30 variables, 200 generations)\n- **DTLZ2** (3D objectives, spherical front, 12 variables, 250 generations)\n- **DTLZ1** (3D objectives, linear front with many local fronts, 7 variables, 400 generations)\n\nThree metrics are reported:\n- **Hypervolume (HV)**: Volume of objective space dominated by the Pareto front approximation. **Higher is better.**\n- **Inverted Generational Distance (IGD)**: Average distance from true Pareto front points to nearest found solution. **Lower is better.**\n- **Spread**: Uniformity of the Pareto front approximation. **Lower is better.**\n\n## Hints\n- Consider combining decomposition (weight vectors) with dominance-based selection.\n- Adaptive strategies that estimate Pareto front geometry can dynamically adjust diversity mechanisms.\n- Reference-point or reference-vector approaches work well for 3+ objectives but may need adaptation for 2-objective cases.\n- Archive-based strategies can preserve elite solutions found during evolution.\n- Differential evolution operators can complement SBX crossover for better exploration.\n- The `on_generation` callback enables adaptive parameter control (e.g., crossover/mutation rates, reference vector adaptation).\n- Ensure your strategy works well on both 2-objective (ZDT) and 3-objective (DTLZ) problems.\n",
-    "baselines": [
-      "nsga2",
-      "moead",
-      "spea2",
-      "nsga3",
-      "rvea",
-      "agemoea"
-    ],
-    "environments": [
-      "zdt1",
-      "zdt3",
-      "dtlz2",
-      "dtlz1"
-    ],
-    "packages": [
-      "deap"
-    ],
-    "files": [
-      {
-        "filename": "deap/custom_moea.py",
-        "edit_ranges": [
-          {
-            "start": 297,
-            "end": 441
-          }
-        ]
-      }
-    ],
-    "rigorous_codebase": true,
-    "allow_create": false,
-    "has_agent_logs": false
-  },
-  {
-    "id": "opt-online-bandit",
-    "category": "opt",
-    "category_label": "Optimization",
-    "description_md": "# Online Bandits: Exploration-Exploitation Strategy Design\n\n\n## Objective\nDesign and implement a bandit policy that minimizes cumulative regret across diverse multi-armed bandit settings. Your code goes in `custom_bandit.py`. Three reference implementations (UCB1, Thompson Sampling, KL-UCB) are available as read-only in the SMPyBandits package.\n\n## Background\nThe multi-armed bandit problem is a fundamental model for the exploration-exploitation tradeoff in sequential decision-making. At each round, an agent selects one of K arms and observes a stochastic reward. The goal is to minimize cumulative regret -- the gap between the reward of the best arm (in hindsight) and the agent's actual reward.\n\nClassic algorithms include:\n- **UCB1** (Auer et al., 2002): plays the arm with the highest upper confidence bound on its mean reward, achieving O(sqrt(KT log T)) minimax regret.\n- **Thompson Sampling** (Thompson 1933; Agrawal & Goyal 2012): samples from a Bayesian posterior and plays the arm with the highest sample, achieving optimal Bayesian regret.\n- **KL-UCB** (Garivier & Cappe 2011; Cappe et al. 2013): uses Kullback-Leibler divergence for tighter confidence bounds, provably optimal for Bernoulli bandits.\n\nKey challenges include adapting to different reward distributions, handling contextual information, and detecting non-stationarity.\n\n## Task\nModify the `BanditPolicy` class in `custom_bandit.py` (the EDITABLE section). You must implement:\n- `__init__(K, context_dim)`: initialize your policy for K arms with optional context\n- `select_arm(t, context)`: choose which arm to pull at timestep t\n- `update(arm, reward, context)`: update internal state after observing a reward\n- `reset()`: reset state for a new run\n\n## Interface\n```python\nclass BanditPolicy:\n    def __init__(self, K: int, context_dim: int = 0): ...\n    def reset(self): ...\n    def select_arm(self, t: int, context: np.ndarray | None = None) -> int: ...\n    def update(self, arm: int, reward: float, context: np.ndarray | None = None): ...\n```\n\nAvailable utilities (in the FIXED section):\n- `kl_bernoulli(p, q)`: KL divergence between Bernoulli distributions\n- `kl_ucb_bound(mu_hat, n, t, c)`: computes the KL-UCB upper confidence bound\n\n## Evaluation\nEvaluated on three bandit settings (lower regret is better):\n\n1. **Stochastic MAB**: 10-armed Bernoulli bandit, T=10,000 rounds. Arms have fixed reward probabilities.\n2. **Contextual**: 5-armed linear contextual bandit with d=10 features, T=10,000 rounds. Expected reward is a linear function of the context.\n3. **Non-stationary**: 5-armed piece-wise stationary Bernoulli bandit with 4 abrupt changepoints, T=10,000 rounds. The best arm changes over time.\n\nMetric: normalized cumulative regret = (cumulative regret) / T. A good policy should achieve near-zero normalized regret on stationary settings and adapt quickly to changes in non-stationary ones.\n\n## Hints\n- Consider how to handle the contextual setting differently from the context-free MAB setting (check `context_dim`)\n- Non-stationary environments require some form of forgetting or change detection\n- Tighter confidence bounds (e.g., using KL divergence instead of Hoeffding) give better performance on stationary Bernoulli bandits\n- The `scipy` and `numpy` libraries are available for numerical computation\n",
-    "baselines": [
-      "ucb1",
-      "thompson_sampling",
-      "kl_ucb"
-    ],
-    "environments": [
-      "stochastic-mab",
-      "contextual",
-      "nonstationary"
-    ],
-    "packages": [
-      "SMPyBandits"
-    ],
-    "files": [
-      {
-        "filename": "SMPyBandits/custom_bandit.py",
-        "edit_ranges": [
-          {
-            "start": 261,
-            "end": 321
-          }
-        ]
-      }
-    ],
-    "rigorous_codebase": true,
-    "allow_create": false,
-    "has_agent_logs": false
-  },
-  {
-    "id": "opt-pac-bayes-bound",
-    "category": "opt",
-    "category_label": "Optimization",
-    "description_md": "# Task: PAC-Bayes Generalization Bound Optimization\n\n## Research Question\nDesign a tighter PAC-Bayes generalization bound by optimizing the bound formulation, prior/posterior parameterization, and KL divergence estimation for stochastic neural networks.\n\n## Background\nPAC-Bayes theory provides non-vacuous generalization bounds for stochastic classifiers. Given a prior distribution P over hypotheses (chosen before seeing data) and a posterior Q (learned from data), PAC-Bayes bounds certify that with high probability (1-delta), the true risk of a stochastic classifier sampled from Q is bounded.\n\nThe key components of a PAC-Bayes bound are:\n- **Empirical risk**: estimated loss of the stochastic predictor on training data\n- **KL divergence**: KL(Q||P) measuring complexity of the posterior relative to the prior\n- **Bound formula**: how these terms combine to yield the final certificate\n\nStandard bounds include:\n- **McAllester/Maurer**: risk + sqrt(KL_term / (2n)) -- simple but loose\n- **Catoni/Lambda**: risk/(1-lam/2) + KL_term/(n*lam*(1-lam/2)) -- tighter with tuned lambda\n- **Quadratic**: (sqrt(risk + KL_term) + sqrt(KL_term))^2 -- better at low risk\n\nThe bound can be further tightened through:\n- Optimizing the bound functional form (beyond classical inequalities)\n- Better training objectives that minimize the bound directly\n- Improved risk certificate evaluation (e.g., PAC-Bayes-kl inversion)\n- Data-dependent prior construction\n- Tighter KL estimation or alternative divergence measures\n\n## What to Implement\nImplement the `BoundOptimizer` class in `custom_pac_bayes.py`. You must implement:\n1. `compute_bound(empirical_risk, kl, n, delta)`: The PAC-Bayes bound formula\n2. `train_step(model, data, target, device, n_bound, delta)`: Training objective\n3. `compute_risk_certificate(model, bound_loader, device, delta, mc_samples)`: Final certificate evaluation\n\n## Interface\n- `model(x, sample=True/False)`: stochastic forward pass (sample=True) or posterior mean (sample=False)\n- `get_total_kl(model)`: sum of KL divergence across all probabilistic layers\n- `inv_kl(q, c)`: binary KL inversion -- find p such that KL(Ber(q)||Ber(p)) = c\n- `compute_01_risk(model, loader, device, mc_samples)`: MC estimate of 0-1 risk\n- Available losses: F.nll_loss, F.cross_entropy on log_softmax outputs\n\n## Evaluation\nThe bound optimizer is tested on three settings:\n1. **MNIST-FCN**: 4-layer fully connected network (784-600-600-600-10) on MNIST\n2. **MNIST-CNN**: 4-layer CNN (2 conv + 2 fc) on MNIST\n3. **FashionMNIST-CNN**: Same CNN architecture on FashionMNIST\n\n**Primary metric**: `risk_certificate` (0-1 loss PAC-Bayes bound) -- **lower is better** (tighter bound).\n\nTraining uses data-dependent priors: 50% of training data trains a deterministic prior, 50% evaluates the bound.\n\n## Hints\n- The PAC-Bayes-kl bound (Langford-Seeger) is often tighter than closed-form alternatives for certificate evaluation\n- The training objective need not be the same formula as the certificate -- NLL surrogates work well\n- Lambda/temperature parameters in Catoni-style bounds can be learned jointly\n- Consider hybrid approaches that combine elements from different bound types\n- Controlling the KL term through regularization or prior choice can significantly tighten bounds\n- The `pmin` parameter clamps log-probabilities to prevent numerical issues\n",
-    "baselines": [
-      "mcallester",
-      "catoni",
-      "quadratic"
-    ],
-    "environments": [
-      "mnist-fcn",
-      "mnist-cnn",
-      "fmnist-cnn"
-    ],
-    "packages": [
-      "PBB"
-    ],
-    "files": [
-      {
-        "filename": "PBB/custom_pac_bayes.py",
-        "edit_ranges": [
-          {
-            "start": 460,
-            "end": 604
-          }
-        ]
-      },
-      {
-        "filename": "PBB/pbb/models.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "PBB/pbb/utils.py",
-        "edit_ranges": []
-      }
-    ],
-    "rigorous_codebase": true,
-    "allow_create": false,
-    "has_agent_logs": false
-  },
-  {
-    "id": "opt-variance-reduction",
-    "category": "opt",
-    "category_label": "Optimization",
-    "description_md": "# Variance Reduction for Stochastic Optimization\n\n## Research Question\nDesign an improved variance reduction strategy for stochastic gradient descent on finite-sum optimization problems. Your method should accelerate convergence compared to vanilla mini-batch SGD by reducing the variance of gradient estimates.\n\n## Background\nMany machine learning problems take the form of finite-sum optimization:\n\n    min_x  F(x) = (1/n) * sum_{i=1}^{n} f_i(x)\n\nStandard SGD uses a stochastic gradient from a random mini-batch, which has variance proportional to 1/b (where b is the batch size). Variance reduction methods use auxiliary information (snapshots, recursive corrections, momentum) to reduce this variance, enabling faster convergence -- often achieving linear convergence rates for strongly convex problems where SGD only achieves sublinear rates.\n\nKey methods in this area include SVRG (periodic full gradient + control variate), SARAH (recursive gradient correction), STORM (momentum-based online variance reduction), SPIDER, and PAGE.\n\n## Task\nModify the `VarianceReductionOptimizer` class in `custom_vr.py` (lines 286-370). You must implement:\n\n1. **`__init__(self, model, lr, l2_reg, loss_type, n_train, batch_size, device)`**: Initialize any state needed for variance reduction (snapshot parameters, running gradient estimates, buffers, etc.)\n2. **`train_one_epoch(self, X_train, y_train)`**: Train for one epoch over the data, returning a dict with at least `'avg_loss'` (and optionally `'full_grad_count'` if you use full gradient computations)\n\nThe default implementation is vanilla mini-batch SGD. Your goal is to design a variance reduction mechanism that improves convergence.\n\n## Interface\n\n### Available helper functions (FIXED, use these for gradient computation):\n```python\ncompute_full_gradient(model, X_train, y_train, loss_type, l2_reg, device)\n# -> returns list of gradient tensors (one per parameter)\n\ncompute_stochastic_gradient(model, X_batch, y_batch, loss_type, l2_reg)\n# -> returns list of gradient tensors for a mini-batch\n\ncompute_loss_on_batch(model, X_batch, y_batch, loss_type, l2_reg)\n# -> returns scalar loss tensor\n```\n\n### Constraints\n- You may call `compute_full_gradient` at most once per epoch\n- Parameter updates must use `p.data.add_(...)` or similar in-place operations\n- Must work across all three problems with the same code\n- The learning rate (`self.lr`) and L2 regularization (`self.l2_reg`) are fixed\n- Do not modify the model architecture, loss function, or evaluation code\n\n## Evaluation\n- **Problems**:\n  - `logistic`: L2-regularized multinomial logistic regression on MNIST (convex, n=60K, 20 epochs)\n  - `mlp`: 2-layer MLP on CIFAR-10 (non-convex, n=50K, 40 epochs)\n  - `conditioned`: L2-regularized linear regression on synthetic ill-conditioned data (strongly convex, kappa=100, n=10K, 30 epochs)\n- **Metrics**: `best_test_accuracy` (logistic, mlp; higher is better) and `best_test_mse` (conditioned; lower is better)\n- All three problems run in parallel with shared compute\n\n## Hints\n- The control variate trick (SVRG-style) subtracts correlated noise: v = grad_i(x) - grad_i(x_snap) + mu\n- Recursive estimators (SARAH-style) accumulate corrections without a fixed reference point\n- Momentum-based methods (STORM-style) achieve variance reduction without needing periodic full gradients\n- Consider the trade-off between full gradient computation cost and variance reduction benefit\n- For non-convex problems, biased estimators with lower variance can sometimes outperform unbiased ones\n- Combining ideas (e.g., momentum + control variates) may yield better results\n",
-    "baselines": [
-      "svrg",
-      "sarah",
-      "storm"
-    ],
-    "environments": [
-      "logistic",
-      "mlp",
-      "conditioned"
-    ],
-    "packages": [
-      "opt-vr-bench"
-    ],
-    "files": [
-      {
-        "filename": "opt-vr-bench/custom_vr.py",
-        "edit_ranges": [
-          {
-            "start": 286,
-            "end": 370
+            "start": 114,
+            "end": 155
           }
         ]
       }
@@ -4477,13 +4166,50 @@
         "filename": "penalized-bilevel-gradient-descent/mlsbench/custom_strategy.py",
         "edit_ranges": [
           {
-            "start": 213,
-            "end": 250
+            "start": 216,
+            "end": 253
           }
         ]
       },
       {
         "filename": "penalized-bilevel-gradient-descent/RHG/hypergrad/hypergradients.py",
+        "edit_ranges": []
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "optimization-convex-acceleration",
+    "category": "opt",
+    "category_label": "Optimization",
+    "description_md": "# First-Order Acceleration for Convex Optimisation\n\n## Research Question\nCan you design a first-order optimisation method that converges faster than standard gradient descent on smooth, strongly-convex problems?\n\n## Background\nFirst-order methods (gradient descent and its variants) are the workhorses of large-scale optimisation in machine learning and scientific computing.  For L-smooth, mu-strongly-convex objectives, vanilla gradient descent achieves a linear convergence rate of (kappa-1)/(kappa+1) per iteration, where kappa = L/mu is the condition number.  **Acceleration**---pioneered by Polyak (1964) and Nesterov (1983)---can improve this to (sqrt(kappa)-1)/(sqrt(kappa)+1), a quadratic improvement in the exponent.\n\nClassical accelerated methods include:\n- **Heavy Ball** (Polyak 1964): adds a momentum term proportional to x_k - x_{k-1}.\n- **Nesterov Accelerated Gradient** (Nesterov 1983/2004): evaluates the gradient at an extrapolated point, achieving the information-theoretic optimal rate.\n- **Triple Momentum** (Van Scoy, Freeman & Lynch 2018): the fastest known globally convergent first-order method, using three momentum terms.\n- **OGM** (Kim & Fessler 2016): optimised gradient method improving Nesterov's constant by a factor of 2 for smooth (not necessarily strongly) convex problems.\n\n## Task\nModify the three functions in `RAIN/opt_convex_acceleration/custom_optimizer.py` (lines 29-104) to implement a novel or improved first-order optimisation method:\n\n1. `init_state(problem, x0, hyperparameters)` -- initialise algorithm state\n2. `step(state, oracle, problem, hyperparameters)` -- perform one iteration\n3. `get_hyperparameters(problem_name, L, mu, dim)` -- return method parameters\n\nThe default template implements vanilla gradient descent.  Your goal is to achieve lower final sub-optimality f(x_k) - f* across all test problems.\n\n## Interface\n- `oracle.grad(x)` returns the gradient at x (counts as one gradient evaluation)\n- `oracle.f(x)` returns the function value at x\n- `problem.L` is the Lipschitz constant of the gradient\n- `problem.mu` is the strong convexity parameter\n- `problem.dim` is the problem dimension\n- `problem.num_iterations` is the fixed iteration budget\n- Each call to `step()` must make at least one and report exactly as many `oracle.grad` calls as it actually performs\n- `state[\"x\"]` must always contain the current iterate\n\n## Evaluation\nThree problem types are evaluated at each condition number:\n- **Quadratic**: random quadratic with eigenvalues in [1, kappa]\n- **Logistic regression**: L2-regularised logistic regression\n- **Smoothed Lasso**: Nesterov-smoothed L1-regularised least-squares\n\nThree condition-number regimes (evaluated as separate test commands):\n- kappa = 10 (well-conditioned)\n- kappa = 100 (moderate)\n- kappa = 1000 (ill-conditioned)\n\n**Metric**: `log_final_suboptimality` = mean of log10(f(x_k) - f*) across problems (lower/more negative is better).  The leaderboard `score` = -log_final_suboptimality (higher is better).\n\n## Hints\n- The key insight of acceleration is evaluating the gradient at an *extrapolated* point rather than the current iterate.\n- The optimal momentum parameter for strongly-convex problems depends on sqrt(kappa).\n- Adaptive restart (O'Donoghue & Candes 2015) can improve practical convergence by restarting momentum when the objective increases.\n- Anderson acceleration applies fixed-point acceleration to the gradient mapping and can achieve super-linear convergence near the optimum.\n- The step function receives `problem.L` and `problem.mu`, so you can compute kappa = L/mu directly.\n",
+    "baselines": [
+      "heavy_ball",
+      "nesterov_agd",
+      "triple_momentum"
+    ],
+    "environments": [
+      "kappa10",
+      "kappa100",
+      "kappa1000"
+    ],
+    "packages": [
+      "RAIN"
+    ],
+    "files": [
+      {
+        "filename": "RAIN/opt_convex_acceleration/custom_optimizer.py",
+        "edit_ranges": [
+          {
+            "start": 29,
+            "end": 104
+          }
+        ]
+      },
+      {
+        "filename": "RAIN/opt_convex_acceleration/fixed_benchmark.py",
         "edit_ranges": []
       }
     ],
@@ -4526,6 +4252,288 @@
     "has_agent_logs": false
   },
   {
+    "id": "optimization-dp-sgd",
+    "category": "opt",
+    "category_label": "Optimization",
+    "description_md": "# Differentially Private SGD: Privacy-Utility Optimization\n\n## Research Question\nDesign an improved DP-SGD variant that achieves better privacy-utility tradeoff — higher test accuracy under the same (epsilon, delta)-differential privacy budget.\n\n## Background\nDifferentially Private Stochastic Gradient Descent (DP-SGD) [Abadi et al., 2016] enables training deep learning models with formal privacy guarantees. The core mechanism has two steps: (1) clip each per-sample gradient to a fixed norm C, and (2) add calibrated Gaussian noise proportional to C. The noise level is determined by the desired privacy budget (epsilon, delta).\n\nThe standard approach uses a fixed clipping threshold and constant noise throughout training, which is suboptimal: gradient magnitudes change during training, the fixed threshold either over-clips (losing signal) or under-clips (adding excess noise), and the uniform noise allocation ignores the varying informativeness of gradients across training stages.\n\n## Task\nModify the `DPMechanism` class in `custom_dpsgd.py`. Your mechanism receives per-sample gradients and must return aggregated noised gradients. You control the gradient clipping strategy, noise calibration, and any per-step adaptations.\n\n## Interface\n```python\nclass DPMechanism:\n    def __init__(self, max_grad_norm, noise_multiplier, n_params,\n                 dataset_size, batch_size, epochs, target_epsilon, target_delta):\n        ...\n\n    def clip_and_noise(self, per_sample_grads, step, epoch) -> list[Tensor]:\n        # per_sample_grads: list of tensors [B, *param_shape]\n        # Returns: list of noised gradients [*param_shape]\n        ...\n\n    def get_effective_sigma(self, step, epoch) -> float:\n        # Returns current noise multiplier for privacy accounting\n        ...\n```\n\n## Constraints\n- The total privacy budget (target_epsilon, target_delta) is FIXED and checked externally.\n- The model architecture, data pipeline, optimizer, and training loop are FIXED.\n- Focus on algorithmic innovation in the DP mechanism: clipping strategies, noise schedules, gradient processing.\n- Available imports: `torch`, `math`, `numpy` (via the FIXED section), `scipy.optimize`.\n\n## Evaluation\nTrained and evaluated on three datasets at epsilon=3.0, delta=1e-5:\n- **MNIST** (28x28 grayscale digits, 10 classes)\n- **Fashion-MNIST** (28x28 grayscale clothing, 10 classes)\n- **CIFAR-10** (32x32 color images, 10 classes)\n\nMetric: **test accuracy** (higher is better) under the same privacy budget.\n\n## Hints\n- Adaptive clipping: adjust the clipping threshold based on observed gradient norms (e.g., track quantiles).\n- Noise scheduling: allocate more noise to early training (large gradients) and less to later training (refined gradients).\n- Gradient normalization: normalize per-sample gradients instead of clipping to a fixed threshold.\n- Per-layer strategies: clip/noise at the layer level rather than globally.\n- Momentum-based variance reduction: use gradient momentum to reduce the effective noise impact.\n",
+    "baselines": [
+      "standard_dpsgd",
+      "automatic_clipping",
+      "adaptive_clipping",
+      "noise_decay"
+    ],
+    "environments": [
+      "mnist",
+      "fmnist",
+      "cifar10"
+    ],
+    "packages": [
+      "opacus"
+    ],
+    "files": [
+      {
+        "filename": "opacus/custom_dpsgd.py",
+        "edit_ranges": [
+          {
+            "start": 152,
+            "end": 233
+          }
+        ]
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "optimization-evolution-strategy",
+    "category": "opt",
+    "category_label": "Optimization",
+    "description_md": "# Evolutionary Optimization Strategy Design\n\n## Research Question\nDesign a novel combination of selection, crossover, and mutation operators (and/or a novel evolutionary loop) for continuous black-box optimization that outperforms standard approaches across multiple benchmark functions.\n\n## Background\nEvolutionary algorithms (EAs) are population-based metaheuristics for black-box optimization. The three core operators — **selection**, **crossover**, and **mutation** — together with the overall evolutionary loop design, determine an EA's performance. Standard approaches include:\n- **Genetic Algorithms (GA)**: Tournament selection + Simulated Binary Crossover (SBX) + Polynomial Mutation\n- **CMA-ES**: Adapts the covariance matrix of a multivariate Gaussian to guide search\n- **Differential Evolution (DE)**: Uses vector differences between population members for mutation\n\nEach has strengths on different function landscapes (multimodal, ill-conditioned, high-dimensional), but no single strategy dominates all.\n\n## Task\nModify the editable section of `custom_evolution.py` (lines 87-225) to implement a novel or improved evolutionary strategy. You may modify:\n- `custom_select(population, k, toolbox)` — selection operator\n- `custom_crossover(ind1, ind2)` — crossover/recombination operator\n- `custom_mutate(individual, lo, hi)` — mutation operator\n- `run_evolution(...)` — the full evolutionary loop (you can restructure the algorithm entirely)\n\nThe DEAP library (`deap.base`, `deap.creator`, `deap.tools`) is available. You may also use `numpy`, `scipy`, `math`, and `random`.\n\n## Interface\n- **Individuals**: Lists of floats, each with a `.fitness.values` attribute (tuple of one float for minimization).\n- **`run_evolution`** must return `(best_individual, fitness_history)` where `fitness_history` is a list of best fitness per generation.\n- **TRAIN_METRICS**: Print `TRAIN_METRICS gen=G best_fitness=F avg_fitness=A` periodically (every 50 generations).\n- Respect the function signature and return types — the evaluation harness below the editable section is fixed.\n\n## Evaluation\nStrategies are evaluated on 4 benchmarks (all minimization, lower is better):\n| Benchmark | Function | Dimensions | Domain | Global Minimum |\n|-----------|----------|------------|--------|---------------|\n| rastrigin-30d | Rastrigin | 30 | [-5.12, 5.12] | 0 |\n| rosenbrock-30d | Rosenbrock | 30 | [-5, 10] | 0 |\n| ackley-30d | Ackley | 30 | [-32.768, 32.768] | 0 |\n| rastrigin-100d | Rastrigin | 100 | [-5.12, 5.12] | 0 |\n\n**Metrics**: `best_fitness` (final best value, lower is better) and `convergence_gen` (generation reaching near-final fitness).\n\n## Hints\n- Consider adaptive operator selection or parameter control (e.g., adapting crossover/mutation rates during evolution).\n- Hybrid approaches combining ideas from GA, DE, and ES can be effective.\n- Elitism (preserving the best individuals across generations) often helps.\n- For multimodal functions like Rastrigin, maintaining population diversity is crucial.\n- Restart strategies can help escape local optima.\n- The population size and generation count are fixed by the test scripts; focus on operator design.\n",
+    "baselines": [
+      "ga_sbx",
+      "cmaes",
+      "de",
+      "lshade"
+    ],
+    "environments": [
+      "rastrigin-30d",
+      "rosenbrock-30d",
+      "ackley-30d",
+      "rastrigin-100d"
+    ],
+    "packages": [
+      "deap"
+    ],
+    "files": [
+      {
+        "filename": "deap/custom_evolution.py",
+        "edit_ranges": [
+          {
+            "start": 87,
+            "end": 225
+          }
+        ]
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "optimization-gradient-compression",
+    "category": "opt",
+    "category_label": "Optimization",
+    "description_md": "# Gradient Compression for Communication-Efficient Distributed Training\n\n## Research Question\nDesign a gradient compression operator that reduces communication cost in distributed training while maintaining convergence quality (test accuracy).\n\n## Background\nIn distributed data-parallel training, gradient communication is often the bottleneck. Workers compute local gradients, which must be aggregated (e.g., via all-reduce) before the optimizer step. Gradient compression reduces the volume of data communicated by applying lossy compression to gradients before transmission.\n\nThree main families of compression exist:\n- **Sparsification**: Keep only a subset of gradient elements (e.g., TopK selects the largest magnitudes)\n- **Quantization**: Reduce the precision of gradient values (e.g., QSGD uses stochastic rounding to discrete levels)\n- **Low-rank approximation**: Approximate gradient matrices with low-rank factors (e.g., PowerSGD)\n\nA key challenge is that naive compression introduces bias or variance that degrades convergence. Error feedback (accumulating compression residuals for the next iteration) is a widely-used technique to correct this.\n\n## Task\nModify the `Compressor` class in `custom_compressor.py`. Your compressor must implement:\n- `__init__(self, compress_ratio)`: Initialize with a target compression ratio (0.01 = 100x compression)\n- `compress(self, tensor, name)`: Compress a gradient tensor, returning `(compressed_tensors, ctx)`\n- `decompress(self, compressed_tensors, ctx)`: Reconstruct the gradient\n\nThe compressor may maintain internal state (e.g., error feedback residuals) across calls. The `name` parameter identifies parameters for per-parameter state tracking.\n\n## Interface\n```python\nclass Compressor:\n    def __init__(self, compress_ratio=0.01): ...\n    def compress(self, tensor, name) -> (list[Tensor], ctx): ...\n    def decompress(self, compressed_tensors, ctx) -> Tensor: ...\n```\n- `compress_ratio`: Fraction of gradient elements/information to retain (0.01 = keep 1%)\n- `compressed_tensors`: List of tensors that would be communicated over the network\n- `ctx`: Local context (not communicated) needed for decompression\n- The decompressed tensor must have the same shape as the original input\n\n## Evaluation\nTrained and evaluated on three settings with 100x compression (compress_ratio=0.01):\n- **ResNet-20 / CIFAR-10** (0.27M params): Small model, standard benchmark\n- **VGG-11-BN / CIFAR-100** (9.8M params): Larger model, harder 100-class problem\n- **ResNet-56 / CIFAR-10** (0.85M params): Deeper model, tests scalability\n\nMetric: **best test accuracy** (higher is better). All settings use SGD with momentum, cosine LR schedule, and 200 training epochs.\n\n## Hints\n- Error feedback is essential for biased compressors (like TopK). Without it, convergence degrades significantly.\n- Combining sparsification with quantization can yield better compression/accuracy tradeoffs.\n- Adaptive compression (different ratios for different layers) can help since gradient statistics vary across layers.\n- The `name` parameter lets you maintain per-parameter state and adapt compression per layer.\n- Consider the interaction between compression and the optimizer's momentum term.\n",
+    "baselines": [
+      "topk_ef",
+      "qsgd",
+      "signsgd"
+    ],
+    "environments": [
+      "resnet20-cifar10",
+      "vgg11-cifar100",
+      "resnet56-cifar10"
+    ],
+    "packages": [
+      "pytorch-vision"
+    ],
+    "files": [
+      {
+        "filename": "pytorch-vision/custom_compressor.py",
+        "edit_ranges": [
+          {
+            "start": 182,
+            "end": 232
+          }
+        ]
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "optimization-hyperparameter-search",
+    "category": "opt",
+    "category_label": "Optimization",
+    "description_md": "# Hyperparameter Optimization: Custom Search Strategy Design\n\n## Research Question\nDesign a novel hyperparameter optimization (HPO) strategy that achieves better final validation scores and faster convergence than standard approaches like Random Search, TPE, Hyperband, and their combinations (BOHB, DEHB).\n\n## Background\nHyperparameter optimization is a fundamental problem in machine learning: given a model and dataset, find the hyperparameter configuration that maximizes validation performance within a limited evaluation budget. This is a black-box optimization problem where each function evaluation (training + validation) is expensive.\n\nClassic strategies include:\n- **Random Search**: Samples configurations uniformly. Simple but surprisingly effective, especially when some hyperparameters are more important than others (Bergstra & Bengio, 2012).\n- **TPE (Tree-structured Parzen Estimator)**: Models p(x|y<y*) and p(x|y>=y*) using kernel density estimation and maximizes their ratio (Bergstra et al., 2011).\n- **Hyperband**: Uses multi-fidelity evaluation (early stopping) with successive halving to allocate resources to promising configurations (Li et al., 2017).\n\nState-of-the-art methods combine these ideas:\n- **BOHB**: Replaces random sampling in Hyperband with TPE-guided suggestions (Falkner et al., 2018).\n- **DEHB**: Uses Differential Evolution within Hyperband's multi-fidelity framework (Awad et al., 2021).\n- **CMA-ES**: Adapts a full covariance matrix of a Gaussian distribution for efficient continuous optimization (Hansen & Ostermeier, 2001).\n\nThere is ongoing research into strategies that better adapt to the optimization landscape, leverage multi-fidelity evaluations more effectively, or combine model-based search with evolutionary approaches.\n\n## Task\nImplement a custom HPO strategy by modifying the `CustomHPOStrategy` class in `scikit-learn/custom_hpo.py`. You should implement both `__init__` and `suggest` methods. The class is called repeatedly in a sequential loop where each call proposes one configuration to evaluate.\n\n## Interface\n```python\nclass CustomHPOStrategy:\n    def __init__(self, seed: int = 42):\n        \"\"\"Initialize the strategy with a random seed.\"\"\"\n        self.seed = seed\n        self.rng = np.random.RandomState(seed)\n\n    def suggest(\n        self,\n        space: SearchSpace,\n        history: List[Trial],\n        budget_left: int,\n    ) -> Tuple[Dict[str, Any], float]:\n        \"\"\"Propose the next configuration to evaluate.\n\n        Args:\n            space: SearchSpace with .params (list of HParam), .dim,\n                   .sample_uniform(rng), .clip(config)\n            history: list of Trial(config, score, budget) from past evals\n            budget_left: remaining budget in full-fidelity units\n\n        Returns:\n            config: dict mapping hyperparameter names to values\n            fidelity: float in (0, 1] for multi-fidelity evaluation\n        \"\"\"\n```\n\nThe search space provides:\n- `space.params` -- list of HParam objects with name, type (\"float\"/\"int\"/\"categorical\"), low, high, log_scale, choices\n- `space.sample_uniform(rng)` -- sample a random valid configuration\n- `space.clip(config)` -- clip values to valid ranges\n\nEach Trial records:\n- `trial.config` -- the hyperparameter configuration dict\n- `trial.score` -- observed validation score (higher is better)\n- `trial.budget` -- fidelity fraction used (1.0 = full evaluation)\n\nThe fidelity parameter controls evaluation cost: lower fidelity means cheaper but noisier evaluation (e.g., fewer boosting rounds, fewer CV folds, fewer MLP epochs).\n\n## Evaluation\nEvaluated on three ML model tuning benchmarks (**higher best_val_score is better, higher convergence_auc is better**):\n\n- **XGBoost** (6D: n_estimators, max_depth, learning_rate, subsample, min_samples_split, min_samples_leaf; GradientBoostingRegressor on California Housing; budget=50)\n- **SVM** (3D: C, gamma, kernel; SVC on Breast Cancer; budget=40)\n- **Neural Net** (6D: hidden layers, learning rate, alpha, batch_size, activation; MLP on Diabetes; budget=40)\n\nMetrics:\n- **best_val_score**: Best validation score found within the budget (primary metric)\n- **convergence_auc**: Area under the normalized convergence curve (higher = found good configs earlier)\n\nEach benchmark runs with multiple seeds; mean metrics across seeds are reported.\n\n## Hints\n- Consider combining model-based search (surrogate models like GPs or KDE) with multi-fidelity scheduling (evaluate cheap low-fidelity first, promote good ones).\n- Evolutionary strategies (DE, CMA-ES) can efficiently explore continuous spaces; combine them with density-based selection.\n- Adaptive exploration-exploitation tradeoffs that change based on remaining budget or observed improvement rate can be effective.\n- For mixed spaces (continuous + categorical), consider separate handling or encodings for different parameter types.\n- Warm-starting surrogates from low-fidelity observations can accelerate high-fidelity search.\n- Ensure numerical stability and handle edge cases (empty history, single observation, all same scores).\n",
+    "baselines": [
+      "random_search",
+      "tpe",
+      "hyperband",
+      "dehb",
+      "bohb",
+      "optuna_cma"
+    ],
+    "environments": [
+      "xgboost",
+      "svm",
+      "nn"
+    ],
+    "packages": [
+      "scikit-learn"
+    ],
+    "files": [
+      {
+        "filename": "scikit-learn/custom_hpo.py",
+        "edit_ranges": [
+          {
+            "start": 255,
+            "end": 326
+          }
+        ]
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "optimization-multi-objective",
+    "category": "opt",
+    "category_label": "Optimization",
+    "description_md": "# Multi-Objective Optimization: Custom Evolutionary Strategy Design\n\n## Research Question\nDesign a novel multi-objective evolutionary algorithm (MOEA) strategy that achieves better convergence, diversity, and spread on standard benchmark problems than classic approaches like NSGA-II, MOEA/D, and SPEA2.\n\n## Background\nMulti-objective optimization aims to find a set of Pareto-optimal solutions that represent the best trade-offs among conflicting objectives. Evolutionary algorithms are the dominant approach, differing primarily in three components:\n\n- **Parent selection**: How to choose individuals for mating (e.g., tournament with crowding distance, reference-vector-based).\n- **Variation**: How to produce offspring via crossover and mutation operators.\n- **Environmental selection (survival)**: How to prune the combined parent+offspring pool back to population size (e.g., non-dominated sorting + crowding, decomposition into subproblems, indicator-based selection).\n\nClassic algorithms include:\n- **NSGA-II** (Deb et al., 2002): Non-dominated sorting + crowding distance for diversity.\n- **MOEA/D** (Zhang & Li, 2007): Decomposes the problem into scalar subproblems using weight vectors.\n- **SPEA2** (Zitzler et al., 2001): Strength-based fitness with density estimation via k-nearest neighbors.\n\nState-of-the-art methods include:\n- **NSGA-III** (Deb & Jain, 2014): Reference-point-based selection for many-objective problems.\n- **RVEA** (Cheng et al., 2016): Angle-penalized distance with adaptive reference vectors.\n- **AGE-MOEA** (Panichella, 2019): Adaptive geometry estimation for survival selection.\n\nThere is active research into strategies that combine ideas across these paradigms, adapt to problem geometry, or use novel diversity maintenance mechanisms.\n\n## Task\nImplement a custom multi-objective evolutionary strategy by modifying the `CustomMOEA` class in `deap/custom_moea.py`. You should implement the `select`, `vary`, `survive`, and optionally `on_generation` methods. The algorithm must work for both 2-objective and 3-objective problems.\n\n## Interface\n```python\nclass CustomMOEA:\n    def __init__(self, pop_size, n_obj, n_var, bounds, cx_eta=20.0, mut_eta=20.0, mut_prob=None):\n        \"\"\"Initialize the MOEA with problem parameters.\"\"\"\n\n    def select(self, population: list, k: int) -> list:\n        \"\"\"Select k parents from the population for mating.\n        Returns: list of k selected individuals.\"\"\"\n\n    def vary(self, parents: list) -> list:\n        \"\"\"Apply crossover and mutation to produce offspring.\n        Returns: list of offspring (fitness invalidated).\"\"\"\n\n    def survive(self, population: list, offspring: list) -> list:\n        \"\"\"Environmental selection: choose pop_size individuals from combined pool.\n        Returns: list of pop_size individuals for next generation.\"\"\"\n\n    def on_generation(self, gen: int, population: list):\n        \"\"\"Optional per-generation callback for adaptive strategies.\"\"\"\n```\n\nIndividual interface:\n- `ind.fitness.values` -> tuple of objective values (all minimized)\n- `ind.fitness.dominates(other.fitness)` -> bool\n- `ind.fitness.valid` -> bool (True if evaluated)\n\nAvailable DEAP utilities:\n- `tools.sortNondominated(pop, k)` -> list of fronts\n- `tools.selTournamentDCD(pop, k)` -> tournament selection (needs crowding dist)\n- `tools.selNSGA3(pop, k, ref_points)` -> NSGA-III selection\n- `tools.cxSimulatedBinaryBounded(ind1, ind2, eta, low, up)` -> SBX crossover\n- `tools.mutPolynomialBounded(ind, eta, low, up, indpb)` -> polynomial mutation\n- `tools.uniform_reference_points(nobj, p)` -> generate reference points\n- `compute_crowding_distance(individuals)` -> sets `.fitness.crowding_dist`\n- `get_nondominated(population)` -> first non-dominated front\n\n## Evaluation\nEvaluated on four benchmark problems (run with multiple seeds):\n- **ZDT1** (2D objectives, convex front, 30 variables, 200 generations)\n- **ZDT3** (2D objectives, disconnected front, 30 variables, 200 generations)\n- **DTLZ2** (3D objectives, spherical front, 12 variables, 250 generations)\n- **DTLZ1** (3D objectives, linear front with many local fronts, 7 variables, 400 generations)\n\nThree metrics are reported:\n- **Hypervolume (HV)**: Volume of objective space dominated by the Pareto front approximation. **Higher is better.**\n- **Inverted Generational Distance (IGD)**: Average distance from true Pareto front points to nearest found solution. **Lower is better.**\n- **Spread**: Uniformity of the Pareto front approximation. **Lower is better.**\n\n## Hints\n- Consider combining decomposition (weight vectors) with dominance-based selection.\n- Adaptive strategies that estimate Pareto front geometry can dynamically adjust diversity mechanisms.\n- Reference-point or reference-vector approaches work well for 3+ objectives but may need adaptation for 2-objective cases.\n- Archive-based strategies can preserve elite solutions found during evolution.\n- Differential evolution operators can complement SBX crossover for better exploration.\n- The `on_generation` callback enables adaptive parameter control (e.g., crossover/mutation rates, reference vector adaptation).\n- Ensure your strategy works well on both 2-objective (ZDT) and 3-objective (DTLZ) problems.\n",
+    "baselines": [
+      "nsga2",
+      "moead",
+      "spea2",
+      "nsga3",
+      "rvea",
+      "agemoea"
+    ],
+    "environments": [
+      "zdt1",
+      "zdt3",
+      "dtlz2",
+      "dtlz1"
+    ],
+    "packages": [
+      "deap"
+    ],
+    "files": [
+      {
+        "filename": "deap/custom_moea.py",
+        "edit_ranges": [
+          {
+            "start": 297,
+            "end": 441
+          }
+        ]
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "optimization-nas",
+    "category": "opt",
+    "category_label": "Optimization",
+    "description_md": "# AutoML: Neural Architecture Search Strategy\n\n## Objective\nDesign and implement a novel NAS (Neural Architecture Search) optimizer that efficiently discovers high-performing architectures in the NAS-Bench-201 search space. Your code goes in the `NASOptimizer` class in `custom_nas_search.py`. Three reference implementations (Random Search, REA, DARTS) are provided as read-only.\n\n## Background\nNeural Architecture Search automates the design of neural network architectures. The NAS-Bench-201 benchmark provides a tabular lookup of all 15625 possible architectures (5 operations x 6 edges in a cell) pre-evaluated on multiple datasets. This eliminates the need for actual training — you query the benchmark API for any architecture's accuracy. The challenge is designing a search strategy that finds the best architecture using as few queries as possible. Approaches range from random search to evolutionary algorithms, Bayesian optimization, reinforcement learning, and differentiable methods.\n\n## Search Space\n- Cell with 4 nodes (1 input, 2 intermediate, 1 output) and 6 edges\n- 5 operations per edge: skip_connect, none, nor_conv_3x3, nor_conv_1x1, avg_pool_3x3\n- Total: 5^6 = 15625 architectures\n- Architecture represented as a list of 6 integers in [0, 4]\n\n## Evaluation\nTested on three image classification datasets from NAS-Bench-201: CIFAR-10, CIFAR-100, and ImageNet16-120. Metric: test accuracy of the best architecture found (higher is better). Search budget: 500 iterations per dataset.\n",
+    "baselines": [
+      "random_search",
+      "rea",
+      "darts"
+    ],
+    "environments": [
+      "CIFAR-10",
+      "CIFAR-100",
+      "ImageNet16-120"
+    ],
+    "packages": [
+      "naslib"
+    ],
+    "files": [
+      {
+        "filename": "naslib/custom_nas_search.py",
+        "edit_ranges": [
+          {
+            "start": 135,
+            "end": 215
+          }
+        ]
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "optimization-online-bandit",
+    "category": "opt",
+    "category_label": "Optimization",
+    "description_md": "# Online Bandits: Exploration-Exploitation Strategy Design\n\n\n## Objective\nDesign and implement a bandit policy that minimizes cumulative regret across diverse multi-armed bandit settings. Your code goes in `custom_bandit.py`. Three reference implementations (UCB1, Thompson Sampling, KL-UCB) are available as read-only in the SMPyBandits package.\n\n## Background\nThe multi-armed bandit problem is a fundamental model for the exploration-exploitation tradeoff in sequential decision-making. At each round, an agent selects one of K arms and observes a stochastic reward. The goal is to minimize cumulative regret -- the gap between the reward of the best arm (in hindsight) and the agent's actual reward.\n\nClassic algorithms include:\n- **UCB1** (Auer et al., 2002): plays the arm with the highest upper confidence bound on its mean reward, achieving O(sqrt(KT log T)) minimax regret.\n- **Thompson Sampling** (Thompson 1933; Agrawal & Goyal 2012): samples from a Bayesian posterior and plays the arm with the highest sample, achieving optimal Bayesian regret.\n- **KL-UCB** (Garivier & Cappe 2011; Cappe et al. 2013): uses Kullback-Leibler divergence for tighter confidence bounds, provably optimal for Bernoulli bandits.\n\nKey challenges include adapting to different reward distributions, handling contextual information, and detecting non-stationarity.\n\n## Task\nModify the `BanditPolicy` class in `custom_bandit.py` (the EDITABLE section). You must implement:\n- `__init__(K, context_dim)`: initialize your policy for K arms with optional context\n- `select_arm(t, context)`: choose which arm to pull at timestep t\n- `update(arm, reward, context)`: update internal state after observing a reward\n- `reset()`: reset state for a new run\n\n## Interface\n```python\nclass BanditPolicy:\n    def __init__(self, K: int, context_dim: int = 0): ...\n    def reset(self): ...\n    def select_arm(self, t: int, context: np.ndarray | None = None) -> int: ...\n    def update(self, arm: int, reward: float, context: np.ndarray | None = None): ...\n```\n\nAvailable utilities (in the FIXED section):\n- `kl_bernoulli(p, q)`: KL divergence between Bernoulli distributions\n- `kl_ucb_bound(mu_hat, n, t, c)`: computes the KL-UCB upper confidence bound\n\n## Evaluation\nEvaluated on three bandit settings (lower regret is better):\n\n1. **Stochastic MAB**: 10-armed Bernoulli bandit, T=10,000 rounds. Arms have fixed reward probabilities.\n2. **Contextual**: 5-armed linear contextual bandit with d=10 features, T=10,000 rounds. Expected reward is a linear function of the context.\n3. **Non-stationary**: 5-armed piece-wise stationary Bernoulli bandit with 4 abrupt changepoints, T=10,000 rounds. The best arm changes over time.\n\nMetric: normalized cumulative regret = (cumulative regret) / T. A good policy should achieve near-zero normalized regret on stationary settings and adapt quickly to changes in non-stationary ones.\n\n## Hints\n- Consider how to handle the contextual setting differently from the context-free MAB setting (check `context_dim`)\n- Non-stationary environments require some form of forgetting or change detection\n- Tighter confidence bounds (e.g., using KL divergence instead of Hoeffding) give better performance on stationary Bernoulli bandits\n- The `scipy` and `numpy` libraries are available for numerical computation\n",
+    "baselines": [
+      "ucb1",
+      "thompson_sampling",
+      "kl_ucb"
+    ],
+    "environments": [
+      "stochastic-mab",
+      "contextual",
+      "nonstationary"
+    ],
+    "packages": [
+      "SMPyBandits"
+    ],
+    "files": [
+      {
+        "filename": "SMPyBandits/custom_bandit.py",
+        "edit_ranges": [
+          {
+            "start": 261,
+            "end": 321
+          }
+        ]
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "optimization-pac-bayes-bound",
+    "category": "opt",
+    "category_label": "Optimization",
+    "description_md": "# Task: PAC-Bayes Generalization Bound Optimization\n\n## Research Question\nDesign a tighter PAC-Bayes generalization bound by optimizing the bound formulation, prior/posterior parameterization, and KL divergence estimation for stochastic neural networks.\n\n## Background\nPAC-Bayes theory provides non-vacuous generalization bounds for stochastic classifiers. Given a prior distribution P over hypotheses (chosen before seeing data) and a posterior Q (learned from data), PAC-Bayes bounds certify that with high probability (1-delta), the true risk of a stochastic classifier sampled from Q is bounded.\n\nThe key components of a PAC-Bayes bound are:\n- **Empirical risk**: estimated loss of the stochastic predictor on training data\n- **KL divergence**: KL(Q||P) measuring complexity of the posterior relative to the prior\n- **Bound formula**: how these terms combine to yield the final certificate\n\nStandard bounds include:\n- **McAllester/Maurer**: risk + sqrt(KL_term / (2n)) -- simple but loose\n- **Catoni/Lambda**: risk/(1-lam/2) + KL_term/(n*lam*(1-lam/2)) -- tighter with tuned lambda\n- **Quadratic**: (sqrt(risk + KL_term) + sqrt(KL_term))^2 -- better at low risk\n\nThe bound can be further tightened through:\n- Optimizing the bound functional form (beyond classical inequalities)\n- Better training objectives that minimize the bound directly\n- Improved risk certificate evaluation (e.g., PAC-Bayes-kl inversion)\n- Data-dependent prior construction\n- Tighter KL estimation or alternative divergence measures\n\n## What to Implement\nImplement the `BoundOptimizer` class in `custom_pac_bayes.py`. You must implement:\n1. `compute_bound(empirical_risk, kl, n, delta)`: The PAC-Bayes bound formula\n2. `train_step(model, data, target, device, n_bound, delta)`: Training objective\n3. `compute_risk_certificate(model, bound_loader, device, delta, mc_samples)`: Final certificate evaluation\n\n## Interface\n- `model(x, sample=True/False)`: stochastic forward pass (sample=True) or posterior mean (sample=False)\n- `get_total_kl(model)`: sum of KL divergence across all probabilistic layers\n- `inv_kl(q, c)`: binary KL inversion -- find p such that KL(Ber(q)||Ber(p)) = c\n- `compute_01_risk(model, loader, device, mc_samples)`: MC estimate of 0-1 risk\n- Available losses: F.nll_loss, F.cross_entropy on log_softmax outputs\n\n## Evaluation\nThe bound optimizer is tested on three settings:\n1. **MNIST-FCN**: 4-layer fully connected network (784-600-600-600-10) on MNIST\n2. **MNIST-CNN**: 4-layer CNN (2 conv + 2 fc) on MNIST\n3. **FashionMNIST-CNN**: Same CNN architecture on FashionMNIST\n\n**Primary metric**: `risk_certificate` (0-1 loss PAC-Bayes bound) -- **lower is better** (tighter bound).\n\nTraining uses data-dependent priors: 50% of training data trains a deterministic prior, 50% evaluates the bound.\n\n## Hints\n- The PAC-Bayes-kl bound (Langford-Seeger) is often tighter than closed-form alternatives for certificate evaluation\n- The training objective need not be the same formula as the certificate -- NLL surrogates work well\n- Lambda/temperature parameters in Catoni-style bounds can be learned jointly\n- Consider hybrid approaches that combine elements from different bound types\n- Controlling the KL term through regularization or prior choice can significantly tighten bounds\n- The `pmin` parameter clamps log-probabilities to prevent numerical issues\n",
+    "baselines": [
+      "mcallester",
+      "catoni",
+      "quadratic"
+    ],
+    "environments": [
+      "mnist-fcn",
+      "mnist-cnn",
+      "fmnist-cnn"
+    ],
+    "packages": [
+      "PBB"
+    ],
+    "files": [
+      {
+        "filename": "PBB/custom_pac_bayes.py",
+        "edit_ranges": [
+          {
+            "start": 460,
+            "end": 604
+          }
+        ]
+      },
+      {
+        "filename": "PBB/pbb/models.py",
+        "edit_ranges": []
+      },
+      {
+        "filename": "PBB/pbb/utils.py",
+        "edit_ranges": []
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
     "id": "optimization-parity",
     "category": "opt",
     "category_label": "Optimization",
@@ -4550,6 +4558,39 @@
           {
             "start": 220,
             "end": 255
+          }
+        ]
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
+  },
+  {
+    "id": "optimization-variance-reduction",
+    "category": "opt",
+    "category_label": "Optimization",
+    "description_md": "# Variance Reduction for Stochastic Optimization\n\n## Research Question\nDesign an improved variance reduction strategy for stochastic gradient descent on finite-sum optimization problems. Your method should accelerate convergence compared to vanilla mini-batch SGD by reducing the variance of gradient estimates.\n\n## Background\nMany machine learning problems take the form of finite-sum optimization:\n\n    min_x  F(x) = (1/n) * sum_{i=1}^{n} f_i(x)\n\nStandard SGD uses a stochastic gradient from a random mini-batch, which has variance proportional to 1/b (where b is the batch size). Variance reduction methods use auxiliary information (snapshots, recursive corrections, momentum) to reduce this variance, enabling faster convergence -- often achieving linear convergence rates for strongly convex problems where SGD only achieves sublinear rates.\n\nKey methods in this area include SVRG (periodic full gradient + control variate), SARAH (recursive gradient correction), STORM (momentum-based online variance reduction), SPIDER, and PAGE.\n\n## Task\nModify the `VarianceReductionOptimizer` class in `custom_vr.py` (lines 286-370). You must implement:\n\n1. **`__init__(self, model, lr, l2_reg, loss_type, n_train, batch_size, device)`**: Initialize any state needed for variance reduction (snapshot parameters, running gradient estimates, buffers, etc.)\n2. **`train_one_epoch(self, X_train, y_train)`**: Train for one epoch over the data, returning a dict with at least `'avg_loss'` (and optionally `'full_grad_count'` if you use full gradient computations)\n\nThe default implementation is vanilla mini-batch SGD. Your goal is to design a variance reduction mechanism that improves convergence.\n\n## Interface\n\n### Available helper functions (FIXED, use these for gradient computation):\n```python\ncompute_full_gradient(model, X_train, y_train, loss_type, l2_reg, device)\n# -> returns list of gradient tensors (one per parameter)\n\ncompute_stochastic_gradient(model, X_batch, y_batch, loss_type, l2_reg)\n# -> returns list of gradient tensors for a mini-batch\n\ncompute_loss_on_batch(model, X_batch, y_batch, loss_type, l2_reg)\n# -> returns scalar loss tensor\n```\n\n### Constraints\n- You may call `compute_full_gradient` at most once per epoch\n- Parameter updates must use `p.data.add_(...)` or similar in-place operations\n- Must work across all three problems with the same code\n- The learning rate (`self.lr`) and L2 regularization (`self.l2_reg`) are fixed\n- Do not modify the model architecture, loss function, or evaluation code\n\n## Evaluation\n- **Problems**:\n  - `logistic`: L2-regularized multinomial logistic regression on MNIST (convex, n=60K, 20 epochs)\n  - `mlp`: 2-layer MLP on CIFAR-10 (non-convex, n=50K, 40 epochs)\n  - `conditioned`: L2-regularized linear regression on synthetic ill-conditioned data (strongly convex, kappa=100, n=10K, 30 epochs)\n- **Metrics**: `best_test_accuracy` (logistic, mlp; higher is better) and `best_test_mse` (conditioned; lower is better)\n- All three problems run in parallel with shared compute\n\n## Hints\n- The control variate trick (SVRG-style) subtracts correlated noise: v = grad_i(x) - grad_i(x_snap) + mu\n- Recursive estimators (SARAH-style) accumulate corrections without a fixed reference point\n- Momentum-based methods (STORM-style) achieve variance reduction without needing periodic full gradients\n- Consider the trade-off between full gradient computation cost and variance reduction benefit\n- For non-convex problems, biased estimators with lower variance can sometimes outperform unbiased ones\n- Combining ideas (e.g., momentum + control variates) may yield better results\n",
+    "baselines": [
+      "svrg",
+      "sarah",
+      "storm"
+    ],
+    "environments": [
+      "logistic",
+      "mlp",
+      "conditioned"
+    ],
+    "packages": [
+      "opt-vr-bench"
+    ],
+    "files": [
+      {
+        "filename": "opt-vr-bench/custom_vr.py",
+        "edit_ranges": [
+          {
+            "start": 286,
+            "end": 370
           }
         ]
       }
@@ -5185,15 +5226,13 @@
     "id": "rl-intrinsic-exploration",
     "category": "rl",
     "category_label": "Reinforcement Learning",
-    "description_md": "# RL Intrinsic Exploration: Sparse-Reward Novelty Bonus Design\n\n## Research Question\nDesign an intrinsic exploration mechanism that improves sparse-reward discovery in hard-exploration Atari environments.\n\n## Background\nIn sparse-reward reinforcement learning, external rewards arrive too infrequently for vanilla policy optimization to learn efficiently. A common solution is to add an **intrinsic reward** that encourages novelty, surprise, or state-space coverage.\n\nThis task isolates that question. The PPO training loop, Atari preprocessing, policy/value architecture, and optimization setup are fixed. The only thing you should redesign is the intrinsic bonus module and how its signal is mixed into learning.\n\nReference algorithm families include:\n- **No bonus / vanilla PPO**: learns only from clipped extrinsic reward\n- **RND**: rewards prediction error against a fixed random target network\n- **ICM**: rewards forward-dynamics prediction error in learned feature space\n- **SimHash count bonus**: rewards low-count states under a fixed hashed visitation table\n\n## Task\nModify the editable section of `custom_intrinsic_exploration.py`:\n- `IntrinsicBonusModule`: define how intrinsic rewards are computed and trained\n- `mix_advantages(...)`: define how extrinsic and intrinsic advantages are combined\n\nThe editable code must keep the public interface intact:\n- `initialize(envs)`\n- `trainable_parameters()`\n- `update_batch_stats(batch_obs, batch_next_obs)`\n- `compute_bonus(obs, next_obs, actions)`\n- `normalize_rollout_rewards(rollout_intrinsic)`\n- `loss(batch_obs, batch_next_obs, batch_actions)`\n- `mix_advantages(ext_advantages, int_advantages, args)`\n\n## Evaluation\nThe agent is trained with the same fixed PPO-style loop on four sparse-reward Atari environments:\n- **MontezumaRevenge-v5**\n- **Tutankham-v5**\n- **Venture-v5**\n- **PrivateEye-v5**\n\n`MontezumaRevenge-v5`, `Tutankham-v5`, and `Venture-v5` are visible during development. `PrivateEye-v5` is held out as the hidden evaluation environment.\n\nMetrics:\n- `eval_return`: mean evaluation episodic return at a fixed training budget\n- `auc`: area under the evaluation-return curve across training\n- `nonzero_rate`: fraction of evaluation episodes with non-zero episodic return\n\nEvaluation uses deterministic rollouts with a fixed per-episode step cap so a non-terminating Atari behavior cannot stall the benchmark.\n\nImprovement must transfer across multiple games; a method that only helps one environment is not sufficient. `Tutankham-v5` is included as a medium-difficulty visible environment so baseline ranking is measurable at a modest training budget before transfer is checked on harder games.\n\n## Hints\n- Intrinsic rewards are often unstable unless normalized over time\n- Sparse-reward exploration benefits from balancing short-term novelty and longer-horizon return\n- Atari observations are image stacks; your bonus can use current state, next state, and action\n- A useful intrinsic signal should help discovery without overwhelming the extrinsic objective\n",
+    "description_md": "# RL Intrinsic Exploration: Sparse-Reward Novelty Bonus Design\n\n## Research Question\nDesign an intrinsic exploration mechanism that improves sparse-reward discovery in hard-exploration Atari environments.\n\n## Background\nIn sparse-reward reinforcement learning, external rewards arrive too infrequently for vanilla policy optimization to learn efficiently. A common solution is to add an **intrinsic reward** that encourages novelty, surprise, or state-space coverage.\n\nThis task isolates that question. The PPO training loop, Atari preprocessing, policy/value architecture, and optimization setup are fixed. The only thing you should redesign is the intrinsic bonus module and how its signal is mixed into learning.\n\nReference algorithm families include:\n- **No bonus / vanilla PPO**: learns only from clipped extrinsic reward\n- **RND**: rewards prediction error against a fixed random target network\n- **ICM**: rewards forward-dynamics prediction error in learned feature space\n\n## Task\nModify the editable section of `custom_intrinsic_exploration.py`:\n- `IntrinsicBonusModule`: define how intrinsic rewards are computed and trained\n- `mix_advantages(...)`: define how extrinsic and intrinsic advantages are combined\n\nThe editable code must keep the public interface intact:\n- `initialize(envs)`\n- `trainable_parameters()`\n- `update_batch_stats(batch_obs, batch_next_obs)`\n- `compute_bonus(obs, next_obs, actions)`\n- `normalize_rollout_rewards(rollout_intrinsic)`\n- `loss(batch_obs, batch_next_obs, batch_actions)`\n- `mix_advantages(ext_advantages, int_advantages, args)`\n\n## Evaluation\nThe agent is trained with the same fixed PPO-style loop on three sparse-reward Atari environments:\n- **Tutankham-v5**\n- **Venture-v5**\n- **PrivateEye-v5**\n\n`Tutankham-v5` and `Venture-v5` are visible during development. `PrivateEye-v5` is held out as the hidden evaluation environment.\n\nMetrics:\n- `eval_return`: mean evaluation episodic return at a fixed training budget\n- `auc`: area under the evaluation-return curve across training\n- `nonzero_rate`: fraction of evaluation episodes with non-zero episodic return\n\nEvaluation uses deterministic rollouts with a fixed per-episode step cap so a non-terminating Atari behavior cannot stall the benchmark.\n\nImprovement must transfer across multiple games; a method that only helps one environment is not sufficient. `Tutankham-v5` is included as a medium-difficulty visible environment so baseline ranking is measurable at a modest training budget before transfer is checked on the harder visible and hidden games.\n\n## Hints\n- Intrinsic rewards are often unstable unless normalized over time\n- Sparse-reward exploration benefits from balancing short-term novelty and longer-horizon return\n- Atari observations are image stacks; your bonus can use current state, next state, and action\n- A useful intrinsic signal should help discovery without overwhelming the extrinsic objective\n",
     "baselines": [
       "ppo",
       "rnd",
-      "simhash-count",
       "icm"
     ],
     "environments": [
-      "montezuma-revenge-v5",
       "tutankham-v5",
       "venture-v5",
       "private-eye-v5"
@@ -5455,6 +5494,43 @@
     "rigorous_codebase": true,
     "allow_create": false,
     "has_agent_logs": true
+  },
+  {
+    "id": "rl-reward-learning",
+    "category": "rl",
+    "category_label": "Reinforcement Learning",
+    "description_md": "# Inverse RL: Reward Learning from Expert Demonstrations\n\n## Objective\nDesign and implement an inverse reinforcement learning (IRL) algorithm that learns a reward function from expert demonstrations. Your code goes in `custom_irl.py`, specifically the `RewardNetwork` and `IRLAlgorithm` classes. Three reference implementations (GAIL, AIRL, BC) from the `imitation` library are provided as read-only context.\n\n## Background\nInverse reinforcement learning recovers a reward function that explains observed expert behavior. The learned reward is then used to train a policy via standard RL (PPO in this benchmark). Key challenges include:\n- Designing reward network architectures that capture the structure of expert behavior\n- Balancing discriminator training with policy improvement\n- Avoiding reward hacking where the policy exploits learned reward artifacts\n- Ensuring the learned reward generalizes across different states visited during training\n\nDifferent IRL approaches address these through adversarial training (GAIL), potential-based reward shaping (AIRL), or direct behavioral cloning. Your goal is to design a novel reward network architecture or IRL training algorithm that outperforms these baselines.\n\n## Evaluation\nTrained and evaluated on three MuJoCo locomotion environments using pre-generated expert demonstrations: HalfCheetah-v4, Hopper-v4, Walker2d-v4. Metric: mean episodic return over 10 evaluation episodes (higher is better). The policy is trained using PPO with the learned reward signal.\n",
+    "baselines": [
+      "gail",
+      "airl",
+      "bc"
+    ],
+    "environments": [
+      "halfcheetah-v4",
+      "hopper-v4",
+      "walker2d-v4"
+    ],
+    "packages": [
+      "imitation"
+    ],
+    "files": [
+      {
+        "filename": "imitation/custom_irl.py",
+        "edit_ranges": [
+          {
+            "start": 231,
+            "end": 357
+          }
+        ]
+      },
+      {
+        "filename": "imitation/src/imitation/rewards/reward_nets.py",
+        "edit_ranges": []
+      }
+    ],
+    "rigorous_codebase": true,
+    "allow_create": false,
+    "has_agent_logs": false
   },
   {
     "id": "rl-value-atari",
@@ -6026,51 +6102,6 @@
             "end": 124
           }
         ]
-      }
-    ],
-    "rigorous_codebase": true,
-    "allow_create": false,
-    "has_agent_logs": false
-  },
-  {
-    "id": "sr-symbolic-regression",
-    "category": "sr",
-    "category_label": "Symbolic Regression",
-    "description_md": "# Symbolic Regression: GP Search Strategy\n\n## Objective\nDesign and implement a better genetic programming search strategy for symbolic regression. Your code goes in `custom_sr.py`. Three reference implementations (Standard GP, Parsimony GP, Lexicase GP) demonstrate different approaches.\n\n## Background\nSymbolic regression discovers mathematical expressions that fit data. Genetic programming evolves a population of expression trees through selection, crossover, and mutation. Key challenges include balancing exploration vs exploitation, controlling expression complexity (bloat), and escaping local optima. Different approaches address these through fitness shaping, novel selection mechanisms, or improved genetic operators.\n\n## Evaluation\nTested on three standard symbolic regression benchmarks: Nguyen-7 (univariate transcendental), Nguyen-10 (bivariate trigonometric), Koza-3 (univariate polynomial). Metric: R² on held-out test set (higher is better).\n",
-    "baselines": [
-      "standard_gp",
-      "parsimony_gp",
-      "lexicase_gp"
-    ],
-    "environments": [
-      "nguyen7",
-      "nguyen10",
-      "koza3"
-    ],
-    "packages": [
-      "gplearn"
-    ],
-    "files": [
-      {
-        "filename": "gplearn/custom_sr.py",
-        "edit_ranges": [
-          {
-            "start": 228,
-            "end": 306
-          }
-        ]
-      },
-      {
-        "filename": "gplearn/gplearn/genetic.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "gplearn/gplearn/_program.py",
-        "edit_ranges": []
-      },
-      {
-        "filename": "gplearn/gplearn/fitness.py",
-        "edit_ranges": []
       }
     ],
     "rigorous_codebase": true,

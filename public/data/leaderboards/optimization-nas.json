@@ -1,0 +1,46 @@
+{
+  "task_id": "optimization-nas",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "test_accuracy_CIFAR-10",
+    "test_accuracy_CIFAR-100",
+    "test_accuracy_ImageNet16-120"
+  ],
+  "metric_columns": [
+    "test_accuracy_CIFAR-10",
+    "test_accuracy_CIFAR-100",
+    "test_accuracy_ImageNet16-120"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-03-12T04:18:30.116463+00:00",
+      "model": "baseline:darts",
+      "is_final": true,
+      "seed": "42",
+      "test_accuracy_CIFAR-10": 92.95,
+      "test_accuracy_CIFAR-100": 71.7,
+      "test_accuracy_ImageNet16-120": 46.3333
+    },
+    {
+      "timestamp": "2026-03-12T04:14:59.918580+00:00",
+      "model": "baseline:random_search",
+      "is_final": true,
+      "seed": "42",
+      "test_accuracy_CIFAR-10": 93.83,
+      "test_accuracy_CIFAR-100": 73.14,
+      "test_accuracy_ImageNet16-120": 46.2333
+    },
+    {
+      "timestamp": "2026-03-12T04:18:30.118877+00:00",
+      "model": "baseline:rea",
+      "is_final": true,
+      "seed": "42",
+      "test_accuracy_CIFAR-10": 94.36,
+      "test_accuracy_CIFAR-100": 73.26,
+      "test_accuracy_ImageNet16-120": 47.0333
+    }
+  ]
+}

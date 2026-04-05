@@ -1,0 +1,81 @@
+{
+  "task_id": "cv-diffusion-architecture",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "fid",
+    "best_fid"
+  ],
+  "metric_columns": [
+    "fid",
+    "best_fid"
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-04-02T15:15:07.183562+00:00",
+      "model": "baseline:full-attn",
+      "is_final": true,
+      "seed": "42",
+      "fid": 130.58,
+      "best_fid": 131.03
+    },
+    {
+      "timestamp": "2026-04-04T15:20:01.676531+00:00",
+      "model": "baseline:full-attn",
+      "is_final": true,
+      "seed": "42",
+      "fid": 121.14,
+      "best_fid": 121.62
+    },
+    {
+      "timestamp": "2026-04-04T17:30:46.906086+00:00",
+      "model": "baseline:full-attn",
+      "is_final": true,
+      "seed": "42",
+      "fid": 77.95,
+      "best_fid": 78.51
+    },
+    {
+      "timestamp": "2026-04-04T13:51:54.381235+00:00",
+      "model": "baseline:no-attn",
+      "is_final": true,
+      "seed": "42",
+      "fid": 110.18,
+      "best_fid": 110.38
+    },
+    {
+      "timestamp": "2026-04-04T16:30:06.716058+00:00",
+      "model": "baseline:no-attn",
+      "is_final": true,
+      "seed": "42",
+      "fid": 77.25,
+      "best_fid": 77.5
+    },
+    {
+      "timestamp": "2026-04-02T14:44:15.848042+00:00",
+      "model": "baseline:standard",
+      "is_final": true,
+      "seed": "42",
+      "fid": 122.28,
+      "best_fid": 122.23
+    },
+    {
+      "timestamp": "2026-04-04T13:25:05.730968+00:00",
+      "model": "baseline:standard",
+      "is_final": true,
+      "seed": "42",
+      "fid": 161.58,
+      "best_fid": 161.61
+    },
+    {
+      "timestamp": "2026-04-04T15:55:57.652292+00:00",
+      "model": "baseline:standard",
+      "is_final": true,
+      "seed": "42",
+      "fid": 72.86,
+      "best_fid": 73.25
+    }
+  ]
+}

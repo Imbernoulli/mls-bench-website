@@ -40,20 +40,6 @@
       "ar-video-kv-temporal-policy"
     ]
   },
-  "automl": {
-    "id": "automl",
-    "label": "AutoML",
-    "tasks": [
-      "automl-nas-search"
-    ]
-  },
-  "bo": {
-    "id": "bo",
-    "label": "Bayesian Optimization",
-    "tasks": [
-      "bo-acquisition-function"
-    ]
-  },
   "causal": {
     "id": "causal",
     "label": "Causal Inference",
@@ -65,13 +51,6 @@
       "causal-treatment-effect"
     ]
   },
-  "cl": {
-    "id": "cl",
-    "label": "Continual Learning",
-    "tasks": [
-      "cl-regularization"
-    ]
-  },
   "cv": {
     "id": "cv",
     "label": "Computer Vision",
@@ -80,6 +59,7 @@
       "cv-data-augmentation",
       "cv-dbm-sampler",
       "cv-dbm-scheduler",
+      "cv-diffusion-architecture",
       "cv-diffusion-cfg",
       "cv-diffusion-conditioning",
       "cv-diffusion-efficiency",
@@ -132,13 +112,6 @@
       "mas-topology"
     ]
   },
-  "fed": {
-    "id": "fed",
-    "label": "Federated Learning",
-    "tasks": [
-      "fed-aggregation-strategy"
-    ]
-  },
   "graph": {
     "id": "graph",
     "label": "Graph Learning",
@@ -155,7 +128,6 @@
     "id": "rl",
     "label": "Reinforcement Learning",
     "tasks": [
-      "irl-reward-learning",
       "libero-lifelong",
       "rl-intrinsic-exploration",
       "rl-offline-adroit",
@@ -165,6 +137,7 @@
       "rl-offline-pomdp",
       "rl-offpolicy-continuous",
       "rl-onpolicy-continuous",
+      "rl-reward-learning",
       "rl-value-atari",
       "rl-value-discrete",
       "safe-exploration-fixed-budget",
@@ -176,9 +149,6 @@
     "label": "Language Models",
     "tasks": [
       "llm-hybrid-posttraining",
-      "llm-kv-adaptive-quantization",
-      "llm-kv-selection-budgeting",
-      "llm-kv-structural-reduction",
       "llm-offline-rl",
       "llm-pretrain-attention",
       "llm-pretrain-embedding",
@@ -202,6 +172,17 @@
       "llm-ttt-adaptation"
     ]
   },
+  "mlsys": {
+    "id": "mlsys",
+    "label": "ML Systems",
+    "tasks": [
+      "llm-kv-adaptive-quantization",
+      "llm-kv-selection-budgeting",
+      "llm-kv-structural-reduction",
+      "mlsys-moe-load-balance",
+      "mlsys-sparse-attention"
+    ]
+  },
   "ml": {
     "id": "ml",
     "label": "Classical ML",
@@ -213,40 +194,37 @@
       "ml-anomaly-detection",
       "ml-calibration",
       "ml-clustering-algorithm",
+      "ml-continual-regularization",
       "ml-dimensionality-reduction",
       "ml-ensemble-boosting",
       "ml-feature-selection",
+      "ml-federated-aggregation",
       "ml-missing-data-imputation",
       "ml-selective-deferral",
       "ml-subgroup-calibration-shift",
       "ml-svm-kernel",
+      "ml-symbolic-regression",
       "ml-tree-split-criterion"
-    ]
-  },
-  "mlsys": {
-    "id": "mlsys",
-    "label": "ML Systems",
-    "tasks": [
-      "mlsys-moe-load-balance",
-      "mlsys-sparse-attention"
     ]
   },
   "opt": {
     "id": "opt",
     "label": "Optimization",
     "tasks": [
-      "opt-convex-acceleration",
-      "opt-dp-sgd",
-      "opt-evolution-strategy",
-      "opt-gradient-compression",
-      "opt-hyperparameter-search",
-      "opt-multi-objective",
-      "opt-online-bandit",
-      "opt-pac-bayes-bound",
-      "opt-variance-reduction",
+      "optimization-bayesian-acquisition",
       "optimization-bilevel",
+      "optimization-convex-acceleration",
       "optimization-convex-concave",
-      "optimization-parity"
+      "optimization-dp-sgd",
+      "optimization-evolution-strategy",
+      "optimization-gradient-compression",
+      "optimization-hyperparameter-search",
+      "optimization-multi-objective",
+      "optimization-nas",
+      "optimization-online-bandit",
+      "optimization-pac-bayes-bound",
+      "optimization-parity",
+      "optimization-variance-reduction"
     ]
   },
   "pde": {
@@ -289,13 +267,6 @@
       "speech-enhancement",
       "speech-speaker-embedding",
       "speech-vocoder"
-    ]
-  },
-  "sr": {
-    "id": "sr",
-    "label": "Symbolic Regression",
-    "tasks": [
-      "sr-symbolic-regression"
     ]
   },
   "ts": {

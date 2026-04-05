@@ -10,7 +10,10 @@
     "accuracy_CUB",
     "accuracy_mini_imagenet_std",
     "accuracy_cifar_fs_std",
-    "accuracy_CUB_std"
+    "accuracy_CUB_std",
+    "elapsed_mini_imagenet",
+    "elapsed_cifar_fs",
+    "elapsed_CUB"
   ],
   "metric_columns": [
     "accuracy_mini_imagenet",
@@ -28,7 +31,10 @@
       "accuracy_CUB": 0.6269,
       "accuracy_mini_imagenet_std": null,
       "accuracy_cifar_fs_std": null,
-      "accuracy_CUB_std": null
+      "accuracy_CUB_std": null,
+      "elapsed_mini_imagenet": null,
+      "elapsed_cifar_fs": null,
+      "elapsed_CUB": null
     },
     {
       "timestamp": "2026-03-13T20:30:02.735674+00:00",
@@ -40,7 +46,10 @@
       "accuracy_CUB": 0.523,
       "accuracy_mini_imagenet_std": null,
       "accuracy_cifar_fs_std": null,
-      "accuracy_CUB_std": null
+      "accuracy_CUB_std": null,
+      "elapsed_mini_imagenet": null,
+      "elapsed_cifar_fs": null,
+      "elapsed_CUB": null
     },
     {
       "timestamp": "2026-03-13T20:30:02.739147+00:00",
@@ -52,7 +61,10 @@
       "accuracy_CUB": 0.4575,
       "accuracy_mini_imagenet_std": null,
       "accuracy_cifar_fs_std": null,
-      "accuracy_CUB_std": null
+      "accuracy_CUB_std": null,
+      "elapsed_mini_imagenet": null,
+      "elapsed_cifar_fs": null,
+      "elapsed_CUB": null
     },
     {
       "timestamp": "2026-03-13T20:30:02.739379+00:00",
@@ -64,7 +76,10 @@
       "accuracy_CUB": 0.5358,
       "accuracy_mini_imagenet_std": 0.026274195198584697,
       "accuracy_cifar_fs_std": 0.0950499517797528,
-      "accuracy_CUB_std": 0.08542230387902214
+      "accuracy_CUB_std": 0.08542230387902214,
+      "elapsed_mini_imagenet": null,
+      "elapsed_cifar_fs": null,
+      "elapsed_CUB": null
     },
     {
       "timestamp": "2026-03-13T20:20:07.983702+00:00",
@@ -76,7 +91,10 @@
       "accuracy_CUB": 0.7536,
       "accuracy_mini_imagenet_std": null,
       "accuracy_cifar_fs_std": null,
-      "accuracy_CUB_std": null
+      "accuracy_CUB_std": null,
+      "elapsed_mini_imagenet": null,
+      "elapsed_cifar_fs": null,
+      "elapsed_CUB": null
     },
     {
       "timestamp": "2026-03-13T20:20:07.979099+00:00",
@@ -88,7 +106,10 @@
       "accuracy_CUB": 0.7531,
       "accuracy_mini_imagenet_std": null,
       "accuracy_cifar_fs_std": null,
-      "accuracy_CUB_std": null
+      "accuracy_CUB_std": null,
+      "elapsed_mini_imagenet": null,
+      "elapsed_cifar_fs": null,
+      "elapsed_CUB": null
     },
     {
       "timestamp": "2026-03-13T20:20:07.984095+00:00",
@@ -100,7 +121,10 @@
       "accuracy_CUB": 0.7622,
       "accuracy_mini_imagenet_std": null,
       "accuracy_cifar_fs_std": null,
-      "accuracy_CUB_std": null
+      "accuracy_CUB_std": null,
+      "elapsed_mini_imagenet": null,
+      "elapsed_cifar_fs": null,
+      "elapsed_CUB": null
     },
     {
       "timestamp": "2026-03-13T20:20:07.984283+00:00",
@@ -112,7 +136,55 @@
       "accuracy_CUB": 0.7563,
       "accuracy_mini_imagenet_std": 0.0032419130154894477,
       "accuracy_cifar_fs_std": 0.006401041581909381,
-      "accuracy_CUB_std": 0.005115662224971449
+      "accuracy_CUB_std": 0.005115662224971449,
+      "elapsed_mini_imagenet": null,
+      "elapsed_cifar_fs": null,
+      "elapsed_CUB": null
+    },
+    {
+      "timestamp": "2026-04-04T20:04:38.877298+00:00",
+      "model": "baseline:relationnet",
+      "is_final": true,
+      "seed": "42",
+      "accuracy_mini_imagenet": null,
+      "accuracy_cifar_fs": null,
+      "accuracy_CUB": null,
+      "accuracy_mini_imagenet_std": null,
+      "accuracy_cifar_fs_std": null,
+      "accuracy_CUB_std": null,
+      "elapsed_mini_imagenet": 5.0,
+      "elapsed_cifar_fs": 5.0,
+      "elapsed_CUB": 5.0
+    },
+    {
+      "timestamp": "2026-04-05T02:55:42.301150+00:00",
+      "model": "baseline:relationnet",
+      "is_final": true,
+      "seed": "42",
+      "accuracy_mini_imagenet": null,
+      "accuracy_cifar_fs": null,
+      "accuracy_CUB": null,
+      "accuracy_mini_imagenet_std": null,
+      "accuracy_cifar_fs_std": null,
+      "accuracy_CUB_std": null,
+      "elapsed_mini_imagenet": null,
+      "elapsed_cifar_fs": 8.9,
+      "elapsed_CUB": null
+    },
+    {
+      "timestamp": "2026-04-05T05:19:07.981913+00:00",
+      "model": "baseline:relationnet",
+      "is_final": true,
+      "seed": "42",
+      "accuracy_mini_imagenet": 0.7038,
+      "accuracy_cifar_fs": null,
+      "accuracy_CUB": 0.876,
+      "accuracy_mini_imagenet_std": null,
+      "accuracy_cifar_fs_std": null,
+      "accuracy_CUB_std": null,
+      "elapsed_mini_imagenet": 5477.5,
+      "elapsed_cifar_fs": null,
+      "elapsed_CUB": 8614.6
     }
   ]
 }

@@ -8,51 +8,51 @@
     "elapsed_EC",
     "elapsed_GO-BP",
     "elapsed_Fold",
+    "accuracy_EC",
+    "test_loss_EC",
     "f1_max_GO-BP",
     "test_loss_GO-BP",
     "accuracy_Fold",
-    "test_loss_Fold",
-    "f1_max_EC",
-    "test_loss_EC"
+    "test_loss_Fold"
   ],
   "metric_columns": [
+    "accuracy_EC",
+    "test_loss_EC",
     "f1_max_GO-BP",
     "test_loss_GO-BP",
     "accuracy_Fold",
-    "test_loss_Fold",
-    "f1_max_EC",
-    "test_loss_EC"
+    "test_loss_Fold"
   ],
   "rows": [
     {
-      "timestamp": "2026-04-01T10:03:38.124706+00:00",
+      "timestamp": "2026-04-02T05:20:53.000000+00:00",
       "model": "baseline:egnn",
       "is_final": true,
       "seed": "42",
-      "elapsed_EC": 4625.0,
+      "elapsed_EC": 4620.0,
       "elapsed_GO-BP": 0.0,
-      "elapsed_Fold": 1199.0,
-      "f1_max_GO-BP": null,
-      "test_loss_GO-BP": null,
-      "accuracy_Fold": 0.179666,
-      "test_loss_Fold": 4.835683,
-      "f1_max_EC": null,
-      "test_loss_EC": null
+      "elapsed_Fold": 1192.0,
+      "accuracy_EC": null,
+      "test_loss_EC": 0.020225,
+      "f1_max_GO-BP": 0.245565,
+      "test_loss_GO-BP": 0.164823,
+      "accuracy_Fold": 0.13649,
+      "test_loss_Fold": 5.121021
     },
     {
-      "timestamp": "2026-04-01T09:15:31.210169+00:00",
+      "timestamp": "2026-04-02T05:20:53.000000+00:00",
       "model": "baseline:gearnet",
       "is_final": true,
       "seed": "42",
-      "elapsed_EC": 1473.0,
+      "elapsed_EC": 1510.0,
       "elapsed_GO-BP": 0.0,
-      "elapsed_Fold": 450.0,
-      "f1_max_GO-BP": 0.004358,
-      "test_loss_GO-BP": 0.160216,
-      "accuracy_Fold": null,
-      "test_loss_Fold": null,
-      "f1_max_EC": null,
-      "test_loss_EC": null
+      "elapsed_Fold": 452.0,
+      "accuracy_EC": null,
+      "test_loss_EC": 0.01786,
+      "f1_max_GO-BP": 0.277338,
+      "test_loss_GO-BP": 0.162721,
+      "accuracy_Fold": 0.328691,
+      "test_loss_Fold": 5.937312
     },
     {
       "timestamp": "2026-04-03T14:13:02.373696+00:00",
@@ -62,12 +62,12 @@
       "elapsed_EC": 995.0,
       "elapsed_GO-BP": 0.0,
       "elapsed_Fold": 310.0,
+      "accuracy_EC": null,
+      "test_loss_EC": 0.019784,
       "f1_max_GO-BP": 0.250694,
       "test_loss_GO-BP": 0.162859,
       "accuracy_Fold": 0.157382,
-      "test_loss_Fold": 6.01958,
-      "f1_max_EC": 0.006835,
-      "test_loss_EC": 0.019784
+      "test_loss_Fold": 6.01958
     }
   ]
 }

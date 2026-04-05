@@ -10,12 +10,24 @@
     "elapsed_Solubility",
     "spearman_Beta",
     "pearson_Beta",
-    "mse_Beta"
+    "mse_Beta",
+    "spearman_Fluorescence",
+    "pearson_Fluorescence",
+    "mse_Fluorescence",
+    "spearman_Solubility",
+    "pearson_Solubility",
+    "mse_Solubility"
   ],
   "metric_columns": [
     "spearman_Beta",
     "pearson_Beta",
-    "mse_Beta"
+    "mse_Beta",
+    "spearman_Fluorescence",
+    "pearson_Fluorescence",
+    "mse_Fluorescence",
+    "spearman_Solubility",
+    "pearson_Solubility",
+    "mse_Solubility"
   ],
   "rows": [
     {
@@ -24,11 +36,17 @@
       "is_final": true,
       "seed": "42",
       "elapsed_Beta": 318.0,
-      "elapsed_Fluorescence": null,
-      "elapsed_Solubility": null,
+      "elapsed_Fluorescence": 1547.0,
+      "elapsed_Solubility": 1547.0,
       "spearman_Beta": 0.688562,
       "pearson_Beta": 0.740668,
-      "mse_Beta": 0.04678
+      "mse_Beta": 0.04678,
+      "spearman_Fluorescence": 0.683287,
+      "pearson_Fluorescence": 0.947941,
+      "mse_Fluorescence": 0.099166,
+      "spearman_Solubility": 0.460372,
+      "pearson_Solubility": 0.492482,
+      "mse_Solubility": 0.193711
     },
     {
       "timestamp": "2026-04-01T12:12:09.036092+00:00",
@@ -36,11 +54,17 @@
       "is_final": true,
       "seed": "42",
       "elapsed_Beta": 285.0,
-      "elapsed_Fluorescence": null,
-      "elapsed_Solubility": null,
+      "elapsed_Fluorescence": 3078.0,
+      "elapsed_Solubility": 5288.0,
       "spearman_Beta": 0.229821,
       "pearson_Beta": 0.264394,
-      "mse_Beta": 0.103564
+      "mse_Beta": 0.103564,
+      "spearman_Fluorescence": 0.510301,
+      "pearson_Fluorescence": 0.584001,
+      "mse_Fluorescence": 1.039847,
+      "spearman_Solubility": 0.509577,
+      "pearson_Solubility": 0.507991,
+      "mse_Solubility": 0.191443
     },
     {
       "timestamp": "2026-04-01T12:01:12.432795+00:00",
@@ -48,11 +72,17 @@
       "is_final": true,
       "seed": "42",
       "elapsed_Beta": 136.0,
-      "elapsed_Fluorescence": null,
-      "elapsed_Solubility": null,
+      "elapsed_Fluorescence": 2000.0,
+      "elapsed_Solubility": 3822.0,
       "spearman_Beta": 0.092329,
       "pearson_Beta": 0.092457,
-      "mse_Beta": 0.103928
+      "mse_Beta": 0.103928,
+      "spearman_Fluorescence": 0.408635,
+      "pearson_Fluorescence": 0.377136,
+      "mse_Fluorescence": 1.873889,
+      "spearman_Solubility": 0.529361,
+      "pearson_Solubility": 0.53163,
+      "mse_Solubility": 0.184978
     }
   ]
 }
