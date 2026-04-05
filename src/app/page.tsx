@@ -13,9 +13,26 @@ export default function HomePage() {
   const tasksWithLogs = tasks.filter((t) => t.has_agent_logs).length;
   const allPackages = new Set(tasks.flatMap((t) => t.packages));
 
+  // Build hierarchical data: category → subcategory → tasks
   const catData = Object.values(categories)
     .filter((c) => c.id !== "demo")
-    .map((c) => ({ name: c.label, count: c.tasks.length, id: c.id }))
+    .map((c) => {
+      // Derive subcategories from task IDs
+      const subs: Record<string, string[]> = {};
+      for (const tid of c.tasks) {
+        const segs = tid.split("-");
+        const sub = segs[0] === c.id && segs.length > 1 ? segs[1] : segs[0];
+        (subs[sub] ??= []).push(tid);
+      }
+      return {
+        name: c.label,
+        id: c.id,
+        count: c.tasks.length,
+        subcategories: Object.entries(subs)
+          .map(([sub, tasks]) => ({ name: sub, count: tasks.length }))
+          .sort((a, b) => b.count - a.count),
+      };
+    })
     .sort((a, b) => b.count - a.count);
 
   return (

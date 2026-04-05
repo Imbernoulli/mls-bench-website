@@ -12,10 +12,16 @@ const COLORS = [
   "#0891b2", "#65a30d", "#ea580c", "#4f46e5",
 ];
 
+interface SubCat {
+  name: string;
+  count: number;
+}
+
 interface CatItem {
   name: string;
   count: number;
   id: string;
+  subcategories: SubCat[];
 }
 
 interface Props {
@@ -27,65 +33,90 @@ export default function CategoryTreemap({ data }: Props) {
 
   const handleClick = useCallback(
     (node: any) => {
-      const id = node.data?.catId || node.data?.id;
-      if (id) router.push(`/categories/${id}`);
+      // Navigate to category page when clicking any node
+      const catId = node.data?.catId || node.data?.parentCatId;
+      if (catId) router.push(`/categories/${catId}`);
     },
     [router]
   );
 
-  // Nivo treemap expects a hierarchical root node
+  // Build color map: category id → color
+  const colorMap: Record<string, string> = {};
+  data.forEach((d, i) => {
+    colorMap[d.id] = COLORS[i % COLORS.length];
+  });
+
+  // Build hierarchical tree for nivo
   const treeData = {
-    id: "root",
-    children: data.map((d, i) => ({
-      id: d.name,
-      catId: d.id,
-      value: d.count,
-      color: COLORS[i % COLORS.length],
+    id: "MLS-Bench",
+    children: data.map((cat) => ({
+      id: cat.name,
+      catId: cat.id,
+      color: colorMap[cat.id],
+      children: cat.subcategories.map((sub) => ({
+        id: sub.name,
+        parentCatId: cat.id,
+        value: sub.count,
+      })),
     })),
   };
 
   return (
-    <div style={{ height: 420 }}>
+    <div style={{ height: 460 }}>
       <ResponsiveTreeMap
         data={treeData}
         identity="id"
         value="value"
-        leavesOnly
-        innerPadding={4}
-        outerPadding={2}
-        colors={(node: any) => node.data.color || "#999"}
-        borderWidth={0}
-        /* borderRadius not supported in this nivo version */
-        label={(node: any) => `${node.id}`}
-        labelSkipSize={40}
-        labelTextColor="#fff"
+        tile="squarify"
+        leavesOnly={false}
+        innerPadding={3}
+        outerPadding={3}
+        parentLabelPosition="top"
+        parentLabelPadding={14}
+        parentLabelSize={20}
         parentLabelTextColor="#fff"
-        nodeOpacity={0.85}
+        colors={(node: any) => {
+          // Use parent's color for leaves, own color for parents
+          const c = node.data?.color || colorMap[node.data?.parentCatId] || "#999";
+          return c;
+        }}
+        nodeOpacity={0.88}
+        borderWidth={2}
+        borderColor={{ from: "color", modifiers: [["darker", 0.3]] }}
+        label={(node: any) => node.id}
+        labelSkipSize={28}
+        labelTextColor="#fff"
         animate={false}
         onClick={handleClick}
-        tooltip={({ node }: any) => (
-          <div
-            style={{
-              background: "#fff",
-              border: "1px solid #e5e5e5",
-              borderRadius: 6,
-              padding: "8px 12px",
-              fontSize: 13,
-              boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-            }}
-          >
-            <strong>{node.id}</strong>
-            <div style={{ color: "#666", marginTop: 2 }}>
-              {node.value} tasks
+        tooltip={({ node }: any) => {
+          const isLeaf = !node.data?.children;
+          const parentName = node.parent?.id;
+          return (
+            <div
+              style={{
+                background: "#fff",
+                border: "1px solid #e5e5e5",
+                borderRadius: 6,
+                padding: "8px 12px",
+                fontSize: 13,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+              }}
+            >
+              {isLeaf && parentName && parentName !== "MLS-Bench" && (
+                <div style={{ color: "#999", fontSize: 11, marginBottom: 2 }}>
+                  {parentName}
+                </div>
+              )}
+              <strong>{node.id}</strong>
+              <div style={{ color: "#666", marginTop: 2 }}>
+                {node.value} task{node.value !== 1 ? "s" : ""}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        }}
         theme={{
           labels: {
-            text: {
-              fontSize: 12,
-              fontWeight: 400,
-            },
+            text: { fontSize: 11, fontWeight: 400 },
           },
         }}
       />
