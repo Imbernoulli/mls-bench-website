@@ -17,13 +17,10 @@
     "elapsed_nonstationary",
     "cumulative_regret_stochastic_mab_std",
     "normalized_regret_stochastic_mab_std",
-    "elapsed_stochastic-mab_std",
     "cumulative_regret_contextual_std",
     "normalized_regret_contextual_std",
-    "elapsed_contextual_std",
     "cumulative_regret_nonstationary_std",
-    "normalized_regret_nonstationary_std",
-    "elapsed_nonstationary_std"
+    "normalized_regret_nonstationary_std"
   ],
   "metric_columns": [
     "baseline",
@@ -52,13 +49,10 @@
       "elapsed_nonstationary": 3.0,
       "cumulative_regret_stochastic_mab_std": null,
       "normalized_regret_stochastic_mab_std": null,
-      "elapsed_stochastic-mab_std": null,
       "cumulative_regret_contextual_std": null,
       "normalized_regret_contextual_std": null,
-      "elapsed_contextual_std": null,
       "cumulative_regret_nonstationary_std": null,
-      "normalized_regret_nonstationary_std": null,
-      "elapsed_nonstationary_std": null
+      "normalized_regret_nonstationary_std": null
     },
     {
       "baseline": null,
@@ -77,13 +71,10 @@
       "elapsed_nonstationary": 3.0,
       "cumulative_regret_stochastic_mab_std": null,
       "normalized_regret_stochastic_mab_std": null,
-      "elapsed_stochastic-mab_std": null,
       "cumulative_regret_contextual_std": null,
       "normalized_regret_contextual_std": null,
-      "elapsed_contextual_std": null,
       "cumulative_regret_nonstationary_std": null,
-      "normalized_regret_nonstationary_std": null,
-      "elapsed_nonstationary_std": null
+      "normalized_regret_nonstationary_std": null
     },
     {
       "baseline": null,
@@ -102,20 +93,17 @@
       "elapsed_nonstationary": 3.0,
       "cumulative_regret_stochastic_mab_std": null,
       "normalized_regret_stochastic_mab_std": null,
-      "elapsed_stochastic-mab_std": null,
       "cumulative_regret_contextual_std": null,
       "normalized_regret_contextual_std": null,
-      "elapsed_contextual_std": null,
       "cumulative_regret_nonstationary_std": null,
-      "normalized_regret_nonstationary_std": null,
-      "elapsed_nonstationary_std": null
+      "normalized_regret_nonstationary_std": null
     },
     {
       "baseline": null,
-      "normalized_regret_stochastic_mab": 0.061185,
+      "normalized_regret_stochastic_mab": 0.061184999999999996,
       "normalized_regret_contextual": 0.178548,
       "normalized_regret_nonstationary": 0.034874999999999996,
-      "timestamp": "2026-04-04T07:34:54.369756+00:00",
+      "timestamp": "2026-04-04T07:34:54.368999+00:00",
       "model": "baseline:kl_ucb",
       "is_final": true,
       "seed": "mean",
@@ -125,15 +113,12 @@
       "elapsed_contextual": 3.0,
       "cumulative_regret_nonstationary": 348.75,
       "elapsed_nonstationary": 3.0,
-      "cumulative_regret_stochastic_mab_std": 10.32581715894678,
-      "normalized_regret_stochastic_mab_std": 0.0010325817158946813,
-      "elapsed_stochastic-mab_std": 0.0,
-      "cumulative_regret_contextual_std": 136.61991152728555,
-      "normalized_regret_contextual_std": 0.01366212102859581,
-      "elapsed_contextual_std": 0.0,
-      "cumulative_regret_nonstationary_std": 61.84878737695672,
-      "normalized_regret_nonstationary_std": 0.006184878737695671,
-      "elapsed_nonstationary_std": 0.0
+      "cumulative_regret_stochastic_mab_std": 8.430994405564892,
+      "normalized_regret_stochastic_mab_std": 0.0008430994405564919,
+      "cumulative_regret_contextual_std": 111.54969064867707,
+      "normalized_regret_contextual_std": 0.011155075108069267,
+      "cumulative_regret_nonstationary_std": 50.49932342781107,
+      "normalized_regret_nonstationary_std": 0.005049932342781105
     },
     {
       "baseline": null,
@@ -152,13 +137,10 @@
       "elapsed_nonstationary": 1.0,
       "cumulative_regret_stochastic_mab_std": null,
       "normalized_regret_stochastic_mab_std": null,
-      "elapsed_stochastic-mab_std": null,
       "cumulative_regret_contextual_std": null,
       "normalized_regret_contextual_std": null,
-      "elapsed_contextual_std": null,
       "cumulative_regret_nonstationary_std": null,
-      "normalized_regret_nonstationary_std": null,
-      "elapsed_nonstationary_std": null
+      "normalized_regret_nonstationary_std": null
     },
     {
       "baseline": null,
@@ -177,13 +159,10 @@
       "elapsed_nonstationary": 1.9,
       "cumulative_regret_stochastic_mab_std": null,
       "normalized_regret_stochastic_mab_std": null,
-      "elapsed_stochastic-mab_std": null,
       "cumulative_regret_contextual_std": null,
       "normalized_regret_contextual_std": null,
-      "elapsed_contextual_std": null,
       "cumulative_regret_nonstationary_std": null,
-      "normalized_regret_nonstationary_std": null,
-      "elapsed_nonstationary_std": null
+      "normalized_regret_nonstationary_std": null
     },
     {
       "baseline": null,
@@ -202,38 +181,32 @@
       "elapsed_nonstationary": 1.0,
       "cumulative_regret_stochastic_mab_std": null,
       "normalized_regret_stochastic_mab_std": null,
-      "elapsed_stochastic-mab_std": null,
       "cumulative_regret_contextual_std": null,
       "normalized_regret_contextual_std": null,
-      "elapsed_contextual_std": null,
       "cumulative_regret_nonstationary_std": null,
-      "normalized_regret_nonstationary_std": null,
-      "elapsed_nonstationary_std": null
+      "normalized_regret_nonstationary_std": null
     },
     {
       "baseline": null,
       "normalized_regret_stochastic_mab": 0.03544,
       "normalized_regret_contextual": 0.020238333333333334,
       "normalized_regret_nonstationary": 0.059725,
-      "timestamp": "2026-03-30T11:03:34.769807+00:00",
+      "timestamp": "2026-04-04T11:22:21.767444+00:00",
       "model": "baseline:thompson_sampling",
       "is_final": true,
       "seed": "mean",
-      "cumulative_regret_stochastic_mab": 354.4,
-      "elapsed_stochastic-mab": 2.0,
+      "cumulative_regret_stochastic_mab": 354.40000000000003,
+      "elapsed_stochastic-mab": 1.9666666666666668,
       "cumulative_regret_contextual": 202.3853,
-      "elapsed_contextual": 3.0,
+      "elapsed_contextual": 2.766666666666667,
       "cumulative_regret_nonstationary": 597.25,
-      "elapsed_nonstationary": 1.0,
-      "cumulative_regret_stochastic_mab_std": 37.382750032601926,
-      "normalized_regret_stochastic_mab_std": 0.003738275003260192,
-      "elapsed_stochastic-mab_std": 0.0,
-      "cumulative_regret_contextual_std": 9.138600776924223,
-      "normalized_regret_contextual_std": 0.0009139772061344497,
-      "elapsed_contextual_std": 0.0,
-      "cumulative_regret_nonstationary_std": 47.41779729173425,
-      "normalized_regret_nonstationary_std": 0.004741779729173425,
-      "elapsed_nonstationary_std": 0.0
+      "elapsed_nonstationary": 1.3,
+      "cumulative_regret_stochastic_mab_std": 30.522887587295312,
+      "normalized_regret_stochastic_mab_std": 0.003052288758729531,
+      "cumulative_regret_contextual_std": 7.461636288822089,
+      "normalized_regret_contextual_std": 0.0007462592638546537,
+      "cumulative_regret_nonstationary_std": 38.716469363825006,
+      "normalized_regret_nonstationary_std": 0.003871646936382501
     },
     {
       "baseline": null,
@@ -252,13 +225,10 @@
       "elapsed_nonstationary": 2.0,
       "cumulative_regret_stochastic_mab_std": null,
       "normalized_regret_stochastic_mab_std": null,
-      "elapsed_stochastic-mab_std": null,
       "cumulative_regret_contextual_std": null,
       "normalized_regret_contextual_std": null,
-      "elapsed_contextual_std": null,
       "cumulative_regret_nonstationary_std": null,
-      "normalized_regret_nonstationary_std": null,
-      "elapsed_nonstationary_std": null
+      "normalized_regret_nonstationary_std": null
     },
     {
       "baseline": null,
@@ -277,13 +247,10 @@
       "elapsed_nonstationary": 2.0,
       "cumulative_regret_stochastic_mab_std": null,
       "normalized_regret_stochastic_mab_std": null,
-      "elapsed_stochastic-mab_std": null,
       "cumulative_regret_contextual_std": null,
       "normalized_regret_contextual_std": null,
-      "elapsed_contextual_std": null,
       "cumulative_regret_nonstationary_std": null,
-      "normalized_regret_nonstationary_std": null,
-      "elapsed_nonstationary_std": null
+      "normalized_regret_nonstationary_std": null
     },
     {
       "baseline": null,
@@ -302,20 +269,17 @@
       "elapsed_nonstationary": 2.0,
       "cumulative_regret_stochastic_mab_std": null,
       "normalized_regret_stochastic_mab_std": null,
-      "elapsed_stochastic-mab_std": null,
       "cumulative_regret_contextual_std": null,
       "normalized_regret_contextual_std": null,
-      "elapsed_contextual_std": null,
       "cumulative_regret_nonstationary_std": null,
-      "normalized_regret_nonstationary_std": null,
-      "elapsed_nonstationary_std": null
+      "normalized_regret_nonstationary_std": null
     },
     {
       "baseline": null,
       "normalized_regret_stochastic_mab": 0.14530166666666666,
-      "normalized_regret_contextual": 0.18053433333333332,
+      "normalized_regret_contextual": 0.18053433333333335,
       "normalized_regret_nonstationary": 0.06686,
-      "timestamp": "2026-04-04T07:34:54.360197+00:00",
+      "timestamp": "2026-04-04T07:34:54.359090+00:00",
       "model": "baseline:ucb1",
       "is_final": true,
       "seed": "mean",
@@ -325,15 +289,12 @@
       "elapsed_contextual": 2.0,
       "cumulative_regret_nonstationary": 668.6,
       "elapsed_nonstationary": 2.0,
-      "cumulative_regret_stochastic_mab_std": 30.05034664248216,
-      "normalized_regret_stochastic_mab_std": 0.003005034664248214,
-      "elapsed_stochastic-mab_std": 0.0,
-      "cumulative_regret_contextual_std": 146.84487084298632,
-      "normalized_regret_contextual_std": 0.014684557886886936,
-      "elapsed_contextual_std": 0.0,
-      "cumulative_regret_nonstationary_std": 28.919413894475788,
-      "normalized_regret_nonstationary_std": 0.002891941389447579,
-      "elapsed_nonstationary_std": 0.0
+      "cumulative_regret_stochastic_mab_std": 24.536005289279657,
+      "normalized_regret_stochastic_mab_std": 0.0024536005289279637,
+      "cumulative_regret_contextual_std": 119.89833497007186,
+      "normalized_regret_contextual_std": 0.011989891307078457,
+      "cumulative_regret_nonstationary_std": 23.612602567273253,
+      "normalized_regret_nonstationary_std": 0.0023612602567273256
     },
     {
       "baseline": "ucb1",
@@ -352,13 +313,10 @@
       "elapsed_nonstationary": null,
       "cumulative_regret_stochastic_mab_std": null,
       "normalized_regret_stochastic_mab_std": null,
-      "elapsed_stochastic-mab_std": null,
       "cumulative_regret_contextual_std": null,
       "normalized_regret_contextual_std": null,
-      "elapsed_contextual_std": null,
       "cumulative_regret_nonstationary_std": null,
-      "normalized_regret_nonstationary_std": null,
-      "elapsed_nonstationary_std": null
+      "normalized_regret_nonstationary_std": null
     },
     {
       "baseline": "thompson_sampling",
@@ -377,13 +335,10 @@
       "elapsed_nonstationary": null,
       "cumulative_regret_stochastic_mab_std": null,
       "normalized_regret_stochastic_mab_std": null,
-      "elapsed_stochastic-mab_std": null,
       "cumulative_regret_contextual_std": null,
       "normalized_regret_contextual_std": null,
-      "elapsed_contextual_std": null,
       "cumulative_regret_nonstationary_std": null,
-      "normalized_regret_nonstationary_std": null,
-      "elapsed_nonstationary_std": null
+      "normalized_regret_nonstationary_std": null
     },
     {
       "baseline": "kl_ucb",
@@ -402,13 +357,10 @@
       "elapsed_nonstationary": null,
       "cumulative_regret_stochastic_mab_std": null,
       "normalized_regret_stochastic_mab_std": null,
-      "elapsed_stochastic-mab_std": null,
       "cumulative_regret_contextual_std": null,
       "normalized_regret_contextual_std": null,
-      "elapsed_contextual_std": null,
       "cumulative_regret_nonstationary_std": null,
-      "normalized_regret_nonstationary_std": null,
-      "elapsed_nonstationary_std": null
+      "normalized_regret_nonstationary_std": null
     }
   ]
 }

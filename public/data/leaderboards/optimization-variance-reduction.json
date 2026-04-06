@@ -20,15 +20,12 @@
     "best_test_accuracy_logistic_std",
     "final_test_accuracy_logistic_std",
     "total_grad_comps_logistic_std",
-    "elapsed_logistic_std",
     "best_test_accuracy_mlp_std",
     "final_test_accuracy_mlp_std",
     "total_grad_comps_mlp_std",
-    "elapsed_mlp_std",
     "best_test_mse_conditioned_std",
     "final_test_mse_conditioned_std",
-    "total_grad_comps_conditioned_std",
-    "elapsed_conditioned_std"
+    "total_grad_comps_conditioned_std"
   ],
   "metric_columns": [
     "best_test_accuracy_logistic",
@@ -62,15 +59,12 @@
       "best_test_accuracy_logistic_std": null,
       "final_test_accuracy_logistic_std": null,
       "total_grad_comps_logistic_std": null,
-      "elapsed_logistic_std": null,
       "best_test_accuracy_mlp_std": null,
       "final_test_accuracy_mlp_std": null,
       "total_grad_comps_mlp_std": null,
-      "elapsed_mlp_std": null,
       "best_test_mse_conditioned_std": null,
       "final_test_mse_conditioned_std": null,
-      "total_grad_comps_conditioned_std": null,
-      "elapsed_conditioned_std": null
+      "total_grad_comps_conditioned_std": null
     },
     {
       "timestamp": "2026-04-04T14:37:06.366373+00:00",
@@ -92,15 +86,12 @@
       "best_test_accuracy_logistic_std": null,
       "final_test_accuracy_logistic_std": null,
       "total_grad_comps_logistic_std": null,
-      "elapsed_logistic_std": null,
       "best_test_accuracy_mlp_std": null,
       "final_test_accuracy_mlp_std": null,
       "total_grad_comps_mlp_std": null,
-      "elapsed_mlp_std": null,
       "best_test_mse_conditioned_std": null,
       "final_test_mse_conditioned_std": null,
-      "total_grad_comps_conditioned_std": null,
-      "elapsed_conditioned_std": null
+      "total_grad_comps_conditioned_std": null
     },
     {
       "timestamp": "2026-04-04T09:04:33.531881+00:00",
@@ -122,15 +113,12 @@
       "best_test_accuracy_logistic_std": null,
       "final_test_accuracy_logistic_std": null,
       "total_grad_comps_logistic_std": null,
-      "elapsed_logistic_std": null,
       "best_test_accuracy_mlp_std": null,
       "final_test_accuracy_mlp_std": null,
       "total_grad_comps_mlp_std": null,
-      "elapsed_mlp_std": null,
       "best_test_mse_conditioned_std": null,
       "final_test_mse_conditioned_std": null,
-      "total_grad_comps_conditioned_std": null,
-      "elapsed_conditioned_std": null
+      "total_grad_comps_conditioned_std": null
     },
     {
       "timestamp": "2026-04-04T14:37:06.366373+00:00",
@@ -152,15 +140,12 @@
       "best_test_accuracy_logistic_std": 3.76522981444102,
       "final_test_accuracy_logistic_std": 4.035500795027383,
       "total_grad_comps_logistic_std": 0.0,
-      "elapsed_logistic_std": null,
       "best_test_accuracy_mlp_std": 16.32297358530812,
       "final_test_accuracy_mlp_std": 16.63726807167838,
       "total_grad_comps_mlp_std": 0.0,
-      "elapsed_mlp_std": null,
       "best_test_mse_conditioned_std": 22821.171504530004,
       "final_test_mse_conditioned_std": 5.840108977626657e+33,
-      "total_grad_comps_conditioned_std": 0.0,
-      "elapsed_conditioned_std": null
+      "total_grad_comps_conditioned_std": 0.0
     },
     {
       "timestamp": "2026-03-30T16:29:04.841449+00:00",
@@ -182,15 +167,12 @@
       "best_test_accuracy_logistic_std": null,
       "final_test_accuracy_logistic_std": null,
       "total_grad_comps_logistic_std": null,
-      "elapsed_logistic_std": null,
       "best_test_accuracy_mlp_std": null,
       "final_test_accuracy_mlp_std": null,
       "total_grad_comps_mlp_std": null,
-      "elapsed_mlp_std": null,
       "best_test_mse_conditioned_std": null,
       "final_test_mse_conditioned_std": null,
-      "total_grad_comps_conditioned_std": null,
-      "elapsed_conditioned_std": null
+      "total_grad_comps_conditioned_std": null
     },
     {
       "timestamp": "2026-03-31T00:16:18.852065+00:00",
@@ -212,15 +194,12 @@
       "best_test_accuracy_logistic_std": null,
       "final_test_accuracy_logistic_std": null,
       "total_grad_comps_logistic_std": null,
-      "elapsed_logistic_std": null,
       "best_test_accuracy_mlp_std": null,
       "final_test_accuracy_mlp_std": null,
       "total_grad_comps_mlp_std": null,
-      "elapsed_mlp_std": null,
       "best_test_mse_conditioned_std": null,
       "final_test_mse_conditioned_std": null,
-      "total_grad_comps_conditioned_std": null,
-      "elapsed_conditioned_std": null
+      "total_grad_comps_conditioned_std": null
     },
     {
       "timestamp": "2026-03-30T16:29:04.841737+00:00",
@@ -242,45 +221,39 @@
       "best_test_accuracy_logistic_std": null,
       "final_test_accuracy_logistic_std": null,
       "total_grad_comps_logistic_std": null,
-      "elapsed_logistic_std": null,
       "best_test_accuracy_mlp_std": null,
       "final_test_accuracy_mlp_std": null,
       "total_grad_comps_mlp_std": null,
-      "elapsed_mlp_std": null,
       "best_test_mse_conditioned_std": null,
       "final_test_mse_conditioned_std": null,
-      "total_grad_comps_conditioned_std": null,
-      "elapsed_conditioned_std": null
+      "total_grad_comps_conditioned_std": null
     },
     {
-      "timestamp": "2026-03-30T16:29:04.841985+00:00",
+      "timestamp": "2026-03-31T00:16:18.852065+00:00",
       "model": "baseline:storm",
       "is_final": true,
       "seed": "mean",
       "best_test_accuracy_logistic": 92.49666666666667,
       "final_test_accuracy_logistic": 92.35666666666667,
       "total_grad_comps_logistic": 9849.0,
-      "elapsed_logistic": 212.0,
+      "elapsed_logistic": 181.33333333333334,
       "best_test_accuracy_mlp": 53.903333333333336,
       "final_test_accuracy_mlp": 52.376666666666665,
       "total_grad_comps_mlp": 16031.0,
-      "elapsed_mlp": 368.0,
-      "best_test_mse_conditioned": 1.7553526666666666,
+      "elapsed_mlp": 294.3333333333333,
+      "best_test_mse_conditioned": 1.7553526666666668,
       "final_test_mse_conditioned": 2.961513,
       "total_grad_comps_conditioned": 2449.0,
-      "elapsed_conditioned": 53.0,
-      "best_test_accuracy_logistic_std": 0.06110100926607347,
-      "final_test_accuracy_logistic_std": 0.03055050463304061,
+      "elapsed_conditioned": 84.0,
+      "best_test_accuracy_logistic_std": 0.04988876515698229,
+      "final_test_accuracy_logistic_std": 0.02494438257849431,
       "total_grad_comps_logistic_std": 0.0,
-      "elapsed_logistic_std": 0.0,
-      "best_test_accuracy_mlp_std": 0.33261589458914015,
-      "final_test_accuracy_mlp_std": 0.15502687938978096,
+      "best_test_accuracy_mlp_std": 0.27157974069424984,
+      "final_test_accuracy_mlp_std": 0.12657891697365112,
       "total_grad_comps_mlp_std": 0.0,
-      "elapsed_mlp_std": 1.0,
-      "best_test_mse_conditioned_std": 1.515375583015753,
-      "final_test_mse_conditioned_std": 1.776422811382752,
-      "total_grad_comps_conditioned_std": 0.0,
-      "elapsed_conditioned_std": 0.0
+      "best_test_mse_conditioned_std": 1.2372989823537217,
+      "final_test_mse_conditioned_std": 1.4504431517760359,
+      "total_grad_comps_conditioned_std": 0.0
     },
     {
       "timestamp": "2026-04-04T09:11:38.145975+00:00",
@@ -302,15 +275,12 @@
       "best_test_accuracy_logistic_std": null,
       "final_test_accuracy_logistic_std": null,
       "total_grad_comps_logistic_std": null,
-      "elapsed_logistic_std": null,
       "best_test_accuracy_mlp_std": null,
       "final_test_accuracy_mlp_std": null,
       "total_grad_comps_mlp_std": null,
-      "elapsed_mlp_std": null,
       "best_test_mse_conditioned_std": null,
       "final_test_mse_conditioned_std": null,
-      "total_grad_comps_conditioned_std": null,
-      "elapsed_conditioned_std": null
+      "total_grad_comps_conditioned_std": null
     },
     {
       "timestamp": "2026-04-04T14:29:46.839783+00:00",
@@ -332,15 +302,12 @@
       "best_test_accuracy_logistic_std": null,
       "final_test_accuracy_logistic_std": null,
       "total_grad_comps_logistic_std": null,
-      "elapsed_logistic_std": null,
       "best_test_accuracy_mlp_std": null,
       "final_test_accuracy_mlp_std": null,
       "total_grad_comps_mlp_std": null,
-      "elapsed_mlp_std": null,
       "best_test_mse_conditioned_std": null,
       "final_test_mse_conditioned_std": null,
-      "total_grad_comps_conditioned_std": null,
-      "elapsed_conditioned_std": null
+      "total_grad_comps_conditioned_std": null
     },
     {
       "timestamp": "2026-04-04T09:11:48.696168+00:00",
@@ -362,15 +329,12 @@
       "best_test_accuracy_logistic_std": null,
       "final_test_accuracy_logistic_std": null,
       "total_grad_comps_logistic_std": null,
-      "elapsed_logistic_std": null,
       "best_test_accuracy_mlp_std": null,
       "final_test_accuracy_mlp_std": null,
       "total_grad_comps_mlp_std": null,
-      "elapsed_mlp_std": null,
       "best_test_mse_conditioned_std": null,
       "final_test_mse_conditioned_std": null,
-      "total_grad_comps_conditioned_std": null,
-      "elapsed_conditioned_std": null
+      "total_grad_comps_conditioned_std": null
     },
     {
       "timestamp": "2026-04-04T14:29:46.839783+00:00",
@@ -392,15 +356,12 @@
       "best_test_accuracy_logistic_std": 0.030912061651650793,
       "final_test_accuracy_logistic_std": 0.03299831645537139,
       "total_grad_comps_logistic_std": 0.0,
-      "elapsed_logistic_std": null,
       "best_test_accuracy_mlp_std": 0.18408935028645268,
       "final_test_accuracy_mlp_std": 1.184229707446998,
       "total_grad_comps_mlp_std": 0.0,
-      "elapsed_mlp_std": null,
       "best_test_mse_conditioned_std": 528.7416481803311,
       "final_test_mse_conditioned_std": 0.0,
-      "total_grad_comps_conditioned_std": 0.0,
-      "elapsed_conditioned_std": null
+      "total_grad_comps_conditioned_std": 0.0
     }
   ]
 }
