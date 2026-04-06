@@ -187,6 +187,21 @@
       "elapsed_walker2d-v4": 3502.0
     },
     {
+      "timestamp": "2026-04-05T15:14:46.943018+00:00",
+      "model": "baseline:gail",
+      "is_final": true,
+      "seed": "42",
+      "eval_return_halfcheetah_v4": 810.67,
+      "eval_return_hopper_v4": 432.61,
+      "eval_return_walker2d_v4": 691.47,
+      "eval_return_halfcheetah_v4_std": null,
+      "eval_return_hopper_v4_std": null,
+      "eval_return_walker2d_v4_std": null,
+      "elapsed_halfcheetah-v4": 1472.7,
+      "elapsed_hopper-v4": 1438.5,
+      "elapsed_walker2d-v4": 1460.5
+    },
+    {
       "timestamp": "2026-03-13T20:43:07.127213+00:00",
       "model": "baseline:gail",
       "is_final": true,

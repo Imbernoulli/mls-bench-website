@@ -35,7 +35,7 @@
   ],
   "rows": [
     {
-      "timestamp": "2026-04-05T06:53:15.405629+00:00",
+      "timestamp": "2026-04-05T07:43:08.543201+00:00",
       "model": "baseline:ewc",
       "is_final": true,
       "seed": "42",
@@ -55,7 +55,7 @@
       "context_10_accuracy": 0.7199
     },
     {
-      "timestamp": "2026-04-05T06:59:45.579172+00:00",
+      "timestamp": "2026-04-05T07:42:47.615050+00:00",
       "model": "baseline:online_ewc",
       "is_final": true,
       "seed": "42",
@@ -75,7 +75,7 @@
       "context_10_accuracy": 0.7199
     },
     {
-      "timestamp": "2026-04-05T06:53:50.592767+00:00",
+      "timestamp": "2026-04-05T07:39:07.605121+00:00",
       "model": "baseline:si",
       "is_final": true,
       "seed": "42",

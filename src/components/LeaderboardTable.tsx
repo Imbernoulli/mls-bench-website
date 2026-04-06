@@ -24,6 +24,12 @@ export default function LeaderboardTable({ data }: Props) {
 
   const metricCols = data.metric_columns;
 
+  // Determine if there are multi-seed results (i.e., any model has both per-seed and mean rows)
+  const hasMultiSeed = useMemo(() => {
+    const finalRows = data.rows.filter((r) => r.model != null && r.is_final === true);
+    return finalRows.some((r) => r.seed === "mean");
+  }, [data.rows]);
+
   // Find best value per metric column (among mean/aggregate rows)
   const bestValues = useMemo(() => {
     const bests: Record<string, number> = {};
@@ -63,17 +69,19 @@ export default function LeaderboardTable({ data }: Props) {
 
   return (
     <div>
-      <div className="mb-3 flex items-center gap-4">
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={showPerSeed}
-            onChange={(e) => setShowPerSeed(e.target.checked)}
-            className="rounded"
-          />
-          Show per-seed results
-        </label>
-      </div>
+      {hasMultiSeed && (
+        <div className="mb-3 flex items-center gap-4">
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={showPerSeed}
+              onChange={(e) => setShowPerSeed(e.target.checked)}
+              className="rounded"
+            />
+            Show per-seed results
+          </label>
+        </div>
+      )}
       <div className="overflow-x-auto rounded-xl border border-border">
         <table className="w-full text-sm">
           <thead>
@@ -121,9 +129,10 @@ export default function LeaderboardTable({ data }: Props) {
                   )}
                   {metricCols.map((col) => {
                     const val = row[col];
+                    const isAggregate = isMean || !hasMultiSeed;
                     const isBest =
                       typeof val === "number" &&
-                      isMean &&
+                      isAggregate &&
                       Math.abs(val - bestValues[col]) < 0.0001;
                     return (
                       <td
