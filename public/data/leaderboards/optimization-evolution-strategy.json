@@ -38,7 +38,7 @@
   ],
   "rows": [
     {
-      "timestamp": "2026-03-25T09:34:54.572555+00:00",
+      "timestamp": "2026-04-04T07:18:09.048716+00:00",
       "model": "baseline:cmaes",
       "is_final": true,
       "seed": "123",
@@ -58,10 +58,10 @@
       "convergence_gen_ackley-30d_std": null,
       "best_fitness_rastrigin-100d_std": null,
       "convergence_gen_rastrigin-100d_std": null,
-      "elapsed_rastrigin-30d": null,
-      "elapsed_rosenbrock-30d": null,
-      "elapsed_ackley-30d": null,
-      "elapsed_rastrigin-100d": null
+      "elapsed_rastrigin-30d": 2.0,
+      "elapsed_rosenbrock-30d": 2.0,
+      "elapsed_ackley-30d": 2.0,
+      "elapsed_rastrigin-100d": 2.0
     },
     {
       "timestamp": "2026-04-04T08:14:46.139142+00:00",
@@ -90,7 +90,7 @@
       "elapsed_rastrigin-100d": 24.6
     },
     {
-      "timestamp": "2026-03-25T09:34:54.572834+00:00",
+      "timestamp": "2026-04-04T07:18:09.049241+00:00",
       "model": "baseline:cmaes",
       "is_final": true,
       "seed": "456",
@@ -110,10 +110,10 @@
       "convergence_gen_ackley-30d_std": null,
       "best_fitness_rastrigin-100d_std": null,
       "convergence_gen_rastrigin-100d_std": null,
-      "elapsed_rastrigin-30d": null,
-      "elapsed_rosenbrock-30d": null,
-      "elapsed_ackley-30d": null,
-      "elapsed_rastrigin-100d": null
+      "elapsed_rastrigin-30d": 2.0,
+      "elapsed_rosenbrock-30d": 2.0,
+      "elapsed_ackley-30d": 2.0,
+      "elapsed_rastrigin-100d": 2.0
     },
     {
       "timestamp": "2026-04-04T08:14:46.139142+00:00",
@@ -136,13 +136,13 @@
       "convergence_gen_ackley-30d_std": 8.0,
       "best_fitness_rastrigin-100d_std": 0.0,
       "convergence_gen_rastrigin-100d_std": 0.0,
-      "elapsed_rastrigin-30d": 3.3,
-      "elapsed_rosenbrock-30d": 3.9,
-      "elapsed_ackley-30d": 3.3,
-      "elapsed_rastrigin-100d": 24.6
+      "elapsed_rastrigin-30d": 2.433333333333333,
+      "elapsed_rosenbrock-30d": 2.6333333333333333,
+      "elapsed_ackley-30d": 2.433333333333333,
+      "elapsed_rastrigin-100d": 9.533333333333333
     },
     {
-      "timestamp": "2026-03-25T09:34:57.158908+00:00",
+      "timestamp": "2026-04-04T07:18:14.527397+00:00",
       "model": "baseline:de",
       "is_final": true,
       "seed": "123",
@@ -162,10 +162,10 @@
       "convergence_gen_ackley-30d_std": null,
       "best_fitness_rastrigin-100d_std": null,
       "convergence_gen_rastrigin-100d_std": null,
-      "elapsed_rastrigin-30d": null,
-      "elapsed_rosenbrock-30d": null,
-      "elapsed_ackley-30d": null,
-      "elapsed_rastrigin-100d": null
+      "elapsed_rastrigin-30d": 2.0,
+      "elapsed_rosenbrock-30d": 2.0,
+      "elapsed_ackley-30d": 2.0,
+      "elapsed_rastrigin-100d": 2.0
     },
     {
       "timestamp": "2026-04-04T11:21:34.117161+00:00",
@@ -194,7 +194,7 @@
       "elapsed_rastrigin-100d": 24.9
     },
     {
-      "timestamp": "2026-03-25T09:34:57.159193+00:00",
+      "timestamp": "2026-04-04T07:18:14.528430+00:00",
       "model": "baseline:de",
       "is_final": true,
       "seed": "456",
@@ -214,10 +214,10 @@
       "convergence_gen_ackley-30d_std": null,
       "best_fitness_rastrigin-100d_std": null,
       "convergence_gen_rastrigin-100d_std": null,
-      "elapsed_rastrigin-30d": null,
-      "elapsed_rosenbrock-30d": null,
-      "elapsed_ackley-30d": null,
-      "elapsed_rastrigin-100d": null
+      "elapsed_rastrigin-30d": 2.0,
+      "elapsed_rosenbrock-30d": 2.0,
+      "elapsed_ackley-30d": 2.0,
+      "elapsed_rastrigin-100d": 2.0
     },
     {
       "timestamp": "2026-04-04T11:21:34.117161+00:00",
@@ -240,13 +240,13 @@
       "convergence_gen_ackley-30d_std": 164.5,
       "best_fitness_rastrigin-100d_std": 0.0,
       "convergence_gen_rastrigin-100d_std": 0.0,
-      "elapsed_rastrigin-30d": 3.9,
-      "elapsed_rosenbrock-30d": 4.2,
-      "elapsed_ackley-30d": 3.9,
-      "elapsed_rastrigin-100d": 24.9
+      "elapsed_rastrigin-30d": 2.6333333333333333,
+      "elapsed_rosenbrock-30d": 2.733333333333333,
+      "elapsed_ackley-30d": 2.6333333333333333,
+      "elapsed_rastrigin-100d": 9.633333333333333
     },
     {
-      "timestamp": "2026-03-25T07:51:28.050260+00:00",
+      "timestamp": "2026-04-04T07:18:09.118181+00:00",
       "model": "baseline:ga_sbx",
       "is_final": true,
       "seed": "123",
@@ -266,13 +266,13 @@
       "convergence_gen_ackley-30d_std": null,
       "best_fitness_rastrigin-100d_std": null,
       "convergence_gen_rastrigin-100d_std": null,
-      "elapsed_rastrigin-30d": null,
-      "elapsed_rosenbrock-30d": null,
-      "elapsed_ackley-30d": null,
-      "elapsed_rastrigin-100d": null
+      "elapsed_rastrigin-30d": 2.0,
+      "elapsed_rosenbrock-30d": 2.0,
+      "elapsed_ackley-30d": 2.0,
+      "elapsed_rastrigin-100d": 2.0
     },
     {
-      "timestamp": "2026-03-25T07:51:28.048880+00:00",
+      "timestamp": "2026-04-04T07:18:09.117256+00:00",
       "model": "baseline:ga_sbx",
       "is_final": true,
       "seed": "42",
@@ -292,13 +292,13 @@
       "convergence_gen_ackley-30d_std": null,
       "best_fitness_rastrigin-100d_std": null,
       "convergence_gen_rastrigin-100d_std": null,
-      "elapsed_rastrigin-30d": null,
-      "elapsed_rosenbrock-30d": null,
-      "elapsed_ackley-30d": null,
-      "elapsed_rastrigin-100d": null
+      "elapsed_rastrigin-30d": 2.0,
+      "elapsed_rosenbrock-30d": 2.0,
+      "elapsed_ackley-30d": 2.0,
+      "elapsed_rastrigin-100d": 2.0
     },
     {
-      "timestamp": "2026-03-25T07:51:28.050568+00:00",
+      "timestamp": "2026-04-04T07:18:09.118897+00:00",
       "model": "baseline:ga_sbx",
       "is_final": true,
       "seed": "456",
@@ -318,13 +318,13 @@
       "convergence_gen_ackley-30d_std": null,
       "best_fitness_rastrigin-100d_std": null,
       "convergence_gen_rastrigin-100d_std": null,
-      "elapsed_rastrigin-30d": null,
-      "elapsed_rosenbrock-30d": null,
-      "elapsed_ackley-30d": null,
-      "elapsed_rastrigin-100d": null
+      "elapsed_rastrigin-30d": 2.0,
+      "elapsed_rosenbrock-30d": 2.0,
+      "elapsed_ackley-30d": 2.0,
+      "elapsed_rastrigin-100d": 2.0
     },
     {
-      "timestamp": "2026-03-25T07:51:28.050568+00:00",
+      "timestamp": "2026-04-04T07:18:09.118897+00:00",
       "model": "baseline:ga_sbx",
       "is_final": true,
       "seed": "mean",
@@ -344,10 +344,10 @@
       "convergence_gen_ackley-30d_std": 4.242640687119285,
       "best_fitness_rastrigin-100d_std": 4.553858364068864,
       "convergence_gen_rastrigin-100d_std": 4.320493798938574,
-      "elapsed_rastrigin-30d": null,
-      "elapsed_rosenbrock-30d": null,
-      "elapsed_ackley-30d": null,
-      "elapsed_rastrigin-100d": null
+      "elapsed_rastrigin-30d": 2.0,
+      "elapsed_rosenbrock-30d": 2.0,
+      "elapsed_ackley-30d": 2.0,
+      "elapsed_rastrigin-100d": 2.0
     },
     {
       "timestamp": "2026-04-04T07:35:44.607476+00:00",
@@ -452,6 +452,32 @@
       "elapsed_rosenbrock-30d": 8.0,
       "elapsed_ackley-30d": 7.666666666666667,
       "elapsed_rastrigin-100d": 57.666666666666664
+    },
+    {
+      "timestamp": "2026-04-06T06:41:27.147259+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": false,
+      "seed": "42",
+      "best_fitness_rastrigin-30d": 0.00544436,
+      "convergence_gen_rastrigin-30d": 496.0,
+      "best_fitness_rosenbrock-30d": 13.75958,
+      "convergence_gen_rosenbrock-30d": 496.0,
+      "best_fitness_ackley-30d": 0.01081757,
+      "convergence_gen_ackley-30d": 490.0,
+      "best_fitness_rastrigin-100d": 1.35269,
+      "convergence_gen_rastrigin-100d": 994.0,
+      "best_fitness_rastrigin-30d_std": null,
+      "convergence_gen_rastrigin-30d_std": null,
+      "best_fitness_rosenbrock-30d_std": null,
+      "convergence_gen_rosenbrock-30d_std": null,
+      "best_fitness_ackley-30d_std": null,
+      "convergence_gen_ackley-30d_std": null,
+      "best_fitness_rastrigin-100d_std": null,
+      "convergence_gen_rastrigin-100d_std": null,
+      "elapsed_rastrigin-30d": 4.0,
+      "elapsed_rosenbrock-30d": 5.0,
+      "elapsed_ackley-30d": 5.0,
+      "elapsed_rastrigin-100d": 32.0
     }
   ]
 }

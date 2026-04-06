@@ -4140,7 +4140,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "optimization-bilevel",
@@ -4178,7 +4178,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "optimization-convex-acceleration",
@@ -4215,7 +4215,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "optimization-convex-concave",
@@ -4249,7 +4249,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "optimization-dp-sgd",
@@ -4283,7 +4283,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "optimization-evolution-strategy",
@@ -4318,7 +4318,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "optimization-gradient-compression",
@@ -4351,7 +4351,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "optimization-hyperparameter-search",
@@ -4387,7 +4387,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "optimization-multi-objective",
@@ -4424,7 +4424,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "optimization-nas",
@@ -4457,7 +4457,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "optimization-online-bandit",
@@ -4531,7 +4531,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "optimization-parity",
@@ -4564,7 +4564,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "optimization-variance-reduction",
@@ -4597,7 +4597,7 @@
     ],
     "rigorous_codebase": true,
     "allow_create": false,
-    "has_agent_logs": false
+    "has_agent_logs": true
   },
   {
     "id": "pde-autoregressive-solver",

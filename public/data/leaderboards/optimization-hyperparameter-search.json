@@ -256,7 +256,7 @@
       "elapsed_nn": 38.333333333333336
     },
     {
-      "timestamp": "2026-03-25T15:38:51.202331+00:00",
+      "timestamp": "2026-04-04T07:18:08.991993+00:00",
       "model": "baseline:hyperband",
       "is_final": true,
       "seed": "123",
@@ -278,12 +278,12 @@
       "best_val_score_nn_std": null,
       "convergence_auc_nn_std": null,
       "total_evals_nn_std": null,
-      "elapsed_xgboost": 1456.0,
-      "elapsed_svm": 5.0,
-      "elapsed_nn": 668.0
+      "elapsed_xgboost": 2.0,
+      "elapsed_svm": 2.0,
+      "elapsed_nn": 2.0
     },
     {
-      "timestamp": "2026-03-25T15:38:51.198265+00:00",
+      "timestamp": "2026-04-04T07:18:08.990706+00:00",
       "model": "baseline:hyperband",
       "is_final": true,
       "seed": "42",
@@ -305,12 +305,12 @@
       "best_val_score_nn_std": null,
       "convergence_auc_nn_std": null,
       "total_evals_nn_std": null,
-      "elapsed_xgboost": 1456.0,
-      "elapsed_svm": 5.0,
-      "elapsed_nn": 619.0
+      "elapsed_xgboost": 2.0,
+      "elapsed_svm": 2.0,
+      "elapsed_nn": 2.0
     },
     {
-      "timestamp": "2026-03-25T15:38:51.202832+00:00",
+      "timestamp": "2026-04-04T07:18:08.992554+00:00",
       "model": "baseline:hyperband",
       "is_final": true,
       "seed": "456",
@@ -332,12 +332,12 @@
       "best_val_score_nn_std": null,
       "convergence_auc_nn_std": null,
       "total_evals_nn_std": null,
-      "elapsed_xgboost": 1478.0,
-      "elapsed_svm": 6.0,
-      "elapsed_nn": 668.0
+      "elapsed_xgboost": 2.0,
+      "elapsed_svm": 2.0,
+      "elapsed_nn": 2.0
     },
     {
-      "timestamp": "2026-03-25T15:38:51.202832+00:00",
+      "timestamp": "2026-04-04T07:18:08.992554+00:00",
       "model": "baseline:hyperband",
       "is_final": true,
       "seed": "mean",
@@ -359,9 +359,9 @@
       "best_val_score_nn_std": 12.182561406502716,
       "convergence_auc_nn_std": 0.06631891990643063,
       "total_evals_nn_std": 0.0,
-      "elapsed_xgboost": 1463.3333333333333,
-      "elapsed_svm": 5.333333333333333,
-      "elapsed_nn": 651.6666666666666
+      "elapsed_xgboost": 2.0,
+      "elapsed_svm": 2.0,
+      "elapsed_nn": 2.0
     },
     {
       "timestamp": "2026-04-04T08:02:20.851031+00:00",
@@ -472,7 +472,7 @@
       "elapsed_nn": 40.333333333333336
     },
     {
-      "timestamp": "2026-03-25T14:15:47.577720+00:00",
+      "timestamp": "2026-04-04T07:18:03.848926+00:00",
       "model": "baseline:random_search",
       "is_final": true,
       "seed": "123",
@@ -494,12 +494,12 @@
       "best_val_score_nn_std": null,
       "convergence_auc_nn_std": null,
       "total_evals_nn_std": null,
-      "elapsed_xgboost": 1923.0,
-      "elapsed_svm": 5.0,
-      "elapsed_nn": 165.0
+      "elapsed_xgboost": 2.0,
+      "elapsed_svm": 2.0,
+      "elapsed_nn": 2.0
     },
     {
-      "timestamp": "2026-03-25T14:15:47.575602+00:00",
+      "timestamp": "2026-04-04T07:18:03.847707+00:00",
       "model": "baseline:random_search",
       "is_final": true,
       "seed": "42",
@@ -521,12 +521,12 @@
       "best_val_score_nn_std": null,
       "convergence_auc_nn_std": null,
       "total_evals_nn_std": null,
-      "elapsed_xgboost": 1923.0,
-      "elapsed_svm": 5.0,
-      "elapsed_nn": 165.0
+      "elapsed_xgboost": 2.0,
+      "elapsed_svm": 2.0,
+      "elapsed_nn": 2.0
     },
     {
-      "timestamp": "2026-03-25T14:15:47.578071+00:00",
+      "timestamp": "2026-04-04T07:18:03.849841+00:00",
       "model": "baseline:random_search",
       "is_final": true,
       "seed": "456",
@@ -548,12 +548,12 @@
       "best_val_score_nn_std": null,
       "convergence_auc_nn_std": null,
       "total_evals_nn_std": null,
-      "elapsed_xgboost": 1923.0,
-      "elapsed_svm": 5.0,
-      "elapsed_nn": 165.0
+      "elapsed_xgboost": 2.0,
+      "elapsed_svm": 2.0,
+      "elapsed_nn": 2.0
     },
     {
-      "timestamp": "2026-03-25T14:15:47.578071+00:00",
+      "timestamp": "2026-04-04T07:18:03.849841+00:00",
       "model": "baseline:random_search",
       "is_final": true,
       "seed": "mean",
@@ -575,12 +575,12 @@
       "best_val_score_nn_std": 26.18017059833956,
       "convergence_auc_nn_std": 0.13436880240839638,
       "total_evals_nn_std": 0.0,
-      "elapsed_xgboost": 1923.0,
-      "elapsed_svm": 5.0,
-      "elapsed_nn": 165.0
+      "elapsed_xgboost": 2.0,
+      "elapsed_svm": 2.0,
+      "elapsed_nn": 2.0
     },
     {
-      "timestamp": "2026-03-25T14:56:49.467263+00:00",
+      "timestamp": "2026-04-04T07:18:03.915995+00:00",
       "model": "baseline:tpe",
       "is_final": true,
       "seed": "123",
@@ -602,12 +602,12 @@
       "best_val_score_nn_std": null,
       "convergence_auc_nn_std": null,
       "total_evals_nn_std": null,
-      "elapsed_xgboost": 1604.0,
-      "elapsed_svm": 5.0,
-      "elapsed_nn": 22.0
+      "elapsed_xgboost": 2.0,
+      "elapsed_svm": 2.0,
+      "elapsed_nn": 2.0
     },
     {
-      "timestamp": "2026-03-25T14:56:49.462069+00:00",
+      "timestamp": "2026-04-04T07:18:03.915414+00:00",
       "model": "baseline:tpe",
       "is_final": true,
       "seed": "42",
@@ -629,12 +629,12 @@
       "best_val_score_nn_std": null,
       "convergence_auc_nn_std": null,
       "total_evals_nn_std": null,
-      "elapsed_xgboost": 1604.0,
-      "elapsed_svm": 5.0,
-      "elapsed_nn": 21.0
+      "elapsed_xgboost": 2.0,
+      "elapsed_svm": 2.0,
+      "elapsed_nn": 2.0
     },
     {
-      "timestamp": "2026-03-25T14:56:49.467889+00:00",
+      "timestamp": "2026-04-04T07:18:03.916380+00:00",
       "model": "baseline:tpe",
       "is_final": true,
       "seed": "456",
@@ -656,12 +656,12 @@
       "best_val_score_nn_std": null,
       "convergence_auc_nn_std": null,
       "total_evals_nn_std": null,
-      "elapsed_xgboost": 1640.0,
-      "elapsed_svm": 5.0,
-      "elapsed_nn": 22.0
+      "elapsed_xgboost": 2.0,
+      "elapsed_svm": 2.0,
+      "elapsed_nn": 2.0
     },
     {
-      "timestamp": "2026-03-25T14:56:49.467889+00:00",
+      "timestamp": "2026-04-04T07:18:03.916380+00:00",
       "model": "baseline:tpe",
       "is_final": true,
       "seed": "mean",
@@ -683,9 +683,9 @@
       "best_val_score_nn_std": 10.972192004233735,
       "convergence_auc_nn_std": 0.09352785709913146,
       "total_evals_nn_std": 0.0,
-      "elapsed_xgboost": 1616.0,
-      "elapsed_svm": 5.0,
-      "elapsed_nn": 21.666666666666668
+      "elapsed_xgboost": 2.0,
+      "elapsed_svm": 2.0,
+      "elapsed_nn": 2.0
     }
   ]
 }
