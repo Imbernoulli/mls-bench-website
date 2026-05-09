@@ -134,8 +134,21 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* ---- Bitter Lesson interlude ---- */}
+        <div className="mx-auto mt-14 max-w-3xl px-4 sm:mt-16">
+          <figure className="mx-auto border-l-2 border-foreground/30 pl-5 text-center">
+            <blockquote className="text-balance text-[17px] italic leading-relaxed text-foreground/90 sm:text-lg">
+              &ldquo;We want AI agents that can discover like we can, not which
+              contain what we have discovered.&rdquo;
+            </blockquote>
+            <figcaption className="mt-3 text-xs uppercase tracking-[0.18em] text-foreground/60">
+              Richard S. Sutton, <span className="italic">The Bitter Lesson</span>
+            </figcaption>
+          </figure>
+        </div>
+
         {/* ---- Bridge to MLS-Bench ---- */}
-        <div className="mx-auto mt-14 max-w-4xl px-4 sm:mt-16">
+        <div className="mx-auto mt-12 max-w-4xl px-4 sm:mt-14">
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="text-balance text-2xl font-semibold tracking-tight text-foreground sm:text-[28px]">
               MLS-Bench tests whether AI agents can invent the next ones.
@@ -168,9 +181,10 @@ export default function HomePage() {
               Model Performance by Category
             </h2>
             <p className="mx-auto mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-              Scores use the paper's normalized task metric, averaged by category.
-              Human SOTA is computed from the reproduced human baselines and
-              plotted alongside the model agents.
+              Each model's bar shows Vanilla as the darker lower portion and
+              Agent as the lighter overlay, against a translucent grey Human
+              SOTA reference computed from the reproduced human baselines.
+              Scores use the paper's normalized task metric.
             </p>
           </div>
           <div className="mt-6">

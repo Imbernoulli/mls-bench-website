@@ -4,11 +4,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Radar,
-  RadarChart,
-  PolarAngleAxis,
-  PolarGrid,
-  PolarRadiusAxis,
   ResponsiveContainer,
   XAxis,
   YAxis,
@@ -27,9 +22,6 @@ interface Props {
   series: Series[];
 }
 
-const RADAR_MAX_SCORE = 0.5;
-const RADAR_TICKS = [0.125, 0.25, 0.375, RADAR_MAX_SCORE];
-const HUMAN_SOTA_RADAR_COLOR = "#9ca3af";
 
 /** Wrap a long category label by splitting on " & " or whitespace into
  *  at most 2 lines so axis labels stay horizontal and don't overlap. */
@@ -81,48 +73,6 @@ function HorizontalCategoryTick(props: any) {
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function PolarCategoryTick(props: any) {
-  const { x, y, payload, cx, cy, viewBox } = props;
-  const lines = wrapLabel(String(payload.value), 11);
-  const lineHeight = 12;
-  const centerX =
-    typeof cx === "number" ? cx : typeof viewBox?.cx === "number" ? viewBox.cx : x;
-  const centerY =
-    typeof cy === "number" ? cy : typeof viewBox?.cy === "number" ? viewBox.cy : y;
-  // Decide text-anchor based on which side of the center the label is.
-  const dx = x - centerX;
-  const dy = y - centerY;
-  const anchor = dx > 6 ? "start" : dx < -6 ? "end" : "middle";
-  // Push the label slightly outward along the radial direction so it doesn't
-  // sit on the polygon vertex.
-  const norm = Math.hypot(dx, dy) || 1;
-  const px = x + (dx / norm) * 18;
-  const py = y + (dy / norm) * 18;
-  const startY =
-    dy < -20
-      ? -lineHeight * (lines.length - 1) - 4
-      : dy > 20
-        ? 10
-        : -(lineHeight * (lines.length - 1)) / 2 + 4;
-  return (
-    <g transform={`translate(${px}, ${py})`}>
-      {lines.map((line, i) => (
-        <text
-          key={i}
-          x={0}
-          y={startY + i * lineHeight}
-          textAnchor={anchor}
-          fill="currentColor"
-          className="fill-foreground/75"
-          style={{ fontSize: 11 }}
-        >
-          {line}
-        </text>
-      ))}
-    </g>
-  );
-}
 
 /** Draws Recharts' default agent rect plus a thin "vanilla" horizontal
  *  tick at the y-position the same model's vanilla score would land at,
@@ -188,44 +138,18 @@ function ModelBarWithVanillaTick(modelId: string, color: string) {
 export default function CategoryPerformanceCharts({ data, series }: Props) {
   if (data.length === 0 || series.length === 0) return null;
 
-  const maxValue = Math.max(
-    ...data.flatMap((point) =>
-      series.map((item) =>
-        typeof point[item.id] === "number" ? Number(point[item.id]) : 0
-      )
-    )
-  );
   const isHumanSota = (id: string) => id === HUMAN_SOTA_ID;
-  const radarData = data.map((point) => {
-    const clamped = { ...point };
-    for (const item of series) {
-      const value = point[item.id];
-      if (typeof value === "number") {
-        clamped[item.id] = Math.min(Math.max(value, 0), RADAR_MAX_SCORE);
-      }
-    }
-    return clamped;
-  });
 
   return (
     <div>
       <div className="p-4">
-        <div className="mb-4 flex flex-col items-center gap-3 text-center">
-          <div>
-            <h3 className="text-base font-semibold">Category Averages</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Each model's bar shows Vanilla as the darker lower portion and
-              Agent as the lighter overlay. Human SOTA is the dashed reference.
-            </p>
-          </div>
-          <div className="flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
-            {series.map((item) => (
-              <span key={item.id} className="inline-flex items-center gap-1">
-                <ModelVendorMark modelId={item.id} />
-                {item.name}
-              </span>
-            ))}
-          </div>
+        <div className="mb-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+          {series.map((item) => (
+            <span key={item.id} className="inline-flex items-center gap-1">
+              <ModelVendorMark modelId={item.id} />
+              {item.name}
+            </span>
+          ))}
         </div>
         {/* 12 categories in a single row was too cramped — split into two
             half-charts of 6 stacked vertically so each label gets full width. */}
@@ -263,9 +187,6 @@ export default function CategoryPerformanceCharts({ data, series }: Props) {
                             key={item.id}
                             dataKey={item.id}
                             name={item.name}
-                            // Human SOTA uses a translucent neutral grey
-                            // here (dashed treatment is reserved for the
-                            // Capability Profile radar below).
                             fill={sota ? "#6e6e80" : item.color}
                             fillOpacity={sota ? 0.32 : 0.88}
                             radius={[3, 3, 0, 0]}
@@ -285,70 +206,6 @@ export default function CategoryPerformanceCharts({ data, series }: Props) {
             </div>
           );
         })()}
-      </div>
-
-      <div className="mt-8 p-4">
-        <div className="mb-2 flex flex-col items-center gap-3 text-center">
-          <div>
-            <h3 className="text-base font-semibold">Capability Profile</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Same category scores in radar form. The outer ring is the 50% mark.
-              {maxValue > 0.5 ? " Values above 50% are clipped at the outer ring." : ""}
-            </p>
-          </div>
-          <div className="flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
-            {series.map((item) => (
-              <span key={item.id} className="inline-flex items-center gap-1">
-                <ModelVendorMark modelId={item.id} />
-                {item.name}
-              </span>
-            ))}
-          </div>
-        </div>
-        {/* Bump outerRadius so the 50% gridline reaches close to the box edge
-            (no big halo of empty ring beyond it). The angular labels still
-            fit because PolarCategoryTick wraps long names and uses a
-            side-aware text-anchor. */}
-        <div className="mx-auto mt-2 aspect-square w-full max-w-[560px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <RadarChart
-              data={radarData}
-              cx="50%"
-              cy="50%"
-              outerRadius="86%"
-              margin={{ top: 18, right: 22, bottom: 18, left: 22 }}
-            >
-              <PolarGrid strokeOpacity={0.3} />
-              <PolarAngleAxis
-                dataKey="categoryName"
-                tick={PolarCategoryTick}
-                tickLine={false}
-              />
-              <PolarRadiusAxis
-                angle={90}
-                domain={[0, RADAR_MAX_SCORE]}
-                ticks={RADAR_TICKS}
-                tickFormatter={(value: number) => `${(value * 100).toFixed(0)}%`}
-                tick={{ fontSize: 10 }}
-              />
-              {series.map((item) => {
-                const humanSota = isHumanSota(item.id);
-                const radarColor = humanSota ? HUMAN_SOTA_RADAR_COLOR : item.color;
-                return (
-                  <Radar
-                    key={item.id}
-                    name={item.name}
-                    dataKey={item.id}
-                    stroke={radarColor}
-                    fill={radarColor}
-                    fillOpacity={humanSota ? 0.04 : 0.075}
-                    strokeWidth={1.8}
-                  />
-                );
-              })}
-            </RadarChart>
-          </ResponsiveContainer>
-        </div>
       </div>
     </div>
   );
