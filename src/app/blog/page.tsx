@@ -67,6 +67,40 @@ function Figure({
   );
 }
 
+function WrapFigure({
+  src,
+  alt,
+  caption,
+  children,
+}: {
+  src: string;
+  alt: string;
+  caption: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="my-10 grid gap-6 lg:grid-cols-[7fr_3fr] lg:items-start">
+      <div className="prose prose-neutral max-w-none prose-headings:tracking-tight prose-a:text-foreground prose-headings:mt-0">
+        {children}
+      </div>
+      <figure className="lg:mt-2">
+        <a href={src} target="_blank" rel="noopener noreferrer">
+          <Image
+            src={src}
+            alt={alt}
+            width={440}
+            height={280}
+            className="h-auto w-full rounded-lg border border-border bg-white"
+          />
+        </a>
+        <figcaption className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          {caption}
+        </figcaption>
+      </figure>
+    </section>
+  );
+}
+
 export default function BlogPage() {
   const tasks = getTasksStatic().filter((task) => task.category !== "demo");
   const categories = getCategoriesStatic();
@@ -148,7 +182,11 @@ export default function BlogPage() {
         <CategoryGrid items={categoryItems} />
       </div>
 
-      <div className="prose prose-neutral max-w-none prose-headings:tracking-tight prose-a:text-foreground">
+      <WrapFigure
+        src={FIGURES.compute}
+        alt="Compute profile showing GPU versus CPU tasks and per-task GPU-hour distribution."
+        caption="Compute profile for the benchmark. The full suite is intentionally broad; MLS-Bench-Lite gives a smaller 30-task track for faster iteration."
+      >
         <p>
           The key design constraint is attribution. Agents can edit the target
           component, but they cannot rewrite the evaluation harness, change the
@@ -159,18 +197,11 @@ export default function BlogPage() {
         <p>
           Scores are normalized per task. The weakest reproduced baseline
           anchors the floor, the strongest reproduced baseline anchors the
-          human-SOTA reference, and each method is aggregated across metrics and
-          settings. That makes cross-area comparisons possible without hiding
-          the fact that raw metrics differ by domain.
+          human-SOTA reference, and each method is aggregated across metrics
+          and settings. That makes cross-area comparisons possible without
+          hiding the fact that raw metrics differ by domain.
         </p>
-      </div>
-
-      <Figure
-        src={FIGURES.compute}
-        alt="Compute profile showing GPU versus CPU tasks and per-task GPU-hour distribution."
-        caption="Figure: compute profile for the benchmark. The full suite is intentionally broad, while MLS-Bench-Lite gives a smaller 30-task track for faster iteration."
-        narrow
-      />
+      </WrapFigure>
 
       <div className="prose prose-neutral max-w-none prose-headings:tracking-tight prose-a:text-foreground">
         <h2>Main Result</h2>
@@ -293,7 +324,11 @@ export default function BlogPage() {
         wide
       />
 
-      <div className="prose prose-neutral max-w-none prose-headings:tracking-tight prose-a:text-foreground">
+      <WrapFigure
+        src={FIGURES.context}
+        alt="Context engineering chart comparing web search, baseline context, and theory context."
+        caption="Context engineering. Additional information helps selectively, but knowledge access is not the limiting factor by itself."
+      >
         <h2>Context Helps Less Than Expected</h2>
         <p>
           Extra context can help a strong model, but it does not remove the main
@@ -307,16 +342,13 @@ export default function BlogPage() {
           implementable in the allowed edit surface, and robust across
           settings.
         </p>
-      </div>
+      </WrapFigure>
 
-      <Figure
-        src={FIGURES.context}
-        alt="Context engineering chart comparing web search, baseline context, and theory context."
-        caption="Figure: context engineering. Additional information helps selectively, but knowledge access is not the limiting factor by itself."
-        narrow
-      />
-
-      <div className="prose prose-neutral max-w-none prose-headings:tracking-tight prose-a:text-foreground">
+      <WrapFigure
+        src={FIGURES.innovation}
+        alt="Innovation analysis scatter plot comparing baseline similarity weighted performance and agent score."
+        caption="Innovation analysis. Lower-performing agents are more likely to track the strong baselines their code resembles."
+      >
         <h2>What Agents Actually Do</h2>
         <p>
           Expert assessment finds a recurring pattern. Agents often recombine
@@ -328,18 +360,11 @@ export default function BlogPage() {
         <p>
           Code-similarity analysis supports the same diagnosis. For weaker
           models, performance is strongly tied to resemblance to high-scoring
-          baselines. That is useful signal: copying the shape of a strong method
-          is a reasonable fallback, but it is not the capability MLS-Bench is
-          meant to celebrate.
+          baselines. That is useful signal: copying the shape of a strong
+          method is a reasonable fallback, but it is not the capability
+          MLS-Bench is meant to celebrate.
         </p>
-      </div>
-
-      <Figure
-        src={FIGURES.innovation}
-        alt="Innovation analysis scatter plot comparing baseline similarity weighted performance and agent score."
-        caption="Figure: innovation analysis. Lower-performing agents are more likely to track the strong baselines their code resembles."
-        narrow
-      />
+      </WrapFigure>
 
       <div className="prose prose-neutral max-w-none prose-headings:tracking-tight prose-a:text-foreground">
         <h2>Where This Leaves the Benchmark</h2>
