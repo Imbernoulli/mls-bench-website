@@ -51,6 +51,69 @@ function aggregateRows(rows: LeaderboardData["rows"]) {
   );
 }
 
+/** Custom shape for the per-metric bar.
+ *  - Baseline rows: single rect, baseline grey, opacity 0.55.
+ *  - Model rows: two rects at the SAME x-position — Vanilla (darker, full
+ *    opacity-ish) drawn first, Agent (lighter) overlaid on top. The two
+ *    must not be staggered (Recharts' default barGap would offset them).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function MetricBarShape(props: any) {
+  const { x, y, width, height, value, payload } = props;
+  if (typeof value !== "number" || height <= 0) return <g />;
+  if (payload?.kind === "baseline") {
+    return (
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        rx={3}
+        ry={3}
+        fill={BASELINE_COLOR}
+        fillOpacity={0.55}
+      />
+    );
+  }
+  // value === max(vanilla, agent) → height is the taller bar's height.
+  const baseY = y + height; // bottom of the bar in svg coords
+  const pxPerUnit = height / value;
+  const vanilla =
+    typeof payload?.vanilla === "number" ? payload.vanilla : null;
+  const agent = typeof payload?.agent === "number" ? payload.agent : null;
+  const color: string = payload?.color ?? BASELINE_COLOR;
+  const vH = vanilla != null ? vanilla * pxPerUnit : 0;
+  const aH = agent != null ? agent * pxPerUnit : 0;
+  return (
+    <g>
+      {vanilla != null && (
+        <rect
+          x={x}
+          y={baseY - vH}
+          width={width}
+          height={vH}
+          rx={3}
+          ry={3}
+          fill={color}
+          fillOpacity={0.85}
+        />
+      )}
+      {agent != null && (
+        <rect
+          x={x}
+          y={baseY - aH}
+          width={width}
+          height={aH}
+          rx={3}
+          ry={3}
+          fill={color}
+          fillOpacity={0.32}
+        />
+      )}
+    </g>
+  );
+}
+
 type RawKind = "baseline" | "vanilla" | "agent";
 function rawRowKind(model: string): RawKind {
   if (model.startsWith("baseline:")) return "baseline";
@@ -204,7 +267,13 @@ export default function MetricBarChart({ data, models }: Props) {
               </div>
               <div className="h-px flex-1 bg-border" />
             </div>
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div
+              className={
+                group.metrics.length === 1
+                  ? "flex justify-center"
+                  : "grid gap-4 lg:grid-cols-2"
+              }
+            >
               {group.metrics.map((metric) => {
                 const direction = data.metric_directions?.[metric] ?? "higher";
                 const bars = buildBars(rows, metric, models);
@@ -212,7 +281,14 @@ export default function MetricBarChart({ data, models }: Props) {
                 const domain = metricDomain(bars);
 
                 return (
-                  <div key={metric} className="rounded-lg border border-border p-3">
+                  <div
+                    key={metric}
+                    className={
+                      group.metrics.length === 1
+                        ? "w-full max-w-2xl rounded-lg border border-border p-3"
+                        : "rounded-lg border border-border p-3"
+                    }
+                  >
                     <div className="mb-2 flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="truncate text-sm font-medium">
@@ -231,7 +307,6 @@ export default function MetricBarChart({ data, models }: Props) {
                         <BarChart
                           data={bars}
                           margin={{ top: 8, right: 8, bottom: 52, left: 8 }}
-                          barGap="-100%"
                         >
                           <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.35} />
                           <XAxis
@@ -258,38 +333,15 @@ export default function MetricBarChart({ data, models }: Props) {
                               fontSize: "12px",
                             }}
                           />
-                          {/* Vanilla (darker) drawn first so the lighter
-                              Agent overlay sits on top. */}
-                          <Bar dataKey="vanilla" name="Vanilla" radius={[3, 3, 0, 0]}>
-                            {bars.map((point) => (
-                              <Cell
-                                key={`v-${metric}-${point.label}`}
-                                fill={point.color}
-                                fillOpacity={0.85}
-                              />
-                            ))}
-                          </Bar>
-                          <Bar dataKey="agent" name="Agent" radius={[3, 3, 0, 0]}>
-                            {bars.map((point) => (
-                              <Cell
-                                key={`a-${metric}-${point.label}`}
-                                fill={point.color}
-                                fillOpacity={0.3}
-                              />
-                            ))}
-                          </Bar>
-                          {/* Baseline rows have neither vanilla nor agent —
-                              this Bar renders only their `value` field, so
-                              their bars are at distinct x positions. */}
-                          <Bar dataKey="value" name="Baseline" radius={[3, 3, 0, 0]}>
-                            {bars.map((point) => (
-                              <Cell
-                                key={`b-${metric}-${point.label}`}
-                                fill={point.kind === "baseline" ? BASELINE_COLOR : "transparent"}
-                                fillOpacity={point.kind === "baseline" ? 0.55 : 0}
-                              />
-                            ))}
-                          </Bar>
+                          {/* Single Bar driven by `value` (= max of vanilla
+                              and agent for model rows, or the baseline
+                              value). The custom shape draws Vanilla as the
+                              darker rect to its full height + Agent as a
+                              lighter overlay rect to its full height — both
+                              at the SAME x-position so the two never
+                              stagger. Baseline rows render a single rect
+                              at the baseline color. */}
+                          <Bar dataKey="value" radius={[3, 3, 0, 0]} shape={MetricBarShape} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>

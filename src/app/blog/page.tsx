@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { RESOURCE_LINKS } from "@/lib/resources";
+import ResourceButtons from "@/components/ResourceButtons";
 
 export const metadata: Metadata = {
   title: "MLS-Bench Blog",
@@ -20,14 +21,6 @@ const FIGURES = {
   context: "/data/blog_figs/exp_context.png",
   innovation: "/data/blog_figs/exp_innovation.png",
 } as const;
-
-const RESOURCE_LINKS_ORDERED = [
-  RESOURCE_LINKS.website,
-  RESOURCE_LINKS.github,
-  RESOURCE_LINKS.arxiv,
-  RESOURCE_LINKS.discord,
-  RESOURCE_LINKS.huggingFace,
-];
 
 const AUTHOR_BYLINE =
   "Bohan Lyu · Yucheng Yang · Siqiao Huang · Jiaru Zhang · Qixin Xu · Xinghan Li · Xinyang Han · Yicheng Zhang · Huaqing Zhang · Runhan Huang · Kaicheng Yang · Zitao Chen · Wentao Guo · Junlin Yang · Xinyue Ai · Wenhao Chai · Yadi Cao · Ziran Yang · Kun Wang · Dapeng Jiang · Huan-ang Gao · Shange Tang · Chengshuai Shi · Simon S. Du · Max Simchowitz · Jiantao Jiao · Dawn Song · Chi Jin";
@@ -48,12 +41,12 @@ function Figure({
   const figureCls = wide
     ? "my-10"
     : narrow
-    ? "mx-auto my-8 max-w-xl"
+    ? "mx-auto my-8 max-w-md"
     : "mx-auto my-8 max-w-3xl";
   const dim = wide
     ? { w: 1120, h: 520 }
     : narrow
-    ? { w: 520, h: 320 }
+    ? { w: 440, h: 280 }
     : { w: 760, h: 420 };
   return (
     <figure className={figureCls}>
@@ -92,18 +85,8 @@ export default function BlogPage() {
           training procedure that works beyond the exact setting where it was
           invented.
         </p>
-        <div className="mt-6 flex flex-wrap gap-2 text-sm">
-          {RESOURCE_LINKS_ORDERED.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              target={link.href === "#" ? undefined : "_blank"}
-              rel={link.href === "#" ? undefined : "noopener noreferrer"}
-              className="rounded-md border border-border px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {link.label}
-            </a>
-          ))}
+        <div className="mt-6 flex justify-start">
+          <ResourceButtons />
         </div>
       </header>
 

@@ -38,6 +38,11 @@ export default function Marquee({
   const scrollerRef = useRef<HTMLDivElement>(null);
   const interactingRef = useRef(false);
   const hoverRef = useRef(false);
+  /** Sub-pixel accumulator. Browsers round `scrollLeft` to integers, so a
+   *  slow speed (e.g. 0.15 px/frame) would round to 0 every frame and the
+   *  marquee would freeze. We accumulate float here and only commit
+   *  rounded values to the DOM. */
+  const posRef = useRef(0);
 
   useEffect(() => {
     const el = scrollerRef.current;
@@ -49,6 +54,7 @@ export default function Marquee({
 
     let raf = 0;
     let lastTs: number | null = null;
+    posRef.current = el.scrollLeft;
 
     const tick = (ts: number) => {
       const halfWidth = el.scrollWidth / 2;
@@ -56,25 +62,20 @@ export default function Marquee({
       const dt = ts - lastTs;
       lastTs = ts;
 
-      if (
-        !reducedMotion &&
-        !interactingRef.current &&
-        !hoverRef.current &&
-        halfWidth > 0
-      ) {
-        // px/ms = (half-width crossed in `duration` seconds)
-        const speed = halfWidth / (duration * 1000);
-        const dir = reverse ? -1 : 1;
-        let next = el.scrollLeft + dir * speed * dt;
-        // Wrap around the duplicated half so the loop is seamless.
-        if (next >= halfWidth) next -= halfWidth;
-        else if (next < 0) next += halfWidth;
-        el.scrollLeft = next;
-      } else if (halfWidth > 0) {
-        // Even when paused, keep the scrollLeft in the canonical half so
-        // dragging way past the end snaps back without a visible reset.
-        if (el.scrollLeft >= halfWidth) el.scrollLeft -= halfWidth;
-        else if (el.scrollLeft < 0) el.scrollLeft += halfWidth;
+      if (halfWidth > 0) {
+        if (interactingRef.current) {
+          // User is dragging — keep accumulator in sync with the actual
+          // scroll position so the auto-loop doesn't snap when released.
+          posRef.current = el.scrollLeft;
+        } else if (!reducedMotion && !hoverRef.current) {
+          const speed = halfWidth / (duration * 1000); // px/ms
+          const dir = reverse ? -1 : 1;
+          posRef.current += dir * speed * dt;
+        }
+        // Wrap on the duplicated half so the loop is seamless.
+        if (posRef.current >= halfWidth) posRef.current -= halfWidth;
+        else if (posRef.current < 0) posRef.current += halfWidth;
+        el.scrollLeft = posRef.current;
       }
 
       raf = requestAnimationFrame(tick);

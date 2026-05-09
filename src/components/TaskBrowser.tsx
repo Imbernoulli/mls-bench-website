@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -27,6 +27,14 @@ export default function TaskBrowser({ tasks, categories }: Props) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const view = searchParams.get("view") === "cards" ? "cards" : "columns";
 
+  // Per-visit randomized task order. We compute the shuffle on mount so
+  // SSR HTML stays deterministic (alphabetical) and only the client view
+  // gets the random permutation. Re-shuffles on every page load.
+  const [shuffleSeed, setShuffleSeed] = useState<number | null>(null);
+  useEffect(() => {
+    setShuffleSeed(Math.random());
+  }, []);
+
   const sortedCategories = useMemo(
     () =>
       Object.values(categories)
@@ -37,7 +45,7 @@ export default function TaskBrowser({ tasks, categories }: Props) {
 
   const filteredTasks = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return tasks
+    const filtered = tasks
       .filter((task) => task.category !== "demo")
       .filter((task) =>
         selectedCategory ? task.category === selectedCategory : true
@@ -52,9 +60,20 @@ export default function TaskBrowser({ tasks, categories }: Props) {
           ...task.baselines,
           ...task.environments,
         ].some((value) => value.toLowerCase().includes(q));
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [tasks, search, selectedCategory]);
+      });
+    if (shuffleSeed == null) {
+      // Pre-mount (SSR) — keep alphabetical so hydration matches.
+      return filtered.slice().sort((a, b) => a.name.localeCompare(b.name));
+    }
+    // Fisher–Yates with the seed-driven random sequence (just Math.random
+    // here, since we only need per-visit shuffling, not reproducibility).
+    const arr = filtered.slice();
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }, [tasks, search, selectedCategory, shuffleSeed]);
 
   return (
     <div>

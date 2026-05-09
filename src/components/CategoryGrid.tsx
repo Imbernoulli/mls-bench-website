@@ -46,7 +46,7 @@ export default function CategoryGrid({ items }: Props) {
                   : "none",
               }}
             >
-              <span className="text-xl font-semibold text-foreground">
+              <span className="text-base text-foreground">
                 {category.label}
               </span>
               <span className="mt-2 text-sm text-muted-foreground">

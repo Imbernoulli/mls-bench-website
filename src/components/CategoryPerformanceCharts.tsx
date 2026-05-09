@@ -227,51 +227,64 @@ export default function CategoryPerformanceCharts({ data, series }: Props) {
             ))}
           </div>
         </div>
-        <div className="w-full">
-          <div className="h-[360px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data} margin={{ top: 8, right: 16, bottom: 60, left: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.35} />
-              <XAxis
-                dataKey="categoryName"
-                interval={0}
-                height={56}
-                tickLine={false}
-                tick={HorizontalCategoryTick}
-              />
-              <YAxis
-                domain={[0, 0.5]}
-                ticks={[0, 0.1, 0.2, 0.3, 0.4, 0.5]}
-                tick={{ fontSize: 11 }}
-                tickFormatter={(value) => `${(Number(value) * 100).toFixed(0)}%`}
-                width={46}
-              />
-                {series.map((item) => {
-                  const sota = isHumanSota(item.id);
-                  return (
-                    <Bar
-                      key={item.id}
-                      dataKey={item.id}
-                      name={item.name}
-                      fill={item.color}
-                      fillOpacity={sota ? 0.03 : 0.88}
-                      stroke={sota ? item.color : undefined}
-                      strokeDasharray={sota ? "6 4" : undefined}
-                      strokeWidth={sota ? 1.6 : 0}
-                      radius={[3, 3, 0, 0]}
-                      maxBarSize={16}
-                      shape={
-                        sota
-                          ? undefined
-                          : ModelBarWithVanillaTick(item.id, item.color)
-                      }
-                    />
-                  );
-                })}
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        {/* 12 categories in a single row was too cramped — split into two
+            half-charts of 6 stacked vertically so each label gets full width. */}
+        {(() => {
+          const mid = Math.ceil(data.length / 2);
+          const halves: Array<typeof data> = [data.slice(0, mid), data.slice(mid)];
+          return (
+            <div className="space-y-4">
+              {halves.map((rowData, rowIdx) => (
+                <div key={rowIdx} className="h-[280px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={rowData}
+                      margin={{ top: 8, right: 16, bottom: 50, left: 8 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.35} />
+                      <XAxis
+                        dataKey="categoryName"
+                        interval={0}
+                        height={48}
+                        tickLine={false}
+                        tick={HorizontalCategoryTick}
+                      />
+                      <YAxis
+                        domain={[0, 0.5]}
+                        ticks={[0, 0.1, 0.2, 0.3, 0.4, 0.5]}
+                        tick={{ fontSize: 11 }}
+                        tickFormatter={(value) => `${(Number(value) * 100).toFixed(0)}%`}
+                        width={46}
+                      />
+                      {series.map((item) => {
+                        const sota = isHumanSota(item.id);
+                        return (
+                          <Bar
+                            key={item.id}
+                            dataKey={item.id}
+                            name={item.name}
+                            fill={item.color}
+                            fillOpacity={sota ? 0.03 : 0.88}
+                            stroke={sota ? item.color : undefined}
+                            strokeDasharray={sota ? "6 4" : undefined}
+                            strokeWidth={sota ? 1.6 : 0}
+                            radius={[3, 3, 0, 0]}
+                            maxBarSize={20}
+                            shape={
+                              sota
+                                ? undefined
+                                : ModelBarWithVanillaTick(item.id, item.color)
+                            }
+                          />
+                        );
+                      })}
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
 
       <div className="mt-8 p-4">
@@ -292,15 +305,18 @@ export default function CategoryPerformanceCharts({ data, series }: Props) {
             ))}
           </div>
         </div>
-        {/* Keep the radar compact inside the wider card while leaving label room. */}
-        <div className="mx-auto mt-2 aspect-square w-full max-w-[460px]">
+        {/* Bump outerRadius so the 50% gridline reaches close to the box edge
+            (no big halo of empty ring beyond it). The angular labels still
+            fit because PolarCategoryTick wraps long names and uses a
+            side-aware text-anchor. */}
+        <div className="mx-auto mt-2 aspect-square w-full max-w-[560px]">
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart
               data={radarData}
               cx="50%"
               cy="50%"
-              outerRadius="68%"
-              margin={{ top: 32, right: 32, bottom: 32, left: 32 }}
+              outerRadius="86%"
+              margin={{ top: 18, right: 22, bottom: 18, left: 22 }}
             >
               <PolarGrid strokeOpacity={0.3} />
               <PolarAngleAxis
