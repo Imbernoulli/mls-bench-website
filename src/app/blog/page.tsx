@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { RESOURCE_LINKS } from "@/lib/resources";
+import BlogLandscape from "@/components/BlogLandscape";
 import ResourceButtons from "@/components/ResourceButtons";
 
 export const metadata: Metadata = {
@@ -169,6 +170,8 @@ export default function BlogPage() {
         caption="Figure: MLS-Bench-Lite intelligence chart. The Lite track gives a faster view of model progress across the same method-discovery framing."
         wide
       />
+
+      <BlogLandscape />
 
       <div className="prose prose-neutral max-w-none prose-headings:tracking-tight prose-a:text-foreground">
         <h2>Why the Controls Matter</h2>
