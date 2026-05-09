@@ -1472,8 +1472,7 @@
     "environments": [
       "Edges2Handbags / e2h (FID, NFE=5)",
       "ImageNet center-inpaint (FID, NFE=5)",
-      "DIODE depth (FID, NFE=5)",
-      "DIODE_50nfe"
+      "DIODE depth (FID, NFE=5)"
     ],
     "packages": [
       "dbim-codebase"
@@ -4606,7 +4605,9 @@
       "Reinforce++ Baseline"
     ],
     "environments": [
-      "deepmath-3bench-h100"
+      "GSM8K",
+      "MATH-500",
+      "AMC"
     ],
     "packages": [
       "verl"
@@ -4667,7 +4668,9 @@
       "First-K Tokens"
     ],
     "environments": [
-      "deepmath-3bench-h100"
+      "GSM8K",
+      "MATH-500",
+      "AMC"
     ],
     "packages": [
       "verl"
@@ -4729,7 +4732,9 @@
       "Absolute Log-Ratio"
     ],
     "environments": [
-      "deepmath-3bench-h100"
+      "GSM8K",
+      "MATH-500",
+      "AMC"
     ],
     "packages": [
       "verl"
@@ -4799,7 +4804,9 @@
       "Length-Aware Normalization"
     ],
     "environments": [
-      "deepmath-3bench-h100"
+      "GSM8K",
+      "MATH-500",
+      "AMC"
     ],
     "packages": [
       "verl"
