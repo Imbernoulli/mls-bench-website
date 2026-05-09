@@ -35,7 +35,7 @@ export default function CategoryGrid({ items }: Props) {
   };
 
   return (
-    <div className="grid gap-4 [grid-auto-flow:row_dense] sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-3 [grid-auto-flow:row_dense] sm:grid-cols-2 xl:grid-cols-3">
       {items.map(({ category, tasks }) => {
         const style = categoryStyle(category.id);
         const isActive = activeId === category.id;
@@ -59,7 +59,7 @@ export default function CategoryGrid({ items }: Props) {
                   current === category.id ? null : category.id
                 )
               }
-              className="flex min-h-[132px] w-full flex-col justify-between rounded-lg border p-5 text-left transition-[background-color,border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-foreground/20"
+              className="flex w-full flex-col justify-center gap-1 rounded-lg border px-4 py-3 text-left transition-[background-color,border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-foreground/20"
               style={{
                 backgroundColor: style.bg,
                 borderColor: style.border,
@@ -69,10 +69,10 @@ export default function CategoryGrid({ items }: Props) {
                   : "none",
               }}
             >
-              <span className="text-base text-foreground">
+              <span className="text-[15px] font-medium leading-tight text-foreground">
                 {category.label}
               </span>
-              <span className="mt-2 text-sm text-muted-foreground">
+              <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                 {tasks.length} tasks
               </span>
             </button>

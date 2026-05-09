@@ -9,7 +9,6 @@ type IconProps = { color: string };
 type LandscapeIcon = (props: IconProps) => ReactNode;
 
 const C = {
-  navy: "#1f5a86",
   violet: "#6244b0",
   rust: "#a14a2c",
 };
@@ -29,252 +28,6 @@ function IconBox({ children }: { children: ReactNode }) {
     </svg>
   );
 }
-
-const KaggleMedalIcon: LandscapeIcon = ({ color }) => (
-  <IconBox>
-    <rect
-      x={7}
-      y={10}
-      width={32}
-      height={28}
-      rx={2}
-      stroke={color}
-      strokeWidth={SW}
-      fill={color}
-      fillOpacity={0.08}
-    />
-    {[15, 23, 31].map((y) => (
-      <line
-        key={y}
-        x1={12}
-        y1={y}
-        x2={34}
-        y2={y}
-        stroke={color}
-        strokeWidth={1}
-        strokeOpacity={0.55}
-      />
-    ))}
-    <path d="M43 20 l5 10 l5 -10" stroke={color} strokeWidth={SW} />
-    <circle
-      cx={48}
-      cy={41}
-      r={9}
-      stroke={color}
-      strokeWidth={SW}
-      fill={color}
-      fillOpacity={0.18}
-    />
-    <path d="M44 41 l3 3 l6 -7" stroke={color} strokeWidth={SW} />
-  </IconBox>
-);
-
-const HRankIcon: LandscapeIcon = ({ color }) => (
-  <IconBox>
-    <rect
-      x={8}
-      y={10}
-      width={48}
-      height={38}
-      rx={3}
-      stroke={color}
-      strokeWidth={SW}
-      fill={color}
-      fillOpacity={0.07}
-    />
-    {[18, 26, 34].map((y, i) => (
-      <g key={y}>
-        <line
-          x1={14}
-          y1={y}
-          x2={50}
-          y2={y}
-          stroke={color}
-          strokeWidth={1}
-          strokeOpacity={0.45 + i * 0.15}
-        />
-        <circle cx={16 + i * 11} cy={y} r={2.2} fill={color} fillOpacity={0.8} />
-      </g>
-    ))}
-    <text
-      x={32}
-      y={59}
-      fill={color}
-      fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-      fontSize={9}
-      textAnchor="middle"
-    >
-      H-rank
-    </text>
-  </IconBox>
-);
-
-const ExperimentIcon: LandscapeIcon = ({ color }) => (
-  <IconBox>
-    <path
-      d="M24 9 v17 l-12 20 c-2 4 1 8 5 8 h30 c4 0 7 -4 5 -8 l-12 -20 v-17"
-      stroke={color}
-      strokeWidth={SW}
-      fill={color}
-      fillOpacity={0.08}
-    />
-    <line x1={20} y1={9} x2={44} y2={9} stroke={color} strokeWidth={SW} />
-    <path d="M19 43 h26" stroke={color} strokeWidth={1} strokeOpacity={0.55} />
-    {[22, 32, 42].map((x, i) => (
-      <circle
-        key={x}
-        cx={x}
-        cy={38 - i * 3}
-        r={2}
-        fill={color}
-        fillOpacity={0.5 + i * 0.15}
-      />
-    ))}
-  </IconBox>
-);
-
-const DiscoveryIcon: LandscapeIcon = ({ color }) => (
-  <IconBox>
-    {Array.from({ length: 4 }, (_, i) =>
-      Array.from({ length: 4 }, (_, j) => (
-        <rect
-          key={`${i}-${j}`}
-          x={8 + j * 8}
-          y={9 + i * 8}
-          width={7}
-          height={7}
-          stroke={color}
-          strokeWidth={0.8}
-          strokeOpacity={0.5}
-          fill={i === 2 && j === 1 ? color : "none"}
-          fillOpacity={0.5}
-        />
-      )),
-    )}
-    <circle
-      cx={42}
-      cy={42}
-      r={10}
-      stroke={color}
-      strokeWidth={SW}
-      fill={color}
-      fillOpacity={0.12}
-    />
-    <path d="M49 49 l8 8" stroke={color} strokeWidth={SW} />
-    <path d="M38 42 h8 M42 38 v8" stroke={color} strokeWidth={1.2} />
-  </IconBox>
-);
-
-const RubricIcon: LandscapeIcon = ({ color }) => (
-  <IconBox>
-    <rect
-      x={13}
-      y={7}
-      width={38}
-      height={50}
-      rx={3}
-      stroke={color}
-      strokeWidth={SW}
-      fill={color}
-      fillOpacity={0.07}
-    />
-    {[18, 30, 42].map((y, i) => (
-      <g key={y}>
-        <rect
-          x={19}
-          y={y - 5}
-          width={7}
-          height={7}
-          rx={1}
-          stroke={color}
-          strokeWidth={1}
-          fill={i < 2 ? color : "none"}
-          fillOpacity={0.35}
-        />
-        <line x1={31} y1={y} x2={45} y2={y} stroke={color} strokeWidth={1} />
-      </g>
-    ))}
-    <path d="M20 18 l2 2 l4 -5" stroke={color} strokeWidth={1.2} />
-    <path d="M20 30 l2 2 l4 -5" stroke={color} strokeWidth={1.2} />
-  </IconBox>
-);
-
-const WorkflowJudgeIcon: LandscapeIcon = ({ color }) => (
-  <IconBox>
-    {[
-      [13, 16],
-      [32, 12],
-      [51, 24],
-      [24, 43],
-      [46, 48],
-    ].map(([x, y], i) => (
-      <g key={`${x}-${y}`}>
-        <circle
-          cx={x}
-          cy={y}
-          r={5}
-          stroke={color}
-          strokeWidth={SW}
-          fill={color}
-          fillOpacity={i === 2 ? 0.5 : 0.12}
-        />
-      </g>
-    ))}
-    <path d="M18 15 l9 -2 M37 15 l10 6 M48 29 l-3 14 M41 47 l-12 -3 M22 39 l-7 -18" stroke={color} strokeWidth={1} />
-    <path d="M47 24 l3 3 l6 -8" stroke={color} strokeWidth={SW} />
-  </IconBox>
-);
-
-const AssistanceGridIcon: LandscapeIcon = ({ color }) => (
-  <IconBox>
-    {Array.from({ length: 3 }, (_, i) =>
-      Array.from({ length: 3 }, (_, j) => {
-        const active = (i + j) % 2 === 0;
-        return (
-          <rect
-            key={`${i}-${j}`}
-            x={12 + j * 14}
-            y={11 + i * 14}
-            width={10}
-            height={10}
-            rx={2}
-            stroke={color}
-            strokeWidth={SW}
-            fill={active ? color : "none"}
-            fillOpacity={active ? 0.22 : 0}
-            opacity={active ? 1 : 0.55}
-          />
-        );
-      }),
-    )}
-    <path d="M10 55 h44" stroke={color} strokeWidth={1} strokeOpacity={0.45} />
-    <circle cx={32} cy={55} r={2.2} fill={color} />
-  </IconBox>
-);
-
-const HeuristicIcon: LandscapeIcon = ({ color }) => (
-  <IconBox>
-    <path
-      d="M9 49 C 18 30, 23 39, 31 24 S 45 20, 55 9"
-      stroke={color}
-      strokeWidth={SW}
-      fill="none"
-    />
-    {[10, 24, 38, 52].map((x, i) => (
-      <circle
-        key={x}
-        cx={x}
-        cy={49 - i * 12}
-        r={3.5}
-        stroke={color}
-        strokeWidth={SW}
-        fill={i === 3 ? color : "white"}
-        fillOpacity={i === 3 ? 0.65 : 1}
-      />
-    ))}
-    <path d="M47 10 h10 M52 5 v10" stroke={color} strokeWidth={1.2} />
-  </IconBox>
-);
 
 const EvolutionTreeIcon: LandscapeIcon = ({ color }) => (
   <IconBox>
@@ -907,81 +660,6 @@ function HorizontalStrip({
   );
 }
 
-const BENCHMARK_CARDS: LandscapeCardData[] = [
-  {
-    name: "MLE-Bench",
-    year: "2024",
-    scope: "75 Kaggle competitions / medals",
-    description:
-      "ML engineering breadth, but optimized around one competition instance.",
-    icon: KaggleMedalIcon,
-    color: C.navy,
-  },
-  {
-    name: "MLE-Dojo",
-    year: "2025",
-    scope: "200+ ML tasks / H-Rank",
-    description:
-      "Interactive engineering workflows, not reusable method discovery.",
-    icon: HRankIcon,
-    color: C.navy,
-  },
-  {
-    name: "MLAgentBench",
-    year: "2023",
-    scope: "13 ML experiments / baselines",
-    description:
-      "Agent experimentation in compact tasks, with little transfer pressure.",
-    icon: ExperimentIcon,
-    color: C.navy,
-  },
-  {
-    name: "DiscoveryBench",
-    year: "2024",
-    scope: "1167 data discoveries / facets",
-    description:
-      "Data-driven discovery across domains, not ML method invention.",
-    icon: DiscoveryIcon,
-    color: C.navy,
-  },
-  {
-    name: "PaperBench",
-    year: "2025",
-    scope: "20 replications / judge rubric",
-    description:
-      "Paper reproduction and rubric scoring, not isolated method gains.",
-    icon: RubricIcon,
-    color: C.navy,
-  },
-  {
-    name: "MLR-Bench",
-    year: "2025",
-    scope: "201 research workflows / judge",
-    description:
-      "Holistic research output, with broad and lenient success criteria.",
-    icon: WorkflowJudgeIcon,
-    color: C.navy,
-  },
-  {
-    name: "AstaBench",
-    year: "2025",
-    scope: "2400+ assistance tasks",
-    description:
-      "Research-assistance coverage, but only an indirect signal on methods.",
-    icon: AssistanceGridIcon,
-    color: C.navy,
-  },
-  {
-    name: "HeurekaBench",
-    year: "2026",
-    scope: "Heuristic-discovery tasks",
-    description:
-      "Searches for heuristics on expert problems, not broad ML transfer.",
-    icon: HeuristicIcon,
-    color: C.navy,
-  },
-];
-
 const EVOLUTION_CARDS: LandscapeCardData[] = [
   {
     name: "AlphaEvolve",
@@ -1128,27 +806,18 @@ export default function BlogLandscape() {
           What the Field Is Actually Working On
         </h2>
         <p className="text-[15px] leading-relaxed text-foreground/75">
-          Two crowds flank this question. On one side, a generation of agentic
-          ML benchmarks that grade how well a model can engineer one fixed
-          instance. On the other, a fast-growing cluster of self-evolve
-          systems that search over executable artifacts at test time. Both are
-          exciting. But on close inspection, neither measures what we&apos;d
-          actually call ML science &mdash; a controlled, transferable change
-          to how machine-learning systems are built &mdash; and the
-          self-evolve side, in particular, has spent its biggest demonstrations
-          on a strikingly narrow set of toy targets.
+          One direction in agent research is conspicuously crowded right now:
+          self-evolve. Search over executable artifacts, score the outputs,
+          keep the best ones, repeat. Almost every recent &quot;AI discovers&quot;
+          headline comes out of some version of this loop. The shape is real
+          and the wins are real &mdash; the question is what the wins have
+          actually been wins on.
         </p>
       </div>
 
       <HorizontalStrip
-        title="The Existing Benchmark Neighborhood"
-        intro="Most of the surrounding suites evaluate engineering execution, research assistance, end-to-end replication, or data discovery — useful contexts, but not the atomic step of inventing a method that survives outside the setting it was tuned in."
-        cards={BENCHMARK_CARDS}
-      />
-
-      <HorizontalStrip
         title="The Self-Evolve Wave Everyone Is Riding"
-        intro="Self-evolve is the hottest agent-research direction this cycle. Every system below uses one shape — search over executable artifacts, score, keep the best, repeat — and most of them cite each other in the same papers. The shape is real and the wins are real. The question is what the wins are actually wins on."
+        intro="A non-exhaustive snapshot of the systems in this cluster. Every one of them shares the same loop, and most of them cite each other in the same papers. Listed in no particular order."
         cards={EVOLUTION_CARDS}
       />
 

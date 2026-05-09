@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { RESOURCE_LINKS } from "@/lib/resources";
+import { getTasksStatic, getCategoriesStatic } from "@/lib/data";
 import BlogLandscape from "@/components/BlogLandscape";
+import CategoryGrid from "@/components/CategoryGrid";
+import CitationBlock from "@/components/CitationBlock";
 import ResourceButtons from "@/components/ResourceButtons";
 
 export const metadata: Metadata = {
@@ -65,6 +68,23 @@ function Figure({
 }
 
 export default function BlogPage() {
+  const tasks = getTasksStatic().filter((task) => task.category !== "demo");
+  const categories = getCategoriesStatic();
+  const totalTasks = tasks.length;
+  const totalCategories = Object.keys(categories).filter(
+    (key) => key !== "demo",
+  ).length;
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  const categoryItems = Object.values(categories)
+    .filter((category) => category.id !== "demo")
+    .map((category) => ({
+      category,
+      tasks: category.tasks
+        .map((taskId) => taskById.get(taskId))
+        .filter((task): task is (typeof tasks)[number] => task != null)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    }));
+
   return (
     <article className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
       <header>
@@ -115,12 +135,20 @@ export default function BlogPage() {
         <h2>What MLS-Bench Measures</h2>
         <p>
           A task is meant to feel like a small research iteration rather than a
-          general coding assignment. The benchmark covers 140 tasks across 12
-          areas, including language models, reinforcement learning, robotics,
-          vision and generation, ML systems, AI for science, optimization, time
-          series, causal reasoning, trustworthy learning, classical learning,
-          and deep learning.
+          general coding assignment. The benchmark covers {totalTasks} tasks
+          across {totalCategories} areas of ML &mdash; language models,
+          reinforcement learning, robotics, vision and generation, ML systems,
+          AI for science, optimization, time series, causal reasoning,
+          trustworthy learning, classical learning, and deep learning. Hover
+          any category below to peek at the actual tasks inside.
         </p>
+      </div>
+
+      <div className="not-prose my-8">
+        <CategoryGrid items={categoryItems} />
+      </div>
+
+      <div className="prose prose-neutral max-w-none prose-headings:tracking-tight prose-a:text-foreground">
         <p>
           The key design constraint is attribution. Agents can edit the target
           component, but they cannot rewrite the evaluation harness, change the
@@ -359,14 +387,14 @@ export default function BlogPage() {
         </p>
 
         <h2>Citation</h2>
-        <pre className="overflow-x-auto rounded-lg border border-border bg-muted/40 p-4 text-xs leading-relaxed">
-{`@misc{lyu2026mlsbench,
+        <CitationBlock
+          bibtex={`@misc{lyu2026mlsbench,
   title  = {{MLS-Bench}: A Holistic and Rigorous Assessment of AI Systems on Building Better AI},
   author = {Bohan Lyu and Yucheng Yang and Siqiao Huang and Jiaru Zhang and Qixin Xu and Xinghan Li and David Han and Huaqing Zhang and Yicheng Zhang and Runhan Huang and Kaicheng Yang and Zitao Chen and Wentao Guo and Junlin Yang and Xinyue Ai and Wenhao Chai and Yadi Cao and Ziran Yang and Kun Wang and Dapeng Jiang and Huan-ang Gao and Shange Tang and Chengshuai Shi and Simon S. Du and Max Simchowitz and Jiantao Jiao and Dawn Song and Chi Jin},
   year   = {2026},
   url    = {https://mls-bench.com}
 }`}
-        </pre>
+        />
       </div>
     </article>
   );
