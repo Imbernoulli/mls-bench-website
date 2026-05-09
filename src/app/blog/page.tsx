@@ -342,9 +342,32 @@ export default function BlogPage() {
           setting.
         </p>
         <p>
-          The project is maintained as a community platform. The task catalog,
-          public repository, dataset, and discussion channel are open so new
-          results and future task additions can be compared cumulatively.
+          The gap we measure is wider than just proposing methods. It extends
+          to turning an idea into evidence: deciding what to test, how to spend
+          limited trials, and when a result supports a scalable claim. Today&apos;s
+          agents look even weaker at this evidence-building process than at
+          method proposal itself &mdash; a sign that better search alone is not
+          scientific discovery. Real discovery requires forming questions,
+          learning from trials, allocating time and compute, and turning
+          experiments into transferable claims. MLS-Bench is built to make
+          that distinction measurable.
+        </p>
+
+        <h2>Limitations and What We&apos;re Building Next</h2>
+        <p>
+          MLS-Bench is only a first step. ML science is too broad and
+          fast-moving for one benchmark to exhaust, and the trade-off between
+          rigor and freedom is one we will keep tuning. We are actively
+          expanding the task catalog toward more open-ended research questions,
+          refining evaluation protocols so they stay rigorous as the freedom we
+          give agents grows, and tightening the tooling around evidence-building
+          so the benchmark continues to measure scientific judgment, not just
+          method search.
+        </p>
+        <p>
+          If you would like to contribute &mdash; new tasks, evaluation ideas,
+          baselines, or analyses &mdash; please reach out: Bohan Lyu (
+          <a href="mailto:bohan@berkeley.edu">bohan@berkeley.edu</a>).
         </p>
         <p>
           Continue with the task catalog on the{" "}

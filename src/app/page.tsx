@@ -16,7 +16,7 @@ import MethodGallery from "@/components/MethodGallery";
 
 const INSTITUTIONS = [
   { name: "UC Berkeley", src: "/data/institutions/berkeley.svg" },
-  { name: "Princeton University", src: "/data/institutions/princeton.png" },
+  { name: "Princeton University", src: "/data/institutions/princeton.svg" },
   { name: "Tsinghua University", src: "/data/institutions/tsinghua.svg" },
   { name: "Purdue University", src: "/data/institutions/purdue.svg" },
   { name: "University of Washington", src: "/data/institutions/uw.svg" },
@@ -227,7 +227,7 @@ export default function HomePage() {
         {/* ---- Bridge to MLS-Bench ---- */}
         <div className="mx-auto mt-14 max-w-4xl px-4 sm:mt-16">
           <div className="mx-auto max-w-3xl text-center">
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-[28px]">
+            <h2 className="text-balance text-2xl font-semibold tracking-tight text-foreground sm:text-[28px]">
               MLS-Bench tests whether AI agents can invent the next ones.
             </h2>
             <p className="mt-3 text-[15px] leading-relaxed text-foreground/85">

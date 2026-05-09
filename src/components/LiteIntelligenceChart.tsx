@@ -25,8 +25,8 @@ export default function LiteIntelligenceChart({ data, compact = false }: Props) 
   const xFontSize = compact ? 10 : 11;
   const labelFontClass = compact ? "fill-muted-foreground text-[9px]" : "fill-muted-foreground text-[10px]";
   const margin = compact
-    ? { top: 16, right: 12, bottom: 50, left: 4 }
-    : { top: 20, right: 16, bottom: 70, left: 8 };
+    ? { top: 16, right: 28, bottom: 50, left: 28 }
+    : { top: 20, right: 32, bottom: 70, left: 24 };
 
   return (
     <div className={compact ? "p-3" : "p-4"}>

@@ -51,15 +51,15 @@ export default function HeroTaskGallery({ tasks, rows }: Props) {
     rowsTasks[idx % rowCount].push(task);
   });
 
-  // Slightly different per-row durations so rows don't tick in lockstep.
-  const baseDuration = 140;
+  // Both rows scroll at the same comfortable pace, in opposite directions.
+  // Duration tuned so a card takes ~3 seconds to traverse a typical viewport.
+  const duration = 60;
 
   return (
     <div className="flex flex-col gap-3">
       {rowsTasks.map((rowTasks, rowIdx) => {
         if (rowTasks.length === 0) return null;
         const loop = [...rowTasks, ...rowTasks];
-        const duration = baseDuration + rowIdx * 18;
         const reverse = rowIdx % 2 === 1;
         return (
           <Marquee

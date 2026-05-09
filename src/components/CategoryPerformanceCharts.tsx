@@ -4,7 +4,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   Radar,
   RadarChart,
   PolarAngleAxis,
@@ -27,6 +26,10 @@ interface Props {
   data: Record<string, string | number>[];
   series: Series[];
 }
+
+const RADAR_MAX_SCORE = 0.5;
+const RADAR_TICKS = [0.125, 0.25, 0.375, RADAR_MAX_SCORE];
+const HUMAN_SOTA_RADAR_COLOR = "#9ca3af";
 
 /** Wrap a long category label by splitting on " & " or whitespace into
  *  at most 2 lines so axis labels stay horizontal and don't overlap. */
@@ -80,24 +83,35 @@ function HorizontalCategoryTick(props: any) {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function PolarCategoryTick(props: any) {
-  const { x, y, payload, cx, cy } = props;
-  const lines = wrapLabel(String(payload.value), 16);
+  const { x, y, payload, cx, cy, viewBox } = props;
+  const lines = wrapLabel(String(payload.value), 11);
+  const lineHeight = 12;
+  const centerX =
+    typeof cx === "number" ? cx : typeof viewBox?.cx === "number" ? viewBox.cx : x;
+  const centerY =
+    typeof cy === "number" ? cy : typeof viewBox?.cy === "number" ? viewBox.cy : y;
   // Decide text-anchor based on which side of the center the label is.
-  const dx = x - cx;
-  const dy = y - cy;
+  const dx = x - centerX;
+  const dy = y - centerY;
   const anchor = dx > 6 ? "start" : dx < -6 ? "end" : "middle";
   // Push the label slightly outward along the radial direction so it doesn't
   // sit on the polygon vertex.
   const norm = Math.hypot(dx, dy) || 1;
-  const px = x + (dx / norm) * 4;
-  const py = y + (dy / norm) * 4;
+  const px = x + (dx / norm) * 18;
+  const py = y + (dy / norm) * 18;
+  const startY =
+    dy < -20
+      ? -lineHeight * (lines.length - 1) - 4
+      : dy > 20
+        ? 10
+        : -(lineHeight * (lines.length - 1)) / 2 + 4;
   return (
     <g transform={`translate(${px}, ${py})`}>
       {lines.map((line, i) => (
         <text
           key={i}
           x={0}
-          y={i * 12 + (lines.length === 1 ? 4 : 0)}
+          y={startY + i * lineHeight}
           textAnchor={anchor}
           fill="currentColor"
           className="fill-foreground/75"
@@ -182,6 +196,16 @@ export default function CategoryPerformanceCharts({ data, series }: Props) {
     )
   );
   const isHumanSota = (id: string) => id === HUMAN_SOTA_ID;
+  const radarData = data.map((point) => {
+    const clamped = { ...point };
+    for (const item of series) {
+      const value = point[item.id];
+      if (typeof value === "number") {
+        clamped[item.id] = Math.min(Math.max(value, 0), RADAR_MAX_SCORE);
+      }
+    }
+    return clamped;
+  });
 
   return (
     <div>
@@ -268,37 +292,44 @@ export default function CategoryPerformanceCharts({ data, series }: Props) {
             ))}
           </div>
         </div>
-        {/* Square aspect: data fills the box, no room for empty ring outside 50%. */}
+        {/* Keep the radar compact inside the wider card while leaving label room. */}
         <div className="mx-auto mt-2 aspect-square w-full max-w-[460px]">
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart
-              data={data}
+              data={radarData}
               cx="50%"
               cy="50%"
-              outerRadius="80%"
-              margin={{ top: 18, right: 18, bottom: 18, left: 18 }}
+              outerRadius="68%"
+              margin={{ top: 32, right: 32, bottom: 32, left: 32 }}
             >
               <PolarGrid strokeOpacity={0.3} />
-              <PolarAngleAxis dataKey="categoryName" tick={PolarCategoryTick} />
+              <PolarAngleAxis
+                dataKey="categoryName"
+                tick={PolarCategoryTick}
+                tickLine={false}
+              />
               <PolarRadiusAxis
                 angle={90}
-                domain={[0, 0.5]}
-                ticks={[0.125, 0.25, 0.375, 0.5]}
+                domain={[0, RADAR_MAX_SCORE]}
+                ticks={RADAR_TICKS}
                 tickFormatter={(value: number) => `${(value * 100).toFixed(0)}%`}
                 tick={{ fontSize: 10 }}
               />
-              {series.map((item) => (
-                <Radar
-                  key={item.id}
-                  name={item.name}
-                  dataKey={item.id}
-                  stroke={item.color}
-                  fill={item.color}
-                  fillOpacity={isHumanSota(item.id) ? 0.015 : 0.075}
-                  strokeDasharray={isHumanSota(item.id) ? "6 4" : undefined}
-                  strokeWidth={isHumanSota(item.id) ? 1.6 : 1.8}
-                />
-              ))}
+              {series.map((item) => {
+                const humanSota = isHumanSota(item.id);
+                const radarColor = humanSota ? HUMAN_SOTA_RADAR_COLOR : item.color;
+                return (
+                  <Radar
+                    key={item.id}
+                    name={item.name}
+                    dataKey={item.id}
+                    stroke={radarColor}
+                    fill={radarColor}
+                    fillOpacity={humanSota ? 0.04 : 0.075}
+                    strokeWidth={1.8}
+                  />
+                );
+              })}
             </RadarChart>
           </ResponsiveContainer>
         </div>
