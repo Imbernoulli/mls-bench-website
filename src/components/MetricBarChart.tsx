@@ -27,12 +27,20 @@ interface Props {
 
 interface BarPoint {
   label: string;
-  /** Sentinel "value" used for the y-axis domain calculation and as the bar
-   *  height for baseline rows. For model rows it's max(vanilla, agent). */
+  /** Plotted "value" used for the y-axis domain calculation and as the bar
+   *  height for baseline rows. For model rows it's max(vanilla, agent).
+   *  For lower-is-better metrics this is the *transformed* (referenceMax - raw)
+   *  value so the bar visually grows with improvement; raw values are kept on
+   *  rawValue/rawVanilla/rawAgent for the tooltip. */
   value: number;
   /** Per-model overlay values (only set when kind="model"). */
   vanilla?: number;
   agent?: number;
+  /** Original raw values, preserved for tooltip display when the chart has
+   *  applied a lower-is-better transformation. */
+  rawValue: number;
+  rawVanilla?: number;
+  rawAgent?: number;
   color: string;
   kind: "baseline" | "model";
 }
@@ -122,28 +130,50 @@ function rawRowKind(model: string): RawKind {
 }
 
 /** Group vanilla + agent rows of the same canonical model into a single
- *  bar entry (with two overlay sub-values). Baselines stay one entry per row. */
+ *  bar entry (with two overlay sub-values). Baselines stay one entry per row.
+ *
+ *  When direction === "lower", transforms each plotted value to
+ *  (referenceMax - raw) so the visual reading "taller = improvement" holds in
+ *  both directions. Raw values are kept on rawValue/rawVanilla/rawAgent for
+ *  the tooltip; the y-axis tickFormatter remaps ticks back to raw too. */
 function buildBars(
   rows: LeaderboardData["rows"],
   metric: string,
-  models: StandardModel[]
-): BarPoint[] {
-  const baselines: BarPoint[] = [];
-  const modelMap = new Map<
-    string,
-    { label: string; color: string; vanilla?: number; agent?: number }
-  >();
-
+  models: StandardModel[],
+  direction: "higher" | "lower"
+): { points: BarPoint[]; referenceMax: number } {
+  // Pre-pass: gather raw values to compute the lower-is-better reference
+  type Raw = { kind: "baseline" | "vanilla" | "agent"; raw: number; rawModel: string };
+  const raws: Raw[] = [];
   for (const row of rows) {
     const v = row[metric];
     if (typeof v !== "number") continue;
     const rawModel = row.model as string;
-    const kind = rawRowKind(rawModel);
+    raws.push({ kind: rawRowKind(rawModel), raw: v, rawModel });
+  }
+  const referenceMax = raws.length > 0 ? Math.max(...raws.map((r) => r.raw)) : 0;
+  const transform = (raw: number) =>
+    direction === "lower" ? referenceMax - raw : raw;
 
+  const baselines: BarPoint[] = [];
+  const modelMap = new Map<
+    string,
+    {
+      label: string;
+      color: string;
+      vanilla?: number;
+      agent?: number;
+      rawVanilla?: number;
+      rawAgent?: number;
+    }
+  >();
+
+  for (const { kind, raw, rawModel } of raws) {
     if (kind === "baseline") {
       baselines.push({
         label: modelDisplayName(rawModel, models),
-        value: v,
+        value: transform(raw),
+        rawValue: raw,
         color: BASELINE_COLOR,
         kind: "baseline",
       });
@@ -158,8 +188,13 @@ function buildBars(
       label: canonical.name,
       color: canonical.color,
     };
-    if (kind === "vanilla") entry.vanilla = v;
-    else entry.agent = v;
+    if (kind === "vanilla") {
+      entry.vanilla = transform(raw);
+      entry.rawVanilla = raw;
+    } else {
+      entry.agent = transform(raw);
+      entry.rawAgent = raw;
+    }
     modelMap.set(canonical.id, entry);
   }
 
@@ -171,13 +206,22 @@ function buildBars(
       label: e.label,
       vanilla: e.vanilla,
       agent: e.agent,
-      // y-axis domain & a fallback height: the larger of the two values.
+      rawVanilla: e.rawVanilla,
+      rawAgent: e.rawAgent,
+      // y-axis domain & a fallback height: the larger of the two transformed
+      // values. Tooltip shows rawVanilla/rawAgent separately, so rawValue
+      // here is just a sentinel — pick the raw that produced the taller bar
+      // (smaller raw for lower-is-better, larger raw for higher-is-better).
       value: Math.max(e.vanilla ?? -Infinity, e.agent ?? -Infinity),
+      rawValue:
+        direction === "lower"
+          ? Math.min(e.rawVanilla ?? Infinity, e.rawAgent ?? Infinity)
+          : Math.max(e.rawVanilla ?? -Infinity, e.rawAgent ?? -Infinity),
       color: e.color,
       kind: "model",
     }));
 
-  return [...baselines, ...orderedModels];
+  return { points: [...baselines, ...orderedModels], referenceMax };
 }
 
 function formatValue(value: unknown) {
@@ -187,8 +231,19 @@ function formatValue(value: unknown) {
   return value.toFixed(3);
 }
 
-function metricDomain(points: BarPoint[]): [number, number] {
+function metricDomain(
+  points: BarPoint[],
+  direction: "higher" | "lower"
+): [number, number] {
   const values = points.map((point) => point.value);
+  // For lower-is-better, plotted values are (refMax - raw), always ≥ 0,
+  // and we want the chart anchored at 0 so the "worst observed" sits flush
+  // at the bottom and improvements grow up from there.
+  if (direction === "lower") {
+    const max = Math.max(...values);
+    const padding = max > 0 ? max * 0.12 : 0.5;
+    return [0, max + padding];
+  }
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min;
@@ -205,6 +260,53 @@ function metricDomain(points: BarPoint[]): [number, number] {
   }
 
   return [lower, upper];
+}
+
+/** Recharts custom tooltip showing RAW metric values (i.e., undo any
+ *  lower-is-better transformation we applied to the plotted value). */
+function RawTooltip({
+  active,
+  label,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload,
+}: {
+  active?: boolean;
+  label: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload?: readonly any[];
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  const point = payload[0]?.payload as BarPoint | undefined;
+  if (!point) return null;
+  const isModel = point.kind === "model";
+  return (
+    <div
+      className="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs"
+      style={{ boxShadow: "0 4px 14px rgba(0,0,0,0.06)" }}
+    >
+      <div className="font-medium">{label}</div>
+      {isModel ? (
+        <div className="mt-1 space-y-0.5 text-muted-foreground">
+          {typeof point.rawVanilla === "number" && (
+            <div>
+              <span className="opacity-70">Vanilla:</span>{" "}
+              {formatValue(point.rawVanilla)}
+            </div>
+          )}
+          {typeof point.rawAgent === "number" && (
+            <div>
+              <span className="opacity-70">Agent:</span>{" "}
+              {formatValue(point.rawAgent)}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="mt-1 text-muted-foreground">
+          {formatValue(point.rawValue)}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function MetricBarChart({ data, models }: Props) {
@@ -276,9 +378,18 @@ export default function MetricBarChart({ data, models }: Props) {
             >
               {group.metrics.map((metric) => {
                 const direction = data.metric_directions?.[metric] ?? "higher";
-                const bars = buildBars(rows, metric, models);
+                const { points: bars, referenceMax } = buildBars(
+                  rows,
+                  metric,
+                  models,
+                  direction
+                );
                 if (bars.length === 0) return null;
-                const domain = metricDomain(bars);
+                const domain = metricDomain(bars, direction);
+                const yTick = (value: number) =>
+                  direction === "lower"
+                    ? formatValue(referenceMax - value)
+                    : formatValue(value);
 
                 return (
                   <div
@@ -295,7 +406,9 @@ export default function MetricBarChart({ data, models }: Props) {
                           {metricLabel(metric)}
                         </div>
                         <div className="mt-0.5 text-xs text-muted-foreground">
-                          {direction === "lower" ? "Lower is better" : "Higher is better"} · adaptive scale
+                          {direction === "lower"
+                            ? "Lower is better · taller bar = improvement"
+                            : "Higher is better · adaptive scale"}
                         </div>
                       </div>
                       <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
@@ -321,26 +434,25 @@ export default function MetricBarChart({ data, models }: Props) {
                             tick={{ fontSize: 10 }}
                             width={48}
                             domain={domain}
-                            tickFormatter={(value) => formatValue(value)}
+                            tickFormatter={yTick}
                           />
                           <Tooltip
-                            formatter={(value) => formatValue(value)}
-                            labelFormatter={(label) => String(label)}
-                            contentStyle={{
-                              background: "var(--card)",
-                              border: "1px solid var(--border)",
-                              borderRadius: "8px",
-                              fontSize: "12px",
-                            }}
+                            content={(p) => (
+                              <RawTooltip
+                                active={p.active}
+                                label={String(p.label ?? "")}
+                                payload={p.payload}
+                              />
+                            )}
                           />
                           {/* Single Bar driven by `value` (= max of vanilla
                               and agent for model rows, or the baseline
-                              value). The custom shape draws Vanilla as the
-                              darker rect to its full height + Agent as a
-                              lighter overlay rect to its full height — both
-                              at the SAME x-position so the two never
-                              stagger. Baseline rows render a single rect
-                              at the baseline color. */}
+                              value). For lower-is-better metrics the value
+                              is (referenceMax - raw) so the bar visually
+                              grows with improvement; the y-axis tick label
+                              and the tooltip remap back to raw. The custom
+                              shape draws Vanilla (darker) and Agent (lighter
+                              overlay) at the same x-position. */}
                           <Bar dataKey="value" radius={[3, 3, 0, 0]} shape={MetricBarShape} />
                         </BarChart>
                       </ResponsiveContainer>
