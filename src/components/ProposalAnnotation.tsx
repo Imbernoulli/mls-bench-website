@@ -10,9 +10,41 @@ export interface Hyperparam {
   learnable?: boolean;
 }
 
+/** Typed visual vocabulary for diagram blocks. Each kind has a distinct color
+ *  so a reader can scan a diagram and tell tensors from norm layers from
+ *  attention blocks at a glance, without having to read every label.
+ *
+ *  Main blocks (rectangles): tensor / linear / norm / act / attn / ffn /
+ *  embed / pos / softmax / loss / conv / rnn / op (generic typed op).
+ *  Operator nodes (small symbols): add / mul / concat / split / param. */
+export type BlockKind =
+  | "tensor"
+  | "linear"
+  | "norm"
+  | "act"
+  | "attn"
+  | "ffn"
+  | "embed"
+  | "pos"
+  | "softmax"
+  | "loss"
+  | "conv"
+  | "rnn"
+  | "op"
+  | "add"
+  | "mul"
+  | "concat"
+  | "split"
+  | "param";
+
 export interface DiagramNode {
   id: string;
-  label: string;
+  /** Optional typed kind. Defaults to "op" if omitted (legacy nodes). */
+  kind?: BlockKind;
+  /** Primary label shown inside the block (e.g. "RMSNorm", "Q proj"). */
+  label?: string;
+  /** Small subtitle below the label (e.g. "ε=1e-6", "→ 4d hidden"). */
+  sub?: string;
 }
 export interface DiagramEdge {
   from: string;
@@ -65,6 +97,26 @@ function renderMath(latex: string, displayMode: boolean): string {
   }
 }
 
+/** A hyperparam name like `weight_decay` should NOT be passed through KaTeX
+ *  (which would interpret `_d` as subscript and shrink the rest). Only treat
+ *  as math if it clearly is — explicit LaTeX (`\\beta`), or a short
+ *  Greek/single-letter prefix before `_` (`τ_split`, `β_1`, `η_max`). Code
+ *  identifiers (`weight_decay`, `lr_warmup_steps`) render as plain monospace. */
+function looksLikeMathName(name: string): boolean {
+  if (name.includes("\\")) return true;
+  if (!name.includes("_")) {
+    // Single Greek letter or symbol with no underscore — also math
+    return /^[α-ωΑ-Ω]$/.test(name) || /^[a-zA-Z]$/.test(name);
+  }
+  const head = name.split("_")[0];
+  // 1-2 chars before underscore, all letters → math (e.g. β_1, τ_split, lr_max)
+  // For 1-2 char heads like "lr" we'd lose the underscore-as-subscript intent;
+  // restrict to truly short identifiers OR Greek letters.
+  if (/^[α-ωΑ-Ω]$/.test(head)) return true;
+  if (head.length === 1 && /^[a-zA-Z]$/.test(head)) return true;
+  return false;
+}
+
 /** Render a block-formula string. Annotators sometimes pack MULTIPLE equations
  *  into one `formula` field as `$$ a $$ $$ b $$ $$ c $$` — split on every `$$`
  *  separator and render each non-empty piece as its own KaTeX block, stacked
@@ -114,98 +166,168 @@ function PseudocodeBlock({ code }: { code: string }) {
   );
 }
 
-/** Tiny SVG renderer for {nodes, edges}. Lays nodes out in a single horizontal
- *  row with even spacing. Suitable for ≤8 nodes; longer chains will overflow. */
+/** Visual style per typed block kind. The colors are the block's identity at
+ *  a glance — a reader scans a diagram and sees orange = FFN, purple = Attn,
+ *  yellow = Norm, etc. without reading every label. */
+const BLOCK_STYLE: Record<
+  BlockKind,
+  { bg: string; border: string; text: string; isOp: boolean; symbol?: string }
+> = {
+  tensor:  { bg: "#f3f4f6", border: "#9ca3af", text: "#374151", isOp: false },
+  linear:  { bg: "#dbeafe", border: "#3b82f6", text: "#1e3a8a", isOp: false },
+  norm:    { bg: "#fef3c7", border: "#d97706", text: "#92400e", isOp: false },
+  act:     { bg: "#d1fae5", border: "#059669", text: "#065f46", isOp: false },
+  attn:    { bg: "#ede9fe", border: "#7c3aed", text: "#4c1d95", isOp: false },
+  ffn:     { bg: "#fed7aa", border: "#ea580c", text: "#7c2d12", isOp: false },
+  embed:   { bg: "#ccfbf1", border: "#0d9488", text: "#134e4a", isOp: false },
+  pos:     { bg: "#cffafe", border: "#0891b2", text: "#164e63", isOp: false },
+  softmax: { bg: "#fce7f3", border: "#db2777", text: "#831843", isOp: false },
+  loss:    { bg: "#fee2e2", border: "#dc2626", text: "#7f1d1d", isOp: false },
+  conv:    { bg: "#e0e7ff", border: "#4f46e5", text: "#312e81", isOp: false },
+  rnn:     { bg: "#fef3c7", border: "#b45309", text: "#78350f", isOp: false },
+  op:      { bg: "#f1f5f9", border: "#64748b", text: "#334155", isOp: false },
+  add:     { bg: "#ffffff", border: "#374151", text: "#374151", isOp: true, symbol: "+" },
+  mul:     { bg: "#ffffff", border: "#374151", text: "#374151", isOp: true, symbol: "×" },
+  concat:  { bg: "#ffffff", border: "#374151", text: "#374151", isOp: true, symbol: "‖" },
+  split:   { bg: "#ffffff", border: "#374151", text: "#374151", isOp: true, symbol: "⤳" },
+  param:   { bg: "#fffbeb", border: "#d97706", text: "#7c2d12", isOp: true, symbol: "θ" },
+};
+
+/** Auto-grid layout for typed-block diagrams. Topologically levels nodes by
+ *  longest path from a source; within a level, stacks vertically. Edges become
+ *  bezier curves so cross-row connections route cleanly. */
+function computeLayout(nodes: DiagramNode[], edges: DiagramEdge[]) {
+  const COL_W = 130;
+  const ROW_H = 56;
+  const PAD = 16;
+  const NODE_W = 110;
+  const NODE_H = 36;
+  const OP_R = 12;
+
+  const out = new Map<string, string[]>();
+  const inDegInit = new Map<string, number>();
+  for (const n of nodes) {
+    out.set(n.id, []);
+    inDegInit.set(n.id, 0);
+  }
+  for (const e of edges) {
+    out.get(e.from)?.push(e.to);
+    inDegInit.set(e.to, (inDegInit.get(e.to) ?? 0) + 1);
+  }
+
+  // Longest-path levels via Kahn-style topological sweep.
+  const level = new Map<string, number>();
+  const remaining = new Map(inDegInit);
+  const queue: string[] = [];
+  for (const n of nodes) {
+    if ((remaining.get(n.id) ?? 0) === 0) {
+      level.set(n.id, 0);
+      queue.push(n.id);
+    }
+  }
+  while (queue.length) {
+    const id = queue.shift()!;
+    for (const nxt of out.get(id) ?? []) {
+      const newL = (level.get(id) ?? 0) + 1;
+      if (newL > (level.get(nxt) ?? -1)) level.set(nxt, newL);
+      remaining.set(nxt, (remaining.get(nxt) ?? 1) - 1);
+      if ((remaining.get(nxt) ?? 0) === 0 && !level.has(nxt)) {
+        // shouldn't happen since we set level above, but be safe
+        level.set(nxt, newL);
+        queue.push(nxt);
+      } else if ((remaining.get(nxt) ?? 0) === 0) {
+        queue.push(nxt);
+      }
+    }
+  }
+  // Any unvisited (cycle / disconnected) → put at level 0
+  for (const n of nodes) if (!level.has(n.id)) level.set(n.id, 0);
+
+  // Bucket by level, preserve declaration order
+  const byLevel = new Map<number, DiagramNode[]>();
+  for (const n of nodes) {
+    const l = level.get(n.id) ?? 0;
+    if (!byLevel.has(l)) byLevel.set(l, []);
+    byLevel.get(l)!.push(n);
+  }
+
+  const levels = Array.from(byLevel.keys()).sort((a, b) => a - b);
+  const maxRows = Math.max(1, ...Array.from(byLevel.values()).map((a) => a.length));
+
+  const positions = new Map<
+    string,
+    { x: number; y: number; w: number; h: number; cx: number; cy: number; isOp: boolean }
+  >();
+  for (const l of levels) {
+    const ns = byLevel.get(l)!;
+    ns.forEach((n, i) => {
+      const isOp = BLOCK_STYLE[n.kind ?? "op"].isOp;
+      const w = isOp ? OP_R * 2 : NODE_W;
+      const h = isOp ? OP_R * 2 : NODE_H;
+      const colCenter = PAD + l * COL_W + NODE_W / 2;
+      const rowCenter = PAD + ROW_H * (i + (maxRows - ns.length) / 2) + ROW_H / 2;
+      positions.set(n.id, {
+        x: colCenter - w / 2,
+        y: rowCenter - h / 2,
+        w,
+        h,
+        cx: colCenter,
+        cy: rowCenter,
+        isOp,
+      });
+    });
+  }
+
+  const lastLevel = levels.length > 0 ? levels[levels.length - 1] : 0;
+  const totalW = PAD * 2 + lastLevel * COL_W + NODE_W;
+  const totalH = PAD * 2 + maxRows * ROW_H;
+  return { positions, totalW, totalH };
+}
+
+/** Typed-block diagram renderer. Each node has an optional `kind` (default
+ *  "op") that picks a colored visual style; layout is computed automatically
+ *  via topological levels with bezier-curve edges. */
 function DiagramBlock({ spec }: { spec: DiagramSpec }) {
   const nodes = spec.nodes;
   const edges = spec.edges ?? [];
   if (nodes.length === 0) return null;
 
-  // Layout: even horizontal spacing, fixed node box width based on label length.
-  const nodeBoxWidth = (label: string) =>
-    Math.max(64, Math.min(140, 12 + label.length * 7));
-  const widths = nodes.map((n) => nodeBoxWidth(n.label));
-  const gap = 28;
-  const padX = 12;
-  const padY = 24;
-  const boxHeight = 32;
-  const positions: Record<string, { x: number; w: number }> = {};
-  let cursor = padX;
-  for (let i = 0; i < nodes.length; i++) {
-    positions[nodes[i].id] = { x: cursor, w: widths[i] };
-    cursor += widths[i] + gap;
-  }
-  const totalWidth = cursor - gap + padX;
-  const totalHeight = boxHeight + padY * 2;
+  const { positions, totalW, totalH } = computeLayout(nodes, edges);
 
   return (
     <div className="overflow-x-auto rounded-md border border-border bg-muted/30 p-3">
       <svg
-        width={totalWidth}
-        height={totalHeight}
-        viewBox={`0 0 ${totalWidth} ${totalHeight}`}
+        width={totalW}
+        height={totalH}
+        viewBox={`0 0 ${totalW} ${totalH}`}
         className="block"
       >
-        {/* Edges first so they appear behind nodes */}
+        {/* Edges first so nodes overlay them */}
         {edges.map((e, i) => {
-          const a = positions[e.from];
-          const b = positions[e.to];
+          const a = positions.get(e.from);
+          const b = positions.get(e.to);
           if (!a || !b) return null;
           const x1 = a.x + a.w;
+          const y1 = a.cy;
           const x2 = b.x;
-          const y = padY + boxHeight / 2;
-          // Simple horizontal arrow when nodes are adjacent; for skip edges use a small arc.
-          if (Math.abs(x2 - x1 - gap) < 1) {
-            return (
-              <g key={i}>
-                <line
-                  x1={x1}
-                  y1={y}
-                  x2={x2 - 6}
-                  y2={y}
-                  stroke="var(--muted-foreground)"
-                  strokeWidth={1.5}
-                />
-                <polygon
-                  points={`${x2},${y} ${x2 - 6},${y - 4} ${x2 - 6},${y + 4}`}
-                  fill="var(--muted-foreground)"
-                />
-                {e.label && (
-                  <text
-                    x={(x1 + x2) / 2}
-                    y={y - 6}
-                    textAnchor="middle"
-                    fontSize={10}
-                    fill="var(--muted-foreground)"
-                  >
-                    {e.label}
-                  </text>
-                )}
-              </g>
-            );
-          }
-          // Skip edge: arc above the row
-          const midX = (x1 + x2) / 2;
-          const arcY = padY - 10;
+          const y2 = b.cy;
+          const dx = Math.max(20, x2 - x1);
+          const cp = dx * 0.4;
+          const path = `M ${x1} ${y1} C ${x1 + cp} ${y1}, ${x2 - cp} ${y2}, ${x2 - 5} ${y2}`;
           return (
             <g key={i}>
-              <path
-                d={`M ${x1} ${y} Q ${midX} ${arcY} ${x2 - 6} ${y}`}
-                fill="none"
-                stroke="var(--muted-foreground)"
-                strokeWidth={1.5}
-              />
+              <path d={path} fill="none" stroke="#94a3b8" strokeWidth={1.4} />
               <polygon
-                points={`${x2},${y} ${x2 - 6},${y - 4} ${x2 - 6},${y + 4}`}
-                fill="var(--muted-foreground)"
+                points={`${x2},${y2} ${x2 - 6},${y2 - 4} ${x2 - 6},${y2 + 4}`}
+                fill="#94a3b8"
               />
               {e.label && (
                 <text
-                  x={midX}
-                  y={arcY - 2}
+                  x={(x1 + x2) / 2}
+                  y={(y1 + y2) / 2 - 4}
                   textAnchor="middle"
-                  fontSize={10}
-                  fill="var(--muted-foreground)"
+                  fontSize={9}
+                  fill="#64748b"
                 >
                   {e.label}
                 </text>
@@ -213,31 +335,84 @@ function DiagramBlock({ spec }: { spec: DiagramSpec }) {
             </g>
           );
         })}
-        {/* Node boxes */}
+        {/* Nodes */}
         {nodes.map((n) => {
-          const p = positions[n.id];
+          const p = positions.get(n.id);
+          if (!p) return null;
+          const k = n.kind ?? "op";
+          const s = BLOCK_STYLE[k];
+          if (s.isOp) {
+            // Small operator node
+            return (
+              <g key={n.id}>
+                <circle
+                  cx={p.cx}
+                  cy={p.cy}
+                  r={12}
+                  fill={s.bg}
+                  stroke={s.border}
+                  strokeWidth={1.5}
+                />
+                <text
+                  x={p.cx}
+                  y={p.cy + 4}
+                  textAnchor="middle"
+                  fontSize={13}
+                  fontWeight={600}
+                  fill={s.text}
+                >
+                  {s.symbol}
+                </text>
+                {n.label && (
+                  <text
+                    x={p.cx + 16}
+                    y={p.cy + 4}
+                    fontSize={10}
+                    fill="#64748b"
+                  >
+                    {n.label}
+                  </text>
+                )}
+              </g>
+            );
+          }
+          // Main typed block
+          const labelY = n.sub ? p.cy - 2 : p.cy + 4;
           return (
             <g key={n.id}>
               <rect
                 x={p.x}
-                y={padY}
+                y={p.y}
                 width={p.w}
-                height={boxHeight}
-                rx={6}
-                ry={6}
-                fill="var(--card)"
-                stroke="var(--border)"
-                strokeWidth={1.5}
+                height={p.h}
+                rx={5}
+                ry={5}
+                fill={s.bg}
+                stroke={s.border}
+                strokeWidth={1.4}
               />
               <text
-                x={p.x + p.w / 2}
-                y={padY + boxHeight / 2 + 4}
+                x={p.cx}
+                y={labelY}
                 textAnchor="middle"
                 fontSize={11}
-                fill="var(--foreground)"
+                fontWeight={500}
+                fill={s.text}
               >
-                {n.label}
+                {n.label ?? n.id}
               </text>
+              {n.sub && (
+                <text
+                  x={p.cx}
+                  y={p.cy + 11}
+                  textAnchor="middle"
+                  fontSize={9}
+                  fill={s.text}
+                  opacity={0.7}
+                >
+                  {n.sub}
+                </text>
+              )}
             </g>
           );
         })}
@@ -339,12 +514,16 @@ export default function ProposalAnnotation({
                 className="inline-flex items-center gap-1 rounded-full border border-border bg-background/50 px-2 py-0.5"
                 title={h.role}
               >
-                <span
-                  className="font-mono text-foreground"
-                  dangerouslySetInnerHTML={{
-                    __html: renderMath(h.name, false),
-                  }}
-                />
+                {looksLikeMathName(h.name) ? (
+                  <span
+                    className="text-foreground"
+                    dangerouslySetInnerHTML={{
+                      __html: renderMath(h.name, false),
+                    }}
+                  />
+                ) : (
+                  <span className="font-mono text-foreground">{h.name}</span>
+                )}
                 <span className="opacity-50">=</span>
                 <span className="font-mono">{h.value}</span>
                 {h.learnable && (

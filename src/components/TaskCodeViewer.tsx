@@ -273,34 +273,47 @@ export default function TaskCodeViewer({
   const diffLeftEntry = views.find((v) => v.key === diffLeft) || views[0];
   const diffRightEntry = views.find((v) => v.key === diffRight) || views[0];
 
-  // Tab style helper
-  function tabClass(v: ViewEntry, isActive: boolean) {
-    if (!isActive) return "bg-muted text-muted-foreground hover:bg-muted/80";
-    if (v.kind === "source") return "bg-primary text-primary-foreground";
-    if (v.kind === "baseline") return "bg-blue-600 text-white";
-    return "bg-violet-600 text-white";
+  // Unified tab styling: all tabs share the same active/inactive treatment;
+  // a small colored dot before the label encodes the tab's kind (source =
+  // dark, baseline = neutral gray, agent = model brand color).
+  function tabClass(_v: ViewEntry, isActive: boolean) {
+    return isActive
+      ? "bg-foreground text-background"
+      : "bg-muted text-muted-foreground hover:bg-muted/80";
+  }
+  function tabDotColor(v: ViewEntry): string {
+    if (v.kind === "source") return "#0f172a";
+    if (v.kind === "baseline") return "#64748b";
+    if (v.kind === "agent" && v.name) {
+      const canonical = resolveCanonicalModel(v.name, models);
+      return canonical?.color ?? "#7c3aed";
+    }
+    return "#94a3b8";
   }
 
   return (
     <div>
       {/* Top bar: tabs + diff toggle */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        {/* View tabs (only in non-diff mode) */}
+        {/* View tabs (only in non-diff mode). All tabs use the same visual
+            language; a small colored dot encodes the kind so source/baseline/
+            agent are distinguishable without colored backgrounds. */}
         {!diffMode &&
           views.map((v) => (
             <button
               key={v.key}
               onClick={() => setActiveView(v.key)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${tabClass(
+              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${tabClass(
                 v,
-                activeView === v.key
+                activeView === v.key,
               )}`}
             >
-              {v.kind === "source"
-                ? "Source"
-                : v.kind === "agent"
-                  ? v.label
-                  : v.label}
+              <span
+                aria-hidden
+                className="inline-block h-2 w-2 rounded-full"
+                style={{ backgroundColor: tabDotColor(v) }}
+              />
+              {v.kind === "source" ? "Source" : v.label}
             </button>
           ))}
 
