@@ -1,0 +1,91 @@
+[
+  {
+    "model": "claude-opus-4-6",
+    "name": "DPM-Solver++ 2M (10 NFE) + CGAR",
+    "tagline": "Use a fast 10-step ODE sampler, then apply Critic-Guided Action Refinement: trust-region gradient ascent on Q at inference, no extra NFEs.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Set solver = ode_dpmsolver++_2M, sampling_steps = 10\n// 2. At inference: $a_0 \\leftarrow$ actor.sample(...)  // 10 NFE\n// 3. for r = 1..2 do  // CGAR refinement (no diffusion calls)\n// 4.    $g \\leftarrow \\nabla_a Q_{\\min}(s,a)$; $\\hat g \\leftarrow g/\\|g\\|$\n// 5.    $a' \\leftarrow a + 0.005\\,\\hat g$\n// 6.    $\\delta \\leftarrow \\mathrm{clip}(a' - a_0,\\, \\|\\delta\\| \\le 0.05)$  // trust region around original sample\n// 7.    $a \\leftarrow \\mathrm{clip}(a_0 + \\delta,\\, [-1,1])$\n// 8. Use weighted Q-softmax over candidates as in baseline",
+    "key_hyperparams": [
+      {"name": "solver", "value": "ode_dpmsolver++_2M", "role": "second-order ODE sampler", "learnable": false},
+      {"name": "sampling_steps", "value": "10", "role": "diffusion NFE budget", "learnable": false},
+      {"name": "cgar_refine_steps", "value": "2", "role": "Q-ascent refinement iterations (no NFE)", "learnable": false},
+      {"name": "cgar_lr", "value": "0.005", "role": "step size for action gradient", "learnable": false},
+      {"name": "cgar_trust_radius", "value": "0.05", "role": "L2 cap on deviation from diffusion sample", "learnable": false}
+    ],
+    "init_recovers": "DPM-Solver++ 2M baseline when refinement_steps=0",
+    "diff_from_baseline": "On top of the DPM-Solver++ baseline (10 steps), adds an inference-only critic-guided refinement: 2 normalized gradient-ascent steps on Q with a small trust region around the original sampled action. Diffusion NFE budget is unchanged. Note this also touches the (officially non-editable) pipeline file.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "Adaptive-NFE DPM-Solver++ (Q-uncertainty gated)",
+    "tagline": "Default 10-step DPM-Solver++ 2M, plus an optional 5-step refinement triggered when Q's coefficient-of-variation across candidates exceeds 0.1.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Set solver = ode_dpmsolver++_2M, sampling_steps = 11 (config)\n// 2. At inference for each obs:\n// 3.    $a_1 \\leftarrow$ actor.sample(steps = 10)\n// 4.    $q_1 \\leftarrow Q_{\\min}(s,a_1)$; $cv \\leftarrow \\sigma(q_1)/(|\\mu(q_1)|+\\epsilon)$\n// 5.    if $cv > 0.1$:\n// 6.        $a_2 \\leftarrow$ actor.sample(steps = 15); $q_2 \\leftarrow Q_{\\min}(s,a_2)$\n// 7.        $a \\leftarrow [q_2 > q_1]\\,a_2 + [q_2 \\le q_1]\\,a_1$  // pick the higher-Q candidate\n// 8.    else: $a \\leftarrow a_1$\n// 9. Continue with critic-weighted candidate selection",
+    "key_hyperparams": [
+      {"name": "solver", "value": "ode_dpmsolver++_2M", "role": "second-order ODE sampler", "learnable": false},
+      {"name": "sampling_steps (config)", "value": "11", "role": "configured budget", "learnable": false},
+      {"name": "base_steps", "value": "10", "role": "first-pass NFE", "learnable": false},
+      {"name": "extra_steps", "value": "5", "role": "refinement NFE on uncertain batches", "learnable": false},
+      {"name": "rel_thresh", "value": "0.1", "role": "Q coefficient-of-variation trigger", "learnable": false}
+    ],
+    "init_recovers": "DPM-Solver++ 2M baseline (10 NFE) when rel_thresh=∞",
+    "diff_from_baseline": "Replaces fixed-budget sampling with a two-pass adaptive scheme: cheap 10-NFE pass first, only re-sample with 15 NFE when the per-state Q-uncertainty across candidates is high, then keep the higher-Q action. Adds runtime spend only where the critic is uncertain.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini/gemini-3.1-pro-preview",
+    "name": "DPM-Solver++ 2M (3 NFE) + Adam-on-action",
+    "tagline": "Aggressive 3-step ODE sampler at inference, then 5 Adam updates on the action with respect to Q before candidate weighting.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Config: solver = ode_dpmsolver++_2M, sampling_steps = 3, num_candidates = 100\n// 2. Hard-code 10-step DPM-Solver++ for the in-training next-action and policy samples\n// 3. At inference:  $a \\leftarrow$ actor.sample(steps = 3)\n// 4.    $a$.requires_grad = True; opt = Adam([$a$], lr = 0.02)\n// 5.    for $r = 1..5$ do\n// 6.        $\\mathcal{L} \\leftarrow -\\sum Q_{\\min}(s,a)$; opt.step()\n// 7.    $a \\leftarrow \\mathrm{clip}(a, [-1,1])$\n// 8. Continue with critic-weighted softmax over candidates",
+    "key_hyperparams": [
+      {"name": "solver", "value": "ode_dpmsolver++_2M", "role": "ODE sampler", "learnable": false},
+      {"name": "sampling_steps", "value": "3", "role": "very aggressive inference NFE", "learnable": false},
+      {"name": "num_candidates", "value": "100", "role": "doubled vs. baseline 50", "learnable": false},
+      {"name": "refine_steps", "value": "5", "role": "Adam Q-ascent iterations", "learnable": false},
+      {"name": "refine_lr", "value": "0.02", "role": "Adam learning rate on actions", "learnable": false}
+    ],
+    "init_recovers": "DPM-Solver++ baseline (10 NFE) when refine_steps=0 and steps=10",
+    "diff_from_baseline": "Pushes inference NFE to just 3 (vs. 10 for the DPM-Solver++ baseline) and compensates with twice as many candidates (100) plus 5 Adam steps of action-level Q-ascent. The policy/critic training steps are pinned to a 10-NFE DPM-Solver++ regardless of YAML.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "DPM++ 2M + Conservative Q + Elite Refinement",
+    "tagline": "10-NFE DPM-Solver++; training adds clipped advantage + value-match losses; inference does uncertainty-weighted elite refinement and barycentric fusion.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Config: solver = ode_dpmsolver++_2M, sampling_steps = 10, temperature = 0.4\n// 2. Define $Q_{\\mathrm{cons}}(s,a) = \\tfrac12(Q_1+Q_2) - 0.5\\,|Q_1-Q_2|$  // pessimistic\n// 3. Train: $\\mathcal{L}_{\\mathrm{actor}} = \\mathcal{L}_{\\mathrm{BC}} + \\eta\\,\\mathcal{L}_Q + 0.2\\,\\mathrm{margin}(\\!Q_{\\mathrm{cons}}^{\\mathrm{data}}\\!-\\!Q_{\\mathrm{cons}}^{\\mathrm{new}})_+ + 0.1\\,\\mathrm{SmoothL1}(Q^{\\mathrm{new}},Q^{\\mathrm{data}})$\n// 4. Inference: sample candidates (10 NFE)\n// 5. Pick top-$k=\\max(4, N/5)$ by $Q_{\\mathrm{cons}}$; do 2 refinement steps with step 0.05\n// 6. Mix refined elites $a_e = (1-0.35)\\,a + 0.35\\,a_{\\mathrm{ref}}$\n// 7. Fuse via softmax($T=6$) over $Q_{\\mathrm{cons}}$ → weighted mean action",
+    "key_hyperparams": [
+      {"name": "solver", "value": "ode_dpmsolver++_2M", "role": "ODE sampler", "learnable": false},
+      {"name": "sampling_steps", "value": "10", "role": "diffusion NFE", "learnable": false},
+      {"name": "temperature", "value": "0.4", "role": "sampler temperature (lower than baseline 0.5)", "learnable": false},
+      {"name": "q_margin_alpha", "value": "0.20", "role": "advantage-margin loss weight", "learnable": false},
+      {"name": "q_margin_clip", "value": "5.0", "role": "cap on margin penalty", "learnable": false},
+      {"name": "policy_value_alpha", "value": "0.10", "role": "value-match loss weight", "learnable": false},
+      {"name": "refine_steps", "value": "2", "role": "elite Q-ascent steps", "learnable": false},
+      {"name": "refine_step_size", "value": "0.05", "role": "elite step size", "learnable": false},
+      {"name": "refine_topk", "value": "max(4, N/5)", "role": "elite count", "learnable": false},
+      {"name": "elite_mix", "value": "0.35", "role": "barycentric mix between sampled and refined elite", "learnable": false},
+      {"name": "uncertainty_weight", "value": "0.50", "role": "|Q1-Q2| pessimism weight", "learnable": false},
+      {"name": "fusion_temperature", "value": "6.0", "role": "softmax temperature for elite fusion", "learnable": false}
+    ],
+    "init_recovers": "DPM-Solver++ baseline when all extra weights=0 and refine_steps=0",
+    "diff_from_baseline": "Beyond switching the YAML to DPM-Solver++ 2M (10 NFE) the agent rewrites training (adds clipped advantage-matching + L1 value-match losses on top of DQL) and inference (pessimistic-Q elite selection, refinement, barycentric fusion). Touches the officially non-editable pipeline file.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "DPM-Solver++ 2M (10 NFE)",
+    "tagline": "Pure config swap to a 10-step DPM-Solver++ 2M sampler; pipeline algorithm unchanged.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Set solver = ode_dpmsolver++_2M\n// 2. Set sampling_steps = 10\n// 3. Keep DQL training and critic-weighted candidate selection unchanged\n// 4. (Trivial cleanup: removes the env_eval.seed side-effect line)",
+    "key_hyperparams": [
+      {"name": "solver", "value": "ode_dpmsolver++_2M", "role": "second-order ODE sampler", "learnable": false},
+      {"name": "sampling_steps", "value": "10", "role": "inference NFE budget", "learnable": false}
+    ],
+    "init_recovers": "Identical to the DPM-Solver++ 2M baseline",
+    "diff_from_baseline": "Identical to the dpm_solver baseline (solver=ode_dpmsolver++_2M, 10 sampling steps). The agent makes no algorithmic change beyond the configured solver and step count.",
+    "confidence": "high"
+  }
+]

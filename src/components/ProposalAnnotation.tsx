@@ -40,10 +40,13 @@ export interface Annotation {
 
 interface Props {
   annotation: Annotation;
-  /** Display name for the model (e.g. "Claude Opus 4.6"). */
+  /** Display name for the model or baseline (e.g. "Claude Opus 4.6", "GELU"). */
   modelName: string;
   /** Color for the accent stripe (e.g. company brand color). */
   modelColor: string;
+  /** "proposal" relabels diff_from_baseline as "Δ vs. baseline";
+   *  "baseline" relabels it as "Reference". Default "proposal". */
+  mode?: "proposal" | "baseline";
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -266,8 +269,10 @@ export default function ProposalAnnotation({
   annotation,
   modelName,
   modelColor,
+  mode = "proposal",
 }: Props) {
   const a = annotation;
+  const diffLabel = mode === "baseline" ? "Reference" : "Δ vs. baseline";
   return (
     <div className="relative overflow-hidden rounded-lg border border-border bg-card">
       {/* Left accent stripe */}
@@ -319,11 +324,11 @@ export default function ProposalAnnotation({
           )}
         </div>
 
-        {/* Diff from baseline */}
+        {/* Diff from baseline (proposal mode) / Reference (baseline mode) */}
         {a.diff_from_baseline && (
           <div className="rounded-md border-l-2 border-muted-foreground/30 bg-muted/20 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
             <span className="mr-1 font-medium uppercase tracking-wide text-foreground/70">
-              Δ vs. baseline
+              {diffLabel}
             </span>
             <span>{a.diff_from_baseline}</span>
           </div>

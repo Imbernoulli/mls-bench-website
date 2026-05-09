@@ -1,0 +1,214 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "DSI-STID + Trend Shortcut",
+    "tagline": "STID with a sigmoid-gated dynamic spatial identity (static + input-conditioned) plus a near-zero-init linear trend shortcut.",
+    "kind": "hybrid",
+    "formula": "$$g=\\sigma\\!\\left(W[e_{\\mathrm{static}};\\, f(x)]\\right),\\quad e_{\\mathrm{spatial}}=g\\odot e_{\\mathrm{static}}+(1-g)\\odot f(x),\\qquad \\hat y=\\mathrm{Encoder}([e_{ts};\\,e_{\\mathrm{spatial}};\\,e_{\\mathrm{tid}};\\,e_{\\mathrm{diw}}])+W_{\\mathrm{trend}}\\,\\mathrm{MA}_5(x)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x [B,T,N]"},
+        {"id": "ma", "label": "MA(k=5)"},
+        {"id": "tr", "label": "trend Linear"},
+        {"id": "ts", "label": "ts Linear→h"},
+        {"id": "stat", "label": "static node emb"},
+        {"id": "dsi", "label": "DSI gate"},
+        {"id": "enc", "label": "ResMLP×L (4h)"},
+        {"id": "out", "label": "+ → y"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ma"},
+        {"from": "ma", "to": "tr"},
+        {"from": "x", "to": "ts"},
+        {"from": "x", "to": "dsi"},
+        {"from": "stat", "to": "dsi"},
+        {"from": "ts", "to": "enc"},
+        {"from": "dsi", "to": "enc"},
+        {"from": "enc", "to": "out"},
+        {"from": "tr", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_size h", "value": "32", "role": "per-component embedding dim", "learnable": false},
+      {"name": "num_layers", "value": "3", "role": "ResMLP encoder depth on 4h features", "learnable": false},
+      {"name": "moving_avg k", "value": "5", "role": "trend kernel (~25 min)", "learnable": false},
+      {"name": "trend init std", "value": "0.01", "role": "near-zero init so trend shortcut starts neutral", "learnable": false},
+      {"name": "dropout", "value": "0.05", "role": "dropout in MLP path", "learnable": false},
+      {"name": "lr", "value": "2e-3", "role": "CONFIG_OVERRIDES", "learnable": false}
+    ],
+    "init_recovers": "STID at init (trend head ≈ 0)",
+    "diff_from_baseline": "Two add-ons over STID: (a) replaces the fixed per-node spatial embedding with a sigmoid gate that fuses a static embedding with a per-input projection of x; (b) adds a parallel near-zero-init linear forecast on the moving-averaged trend that is summed into the prediction.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "ST-SMix: low-rank spatial mixer + RevIN",
+    "tagline": "STID-style 4h embedding with alternating ResMLP and a low-rank N→r→N spatial mixer; wrapped in RevIN.",
+    "kind": "hybrid",
+    "formula": "$$\\mathrm{SpatialMixer}(x)=\\mathrm{LN}\\!\\left(x + \\mathrm{maxpool}_r\\bigl(W_{\\mathrm{up}}\\,W_{\\mathrm{down}}\\,x^{\\top}\\bigr)\\right),\\qquad x\\to\\mathrm{RevIN}\\to[\\,e_{ts};\\,e_{\\mathrm{spatial}};\\,e_{\\mathrm{tid}};\\,e_{\\mathrm{diw}}\\,]\\to(\\mathrm{Mixer}\\circ\\mathrm{ResMLP})^{L}\\to\\mathrm{Head}\\to\\mathrm{RevIN}^{-1}$$",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "x [B,T,N]"},
+        {"id": "rin", "label": "RevIN norm"},
+        {"id": "emb", "label": "[ts,spatial,tid,diw] (4h)"},
+        {"id": "mix", "label": "SpatialMixer"},
+        {"id": "mlp", "label": "ResMLP"},
+        {"id": "loop", "label": "× num_layers"},
+        {"id": "head", "label": "Linear→T'"},
+        {"id": "out", "label": "RevIN denorm → y"}
+      ],
+      "edges": [
+        {"from": "in", "to": "rin"},
+        {"from": "rin", "to": "emb"},
+        {"from": "emb", "to": "mix"},
+        {"from": "mix", "to": "mlp"},
+        {"from": "mlp", "to": "loop"},
+        {"from": "loop", "to": "head"},
+        {"from": "head", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_size h", "value": "32", "role": "per-component dim", "learnable": false},
+      {"name": "num_layers L", "value": "3", "role": "MLP/Mixer pairs", "learnable": false},
+      {"name": "bottleneck_ratio", "value": "8", "role": "r = 4h/8 hidden bottleneck for cross-node mixing", "learnable": false},
+      {"name": "MLP expansion", "value": "4", "role": "ResMLP hidden ratio", "learnable": false},
+      {"name": "lr", "value": "2e-3", "role": "CONFIG_OVERRIDES", "learnable": false},
+      {"name": "weight_decay", "value": "1e-4", "role": "CONFIG_OVERRIDES", "learnable": false}
+    ],
+    "init_recovers": "STID-like behaviour when mixer output is zeroed",
+    "diff_from_baseline": "Adds a low-rank cross-node 'bottleneck' SpatialMixer (down→max-pool→up) and RevIN normalization on top of the STID-style concatenated embedding. Cross-node communication is O(NrD) instead of full O(N²D) attention as in iTransformer.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Time-conditioned dynamic graph + STID",
+    "tagline": "STID embedding plus a dynamic adjacency built from per-node embeddings rescaled by a time-of-day/day-of-week context gate; sum with parallel ResMLP per layer.",
+    "kind": "hybrid",
+    "formula": "$$\\delta_u=2\\sigma(W_u\\,c),\\;\\delta_v=2\\sigma(W_v\\,c),\\quad E_u=e_u\\odot\\delta_u,\\;E_v=e_v\\odot\\delta_v,\\quad A=\\mathrm{softmax}\\!\\left(\\mathrm{ReLU}\\!\\left(\\frac{E_u E_v^{\\top}}{\\sqrt{d}}\\right)\\right),\\quad h_{\\ell+1}=\\mathrm{LN}\\bigl(\\mathrm{ResMLP}(h_{\\ell})+W_o A\\,h_{\\ell}\\bigr)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "x → ts/spatial/tid/diw → 4h"},
+        {"id": "ctx", "label": "ctx = [tid;diw]"},
+        {"id": "eu", "label": "E_u = e_u·δ_u(ctx)"},
+        {"id": "ev", "label": "E_v = e_v·δ_v(ctx)"},
+        {"id": "adj", "label": "A=softmax(ReLU(E_u E_vᵀ/√d))"},
+        {"id": "gcn", "label": "DynamicGraphConv"},
+        {"id": "mlp", "label": "ResMLP"},
+        {"id": "ln", "label": "LN(GCN+MLP)×L"},
+        {"id": "head", "label": "Linear→T'"}
+      ],
+      "edges": [
+        {"from": "in", "to": "gcn"},
+        {"from": "in", "to": "mlp"},
+        {"from": "ctx", "to": "eu"},
+        {"from": "ctx", "to": "ev"},
+        {"from": "eu", "to": "adj"},
+        {"from": "ev", "to": "adj"},
+        {"from": "adj", "to": "gcn"},
+        {"from": "gcn", "to": "ln"},
+        {"from": "mlp", "to": "ln"},
+        {"from": "ln", "to": "head"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_size h", "value": "32", "role": "per-component dim", "learnable": false},
+      {"name": "num_layers L", "value": "3", "role": "(ResMLP, GCN) pairs", "learnable": false},
+      {"name": "node_dim", "value": "h", "role": "node embedding dim for E_u/E_v", "learnable": false},
+      {"name": "ctx_dim", "value": "2h", "role": "tid+diw context for δ", "learnable": false},
+      {"name": "δ scale", "value": "2σ(·)", "role": "context gate magnification (range [0,2])", "learnable": false},
+      {"name": "dropout", "value": "0.1", "role": "input dropout", "learnable": false},
+      {"name": "lr", "value": "2e-3", "role": "CONFIG_OVERRIDES", "learnable": false},
+      {"name": "weight_decay", "value": "1e-4", "role": "CONFIG_OVERRIDES", "learnable": false}
+    ],
+    "init_recovers": "STID + ReLU adjacency when δ_u = δ_v = 1",
+    "diff_from_baseline": "Combines STID's 4h concatenated embedding with a learned adaptive adjacency à la GraphWaveNet, but with the U/V node embeddings element-wise rescaled by sigmoid context gates derived from time-of-day and day-of-week. Each layer sums a ResMLP with a dynamic-graph conv via residual + LN.",
+    "confidence": "medium"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Prototype-Graph + Future-Calendar Decoder",
+    "tagline": "DLinear shortcut plus k-prototype soft-assignment spatial mixer; future calendar embeddings gate a low-rank residual added to the linear baseline.",
+    "kind": "hybrid",
+    "formula": "$$a=\\mathrm{softmax}(W_a h),\\quad p_k=\\frac{\\sum_n a_{nk} h_n}{\\sum_n a_{nk}}+\\bar p_k,\\quad c_n=\\sum_k a_{nk} p_k,\\quad h\\!\\leftarrow\\!\\mathrm{LN}\\!\\bigl(h+c\\odot\\sigma(Wh)\\bigr)\\!+\\!\\mathrm{FFN}$$\n$$\\hat y=\\underbrace{W_s\\,s+W_t\\,t}_{\\text{DLinear base}}+\\underbrace{\\sigma\\!\\bigl(\\langle W_n h, W_t \\phi\\rangle/\\sqrt d\\bigr)\\,\\langle\\tanh W_b h,\\tanh W_b \\phi\\rangle/\\sqrt d}_{\\text{prototype × future-calendar residual}}+b(h)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "x → RevIN"},
+        {"id": "dec", "label": "MA decomp(s,t)"},
+        {"id": "base", "label": "DLinear base"},
+        {"id": "enc", "label": "in_proj+diff_proj+node_emb"},
+        {"id": "cal", "label": "+tod+dow embs"},
+        {"id": "pb", "label": "ProtoBlock×L (k=16)"},
+        {"id": "fut", "label": "future tod/dow/hor + ctx"},
+        {"id": "res", "label": "gated low-rank residual"},
+        {"id": "out", "label": "RevIN denorm → y"}
+      ],
+      "edges": [
+        {"from": "in", "to": "dec"},
+        {"from": "dec", "to": "base"},
+        {"from": "in", "to": "enc"},
+        {"from": "enc", "to": "cal"},
+        {"from": "cal", "to": "pb"},
+        {"from": "pb", "to": "res"},
+        {"from": "fut", "to": "res"},
+        {"from": "base", "to": "out"},
+        {"from": "res", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_size d", "value": "64", "role": "embedding dim", "learnable": false},
+      {"name": "num_layers", "value": "2", "role": "ProtoBlock depth", "learnable": false},
+      {"name": "prototypes k", "value": "min(16, N)", "role": "soft-cluster count for spatial mixing", "learnable": false},
+      {"name": "MA kernel", "value": "3", "role": "trend window for DLinear shortcut", "learnable": false},
+      {"name": "FFN expansion", "value": "4", "role": "ProtoBlock FFN", "learnable": false},
+      {"name": "dropout", "value": "0.1", "role": "ProtoBlock dropout", "learnable": false},
+      {"name": "lr", "value": "0.0009", "role": "CONFIG_OVERRIDES", "learnable": false},
+      {"name": "weight_decay", "value": "0.0", "role": "CONFIG_OVERRIDES", "learnable": false}
+    ],
+    "init_recovers": "DLinear when prototype residual is gated to 0",
+    "diff_from_baseline": "Stacks a DLinear-style season+trend linear forecast as a base, then adds (i) prototype-based spatial mixing (k soft clusters, gated FFN), (ii) explicit future calendar embeddings (tod, dow, horizon) used as a decoder query, and (iii) a sigmoid-gated low-rank residual computed via tanh-projected node and future bases. RevIN-wrapped throughout.",
+    "confidence": "medium"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Time-Conditioned Graph Attention + RevIN",
+    "tagline": "RevIN + DLinear-style trend; the seasonal path uses a time-of-day/day-of-week-conditioned graph self-attention with d/4-dim queries/keys.",
+    "kind": "hybrid",
+    "formula": "$$k=W_K \\mathrm{LN}(x)+\\phi(\\mathrm{tod},\\mathrm{dow}),\\quad q=W_Q \\mathrm{LN}(x),\\quad A=\\mathrm{softmax}\\!\\left(\\frac{q k^{\\top}}{\\sqrt{d/4}}\\right),\\quad x\\!\\leftarrow\\!\\mathrm{LN}(x+W_O A x)$$\n$$\\hat y_{\\mathrm{season}}=W_h h_{\\mathrm{season}},\\quad \\hat y_{\\mathrm{trend}}=W_t \\mathrm{MA}_3(x),\\quad \\hat y=\\mathrm{RevIN}^{-1}(\\hat y_{\\mathrm{season}}+\\hat y_{\\mathrm{trend}})$$",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "x [B,T,N] → RevIN"},
+        {"id": "dec", "label": "MA_3 decomp"},
+        {"id": "tre", "label": "trend Linear"},
+        {"id": "sea", "label": "seasonal Linear→h"},
+        {"id": "ctx", "label": "tod_dow gate ctx"},
+        {"id": "tcg", "label": "TimeCondGraph attention"},
+        {"id": "ffn", "label": "STBlock×L"},
+        {"id": "head", "label": "Linear→T'"},
+        {"id": "out", "label": "RevIN denorm → y"}
+      ],
+      "edges": [
+        {"from": "in", "to": "dec"},
+        {"from": "dec", "to": "tre"},
+        {"from": "dec", "to": "sea"},
+        {"from": "ctx", "to": "tcg"},
+        {"from": "sea", "to": "tcg"},
+        {"from": "tcg", "to": "ffn"},
+        {"from": "ffn", "to": "head"},
+        {"from": "head", "to": "out"},
+        {"from": "tre", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_size", "value": "64", "role": "model dim", "learnable": false},
+      {"name": "num_layers", "value": "2", "role": "STBlock depth", "learnable": false},
+      {"name": "qk dim", "value": "h/4 = 16", "role": "compressed query/key dim", "learnable": false},
+      {"name": "MA kernel", "value": "3", "role": "trend smoothing window", "learnable": false},
+      {"name": "dropout", "value": "0.1", "role": "attention/FFN dropout", "learnable": false},
+      {"name": "lr", "value": "5e-4", "role": "CONFIG_OVERRIDES", "learnable": false},
+      {"name": "weight_decay", "value": "1e-4", "role": "CONFIG_OVERRIDES", "learnable": false}
+    ],
+    "init_recovers": "DLinear-like trend + node attention without gate when ctx → 0",
+    "diff_from_baseline": "Adds an iTransformer-style cross-node attention but with the keys additively biased by a small MLP of (time-of-day, day-of-week) — making the adjacency time-conditional. Wrapped with RevIN and DLinear-style trend forecast on top.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,72 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Hybrid MPPI/iCEM with rank blend",
+    "tagline": "iCEM-style elite retention + colored noise + adaptive temperature, with the MPPI softmax score blended with rank weights and a momentum mean update.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Init mean/std from warm-start; n_keep = ⌈0.15·num_elites⌉\n// 2. for iter = 0..I-1 do\n// 3.    $T_{\\mathrm{iter}} = T \\cdot (0.5 + (\\mathrm{iter}/(I-1))\\cdot 1.5)$  // 0.5T → 2T\n// 4.    Generate AR(1) colored noise: $\\eta_t = 0.25\\eta_{t-1} + 0.75 \\xi_t$, $\\xi_t \\sim \\mathcal{N}$\n// 5.    Sample $a_t \\leftarrow \\mu + \\sigma\\,\\eta_t$; insert kept elites + π warm-starts\n// 6.    Score elites; $s_{\\mathrm{soft}} = \\mathrm{softmax}(T_{\\mathrm{iter}}\\,V_{\\mathrm{elite}})$, $s_{\\mathrm{rank}}\\propto 1/(1+\\mathrm{rank})$\n// 7.    $s = 0.8\\,s_{\\mathrm{soft}} + 0.2\\,s_{\\mathrm{rank}}$\n// 8.    $\\mu_{\\mathrm{new}}, \\sigma_{\\mathrm{new}} \\leftarrow$ weighted mean/std of elites by $s$\n// 9.    $\\mu \\leftarrow 0.15\\,\\mu + 0.85\\,\\mu_{\\mathrm{new}}$ (no momentum on iter 0); kept ← top-n_keep elites\n// 10. Final action: Gumbel sample over $s$; add $\\sigma_0$ noise unless eval_mode",
+    "key_hyperparams": [
+      {"name": "keep_fraction", "value": "0.15", "role": "iCEM elite retention", "learnable": false},
+      {"name": "momentum", "value": "0.15", "role": "weight on prior mean (after iter 0)", "learnable": false},
+      {"name": "temp_start_mult", "value": "0.5", "role": "MPPI temperature multiplier at iter 0", "learnable": false},
+      {"name": "temp_end_mult", "value": "2.0", "role": "MPPI temperature multiplier at last iter", "learnable": false},
+      {"name": "noise_beta", "value": "0.25", "role": "AR(1) coefficient for colored noise", "learnable": false},
+      {"name": "rank_blend", "value": "0.2", "role": "weight on rank-based score in score blend", "learnable": false}
+    ],
+    "init_recovers": "Standard MPPI when keep_fraction=0, momentum=0, rank_blend=0, noise_beta=0, temp mults=1",
+    "diff_from_baseline": "Combines pieces from iCEM (elite retention, colored noise) with MPPI (softmax-weighted moment update + Gumbel selection), and adds (a) per-iteration ramp of MPPI temperature, (b) blend of softmax score with rank-based weights to reduce outlier sensitivity, and (c) momentum on the mean update.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Adaptive MPPI (temperature + noise)",
+    "tagline": "MPPI as default but the temperature is upweighted when elite-value variance is low, and a global noise multiplier shrinks/grows by improvement signal.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. noise_scale ← 1.0; best_value_prev ← -∞\n// 2. for iter = 0..I-1 do\n// 3.    Sample $a \\leftarrow \\mu + \\mathrm{noise\\_scale}\\cdot\\sigma\\cdot\\xi$, $\\xi\\sim\\mathcal{N}$\n// 4.    Score elites; let $\\mathrm{var\\_norm} = \\min(\\mathrm{Var}(V_{\\mathrm{elite}})/V^{*2}, 1)$\n// 5.    $T_{\\mathrm{iter}} = T \\cdot (1 + 0.3\\,(1 - \\mathrm{var\\_norm}))$  // up when variance small\n// 6.    Standard MPPI weighted moment update with $T_{\\mathrm{iter}}$\n// 7.    if iter ≥ 1: $\\Delta = (V^* - V^*_{\\mathrm{prev}})/(|V^*_{\\mathrm{prev}}|+\\epsilon)$\n// 8.       if $\\Delta < 0.01$: noise_scale ← $\\min(1.1\\,\\mathrm{noise\\_scale}, 2)$\n// 9.       else: noise_scale ← $\\max(0.9\\,\\mathrm{noise\\_scale}, 0.5)$\n// 10. Final action: Gumbel sample over $s$ as in MPPI",
+    "key_hyperparams": [
+      {"name": "temp_adapt_factor", "value": "0.3", "role": "max increase in T when variance is low", "learnable": false},
+      {"name": "noise_adapt_rate", "value": "0.1", "role": "multiplicative noise scale step", "learnable": false},
+      {"name": "improvement_threshold", "value": "0.01", "role": "trigger for noise growth/shrink", "learnable": false},
+      {"name": "noise_scale bounds", "value": "[0.5, 2.0]", "role": "clamp for global noise multiplier", "learnable": false}
+    ],
+    "init_recovers": "Vanilla MPPI when both adapt factors=0",
+    "diff_from_baseline": "Pure MPPI with two control loops: (i) temperature scales up when the elite value variance is low (sharpen on agreement), and (ii) the per-step Gaussian noise is shrunk on iterations where the best elite improves, grown otherwise.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "MPPI + antithetic colored noise + warm start",
+    "tagline": "MPPI scoring with elite retention plus paired-mirror sampling of per-trajectory AR(1) colored noise with random per-trajectory β.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Init mean/std from warm-start; n_keep = ⌈0.1·num_elites⌉\n// 2. for iter = 0..I-1 do\n// 3.    n_new ← num_samples - num_pi_trajs - 1 - keep_count\n// 4.    Draw half pairs: $\\beta_j \\sim \\mathcal{U}(0, 0.9)$, $\\xi_j \\sim \\mathcal{N}$ (j=1..n_new/2)\n// 5.    Antithetic noise: stack $[\\xi_j, -\\xi_j]$ (and one extra if odd)\n// 6.    Apply per-traj AR(1): $\\eta_t = \\beta\\,\\eta_{t-1} + \\sqrt{1-\\beta^2}\\,\\xi_t$\n// 7.    Insert kept elites + 1 deterministic mean rollout + sampled actions\n// 8.    MPPI weighted update with default temperature; kept ← top-n_keep\n// 9. Final action: Gumbel sample over $s$",
+    "key_hyperparams": [
+      {"name": "keep_fraction", "value": "0.1", "role": "iCEM-style elite retention", "learnable": false},
+      {"name": "β range", "value": "U(0, 0.9)", "role": "per-trajectory AR(1) correlation drawn each iter", "learnable": false},
+      {"name": "noise scale", "value": "√(1-β²)", "role": "white-noise coefficient that preserves marginal variance", "learnable": false},
+      {"name": "deterministic seed", "value": "1", "role": "always include the current mean rollout as a candidate", "learnable": false}
+    ],
+    "init_recovers": "Standard MPPI when keep_fraction=0, β=0",
+    "diff_from_baseline": "Adds three sampling-side improvements over MPPI: per-trajectory AR(1) colored noise with random β, antithetic mirror pairing of noise, and an explicit deterministic mean rollout. Elites are also retained across iterations as in iCEM. Update rule is the same softmax MPPI.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Elite mixture with anchoring + hedging",
+    "tagline": "iCEM-style retention + antithetic colored sampling, then mix MPPI weighted moments with a 'best elite anchor' and hedge std to disagreement.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Init mean/std; if not t0, blend in 0.15·mean(π warm-starts)\n// 2. n_keep = ⌈0.125·num_elites⌉\n// 3. for iter = 0..I-1 do\n// 4.    Sample antithetic colored ξ with $\\eta_t = 0.55\\,\\eta_{t-1} + 0.45\\,\\xi_t$\n// 5.    Insert kept elites and π warm-starts; clamp to [-1,1]\n// 6.    Score: shift by max, normalize by mean|·|, $s = \\mathrm{softmax}(\\Delta V/\\|\\Delta V\\|)$\n// 7.    Compute weighted ($\\mu_w, \\sigma_w$); best elite sequence $a^*$\n// 8.    $\\mu_{\\mathrm{prop}} = (1-0.35)\\,\\mu_w + 0.35\\,a^*$\n// 9.    $\\sigma_{\\mathrm{prop}} = \\max(\\sigma_w,\\, 0.5\\,|\\mu_w - a^*|)$\n// 10.   $\\mu \\leftarrow 0.30\\,\\mu + 0.70\\,\\mu_{\\mathrm{prop}}$;  $\\sigma \\leftarrow 0.5\\,\\sigma + 0.5\\,\\sigma_{\\mathrm{prop}}$\n// 11. Final action: eval ⇒ best elite; else multinomial over top-4 elite scores + 0.25·σ noise",
+    "key_hyperparams": [
+      {"name": "corr", "value": "0.55", "role": "AR(1) colored-noise coefficient", "learnable": false},
+      {"name": "keep_frac", "value": "0.125", "role": "elite retention fraction", "learnable": false},
+      {"name": "trust", "value": "0.30", "role": "momentum on prior mean", "learnable": false},
+      {"name": "best_mix", "value": "0.35", "role": "weight on best elite in proposal mean", "learnable": false},
+      {"name": "hedge", "value": "0.50", "role": "lower-bound on σ via mean-vs-best disagreement", "learnable": false},
+      {"name": "warm-start mix", "value": "0.15", "role": "fraction of mean(π warm-start) blended into init mean", "learnable": false},
+      {"name": "exploration noise (train)", "value": "0.25·σ_0", "role": "Gaussian perturbation added to selected action", "learnable": false},
+      {"name": "top-k for selection", "value": "min(4, num_elites)", "role": "subset for multinomial sampling at training time", "learnable": false}
+    ],
+    "init_recovers": "MPPI when keep_frac=0, best_mix=0, hedge=0, trust=0",
+    "diff_from_baseline": "Layered: iCEM (elite retention, antithetic colored noise) + MPPI (softmax weighting) + a 'mixture' update that blends the weighted mean with the best elite trajectory, raises σ to the |weighted_mean − best_elite| disagreement, and at eval time picks the best elite outright. Also softly anchors the init mean to the policy warm-start mean.",
+    "confidence": "high"
+  }
+]

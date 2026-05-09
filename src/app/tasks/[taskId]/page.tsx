@@ -6,6 +6,7 @@ import {
   getLeaderboardStatic,
   getProposalsStatic,
   getAnnotationsStatic,
+  getBaselineAnnotationsStatic,
 } from "@/lib/data";
 import MetricBarChart from "@/components/MetricBarChart";
 import TaskDescription from "@/components/TaskDescription";
@@ -42,6 +43,7 @@ export default async function TaskDetailPage({
   const models = getModelsStatic();
   const proposals = getProposalsStatic(taskId);
   const annotations = getAnnotationsStatic(taskId);
+  const baselineAnnotations = getBaselineAnnotationsStatic(taskId);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
@@ -115,6 +117,7 @@ export default async function TaskDetailPage({
             proposals={proposals}
             models={models}
             annotations={annotations}
+            baselineAnnotations={baselineAnnotations}
           />
         </section>
       )}

@@ -46,6 +46,8 @@ interface Props {
   models: StandardModel[];
   /** Standardized human-readable annotations, keyed by raw proposal key. */
   annotations?: Annotation[];
+  /** Standardized human-readable baseline annotations, keyed by baseline name. */
+  baselineAnnotations?: Annotation[];
 }
 
 type ViewKind = "source" | "baseline" | "agent";
@@ -194,7 +196,11 @@ export default function TaskCodeViewer({
   proposals,
   models,
   annotations,
+  baselineAnnotations,
 }: Props) {
+  const baselineAnnotationByName = new Map<string, Annotation>(
+    (baselineAnnotations ?? []).map((a) => [a.model, a]),
+  );
   const baselineNames = Object.keys(baselinesCode || {});
   // Filter agent proposals to the 5 canonical models from models.json,
   // dedupe so each canonical model has at most one tab (some tasks have
@@ -362,6 +368,23 @@ export default function TaskCodeViewer({
               annotation={ann}
               modelName={activeEntry.label}
               modelColor={color}
+              mode="proposal"
+            />
+          </div>
+        );
+      })()}
+
+      {/* Baseline annotation card (when a baseline tab is active and we have an annotation) */}
+      {!diffMode && activeEntry.kind === "baseline" && activeEntry.name && (() => {
+        const ann = baselineAnnotationByName.get(activeEntry.name);
+        if (!ann) return null;
+        return (
+          <div className="mb-4">
+            <ProposalAnnotation
+              annotation={ann}
+              modelName={activeEntry.label}
+              modelColor="#6b7280"
+              mode="baseline"
             />
           </div>
         );

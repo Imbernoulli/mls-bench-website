@@ -158,3 +158,12 @@ export function getAnnotationsStatic(taskId: string): ProposalAnnotationDoc[] {
   const arr = JSON.parse(raw);
   return Array.isArray(arr) ? arr : [];
 }
+
+/** Standardized baseline annotations (same schema as proposals). */
+export function getBaselineAnnotationsStatic(taskId: string): ProposalAnnotationDoc[] {
+  const filePath = path.join(DATA_DIR, "baseline_annotations", `${taskId}.json`);
+  if (!fs.existsSync(filePath)) return [];
+  const raw = fs.readFileSync(filePath, "utf-8");
+  const arr = JSON.parse(raw);
+  return Array.isArray(arr) ? arr : [];
+}
