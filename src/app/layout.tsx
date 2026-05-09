@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MLS-Bench — Machine Learning Science Benchmark",
+  title: "MLS-Bench",
   description:
     "A benchmark for evaluating whether LLM agents can make generalizable, atomic ML science contributions.",
 };
