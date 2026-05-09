@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useEffect, useRef, type ReactNode } from "react";
 
 const SIZE = 64;
 const SW = 1.6;
@@ -9,7 +11,6 @@ type LandscapeIcon = (props: IconProps) => ReactNode;
 const C = {
   navy: "#1f5a86",
   violet: "#6244b0",
-  rust: "#a14a2c",
 };
 
 function IconBox({ children }: { children: ReactNode }) {
@@ -503,101 +504,6 @@ const ScientistLoopIcon: LandscapeIcon = ({ color }) => (
   </IconBox>
 );
 
-const KernelSpeedIcon: LandscapeIcon = ({ color }) => (
-  <IconBox>
-    {Array.from({ length: 4 }, (_, i) =>
-      Array.from({ length: 4 }, (_, j) => (
-        <rect
-          key={`${i}-${j}`}
-          x={8 + j * 8}
-          y={10 + i * 8}
-          width={7}
-          height={7}
-          stroke={color}
-          strokeWidth={0.8}
-          strokeOpacity={0.45}
-          fill={(i + j) % 3 === 0 ? color : "none"}
-          fillOpacity={0.24}
-        />
-      )),
-    )}
-    <rect
-      x={16}
-      y={18}
-      width={15}
-      height={15}
-      stroke={color}
-      strokeWidth={SW}
-      fill={color}
-      fillOpacity={0.16}
-    />
-    <path d="M39 43 h15" stroke={color} strokeWidth={SW} />
-    <path d="M54 43 l-5 -4 m5 4 l-5 4" stroke={color} strokeWidth={SW} />
-    <path d="M42 52 C 47 50, 51 47, 55 40" stroke={color} strokeWidth={1} />
-  </IconBox>
-);
-
-const CircuitIcon: LandscapeIcon = ({ color }) => (
-  <IconBox>
-    <path
-      d="M8 20 h13 c7 0 12 5 12 12 s-5 12 -12 12 h-13 z"
-      stroke={color}
-      strokeWidth={SW}
-      fill={color}
-      fillOpacity={0.08}
-    />
-    <path
-      d="M38 18 h8 c6 0 10 4 10 9 s-4 9 -10 9 h-8 z"
-      stroke={color}
-      strokeWidth={SW}
-      fill={color}
-      fillOpacity={0.16}
-    />
-    <line x1={4} y1={26} x2={8} y2={26} stroke={color} strokeWidth={SW} />
-    <line x1={4} y1={38} x2={8} y2={38} stroke={color} strokeWidth={SW} />
-    <line x1={33} y1={32} x2={38} y2={27} stroke={color} strokeWidth={SW} />
-    <line x1={33} y1={32} x2={38} y2={36} stroke={color} strokeWidth={SW} />
-    <line x1={56} y1={27} x2={61} y2={27} stroke={color} strokeWidth={SW} />
-    <path d="M43 49 h10 M48 44 v10" stroke={color} strokeWidth={1.2} />
-  </IconBox>
-);
-
-const MathDomainIcon: LandscapeIcon = ({ color }) => (
-  <IconBox>
-    {[
-      [12, 11, "A"],
-      [36, 11, "G"],
-      [24, 36, "C"],
-    ].map(([x, y, label]) => (
-      <g key={label}>
-        <rect
-          x={Number(x)}
-          y={Number(y)}
-          width={18}
-          height={18}
-          rx={3}
-          stroke={color}
-          strokeWidth={SW}
-          fill={color}
-          fillOpacity={0.1}
-        />
-        <text
-          x={Number(x) + 9}
-          y={Number(y) + 12}
-          fill={color}
-          fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-          fontSize={9}
-          textAnchor="middle"
-        >
-          {label}
-        </text>
-      </g>
-    ))}
-    <path d="M30 20 h6 M22 29 l6 8 M42 29 l-7 8" stroke={color} strokeWidth={1} />
-    <path d="M15 58 C 28 49, 41 49, 54 58" stroke={color} strokeWidth={1} strokeOpacity={0.55} />
-  </IconBox>
-);
-
 type LandscapeCardData = {
   name: string;
   year: string;
@@ -612,7 +518,7 @@ function LandscapeCard({ card }: { card: LandscapeCardData }) {
 
   return (
     <div
-      className="relative flex min-h-[132px] overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-foreground/30"
+      className="relative flex w-[300px] shrink-0 snap-start overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-foreground/30"
       style={{
         boxShadow:
           "0 1px 0 rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.04)",
@@ -624,24 +530,24 @@ function LandscapeCard({ card }: { card: LandscapeCardData }) {
         style={{ backgroundColor: card.color }}
       />
       <div
-        className="flex w-[82px] shrink-0 items-center justify-center"
+        className="flex w-[78px] shrink-0 items-center justify-center"
         style={{ color: card.color }}
       >
         <Icon color={card.color} />
       </div>
       <div className="flex min-w-0 flex-1 flex-col justify-center py-3 pr-4">
         <div className="flex items-baseline gap-2">
-          <span className="text-[15px] font-semibold tracking-tight text-foreground">
+          <span className="truncate text-[14px] font-semibold tracking-tight text-foreground">
             {card.name}
           </span>
           <span
-            className="font-mono text-[10px] tabular-nums uppercase tracking-wider text-foreground/50"
+            className="shrink-0 font-mono text-[10px] tabular-nums uppercase tracking-wider text-foreground/50"
             aria-hidden="true"
           >
             {card.year}
           </span>
         </div>
-        <p className="mt-1 text-[11px] font-medium uppercase tracking-wide text-foreground/45">
+        <p className="mt-1 truncate text-[10px] font-medium uppercase tracking-wide text-foreground/45">
           {card.scope}
         </p>
         <p className="mt-1.5 text-[12px] leading-snug text-foreground/75">
@@ -652,37 +558,128 @@ function LandscapeCard({ card }: { card: LandscapeCardData }) {
   );
 }
 
-function LandscapeGallery({
+function HorizontalStrip({
   title,
   intro,
   cards,
-  position,
-  columns = "md:grid-cols-2",
-  children,
 }: {
   title: string;
-  intro: string;
+  intro: ReactNode;
   cards: LandscapeCardData[];
-  position: string;
-  columns?: string;
-  children?: ReactNode;
 }) {
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+
+    let isDragging = false;
+    let didMove = false;
+    let startX = 0;
+    let startScrollLeft = 0;
+    let activePointerId: number | null = null;
+
+    const begin = (e: PointerEvent) => {
+      // Only mouse drag; let touch use native scroll/swipe.
+      if (e.pointerType !== "mouse") return;
+      isDragging = true;
+      didMove = false;
+      startX = e.clientX;
+      startScrollLeft = el.scrollLeft;
+      activePointerId = e.pointerId;
+      try {
+        el.setPointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
+      el.style.cursor = "grabbing";
+    };
+
+    const move = (e: PointerEvent) => {
+      if (!isDragging || e.pointerId !== activePointerId) return;
+      const dx = e.clientX - startX;
+      if (Math.abs(dx) > 3) didMove = true;
+      el.scrollLeft = startScrollLeft - dx;
+    };
+
+    const end = (e: PointerEvent) => {
+      if (!isDragging || e.pointerId !== activePointerId) return;
+      isDragging = false;
+      activePointerId = null;
+      el.style.cursor = "grab";
+      try {
+        el.releasePointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
+      // Suppress click that follows a drag (so cards don't trigger after a swipe).
+      if (didMove) {
+        const blockClick = (ev: MouseEvent) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          el.removeEventListener("click", blockClick, true);
+        };
+        el.addEventListener("click", blockClick, true);
+      }
+    };
+
+    el.addEventListener("pointerdown", begin);
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", end);
+    el.addEventListener("pointercancel", end);
+
+    return () => {
+      el.removeEventListener("pointerdown", begin);
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", end);
+      el.removeEventListener("pointercancel", end);
+    };
+  }, []);
+
   return (
-    <section className="space-y-5">
-      <div className="prose prose-neutral max-w-none prose-headings:tracking-tight prose-a:text-foreground">
-        <h3>{title}</h3>
-        <p>{intro}</p>
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <h3 className="text-lg font-semibold tracking-tight text-foreground">
+          {title}
+        </h3>
+        <p className="text-[14px] leading-relaxed text-foreground/70">
+          {intro}
+        </p>
       </div>
-      <div className={`not-prose grid gap-3 ${columns}`}>
-        {cards.map((card) => (
-          <LandscapeCard key={card.name} card={card} />
-        ))}
+      <div className="relative">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, var(--background), transparent)",
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10"
+          style={{
+            backgroundImage:
+              "linear-gradient(to left, var(--background), transparent)",
+          }}
+        />
+        <div
+          ref={scrollerRef}
+          className="flex snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden pb-3 select-none"
+          style={{
+            cursor: "grab",
+            scrollbarWidth: "thin",
+            scrollPaddingLeft: "0.25rem",
+            scrollPaddingRight: "0.25rem",
+            WebkitOverflowScrolling: "touch",
+          }}
+        >
+          {cards.map((card) => (
+            <LandscapeCard key={card.name} card={card} />
+          ))}
+        </div>
       </div>
-      {children}
-      <div className="prose prose-neutral max-w-none prose-headings:tracking-tight prose-a:text-foreground">
-        <p>{position}</p>
-      </div>
-    </section>
+    </div>
   );
 }
 
@@ -691,7 +688,8 @@ const BENCHMARK_CARDS: LandscapeCardData[] = [
     name: "MLE-Bench",
     year: "2024",
     scope: "75 Kaggle competitions / medals",
-    description: "ML engineering breadth, but optimized around one competition instance.",
+    description:
+      "ML engineering breadth, but optimized around one competition instance.",
     icon: KaggleMedalIcon,
     color: C.navy,
   },
@@ -699,7 +697,8 @@ const BENCHMARK_CARDS: LandscapeCardData[] = [
     name: "MLE-Dojo",
     year: "2025",
     scope: "200+ ML tasks / H-Rank",
-    description: "Interactive engineering workflows, not reusable method discovery.",
+    description:
+      "Interactive engineering workflows, not reusable method discovery.",
     icon: HRankIcon,
     color: C.navy,
   },
@@ -707,7 +706,8 @@ const BENCHMARK_CARDS: LandscapeCardData[] = [
     name: "MLAgentBench",
     year: "2023",
     scope: "13 ML experiments / baselines",
-    description: "Agent experimentation in compact tasks, with little transfer pressure.",
+    description:
+      "Agent experimentation in compact tasks, with little transfer pressure.",
     icon: ExperimentIcon,
     color: C.navy,
   },
@@ -715,7 +715,8 @@ const BENCHMARK_CARDS: LandscapeCardData[] = [
     name: "DiscoveryBench",
     year: "2024",
     scope: "1167 data discoveries / facets",
-    description: "Data-driven discovery across domains, not ML method invention.",
+    description:
+      "Data-driven discovery across domains, not ML method invention.",
     icon: DiscoveryIcon,
     color: C.navy,
   },
@@ -723,7 +724,8 @@ const BENCHMARK_CARDS: LandscapeCardData[] = [
     name: "PaperBench",
     year: "2025",
     scope: "20 replications / judge rubric",
-    description: "Paper reproduction and scoring, rather than isolated method gains.",
+    description:
+      "Paper reproduction and rubric scoring, not isolated method gains.",
     icon: RubricIcon,
     color: C.navy,
   },
@@ -731,23 +733,26 @@ const BENCHMARK_CARDS: LandscapeCardData[] = [
     name: "MLR-Bench",
     year: "2025",
     scope: "201 research workflows / judge",
-    description: "Holistic research output, with broad success criteria.",
+    description:
+      "Holistic research output, with broad and lenient success criteria.",
     icon: WorkflowJudgeIcon,
     color: C.navy,
   },
   {
     name: "AstaBench",
     year: "2025",
-    scope: "2400+ assistance tasks / baselines",
-    description: "Research-assistance coverage, but only indirect method signal.",
+    scope: "2400+ assistance tasks",
+    description:
+      "Research-assistance coverage, but only an indirect signal on methods.",
     icon: AssistanceGridIcon,
     color: C.navy,
   },
   {
     name: "HeurekaBench",
     year: "2026",
-    scope: "Heuristic discovery / expert tasks",
-    description: "Searches for heuristics, not broad ML-science transfer.",
+    scope: "Heuristic-discovery tasks",
+    description:
+      "Searches for heuristics on expert problems, not broad ML transfer.",
     icon: HeuristicIcon,
     color: C.navy,
   },
@@ -757,8 +762,9 @@ const EVOLUTION_CARDS: LandscapeCardData[] = [
   {
     name: "AlphaEvolve",
     year: "2025",
-    scope: "Programs, kernels, circuits",
-    description: "DeepMind tree-search code evolution across narrow optimization modes.",
+    scope: "Programs · kernels · circuits · math",
+    description:
+      "DeepMind's tree-search code evolution, demonstrated on GPU/TPU kernels, TPU multiplier circuits, and math frontier problems.",
     icon: EvolutionTreeIcon,
     color: C.violet,
   },
@@ -766,7 +772,8 @@ const EVOLUTION_CARDS: LandscapeCardData[] = [
     name: "FunSearch",
     year: "2024",
     scope: "Programs for combinatorial search",
-    description: "LLM-guided program search for cap-set and online bin-packing results.",
+    description:
+      "LLM-guided program search; new lower bounds on cap-set and online bin-packing.",
     icon: ProgramSearchIcon,
     color: C.violet,
   },
@@ -774,7 +781,8 @@ const EVOLUTION_CARDS: LandscapeCardData[] = [
     name: "OpenEvolve",
     year: "OSS",
     scope: "Open-source AlphaEvolve loop",
-    description: "Community implementation for evolving code against executable scores.",
+    description:
+      "Community implementation evolving code against an executable scorer.",
     icon: OpenLoopIcon,
     color: C.violet,
   },
@@ -782,15 +790,17 @@ const EVOLUTION_CARDS: LandscapeCardData[] = [
     name: "ThetaEvolve",
     year: "2025",
     scope: "Test-time training runs",
-    description: "Adapts solvers during test time using feedback from open problems.",
+    description:
+      "Adapts solvers during test time using executable feedback on open problems.",
     icon: ThetaLoopIcon,
     color: C.violet,
   },
   {
     name: "ShinkaEvolve",
     year: "2025",
-    scope: "Programs and discovery loops",
-    description: "Self-improving program evolution with sample-efficient iteration.",
+    scope: "Programs · sample-efficient evolution",
+    description:
+      "Self-improving program evolution focused on cheaper iteration steps.",
     icon: ShinkaLoopIcon,
     color: C.violet,
   },
@@ -798,7 +808,8 @@ const EVOLUTION_CARDS: LandscapeCardData[] = [
     name: "AlphaActivation",
     year: "2026",
     scope: "Activation functions",
-    description: "Searches activation formulas and tests transfer across model settings.",
+    description:
+      "Searches activation formulas and tests how well they transfer across model settings.",
     icon: ActivationCurveIcon,
     color: C.violet,
   },
@@ -806,7 +817,8 @@ const EVOLUTION_CARDS: LandscapeCardData[] = [
     name: "AVO",
     year: "2026",
     scope: "Execution-grounded operators",
-    description: "Evolves variation operators using executable feedback from candidates.",
+    description:
+      "Evolves variation operators using executable feedback from candidate runs.",
     icon: VariationOperatorIcon,
     color: C.violet,
   },
@@ -814,132 +826,71 @@ const EVOLUTION_CARDS: LandscapeCardData[] = [
     name: "AI Scientist v2",
     year: "2025",
     scope: "Autonomous research loops",
-    description: "Sakana's loop spans ideation, experiments, writing, and review.",
+    description:
+      "Sakana's loop spans ideation, experiments, writing, and self-review on small studies.",
     icon: ScientistLoopIcon,
     color: C.violet,
   },
 ];
 
-const ALPHAEVOLVE_MODE_CARDS: LandscapeCardData[] = [
-  {
-    name: "Kernel Optimization",
-    year: "mode 1",
-    scope: "AlphaEvolve kernel-optimization subtask",
-    description: "Discovering faster GPU/TPU kernels, including matrix multiplication and FlashAttention.",
-    icon: KernelSpeedIcon,
-    color: C.rust,
-  },
-  {
-    name: "Circuit / Hardware Design",
-    year: "mode 2",
-    scope: "AlphaEvolve circuit-design subtask",
-    description: "Searching for smaller or faster digital circuits, including TPU multiplier circuits and Strassen-style schemes.",
-    icon: CircuitIcon,
-    color: C.rust,
-  },
-  {
-    name: "Mathematical Problems",
-    year: "mode 3",
-    scope: "AlphaEvolve math-discovery subtask",
-    description: "Discovering improved bounds across analysis, geometry, and combinatorics.",
-    icon: MathDomainIcon,
-    color: C.rust,
-  },
-];
-
-const MATH_SUBDOMAINS = [
-  {
-    name: "Analysis",
-    description: "Autocorrelation inequalities; uncertainty inequalities.",
-  },
-  {
-    name: "Geometry",
-    description: "Packing problems; minimum / maximum distance problems.",
-  },
-  {
-    name: "Combinatorics",
-    description: "Erdős's minimum-overlap problem; sums and differences of finite sets.",
-  },
-];
-
-function MathSubdomainCards() {
-  return (
-    <div className="not-prose grid gap-3 md:grid-cols-3">
-      {MATH_SUBDOMAINS.map((item) => (
-        <div
-          key={item.name}
-          className="relative min-h-[92px] overflow-hidden rounded-xl border border-border bg-card"
-          style={{
-            boxShadow:
-              "0 1px 0 rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.04)",
-          }}
-        >
-          <div
-            aria-hidden="true"
-            className="absolute inset-y-0 left-0 w-1"
-            style={{ backgroundColor: C.rust }}
-          />
-          <div className="p-4 pl-5">
-            <p className="text-[13px] font-semibold tracking-tight text-foreground">
-              {item.name}
-            </p>
-            <p className="mt-1.5 text-[12px] leading-snug text-foreground/70">
-              {item.description}
-            </p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default function BlogLandscape() {
   return (
-    <section className="mt-12 space-y-12" aria-labelledby="related-landscape">
-      <div className="prose prose-neutral max-w-none prose-headings:tracking-tight prose-a:text-foreground">
-        <h2 id="related-landscape">Related Work / Landscape</h2>
-        <p>
-          MLS-Bench sits between agentic ML engineering benchmarks, broader
-          research-workflow evaluations, and the new wave of self-evolving
-          discovery systems. The important distinction is the unit being
-          measured: a controlled, transferable ML-science method rather than an
-          unrestricted project score.
+    <section
+      className="not-prose mt-10 mb-12 space-y-10"
+      aria-labelledby="background-landscape"
+    >
+      <div className="space-y-3">
+        <h2
+          id="background-landscape"
+          className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl"
+        >
+          Background &amp; Motivation
+        </h2>
+        <p className="text-[15px] leading-relaxed text-foreground/75">
+          MLS-Bench sits between two crowded landscapes. On one side, agentic
+          ML benchmarks that score engineering execution on a single dataset.
+          On the other, the rapidly-growing self-evolve cluster &mdash; systems
+          that search over executable artifacts at test time. Neither
+          measures what we actually care about: a controlled, transferable ML
+          method.
         </p>
       </div>
 
-      <LandscapeGallery
-        title="Existing Benchmark Landscape"
-        intro="The neighboring benchmark landscape is rich, but most suites evaluate engineering execution, research assistance, data discovery, or end-to-end replication. Those are useful contexts for MLS-Bench, not substitutes for controlled method discovery."
+      <HorizontalStrip
+        title="Existing ML Benchmarks"
+        intro="The neighborhood is rich, but most suites evaluate engineering execution, research assistance, end-to-end replication, or data discovery — not the atomic step of inventing a method that survives outside the setting it was tuned in."
         cards={BENCHMARK_CARDS}
-        position="MLS-Bench keeps the ambition of these evaluations but narrows the artifact: the agent must change a bounded method component and show that the gain survives across settings. That makes attribution and transfer the center of the benchmark rather than a side effect."
       />
 
-      <LandscapeGallery
-        title="Self-Evolving and Test-Time-Evolve Systems"
-        intro="A parallel cluster is moving quickly: systems that evolve code, kernels, activations, hyperparameters, or whole training runs at test time. So far, these demonstrations are primarily narrow optimization problems: kernel optimization, circuit design, contest-style algorithmic problems, and a handful of math frontier problems."
+      <HorizontalStrip
+        title="The Self-Evolve Wave Is Hot — But Narrow"
+        intro={
+          <>
+            Self-evolve is the hottest agent-research direction this cycle.
+            AlphaEvolve, FunSearch, ShinkaEvolve, OpenEvolve, ThetaEvolve, AVO,
+            AlphaActivation, and Sakana&apos;s AI Scientist all share one
+            shape: search over executable artifacts, score, keep the best,
+            repeat. But the headline demonstrations cluster into a handful of
+            narrow, abstract targets &mdash; GPU/TPU kernel optimization,
+            digital-circuit design, contest-style algorithmic problems, and a
+            small set of math frontier problems (autocorrelation and
+            uncertainty inequalities; packing and minimum / maximum distance
+            problems; Erdős&apos;s minimum-overlap problem; sums and
+            differences of finite sets). Broad ML method discovery &mdash; the
+            kind that ships across datasets, seeds, and model scales &mdash;
+            is conspicuously absent.
+          </>
+        }
         cards={EVOLUTION_CARDS}
-        position="MLS-Bench is the broad-domain counterpart to this cluster. Evolutionary loops are a promising agent harness, but the benchmark asks whether the evolved artifact is a reusable ML method under controlled, multi-setting evaluation."
       />
 
-      <LandscapeGallery
-        title="AlphaEvolve's Three Demonstration Modes"
-        intro="AlphaEvolve makes the current self-evolution pattern especially concrete: search over executable code, score candidates, keep the best variants, and repeat. Its demonstrations cluster into three narrow modes."
-        cards={ALPHAEVOLVE_MODE_CARDS}
-        columns="lg:grid-cols-3"
-        position="These modes show why MLS-Bench is a different measurement target. MLS-Bench cares less about whether a loop can optimize a sharp verifier and more about whether the discovered ML method remains useful beyond the first setting."
-      >
-        <MathSubdomainCards />
-      </LandscapeGallery>
-
-      <div className="prose prose-neutral max-w-none prose-headings:tracking-tight prose-a:text-foreground">
-        <p>
-          These systems are narrow-domain by construction; MLS-Bench is the
-          broad-domain counterpart. It keeps the same pressure for executable
-          discovery, but moves the claim from a single optimized score to a
-          controlled method that transfers across datasets, seeds,
-          environments, model scales, or evaluation settings.
-        </p>
-      </div>
+      <p className="text-[15px] leading-relaxed text-foreground/75">
+        That gap is the motivation for MLS-Bench. We keep the executable,
+        agentic shape these systems pioneered, but move the target from
+        optimizing one sharp verifier to discovering ML methods that transfer
+        across datasets, seeds, environments, and model scales &mdash; the
+        atomic unit of real ML science progress.
+      </p>
     </section>
   );
 }

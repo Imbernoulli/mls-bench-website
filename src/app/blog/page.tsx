@@ -107,7 +107,11 @@ export default function BlogPage() {
           judgment: choosing what to test, spending limited compute, reading
           feedback, and knowing when a result supports a scalable claim.
         </p>
+      </div>
 
+      <BlogLandscape />
+
+      <div className="prose prose-neutral max-w-none prose-headings:tracking-tight prose-a:text-foreground">
         <h2>What MLS-Bench Measures</h2>
         <p>
           A task is meant to feel like a small research iteration rather than a
@@ -170,8 +174,6 @@ export default function BlogPage() {
         caption="Figure: MLS-Bench-Lite intelligence chart. The Lite track gives a faster view of model progress across the same method-discovery framing."
         wide
       />
-
-      <BlogLandscape />
 
       <div className="prose prose-neutral max-w-none prose-headings:tracking-tight prose-a:text-foreground">
         <h2>Why the Controls Matter</h2>
