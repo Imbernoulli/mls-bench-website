@@ -285,7 +285,7 @@ export default function MetricBarChart({ data, models }: Props) {
                     key={metric}
                     className={
                       group.metrics.length === 1
-                        ? "w-full max-w-2xl rounded-lg border border-border p-3"
+                        ? "w-full max-w-md rounded-lg border border-border p-3"
                         : "rounded-lg border border-border p-3"
                     }
                   >
