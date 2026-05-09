@@ -22,9 +22,6 @@ const FIGURES = {
   innovation: "/data/blog_figs/exp_innovation.png",
 } as const;
 
-const AUTHOR_BYLINE =
-  "Bohan Lyu · Yucheng Yang · Siqiao Huang · Jiaru Zhang · Qixin Xu · Xinghan Li · Xinyang Han · Yicheng Zhang · Huaqing Zhang · Runhan Huang · Kaicheng Yang · Zitao Chen · Wentao Guo · Junlin Yang · Xinyue Ai · Wenhao Chai · Yadi Cao · Ziran Yang · Kun Wang · Dapeng Jiang · Huan-ang Gao · Shange Tang · Chengshuai Shi · Simon S. Du · Max Simchowitz · Jiantao Jiao · Dawn Song · Chi Jin";
-
 function Figure({
   src,
   alt,
@@ -76,9 +73,6 @@ export default function BlogPage() {
         <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
           Can AI Systems Build Better AI?
         </h1>
-        <p className="mt-4 text-sm leading-6 text-muted-foreground">
-          {AUTHOR_BYLINE}
-        </p>
         <p className="mt-5 max-w-3xl text-lg leading-8 text-muted-foreground">
           MLS-Bench asks whether an agent can make a reusable machine-learning
           science contribution: a new component, objective, optimizer, or
