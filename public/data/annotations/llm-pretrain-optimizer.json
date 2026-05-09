@@ -62,14 +62,14 @@
     "kind": "pseudocode",
     "pseudocode": "// 1. Split: 2D non-embedding → Muon, rest → AdamW\n// 2. for each Muon step on p:\n// 3.   buf ← β·buf + (1−β)·g, $\\tilde g$ ← lerp(g, buf, β)  (Nesterov)\n// 4.   if 2D: $U ← \\mathrm{NewtonSchulz}_5(\\tilde g)$ with (3.4445, −4.7750, 2.0315)\n// 5.   split fused QKV (3n × n) into 3 blocks before NS\n// 6.   scale = $\\sqrt{\\max(1, m/n)}$, $p ← (1−\\eta\\,\\mathrm{wd})\\,p − \\eta\\cdot\\text{scale}\\cdot U$\n// 7. AdamW(lr=$\\eta$, β, wd) for wte/wpe/lm_head and 1D params\n// 8. Combined optimizer steps both, schedule scales LRs together",
     "key_hyperparams": [
-      {"name": "lr (AdamW)", "value": "1e-3 (override)", "role": "peak rate", "learnable": false},
-      {"name": "lr (Muon base)", "value": "0.02", "role": "scaled by 0.02/AdamW_lr", "learnable": false},
+      {"name": "lr (AdamW)", "value": "3e-4 (override)", "role": "peak rate (CONFIG_OVERRIDES sets learning_rate=3e-4 which is what the schedule uses)", "learnable": false},
+      {"name": "lr (Muon base)", "value": "0.02", "role": "scaled by 0.02/(inner-override 1e-3) = 20x", "learnable": false},
       {"name": "momentum", "value": "0.95", "role": "Muon", "learnable": false},
       {"name": "ns_steps", "value": "5", "role": "Newton-Schulz iterations", "learnable": false},
       {"name": "warmup_iters", "value": "0.10·max_iters", "role": "longer warmup", "learnable": false}
     ],
     "init_recovers": "Muon baseline",
-    "diff_from_baseline": "Essentially the Muon baseline with two small tweaks: AdamW peak LR raised to 1e-3 (vs 6e-4) and warmup lengthened from 4 % to 10 % of training; algorithm itself is identical.",
+    "diff_from_baseline": "Essentially the Muon baseline with two small tweaks: CONFIG_OVERRIDES lowers AdamW peak LR to 3e-4 (vs baseline 6e-4) and warmup lengthened from 4 % to 10 % of training; algorithm itself is identical (note: an inner override sets learning_rate=1e-3 only inside configure_optimizers, which scales muon_lr to 0.02/1e-3 = 20x).",
     "confidence": "high"
   }
 ]

@@ -11,7 +11,7 @@
       {"name": "noise scale", "value": "r·0.3·σ(s)", "role": "saliency perturbation per restart", "learnable": false},
       {"name": "Adam lr", "value": "0.2", "role": "PGD step size on masked δ", "learnable": false},
       {"name": "PGD steps", "value": "50", "role": "inner refinement iterations", "learnable": false},
-      {"name": "loss", "value": "$o_y-o_t-0.5\\,\\mathrm{CE}$", "role": "targeted margin minus weighted untargeted CE", "learnable": false}
+      {"name": "loss = $o_y-o_t-0.5\\,\\mathrm{CE}$", "value": "targeted margin minus 0.5·CE", "role": "PGD objective on masked δ", "learnable": false}
     ],
     "init_recovers": "Pure JSMA-style sign perturbation if PGD never accepts",
     "diff_from_baseline": "Goes beyond JSMA by combining noise-perturbed saliency masks across 8 targets with a 50-step Adam PGD refinement under a fixed L0 mask.",

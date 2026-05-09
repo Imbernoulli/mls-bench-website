@@ -51,7 +51,7 @@
       {"name": "alt_targets", "value": "top-9", "role": "candidate targets per sample", "learnable": false}
     ],
     "diff_from_baseline": "Intends an AutoAttack-style cascade (CE+CW+DLR+targeted variants) on top of MI-FGSM-style cosine-α momentum-PGD, but as written the code uses an undefined `is_adv` flag and crashes. In effect it returns the clean images and counts as 0% success, well below FGSM/PGD/MI-FGSM/AutoAttack baselines.",
-    "confidence": "high"
+    "confidence": "low"
   },
   {
     "model": "openai/gpt-5.4",

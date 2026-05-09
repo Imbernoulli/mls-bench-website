@@ -1,19 +1,19 @@
 [
   {
     "model": "claude-opus-4.6",
-    "name": "Hybrid CG + CFG (jointly trained)",
-    "tagline": "Trains a return-conditioned diffusion model and a CumRew classifier together; sampling combines CFG and CG additively, then re-ranks candidates by classifier log-prob.",
+    "name": "CG-only inference + CFG-trained head (dead code)",
+    "tagline": "Trains a return-conditioned diffusion head and CumRew classifier; at inference only CG is actually applied — agent.sample omits condition_cfg/w_cfg, so the listed CFG hyperparameters are unused.",
     "kind": "pseudocode",
-    "pseudocode": "// Training:\n// 1. nn_condition = MLPCondition(in_dim=1, dropout=0.25) for CFG\n// 2. nn_classifier = HalfJannerUNet1d for CG\n// 3. for each batch (obs, act, val):\n// 4.   diffusion: agent.update(x, val/return_scale)  (CFG: label-dropout return conditioning)\n// 5.   if step ≤ classifier_gradient_steps: classifier.update(x, val_raw)\n//\n// Inference:\n// 6. condition = $\\tau\\,$target_return  with $\\tau = 0.9$ for hopper/walker/halfcheetah\n// 7. sample with both w_cfg and w_cg active; w_cfg ∈ {3, 4, 2} depending on env\n// 8. sample $K$ candidates per env; select argmax of classifier log-prob\n// 9. take action[0] from chosen trajectory",
+    "pseudocode": "// Training:\n// 1. nn_condition = MLPCondition(in_dim=1, dropout=0.25) for CFG\n// 2. nn_classifier = HalfJannerUNet1d for CG\n// 3. for each batch (obs, act, val):\n// 4.   diffusion: agent.update(x, val/return_scale)  (CFG: label-dropout return conditioning)\n// 5.   if step ≤ classifier_gradient_steps: classifier.update(x, val_raw)\n//\n// Inference (as committed):\n// 6. HYBRID_W_CFG / HYBRID_TARGET_RETURN dicts are computed but never used\n// 7. agent.sample(prior, ..., w_cg=args.task.w_cg, ...) — no condition_cfg, no w_cfg argument\n// 8. inside DiscreteDiffusionSDE.sample, w_cfg defaults to 0 and condition_cfg is None ⇒ CFG path is dead\n// 9. select best per env via classifier log-prob (logp.argmax); take action[0]",
     "key_hyperparams": [
-      {"name": "label_dropout", "value": "0.25", "role": "CFG dropout for the return token", "learnable": false},
-      {"name": "w_cfg (hopper/walker/cheetah)", "value": "3.0 / 4.0 / 2.0", "role": "CFG strength per env", "learnable": false},
-      {"name": "w_cg", "value": "0.3 / 0.007 / 0.0001", "role": "CG strength (= default)", "learnable": false},
-      {"name": "target_return_scale", "value": "0.9", "role": "fraction of optimal return", "learnable": false},
+      {"name": "label_dropout", "value": "0.25", "role": "CFG dropout for the return token (only used at training)", "learnable": false},
+      {"name": "w_cfg (hardcoded but unused)", "value": "3.0 / 4.0 / 2.0 in HYBRID_W_CFG dict", "role": "computed locally, NEVER passed into agent.sample — no inference effect", "learnable": false},
+      {"name": "w_cg", "value": "0.3 / 0.007 / 0.0001 (args.task.w_cg)", "role": "CG strength actually applied at sampling", "learnable": false},
+      {"name": "target_return_scale (unused)", "value": "0.9 in HYBRID_TARGET_RETURN dict", "role": "computed but no condition_cfg ever reaches the sampler", "learnable": false},
       {"name": "num_candidates", "value": "args.num_candidates", "role": "candidates per env (re-ranked)", "learnable": false}
     ],
-    "diff_from_baseline": "Unlike the cfg baseline (CFG only, no classifier) or the default (CG only) baseline, trains both heads jointly and combines them at sampling time, then keeps the default's classifier-based candidate re-ranking — and tunes per-env w_cfg.",
-    "confidence": "high"
+    "diff_from_baseline": "Adds CFG TRAINING (MLPCondition with label-dropout) on top of the default CG baseline, but the inference call only passes `w_cg=args.task.w_cg` to `agent.sample` — no `condition_cfg` or `w_cfg` argument is forwarded, so CFG defaults to w_cfg=0 and condition_cfg=None inside DiscreteDiffusionSDE.sample. The hardcoded HYBRID_W_CFG / HYBRID_TARGET_RETURN dicts and `hybrid_w_cfg / hybrid_target_return` locals are computed but never referenced.",
+    "confidence": "medium"
   },
   {
     "model": "gemini/gemini-3.1-pro-preview",

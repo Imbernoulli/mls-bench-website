@@ -52,8 +52,8 @@
       {"name": "rates", "value": "cx 0.9 / mut 0.05 / repro 0.05", "role": "default GP rates", "learnable": false}
     ],
     "init_recovers": "Lexicase GP when τ=0 (errors unchanged).",
-    "diff_from_baseline": "Compared to Lexicase GP, penalises every cell of the per-case error matrix by τ·L (auto Cov/Var with cap raised from 0.001 to 0.002) — i.e. parsimony pressure baked into ε-lexicase rather than into a scalar fitness; vs. Parsimony GP, the penalty is applied per-case under lexicase rather than to the scalar MSE.",
-    "confidence": "high"
+    "diff_from_baseline": "Code as displayed has a Python SyntaxError on line 318: `def mutation` ends with `if offspring.depth() > max_depth:` and no body, immediately followed by `def evolve_one_generation` — the proposal does not parse/run. Intended design: compared to Lexicase GP, penalises every cell of the per-case error matrix by τ·L (auto Cov/Var with cap raised from 0.001 to 0.002) — i.e. parsimony pressure baked into ε-lexicase rather than into a scalar fitness; vs. Parsimony GP, the penalty is applied per-case under lexicase rather than to the scalar MSE.",
+    "confidence": "low"
   },
   {
     "model": "openai/gpt-5.4",
@@ -88,7 +88,7 @@
       {"name": "elitism", "value": "1 (raw)", "role": "elite slot", "learnable": false}
     ],
     "init_recovers": "Plain ε-lexicase when n_keep = pop and τ = 0.",
-    "diff_from_baseline": "Adds two pieces vs. Lexicase GP: (i) a Pareto-style pre-filter that trims the lexicase candidate pool to the top 40% by penalised fitness, and (ii) extra point and hoist mutation operators (each 2%) — Lexicase GP runs ε-lexicase over the entire population with subtree mutation only.",
-    "confidence": "high"
+    "diff_from_baseline": "Code as displayed has a Python SyntaxError on line 335: duplicate `def hoist_mutation(parent, n_features, max_depth=17):` (first declaration on line 334 has no body) — the file does not parse. Intended design: adds two pieces vs. Lexicase GP: (i) a Pareto-style pre-filter that trims the lexicase candidate pool to the top 40% by penalised fitness, and (ii) extra point and hoist mutation operators (each 2%) — Lexicase GP runs ε-lexicase over the entire population with subtree mutation only.",
+    "confidence": "low"
   }
 ]

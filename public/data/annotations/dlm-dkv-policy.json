@@ -12,8 +12,8 @@
       {"name": "transfer range", "value": "[0.15, 0.30]", "role": "min/max scatter-refresh ratio", "learnable": false},
       {"name": "(prompt, gen_start, gen_max)", "value": "math (50,6,16) / humaneval (50,7,18) / lm_eval (50,2,5)", "role": "per-workload presets", "learnable": false}
     ],
-    "diff_from_baseline": "Extends dllm_cache by replacing fixed gen_refresh_interval with a closed-loop adaptation driven by an EMA of token-argmax agreement, plus a stability-interpolated transfer ratio and per-block resetting; retains lowest-similarity row selector and scatter_refresh kv_update.",
-    "confidence": "high"
+    "diff_from_baseline": "Code as displayed has a SyntaxError (duplicated `_CFG = {` on lines 73-74) and references an undefined `self._STABILITY_THRESHOLD_RELAX` (lines 122, 137, 143) — the proposal does not run. Intended design: extends dllm_cache by replacing fixed gen_refresh_interval with a closed-loop adaptation driven by an EMA of token-argmax agreement, plus a stability-interpolated transfer ratio and per-block resetting; retains lowest-similarity row selector and scatter_refresh kv_update.",
+    "confidence": "low"
   },
   {
     "model": "gemini/gemini-3.1-pro-preview",
@@ -75,7 +75,7 @@
       {"name": "transfer cap", "value": "0.5", "role": "upper bound on T", "learnable": false},
       {"name": "base presets", "value": "math (P=7,G=50,T=0.25); humaneval (P=8,G=50,T=0.25); lm_eval (P=3,G=50,T=0.25)", "role": "(prompt, gen, transfer) defaults", "learnable": false}
     ],
-    "diff_from_baseline": "Same hook surface as dllm_cache (lowest-similarity rows, scatter_refresh) but interval/transfer/prompt are controller outputs: gen_interval driven by a proportional law on mean difficulty error vs 0.5, transfer scaled by 1/similarity, prompt_interval scaled by importance.",
+    "diff_from_baseline": "Code as displayed has a SyntaxError (duplicated `def after_step` on lines 158 and 160) and would not parse; intent is described correctly. Same hook surface as dllm_cache (lowest-similarity rows, scatter_refresh) but interval/transfer/prompt are controller outputs: gen_interval driven by a proportional law on mean difficulty error vs 0.5, transfer scaled by 1/similarity, prompt_interval scaled by importance.",
     "confidence": "medium"
   }
 ]

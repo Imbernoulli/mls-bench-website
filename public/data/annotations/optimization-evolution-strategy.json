@@ -92,8 +92,8 @@
       }
     ],
     "init_recovers": "lshade baseline when only the pbest strategy is active",
-    "diff_from_baseline": "Compared to lshade, adds two extra mutation strategies (rand/1 and best/1) chosen uniformly per individual, sets N_min = max(4, dim), and triggers a stagnation-based restart after 100 generations without improvement.",
-    "confidence": "high"
+    "diff_from_baseline": "Code as displayed has a SyntaxError: an indentation jump on line 190 (`for i in range(N_current):` indented with extra spaces under the same block) — the implementation does not parse. Intended design: compared to lshade, adds two extra mutation strategies (rand/1 and best/1) chosen uniformly per individual, sets N_min = max(4, dim), and triggers a stagnation-based restart after 100 generations without improvement.",
+    "confidence": "low"
   },
   {
     "model": "google/gemini-3.1-pro-preview",
@@ -211,8 +211,8 @@
         "learnable": false
       },
       {
-        "name": "DE worst <- CMA best",
-        "value": "if cma_best < de_worst",
+        "name": "DE worst <- first CMA sample",
+        "value": "if cma_pop[0] < de_worst (cma_pop is unsorted in code)",
         "role": "cross-pool migration each gen",
         "learnable": false
       }

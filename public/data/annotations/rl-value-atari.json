@@ -1,19 +1,18 @@
 [
   {
     "model": "anthropic/claude-opus-4.6",
-    "name": "QR-DQN + Double + Non-crossing",
-    "tagline": "QR-DQN with a Double-Q target and a soft penalty on quantile crossing across all actions.",
+    "name": "QR-DQN + Non-crossing penalty",
+    "tagline": "QR-DQN with standard target-net argmax targets and a soft penalty on quantile crossing across all actions.",
     "kind": "formula",
     "formula": "$$\\mathcal{L} = \\frac{1}{N}\\sum_{i,j} \\rho_\\kappa^{\\hat\\tau_i}\\!\\bigl(y_j - \\theta_i(s,a)\\bigr) + \\lambda_c \\,\\mathbb{E}\\bigl[\\,\\mathrm{ReLU}(\\theta_{i}(s,a') - \\theta_{i+1}(s,a'))^2\\,\\bigr]$$$$y_j = r + \\gamma\\,\\theta_j\\bigl(s', \\arg\\max_{a'} \\bar{Q}_{\\mathrm{tgt}}(s', a')\\bigr)$$",
     "key_hyperparams": [
       {"name": "n_quantiles", "value": "200", "role": "QR-DQN head size", "learnable": false},
       {"name": "κ (Huber)", "value": "1.0", "role": "Huber threshold for quantile loss", "learnable": false},
       {"name": "cross_coef λ_c", "value": "0.01", "role": "weight on non-crossing penalty (sum over all actions)", "learnable": false},
-      {"name": "Double-Q", "value": "online next-state argmax, target net evaluates", "role": "fixes overestimation", "learnable": false},
       {"name": "target update", "value": "hard, every target_network_frequency", "role": "matches QR-DQN", "learnable": false}
     ],
     "init_recovers": "QR-DQN baseline at λ_c=0 (drops the non-crossing term).",
-    "diff_from_baseline": "On top of the QR-DQN baseline, adds a quadratic ReLU penalty on adjacent-quantile inversions (across all actions, not just the chosen one) and switches the target-action selection to Double-Q (online net argmax) instead of target-net argmax.",
+    "diff_from_baseline": "On top of the QR-DQN baseline, adds a quadratic ReLU penalty on adjacent-quantile inversions (across all actions, not just the chosen one). Despite the agent's narrative, the code still computes both the next-state argmax AND the quantile evaluation from the target network (`next_quant = self.target_network.get_quantiles(...)` then `next_actions = next_q.argmax(dim=1)`) — i.e. plain QR-DQN target selection, not Double-Q.",
     "confidence": "high"
   },
   {

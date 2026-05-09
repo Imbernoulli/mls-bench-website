@@ -90,7 +90,7 @@
     "name": "Mean-pool Gaussian + reward consistency",
     "tagline": "Per-transition (μ, logσ²) encoder mean-pooled across context; encoder trained jointly with a reward-prediction decoder and standard SAC.",
     "kind": "pseudocode",
-    "pseudocode": "// 1. Per-transition MLP $(o,a,r) \\to (\\mu_t, \\log\\sigma_t^2)$\n// 2. Posterior: $\\mu = \\mathrm{mean}_t \\mu_t$, $\\log\\sigma^2 = \\mathrm{mean}_t \\log\\sigma_t^2$\n// 3. $z = \\mu + e^{0.5\\log\\sigma^2}\\,\\varepsilon$\n// 4. Reward decoder $\\hat r = g(s,a,z)$,  $L_{\\mathrm{rew}} = \\mathrm{MSE}(\\hat r, r)$\n// 5. Encoder objective: $L_Q + \\lambda_{\\mathrm{kl}}\\,\\mathrm{KL}(q\\|\\mathcal N(0,I)) + 1.0\\cdot L_{\\mathrm{rew}}$\n// 6. KL coefficient is held at config default 0.1 (despite docstring; not annealed in code)\n// 7. SAC π, Q, V trained with detached z and Polyak τ=0.005",
+    "pseudocode": "// 1. Per-transition MLP $(o,a,r) \\to (\\mu_t, \\log\\sigma_t^2)$\n// 2. Posterior: $\\mu = \\mathrm{mean}_t \\mu_t$, $\\log\\sigma^2 = \\mathrm{mean}_t \\log\\sigma_t^2$\n// 3. $z = \\mu + e^{0.5\\log\\sigma^2}\\,\\varepsilon$\n// 4. Reward decoder $\\hat r = g(s,a,z)$,  $L_{\\mathrm{rew}} = \\mathrm{MSE}(\\hat r, r)$\n// 5. Encoder objective: $L_Q + \\lambda_{\\mathrm{kl}}\\,\\mathrm{KL}(q\\|\\mathcal N(0,I)) + 1.0\\cdot L_{\\mathrm{rew}}$\n// 6. KL coefficient base is config default 0.1 with a $1/(1+0.02\\cdot\\text{iteration})$ decay applied each train_iteration\n// 7. SAC π, Q, V trained with detached z and Polyak τ=0.005",
     "key_hyperparams": [
       {"name": "latent_dim", "value": "5", "role": "task embedding", "learnable": false},
       {"name": "encoder_hidden", "value": "200", "role": "encoder MLP width", "learnable": false},

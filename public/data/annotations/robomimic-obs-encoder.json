@@ -4,7 +4,7 @@
     "name": "Geometric Aug + Residual Refinement",
     "tagline": "Concatenates raw obs with explicit relative-pose features (rel_pos, distance, log-distance, unit direction, quat-position outer-product, gripper*distance) plus a zero-init residual MLP refinement.",
     "kind": "formula",
-    "formula": "$$\\Delta = o[:3] - p,\\ d = \\Vert\\Delta\\Vert,\\ \\hat{u} = \\Delta/d$$\n$$z_{\\text{geo}} = [\\Delta, d, \\log d, \\hat{u}, W_{12\\to 8}\\tanh(q\\otimes\\Delta), g\\odot d]$$\n$$x = [o_{\\text{raw}}, z_{\\text{geo}}],\\ y = x + \\mathrm{MLP}_{\\text{0-init}}(\\mathrm{LN}(x))$$",
+    "formula": "$$\\Delta = o[:3] - p,\\ d = \\Vert\\Delta\\Vert,\\ \\hat{u} = \\Delta/d$$\n$$z_{\\text{geo}} = [\\Delta, d, \\log d, \\hat{u}, \\tanh(W_{12\\to 8}(q\\otimes\\Delta)), g\\odot d]$$\n$$x = [o_{\\text{raw}}, z_{\\text{geo}}],\\ y = x + \\mathrm{MLP}_{\\text{0-init}}(\\mathrm{LN}(x))$$",
     "key_hyperparams": [
       {"name": "geo feature dim", "value": "18", "role": "rel_pos(3)+d(1)+log d(1)+dir(3)+quat-rel(8)+gripper*d(2)", "learnable": false},
       {"name": "quat-rel compress", "value": "Linear(12->8) + Tanh, no bias", "role": "compresses quaternion x rel_pos outer product", "learnable": true},

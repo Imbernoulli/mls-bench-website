@@ -28,9 +28,9 @@
   {
     "model": "Orthogonal Regularization",
     "name": "Orthogonal Regularization",
-    "tagline": "Penalises deviation of conv weight matrices from orthogonality via ||W^T W - I||_F^2 with coefficient 1e-4.",
+    "tagline": "Penalises deviation of conv weight matrices from orthogonality via ||W W^T - I||_F^2 with coefficient 1e-4.",
     "kind": "formula",
-    "formula": "$$\\mathcal{R} = \\lambda \\sum_{\\ell\\in\\mathrm{conv}} \\big\\| W_\\ell^{\\top} W_\\ell - I \\big\\|_F^2,\\quad \\lambda = 10^{-4}, \\quad W_\\ell\\in\\mathbb{R}^{C_{out}\\times C_{in}k^2}$$",
+    "formula": "$$\\mathcal{R} = \\lambda \\sum_{\\ell\\in\\mathrm{conv}} \\big\\| W_\\ell W_\\ell^{\\top} - I \\big\\|_F^2,\\quad \\lambda = 10^{-4}, \\quad W_\\ell\\in\\mathbb{R}^{C_{out}\\times C_{in}k^2}$$",
     "key_hyperparams": [
       {"name": "lambda", "value": "1e-4", "role": "penalty weight", "learnable": false}
     ],

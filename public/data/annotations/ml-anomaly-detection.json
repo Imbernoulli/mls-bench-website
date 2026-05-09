@@ -68,20 +68,19 @@
   },
   {
     "model": "qwen/qwen3.6-plus",
-    "name": "DARE: rank ensemble + GMM density",
-    "tagline": "Rank-fuse ECOD, IForest, COPOD and PCA-space negative GMM log-likelihood, weighted by dataset size and consensus correlation, with a top-half harmonic-mean boost.",
+    "name": "CCWRE: rank ensemble with multi-LODA",
+    "tagline": "Cross-Correlation Weighted Rank Ensemble: ECOD + IForest + COPOD + 3 LODA models, fused as inverse-correlation weighted ranks.",
     "kind": "pseudocode",
-    "pseudocode": "// 1. fit ECOD, IForest($n_{tr}$=$\\min$(300,$n$/5), max_samples=$\\min$(256,$n$/4)), COPOD, and GMM on PCA($X$)\n// 2. base weights $w$ by size: $n>5000:\\,[.20,.40,.20,.20]$;  $n>2000:\\,[.25,.30,.25,.20]$;  else $[.30,.25,.30,.15]$\n// 3. on train: compute ranks $r_k$;  consensus $= \\overline{r_k}$;  $w_k \\leftarrow w_k\\,(0.5 + 0.5\\,\\mathrm{corr}(r_k, \\text{consensus}))$;  normalize\n// 4. at decode:  scores $\\to$ ranks $r_k(x)$\n// 5.   weighted_rank $= \\sum_k w_k r_k(x)$\n// 6.   above_med$_k = r_k > 0.5$;  $\\mathrm{HM} = (\\sum 1/r_k\\text{ over above-med}) ^{-1} \\times |\\text{above-med}|$;  normalize HM to [0,1]\n// 7.   score $= $ weighted_rank $+ 0.15\\,\\mathrm{HM}$",
+    "pseudocode": "// 1. fit detectors: ECOD (inductive), IForest($n_{est}=\\min(200,\\max(100,n/10))$, max_samples=$\\min(256,\\max(64,n/4))$), COPOD, and 3 LODA models with seeds {43, 44, 45} (n_bins=10, n_random_cuts=8)\n// 2. on train: $s_k(X) \\leftarrow$ each detector's score; rank_matrix = column-stack of per-detector ranks of train scores\n// 3. compute pairwise Pearson $C_{ij} = |\\mathrm{corr}(r_i, r_j)|$ with zero diagonal\n// 4. diversity weights: $w_k = (1/(1 + \\overline{C_{k,\\cdot}}))$, normalize $\\sum w = 1$\n// 5. at decode: rank each detector's score against sorted train scores, then $\\text{score} = \\sum_k w_k\\,r_k(x)$ (matrix product `rank_matrix @ self.weights`)",
     "key_hyperparams": [
-      {"name": "size buckets", "value": ">5000 / >2000 / else", "role": "size-based base weights", "learnable": false},
-      {"name": "weight refinement", "value": "$0.5 + 0.5\\,\\mathrm{corr}$", "role": "rescale by consensus agreement", "learnable": false},
-      {"name": "above-median cutoff", "value": "0.5", "role": "filter for harmonic-mean boost", "learnable": false},
-      {"name": "HM weight", "value": "0.15", "role": "agreement-boost coefficient", "learnable": false},
-      {"name": "PCA dim", "value": "$\\min(\\max(2, d/2), d)$", "role": "GMM input dimension", "learnable": false},
-      {"name": "GMM components", "value": "$\\min(\\max(2, n/50), 20)$", "role": "mixture order", "learnable": false}
+      {"name": "detectors", "value": "ECOD + IForest + COPOD + LODA x 3", "role": "6-detector ensemble (multi-instance LODA)", "learnable": false},
+      {"name": "diversity weighting", "value": "$1/(1 + \\overline{|\\mathrm{corr}|})$", "role": "down-weights redundant detectors", "learnable": false},
+      {"name": "LODA n_bins", "value": "10", "role": "histogram bins per random projection", "learnable": false},
+      {"name": "LODA n_random_cuts", "value": "8", "role": "random projection count per LODA", "learnable": false},
+      {"name": "IForest n_estimators", "value": "$\\min(200, \\max(100, n/10))$", "role": "tree count adaptive to dataset size", "learnable": false}
     ],
-    "init_recovers": "Equal-weight rank-mean if size buckets and HM boost are removed",
-    "diff_from_baseline": "Combines ECOD/IForest/COPOD with a multi-component GMM density head in PCA space, applying size-bucketed base weights, consensus-corr rescaling, and a top-half harmonic-mean agreement boost.",
+    "init_recovers": "Equal-weight rank-mean if all pairwise correlations are equal",
+    "diff_from_baseline": "Stacks ECOD + IForest + COPOD with three independently-seeded LODA models (different random projections); fuses by per-detector ranks weighted as $1/(1 + \\overline{|\\mathrm{corr}|})$ to suppress redundant detectors. No GMM/PCA; no size-bucketed base weights; no harmonic-mean boost.",
     "confidence": "high"
   }
 ]

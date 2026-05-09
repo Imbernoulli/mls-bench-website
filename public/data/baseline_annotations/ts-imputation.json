@@ -71,7 +71,7 @@
       ]
     },
     "key_hyperparams": [
-      {"name": "top_k", "value": "5 (default)", "role": "FFT periods used per block", "learnable": false},
+      {"name": "top_k", "value": "3", "role": "FFT periods used per block (--top_k 3 in scripts/timesnet.sh)", "learnable": false},
       {"name": "blocks", "value": "stack of TimesBlocks", "role": "residual depth", "learnable": false}
     ],
     "diff_from_baseline": "Wu, Hu, Liu, Zhou, Wang & Long 2023 (ICLR). General-purpose temporal 2D-variation modelling: FFT picks dominant periods, the series is folded to 2D per period, and Inception-style 2D convolutions process intra- and inter-period structure. Standard imputation baseline in Time-Series-Library.",

@@ -75,8 +75,8 @@
       {"name": "τ (conf floor)", "value": "0.30 + 0.10·log₁₀(C) + 0.15·t/T", "role": "ramped confidence gate threshold", "learnable": false},
       {"name": "schedule s(t)", "value": "sin(π·max((t/T-0.15)/0.75, 0))", "role": "mid-training bell weighting", "learnable": false}
     ],
-    "diff_from_baseline": "Replaces the global confidence-penalty baseline with a per-sample gated rival-distribution entropy (only when p_target exceeds a class-count-aware threshold), and adds a normalized-row Gram off-diagonal penalty on every nn.Linear instead of conv-only orthogonal reg.",
-    "confidence": "medium"
+    "diff_from_baseline": "Code as displayed has a NameError on the return line (`out_reg` is never defined; the rival-smoothing computation produces `gate`, `rival_entropy`, `head_reg` but no `out_reg`) — the displayed final file errors out and the leaderboard score is from an earlier successful test. Intended design: replaces the global confidence-penalty baseline with a per-sample gated rival-distribution entropy (only when p_target exceeds a class-count-aware threshold), and adds a normalized-row Gram off-diagonal penalty on every nn.Linear instead of conv-only orthogonal reg.",
+    "confidence": "low"
   },
   {
     "model": "qwen/qwen3.6-plus",

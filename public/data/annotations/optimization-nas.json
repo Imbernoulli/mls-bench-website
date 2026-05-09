@@ -75,7 +75,7 @@
     "name": "EI BANANAS over full space",
     "tagline": "Standard 5-member BANANAS MLP ensemble but Expected Improvement (with $\\xi=0.01$) is computed over every valid architecture and blended with mean exploitation as progress grows.",
     "kind": "pseudocode",
-    "pseudocode": "// 1. Pre-generate all 15625 valid archs and their path encodings.\n// 2. Warm-start: 8 random unseen archs.\n// 3. Per step:\n//    a. fit 5-member _TinyMLP ensemble on seen (300 epochs, lr 5e-3).\n//    b. predict $\\mu, \\sigma$ on every unseen arch.\n//    c. $z=(\\mu-y^*-\\xi)/\\sigma$; $\\mathrm{EI}=(z\\sigma+\\sigma\\phi(z)/\\Phi(z))$ -- canonical EI form.\n//    d. exploit_weight = min(1, n_seen/num_epochs); combined = $(1-w)\\mathrm{EI}+w\\mu$.\n//    e. argmax → query.\n// 4. Return best-seen.",
+    "pseudocode": "// 1. Pre-generate all 15625 valid archs and their path encodings.\n// 2. Warm-start: 8 random unseen archs.\n// 3. Per step:\n//    a. fit 5-member _TinyMLP ensemble on seen (300 epochs, lr 5e-3).\n//    b. predict $\\mu, \\sigma$ on every unseen arch.\n//    c. $z=(\\mu-y^*-\\xi)/\\sigma$; $\\mathrm{EI}=(\\mu-y^*-\\xi)\\Phi(z)+\\sigma\\phi(z)$ -- canonical EI form.\n//    d. exploit_weight = min(1, n_seen/num_epochs); combined = $(1-w)\\mathrm{EI}+w\\mu$.\n//    e. argmax → query.\n// 4. Return best-seen.",
     "key_hyperparams": [
       {"name": "warm_start", "value": "8", "role": "initial random queries", "learnable": false},
       {"name": "ensemble_size", "value": "5", "role": "MLP ensemble (BANANAS default)", "learnable": false},

@@ -4,7 +4,7 @@
     "name": "DSNR: GCE warmup + conf-weighted truncated CE",
     "tagline": "GCE warmup, smooth GCE -> CE transition, confidence-ratio per-sample weighting and progressive top-loss truncation up to the assumed poison rate.",
     "kind": "formula",
-    "formula": "$$\\mathcal{L}(\\epsilon) = \\frac{1}{|\\mathcal{K}|}\\sum_{i \\in \\mathcal{K}} w_i\\,\\big[(1-t)\\,\\mathrm{GCE}_q(p_i) + t\\,\\mathrm{CE}(p_i, y_i)\\big],\\;\\; t = \\min\\!\\big(1, \\tfrac{\\epsilon - W}{T_{\\rm tr}}\\big),\\;\\; w_i = \\mathrm{clamp}\\!\\big(p_{i,y_i}/\\max_c p_{i,c},\\; \\max(0.1, 1{-}0.9\\rho),\\; 1\\big)$$",
+    "formula": "$$\\mathcal{L}(\\epsilon) = \\frac{1}{|\\mathcal{K}|}\\sum_{i \\in \\mathcal{K}} w_i\\,\\big[(1-t)\\,\\mathrm{GCE}_q(p_i) + t\\,\\mathrm{CE}(p_i, y_i)\\big],\\;\\; t = \\min\\!\\big(1, \\tfrac{\\epsilon - W}{T_{\\rm tr}}\\big),\\;\\; w_i = \\mathrm{clamp}\\!\\big(p_{i,y_i}/\\max_c p_{i,c},\\; \\max(0.1, 1{-}0.9\\,\\pi),\\; 1\\big),\\;\\; \\pi = \\min(1,(\\epsilon - W)/T_{\\rm tr})$$",
     "key_hyperparams": [
       {"name": "warmup", "value": "10 epochs", "role": "GCE-only phase", "learnable": false},
       {"name": "gce_q", "value": "0.7", "role": "GCE exponent", "learnable": false},

@@ -68,7 +68,7 @@
   {
     "model": "deepseek-reasoner",
     "name": "AAE-Graph (adversarial GAE)",
-    "tagline": "GCN-encoder graph autoencoder with inner-product edge decoding and a Wasserstein-style discriminator that aligns the encoder's latent to a Gaussian prior.",
+    "tagline": "GCN-encoder graph autoencoder with inner-product edge decoding and a BCE-trained discriminator that aligns the encoder's latent to a Gaussian prior.",
     "kind": "hybrid",
     "formula": "$$\\mathcal{L}_G = \\mathrm{BCE}(\\hat{A},A) + 0.5\\,\\mathrm{BCE}(\\hat{n},n^*) + 0.1\\,\\mathrm{BCE}(D(z),1),\\quad \\mathcal{L}_D = \\mathrm{BCE}(D(z_e),1)+\\mathrm{BCE}(D(z_p),0)$$",
     "pseudocode": "// 1. encode $A$ with 2-layer GCN, mean-pool to $g$, output $(\\mu,\\log\\sigma^2)$; $z = \\mu + \\sigma\\odot\\epsilon$\n// 2. discriminator step: maximise $\\log D(z) + \\log(1-D(z_p))$ with $z_p\\sim N(0,I)$\n// 3. generator step: decode node embeddings $E\\!=\\!W z$, edge logits $\\hat A = E E^\\top$, node-existence head $\\hat n = \\mathrm{MLP}(z)$\n// 4. minimise $\\mathrm{BCE}(\\hat A, A) + 0.5\\,\\mathrm{BCE}(\\hat n, \\mathbb{1}[d>0]) + 0.1\\,\\mathrm{BCE}(D(z),1)$\n// 5. sample: $z\\sim N(0,I)$, decode, threshold edges and nodes, mask pad",

@@ -272,7 +272,7 @@
       }
     ],
     "init_recovers": "Single-layer GCN+dot when layer_weights collapse and structural MLP weight → 0",
-    "diff_from_baseline": "Adds a softmax JK-style layer aggregator on top of the GCN encoder and a hybrid MLP decoder over $[\\mathbf{z}_u\\!\\odot\\!\\mathbf{z}_v,|\\mathbf{z}_u-\\mathbf{z}_v|,\\mathrm{CN},\\log d\\text{-ratio}]$ plus a 0.1·dot residual.",
-    "confidence": "medium"
+    "diff_from_baseline": "Code as displayed is broken: `__init__` computes `dec_in` but never instantiates `self.decoder`, while `decode()` calls `self.decoder(all_feats)` — leaderboard shows empty results. Intended design: adds a softmax JK-style layer aggregator on top of the GCN encoder and a hybrid MLP decoder over $[\\mathbf{z}_u\\!\\odot\\!\\mathbf{z}_v,|\\mathbf{z}_u-\\mathbf{z}_v|,\\mathrm{CN},\\log d\\text{-ratio}]$ plus a 0.1·dot residual.",
+    "confidence": "low"
   }
 ]

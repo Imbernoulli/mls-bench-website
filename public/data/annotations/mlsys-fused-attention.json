@@ -62,7 +62,7 @@
       {"name": "autotune", "value": "none", "role": "no @triton.autotune decorator", "learnable": false}
     ],
     "diff_from_baseline": "The proposal is broken: it deletes the wrapper and the final normalization+store from the FA2 baseline, leaving a kernel that never writes its output, so correctness check (max_diff < 1e-2) fails and the benchmark scores zero.",
-    "confidence": "high"
+    "confidence": "low"
   },
   {
     "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",

@@ -33,7 +33,7 @@
     "name": "Four-term tensor-power vocab + asymmetric lr/bsz manifold",
     "tagline": "Treats vocab loss as a sum of four learned N^a·V^b·D^c power tensors; lr/bsz uses an asymmetric exp-penalty manifold with N,D-tied optima; data-constrained adds a second U^-f tail.",
     "kind": "formula",
-    "formula": "$$ L_{\\text{vocab}} = E + \\sum_{k=1}^{4} A_k\\, N^{a_k} V^{b_k} D^{c_k} \\quad (a_k,b_k,c_k \\in [-5, 5]) $$ $$ L_{\\text{lrbsz}} = E + AN^{-a} + BD^{-b} + C(ND)^{-(a+b)} + K_1[e^{K_a x} - K_a x - 1] + K_2 y^2 + K_3 xy $$ $$ \\text{with }x=\\log\\tfrac{lr}{l_0 N^{g_l} D^{d_l}},\\; y=\\log\\tfrac{bsz}{b_0 N^{g_b} D^{d_b}} $$ $$ L_{\\text{dc}} = E + AN^{-a} + B D_{\\text{eff}}^{-b} + F U^{-f},\\; D_{\\text{eff}} = D / (c_1 r^\\rho + 1)^{1/\\rho} + c_2 D,\\; r = D/U $$",
+    "formula": "$$ L_{\\text{vocab}} = E + \\sum_{k=1}^{4} A_k\\, N^{a_k} V^{b_k} D^{c_k} \\quad (a_k,b_k,c_k \\in [-5, 5]) $$ $$ L_{\\text{lrbsz}} = E + AN^{-a} + BD^{-b} + C N^{-a} D^{-b} + K_1[e^{K_a x} - K_a x - 1] + K_2 y^2 + K_3 xy $$ $$ \\text{with }x=\\log\\tfrac{lr}{l_0 N^{g_l} D^{d_l}},\\; y=\\log\\tfrac{bsz}{b_0 N^{g_b} D^{d_b}} $$ $$ L_{\\text{dc}} = E + AN^{-a} + B D_{\\text{eff}}^{-b} + F U^{-f},\\; D_{\\text{eff}} = D / (c_1 r^\\rho + 1)^{1/\\rho} + c_2 D,\\; r = D/U $$",
     "key_hyperparams": [
       {"name": "vocab terms", "value": "4 tensor power-law terms (17 params)", "role": "multi-mode mixture for vocab loss", "learnable": true},
       {"name": "lrbsz manifold", "value": "16 params, 2-phase log/linear fit", "role": "asymmetric exp-style lr penalty + correlated bsz term", "learnable": true},

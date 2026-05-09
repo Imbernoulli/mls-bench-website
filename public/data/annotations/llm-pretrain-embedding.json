@@ -66,7 +66,7 @@
       {"name": "inject_layers", "value": "{1, n_layer/2, n_layer-1}", "role": "where ngram is added", "learnable": false},
       {"name": "alt_wte_init_std", "value": "0.02", "role": "init for the second lexical table", "learnable": true},
       {"name": "mix_gate_init", "value": "0", "role": "starts purely tied (gate=0.5 after sigmoid)", "learnable": true},
-      {"name": "bigram_hash", "value": "65537·x ⊕ 8191·x_{t-1}", "role": "bigram hashing constants", "learnable": false},
+      {"name": "bigram_hash", "value": "65537·x + 8191·x_{t-1}", "role": "bigram hashing constants", "learnable": false},
       {"name": "trigram_hash", "value": "131071·x + 4099·x_{t-1} + 257·x_{t-2}", "role": "trigram hashing constants", "learnable": false}
     ],
     "init_recovers": "Tied baseline at mix_gate=0 and ngram tables zero-init",

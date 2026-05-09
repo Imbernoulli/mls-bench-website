@@ -15,8 +15,8 @@
       {"name": "certificate", "value": "PAC-Bayes-kl inversion (Seeger-Langford)", "role": "0/1 risk certificate", "learnable": false}
     ],
     "init_recovers": "Quadratic bound on bounded NLL when α=0 and Catoni term is dominated.",
-    "diff_from_baseline": "Compared to mcallester/catoni/quadratic individually, this picks the elementwise minimum of Catoni-λ and Quadratic on a *blended* surrogate combining bounded-NLL (3-sample MC averaged) and a temperature-scaled soft 0/1 loss; certificate uses PAC-Bayes-kl inversion on the 0/1 risk.",
-    "confidence": "high"
+    "diff_from_baseline": "Code as displayed has a Python SyntaxError on line 502: an over-indented `self._lambda_optimizer = torch.optim.SGD(...)` block sits outside any def/if context — the file does not parse. Intended design: compared to mcallester/catoni/quadratic individually, picks the elementwise minimum of Catoni-λ and Quadratic on a *blended* surrogate combining bounded-NLL (3-sample MC averaged) and a temperature-scaled soft 0/1 loss; certificate uses PAC-Bayes-kl inversion on the 0/1 risk.",
+    "confidence": "low"
   },
   {
     "model": "deepseek-reasoner",

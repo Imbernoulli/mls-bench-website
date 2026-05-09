@@ -52,11 +52,11 @@
   {
     "model": "gpt-5.4",
     "name": "DARC: depth-adaptive routing softmax",
-    "tagline": "At each layer a softmax over {carry x, local delta, anchor x0} chooses how to compose the residual; gate logits combine a tiny shared MLP over RMS stats with per-depth bias.",
+    "tagline": "At each layer a softmax over {carry x, local delta, anchor x0} chooses how to compose the residual; gate logits combine a shared linear projection over RMS stats with per-depth bias.",
     "kind": "formula",
     "formula": "$$x_i = m_0\\,x_{i-1} + m_1\\,(B_i(x_{i-1})-x_{i-1}) + m_2\\,x_0,\\quad m = \\mathrm{softmax}\\!\\big(W\\,\\mathrm{mean}([\\|x\\|_{\\mathrm{rms}},\\|\\delta\\|_{\\mathrm{rms}}]) + b + d_i\\big)$$",
     "key_hyperparams": [
-      {"name": "darc_controller", "value": "Linear(2, 3, bias)", "role": "shared MLP from (x_rms, delta_rms) to 3-way logits", "learnable": true},
+      {"name": "darc_controller", "value": "Linear(2, 3, bias)", "role": "shared linear projection from (x_rms, delta_rms) to 3-way logits", "learnable": true},
       {"name": "darc_depth_bias", "value": "0 (init), shape (n_layer, 3)", "role": "per-layer bias on routing logits", "learnable": true},
       {"name": "input_features", "value": "(x.rms, delta.rms) per batch", "role": "controller features (token-independent)", "learnable": false},
       {"name": "extra_param_wd", "value": "0", "role": "no weight decay on DARC params", "learnable": false}
