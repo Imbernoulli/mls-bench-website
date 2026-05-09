@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { Category, TaskMeta } from "@/lib/types";
@@ -18,6 +18,21 @@ interface Props {
 
 export default function CategoryGrid({ items }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Small delay so the mouse can travel across the gap from the button to
+  // the expanded panel (sibling in grid flow) without the panel collapsing
+  // mid-transit. Cleared whenever any category area receives mouseenter.
+  const closeTimer = useRef<number | null>(null);
+
+  const cancelClose = () => {
+    if (closeTimer.current != null) {
+      window.clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  };
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimer.current = window.setTimeout(() => setActiveId(null), 160);
+  };
 
   return (
     <div className="grid gap-4 [grid-auto-flow:row_dense] sm:grid-cols-2 xl:grid-cols-3">
@@ -29,8 +44,16 @@ export default function CategoryGrid({ items }: Props) {
             <button
               type="button"
               aria-expanded={isActive}
-              onMouseEnter={() => setActiveId(category.id)}
-              onFocus={() => setActiveId(category.id)}
+              onMouseEnter={() => {
+                cancelClose();
+                setActiveId(category.id);
+              }}
+              onMouseLeave={scheduleClose}
+              onFocus={() => {
+                cancelClose();
+                setActiveId(category.id);
+              }}
+              onBlur={scheduleClose}
               onClick={() =>
                 setActiveId((current) =>
                   current === category.id ? null : category.id
@@ -57,6 +80,8 @@ export default function CategoryGrid({ items }: Props) {
             {isActive && (
               <div
                 aria-label={`${category.label} tasks`}
+                onMouseEnter={cancelClose}
+                onMouseLeave={scheduleClose}
                 className="animate-in col-span-1 grid gap-3 bg-muted/35 p-3 sm:col-span-2 sm:grid-cols-2 xl:col-span-3 xl:grid-cols-3"
               >
                 {tasks.map((task) => (

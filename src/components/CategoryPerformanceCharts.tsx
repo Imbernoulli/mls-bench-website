@@ -263,11 +263,11 @@ export default function CategoryPerformanceCharts({ data, series }: Props) {
                             key={item.id}
                             dataKey={item.id}
                             name={item.name}
-                            fill={item.color}
-                            fillOpacity={sota ? 0.03 : 0.88}
-                            stroke={sota ? item.color : undefined}
-                            strokeDasharray={sota ? "6 4" : undefined}
-                            strokeWidth={sota ? 1.6 : 0}
+                            // Human SOTA uses a translucent neutral grey
+                            // here (dashed treatment is reserved for the
+                            // Capability Profile radar below).
+                            fill={sota ? "#6e6e80" : item.color}
+                            fillOpacity={sota ? 0.32 : 0.88}
                             radius={[3, 3, 0, 0]}
                             maxBarSize={20}
                             shape={
