@@ -7,13 +7,13 @@
     "formula": "$$\\alpha_{ij}=\\mathrm{softmax}_j\\!\\big(\\mathrm{LeakyReLU}(\\mathbf{a}_s^\\top h_i + \\mathbf{a}_d^\\top h_j)\\big),\\quad h_i' = \\sigma\\!\\Big(\\sum_{j\\in\\mathcal{N}(i)\\cup\\{i\\}}\\alpha_{ij} W h_j\\Big)$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "node features"},
-        {"id": "lin", "label": "linear (H heads x D)"},
-        {"id": "att", "label": "attention coeffs $\\alpha_{ij}$"},
-        {"id": "agg", "label": "weighted sum over neighbors"},
-        {"id": "elu", "label": "ELU + dropout"},
-        {"id": "head", "label": "concat / mean heads"},
-        {"id": "logits", "label": "class logits"}
+        {"id": "x", "label": "node features", "kind": "tensor"},
+        {"id": "lin", "label": "linear (H heads x D)", "kind": "linear"},
+        {"id": "att", "label": "attention coeffs $\\alpha_{ij}$", "kind": "attn"},
+        {"id": "agg", "label": "weighted sum over neighbors", "kind": "op"},
+        {"id": "elu", "label": "ELU + dropout", "kind": "act"},
+        {"id": "head", "label": "concat / mean heads", "kind": "concat"},
+        {"id": "logits", "label": "class logits", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "lin"},
@@ -68,13 +68,13 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "input proj"},
-        {"id": "mpnn", "label": "local MPNN (GCN)"},
-        {"id": "n1", "label": "norm + residual"},
-        {"id": "attn", "label": "global multi-head self-attn"},
-        {"id": "n2", "label": "norm + residual"},
-        {"id": "ffn", "label": "FFN (GELU)"},
-        {"id": "out", "label": "norm + residual"}
+        {"id": "in", "label": "input proj", "kind": "linear"},
+        {"id": "mpnn", "label": "local MPNN (GCN)", "kind": "op"},
+        {"id": "n1", "label": "norm + residual", "kind": "norm"},
+        {"id": "attn", "label": "global multi-head self-attn", "kind": "attn"},
+        {"id": "n2", "label": "norm + residual", "kind": "norm"},
+        {"id": "ffn", "label": "FFN (GELU)", "kind": "ffn"},
+        {"id": "out", "label": "norm + residual", "kind": "norm"}
       ],
       "edges": [
         {"from": "in", "to": "mpnn"},

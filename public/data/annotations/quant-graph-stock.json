@@ -7,14 +7,14 @@
     "formula": "$$\\mathcal L = \\mathrm{MSE}(\\hat y, y) + \\alpha\\,\\mathcal L_{\\text{rank}} + \\beta\\,(\\overline{h_e\\!\\cdot\\!h_i})^2 + \\beta\\,(\\overline{h_i\\!\\cdot\\!h_{\\text{ind}}})^2,\\;\\; \\mathcal L_{\\text{rank}} = -\\,\\overline{\\tanh(5\\Delta\\hat y)\\,\\mathrm{sign}(\\Delta y)\\,\\big(0.7\\,U + 0.3\\,W_C\\big)}$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Alpha360 features"},
-        {"id": "gru", "label": "GRU encoder"},
-        {"id": "cp", "label": "Concept protos C^T·h"},
-        {"id": "ce", "label": "Cross-attn (mask C=0)"},
-        {"id": "res", "label": "Residual h - h_e"},
-        {"id": "imp", "label": "Cosine self-attn"},
-        {"id": "ind", "label": "Individual"},
-        {"id": "out", "label": "Sum + score"}
+        {"id": "x", "kind": "tensor", "label": "Alpha360 features"},
+        {"id": "gru", "kind": "rnn", "label": "GRU encoder"},
+        {"id": "cp", "kind": "op", "label": "Concept protos C^T·h"},
+        {"id": "ce", "kind": "attn", "label": "Cross-attn (mask C=0)"},
+        {"id": "res", "kind": "add", "label": "Residual h - h_e"},
+        {"id": "imp", "kind": "attn", "label": "Cosine self-attn"},
+        {"id": "ind", "kind": "ffn", "label": "Individual"},
+        {"id": "out", "kind": "add", "label": "Sum + score"}
       ],
       "edges": [
         {"from": "x", "to": "gru"},
@@ -50,14 +50,14 @@
     "formula": "$$\\tilde C = \\mathrm{rownorm}(C)\\odot(1 + \\mathrm{LR}(W_a h)),\\;\\; \\hat C = \\mathrm{rownorm}(\\tilde C^\\top h),\\;\\; h_g = \\mathrm{LR}(W_p\\,\\tilde C\\hat C),\\;\\; g = \\sigma(W_g[h_i\\Vert h_g]),\\;\\; \\hat y = \\mathrm{Lin}(g\\odot h_i + (1-g)\\odot h_g)$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Alpha360 features"},
-        {"id": "gru", "label": "GRU encoder"},
-        {"id": "cattn", "label": "Concept attn weights"},
-        {"id": "agg", "label": "Concept aggregation"},
-        {"id": "drop", "label": "Concept-channel dropout"},
-        {"id": "back", "label": "Back-project to stocks"},
-        {"id": "ind", "label": "Individual MLP"},
-        {"id": "fuse", "label": "Sigmoid gate fuse"}
+        {"id": "x", "kind": "tensor", "label": "Alpha360 features"},
+        {"id": "gru", "kind": "rnn", "label": "GRU encoder"},
+        {"id": "cattn", "kind": "attn", "label": "Concept attn weights"},
+        {"id": "agg", "kind": "op", "label": "Concept aggregation"},
+        {"id": "drop", "kind": "op", "label": "Concept-channel dropout"},
+        {"id": "back", "kind": "op", "label": "Back-project to stocks"},
+        {"id": "ind", "kind": "ffn", "label": "Individual MLP"},
+        {"id": "fuse", "kind": "mul", "label": "Sigmoid gate fuse"}
       ],
       "edges": [
         {"from": "x", "to": "gru"},
@@ -89,14 +89,14 @@
     "formula": "$$A = C\\,\\mathrm{diag}(\\mathrm{idf})\\,C^\\top + I,\\;\\; S = D^{-1/2} A D^{-1/2},\\;\\; \\tilde A = \\mathrm{softmax}(5\\,\\hat h \\hat h^\\top),\\;\\; h^{(k+1)} = \\mathrm{LN}\\big(h^{(k)} + \\mathrm{GELU}(S\\,W^{(k)}_s h^{(k)} + \\tilde A\\,W^{(k)}_d h^{(k)})\\big)$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Alpha360 features"},
-        {"id": "gru", "label": "GRU"},
-        {"id": "tfidf", "label": "TF-IDF concept adj"},
-        {"id": "cos", "label": "Cosine feature adj"},
-        {"id": "g1", "label": "Layer 1 (S+tildeA)"},
-        {"id": "g2", "label": "Layer 2 (S+tildeA)"},
-        {"id": "se", "label": "Stock embed"},
-        {"id": "out", "label": "MLP head"}
+        {"id": "x", "kind": "tensor", "label": "Alpha360 features"},
+        {"id": "gru", "kind": "rnn", "label": "GRU"},
+        {"id": "tfidf", "kind": "tensor", "label": "TF-IDF concept adj"},
+        {"id": "cos", "kind": "tensor", "label": "Cosine feature adj"},
+        {"id": "g1", "kind": "op", "label": "Layer 1 (S+tildeA)"},
+        {"id": "g2", "kind": "op", "label": "Layer 2 (S+tildeA)"},
+        {"id": "se", "kind": "embed", "label": "Stock embed"},
+        {"id": "out", "kind": "ffn", "label": "MLP head"}
       ],
       "edges": [
         {"from": "x", "to": "gru"},
@@ -150,14 +150,14 @@
     "formula": "$$\\bar C^{(k)} = \\frac{C^\\top h^{(k)}}{\\sum_i C_{ic} + \\varepsilon},\\;\\; \\hat C^{(k)} = W_c^{(k)} \\bar C^{(k)},\\;\\; h_g^{(k)} = W_s^{(k)} (C\\hat C^{(k)}),\\;\\; g = \\sigma(W_g[h^{(k)} \\Vert h_g^{(k)}]),\\;\\; h^{(k+1)} = \\mathrm{LN}(h^{(k)} + g\\odot h_g^{(k)})$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Alpha360 features"},
-        {"id": "lstm", "label": "LSTM (pretrained init)"},
-        {"id": "agg1", "label": "Concept mean (L1)"},
-        {"id": "back1", "label": "Scatter to stocks (L1)"},
-        {"id": "g1", "label": "Gated residual + LN"},
-        {"id": "agg2", "label": "Concept mean (L2)"},
-        {"id": "back2", "label": "Scatter to stocks (L2)"},
-        {"id": "out", "label": "MLP head"}
+        {"id": "x", "kind": "tensor", "label": "Alpha360 features"},
+        {"id": "lstm", "kind": "rnn", "label": "LSTM (pretrained init)"},
+        {"id": "agg1", "kind": "op", "label": "Concept mean (L1)"},
+        {"id": "back1", "kind": "op", "label": "Scatter to stocks (L1)"},
+        {"id": "g1", "kind": "norm", "label": "Gated residual + LN"},
+        {"id": "agg2", "kind": "op", "label": "Concept mean (L2)"},
+        {"id": "back2", "kind": "op", "label": "Scatter to stocks (L2)"},
+        {"id": "out", "kind": "ffn", "label": "MLP head"}
       ],
       "edges": [
         {"from": "x", "to": "lstm"},

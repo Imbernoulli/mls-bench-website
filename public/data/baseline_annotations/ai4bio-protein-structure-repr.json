@@ -7,12 +7,12 @@
     "formula": "$$m_{ij} = \\psi_h(h_i, h_j, \\|x_i - x_j\\|^2),\\;\\; x_i' = x_i + \\sum_{j} \\frac{x_i - x_j}{\\|x_i-x_j\\|+1} \\psi_x(m_{ij}),\\;\\; h_i' = h_i + \\phi(h_i, \\sum_j m_{ij})$$",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "(pos, node feat, batch)"},
-        {"id": "knn", "label": "kNN graph (k=16)"},
-        {"id": "emb", "label": "Linear emb_in -> 512"},
-        {"id": "egnn", "label": "6 x EGNNLayer (sum aggr, BN, ReLU)"},
-        {"id": "proj", "label": "Linear -> out_dim"},
-        {"id": "pool", "label": "Mean pool"}
+        {"id": "in", "label": "(pos, node feat, batch)", "kind": "tensor"},
+        {"id": "knn", "label": "kNN graph (k=16)", "kind": "op"},
+        {"id": "emb", "label": "Linear emb_in -> 512", "kind": "linear"},
+        {"id": "egnn", "label": "6 x EGNNLayer (sum aggr, BN, ReLU)", "kind": "op"},
+        {"id": "proj", "label": "Linear -> out_dim", "kind": "linear"},
+        {"id": "pool", "label": "Mean pool", "kind": "op"}
       ],
       "edges": [
         {"from": "in", "to": "knn"},
@@ -42,11 +42,11 @@
     "pseudocode": "1. Build edges: 5 sequential offsets {-2,-1,0,1,2}, radius graph (cutoff=10), kNN graph (k=16)\n2. Build edge feature $e_{ij} = [h_i \\| h_j \\| \\text{onehot}(r) \\| |i-j| \\| \\|p_i-p_j\\|]$\n3. For each layer $\\ell$ and relation $r$:\n   $\\quad m_{ij}^{(r)} = h_i \\cdot \\sigma(W_e e_{ij})$\n   $\\quad u_{j}^{(r)} = \\sum_{i: r(i,j)=r} m_{ij}^{(r)}$\n4. $h_j' = \\text{ReLU}(W \\cdot \\text{concat}_r(u_j^{(r)}) + W_{self} h_j)$\n5. Add short-cut residual, BatchNorm, dropout\n6. Readout = sum-pool over concatenated hidden states from all layers",
     "diagram": {
       "nodes": [
-        {"id": "edges", "label": "7-relation edges"},
-        {"id": "rconv", "label": "6 x GeometricRelationalConv"},
-        {"id": "concat", "label": "Concat hidden layers"},
-        {"id": "proj", "label": "Linear out"},
-        {"id": "pool", "label": "Sum pool"}
+        {"id": "edges", "label": "7-relation edges", "kind": "tensor"},
+        {"id": "rconv", "label": "6 x GeometricRelationalConv", "kind": "op"},
+        {"id": "concat", "label": "Concat hidden layers", "kind": "concat"},
+        {"id": "proj", "label": "Linear out", "kind": "linear"},
+        {"id": "pool", "label": "Sum pool", "kind": "op"}
       ],
       "edges": [
         {"from": "edges", "to": "rconv"},
@@ -75,12 +75,12 @@
     "formula": "$$h_i^{(\\ell+1)} = h_i^{(\\ell)} + \\sum_{j\\in\\mathcal{N}(i)} h_j^{(\\ell)} \\odot W_{cf}(\\mathrm{RBF}(\\|x_i - x_j\\|))$$",
     "diagram": {
       "nodes": [
-        {"id": "knn", "label": "kNN graph (k=32)"},
-        {"id": "rbf", "label": "Gaussian RBF (50)"},
-        {"id": "emb", "label": "Linear -> 512"},
-        {"id": "ib", "label": "6 x InteractionBlock (CFConv)"},
-        {"id": "out", "label": "Linear-SSP-Linear -> out_dim"},
-        {"id": "pool", "label": "Sum scatter"}
+        {"id": "knn", "label": "kNN graph (k=32)", "kind": "op"},
+        {"id": "rbf", "label": "Gaussian RBF (50)", "kind": "op"},
+        {"id": "emb", "label": "Linear -> 512", "kind": "linear"},
+        {"id": "ib", "label": "6 x InteractionBlock (CFConv)", "kind": "conv"},
+        {"id": "out", "label": "Linear-SSP-Linear -> out_dim", "kind": "ffn"},
+        {"id": "pool", "label": "Sum scatter", "kind": "op"}
       ],
       "edges": [
         {"from": "knn", "to": "rbf"},

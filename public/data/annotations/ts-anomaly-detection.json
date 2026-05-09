@@ -6,29 +6,100 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x [B,T,N]"},
-        {"id": "in", "label": "instance norm"},
-        {"id": "emb", "label": "Conv1d circ + pos"},
-        {"id": "spec", "label": "rFFT → low-rank k → iRFFT (no skip)"},
-        {"id": "gate", "label": "× σ(MLP(|X(f)|))"},
-        {"id": "attn", "label": "MHA + FFN (skip)"},
-        {"id": "proj", "label": "Linear → de-norm"}
+        {
+          "id": "x",
+          "label": "x [B,T,N]",
+          "kind": "tensor"
+        },
+        {
+          "id": "in",
+          "label": "instance norm",
+          "kind": "norm"
+        },
+        {
+          "id": "emb",
+          "label": "Conv1d circ + pos",
+          "kind": "conv"
+        },
+        {
+          "id": "spec",
+          "label": "rFFT → low-rank k → iRFFT (no skip)",
+          "kind": "op"
+        },
+        {
+          "id": "gate",
+          "label": "× σ(MLP(|X(f)|))",
+          "kind": "mul"
+        },
+        {
+          "id": "attn",
+          "label": "MHA + FFN (skip)",
+          "kind": "attn"
+        },
+        {
+          "id": "proj",
+          "label": "Linear → de-norm",
+          "kind": "linear"
+        }
       ],
       "edges": [
-        {"from": "x", "to": "in"},
-        {"from": "in", "to": "emb"},
-        {"from": "emb", "to": "spec"},
-        {"from": "spec", "to": "gate"},
-        {"from": "gate", "to": "attn"},
-        {"from": "attn", "to": "proj"}
+        {
+          "from": "x",
+          "to": "in"
+        },
+        {
+          "from": "in",
+          "to": "emb"
+        },
+        {
+          "from": "emb",
+          "to": "spec"
+        },
+        {
+          "from": "spec",
+          "to": "gate"
+        },
+        {
+          "from": "gate",
+          "to": "attn"
+        },
+        {
+          "from": "attn",
+          "to": "proj"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "bottleneck_ratio", "value": "0.4 (k = max(0.4·n_freq, 4))", "role": "low-rank compression ratio in spectral bottleneck", "learnable": false},
-      {"name": "n_freq", "value": "seq_len/2 + 1", "role": "FFT bins (rFFT)", "learnable": false},
-      {"name": "embed kernel", "value": "Conv1d k=3 circular", "role": "token embedding", "learnable": true},
-      {"name": "n blocks", "value": "configs.e_layers", "role": "stacked spectral-attention blocks", "learnable": true},
-      {"name": "no spectral skip", "value": "True", "role": "hard frequency-domain bottleneck", "learnable": false}
+      {
+        "name": "bottleneck_ratio",
+        "value": "0.4 (k = max(0.4·n_freq, 4))",
+        "role": "low-rank compression ratio in spectral bottleneck",
+        "learnable": false
+      },
+      {
+        "name": "n_freq",
+        "value": "seq_len/2 + 1",
+        "role": "FFT bins (rFFT)",
+        "learnable": false
+      },
+      {
+        "name": "embed kernel",
+        "value": "Conv1d k=3 circular",
+        "role": "token embedding",
+        "learnable": true
+      },
+      {
+        "name": "n blocks",
+        "value": "configs.e_layers",
+        "role": "stacked spectral-attention blocks",
+        "learnable": true
+      },
+      {
+        "name": "no spectral skip",
+        "value": "True",
+        "role": "hard frequency-domain bottleneck",
+        "learnable": false
+      }
     ],
     "diff_from_baseline": "Vs DLinear/TimesNet/PatchTST baselines: builds an encoder-only stack where each block does rFFT → real/imag low-rank Linear-GELU compression (n_freq → k → n_freq) → multiply by adaptive σ(MLP(|X(f)|)) gate → iRFFT (no skip), then MHA+FFN with skip; instance-normalized in/out. The hard spectral bottleneck plus adaptive gate is the novelty — DLinear is decomposed-linear, TimesNet uses inception over period-folded 2D, PatchTST is patch attention.",
     "confidence": "high"
@@ -40,29 +111,103 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x + noise (train)"},
-        {"id": "enc", "label": "Conv1d×2 (k=3)"},
-        {"id": "pe", "label": "sinusoidal PE"},
-        {"id": "tr", "label": "Transformer enc (2L, h=4)"},
-        {"id": "vq", "label": "VQ: nearest of K=32 codes (EMA)"},
-        {"id": "dec", "label": "Conv1d×2 → c_out"}
+        {
+          "id": "x",
+          "label": "x + noise (train)",
+          "kind": "tensor"
+        },
+        {
+          "id": "enc",
+          "label": "Conv1d×2 (k=3)",
+          "kind": "conv"
+        },
+        {
+          "id": "pe",
+          "label": "sinusoidal PE",
+          "kind": "pos"
+        },
+        {
+          "id": "tr",
+          "label": "Transformer enc (2L, h=4)",
+          "kind": "attn"
+        },
+        {
+          "id": "vq",
+          "label": "VQ: nearest of K=32 codes (EMA)",
+          "kind": "op"
+        },
+        {
+          "id": "dec",
+          "label": "Conv1d×2 → c_out",
+          "kind": "conv"
+        }
       ],
       "edges": [
-        {"from": "x", "to": "enc"},
-        {"from": "enc", "to": "pe"},
-        {"from": "pe", "to": "tr"},
-        {"from": "tr", "to": "vq"},
-        {"from": "vq", "to": "dec"}
+        {
+          "from": "x",
+          "to": "enc"
+        },
+        {
+          "from": "enc",
+          "to": "pe"
+        },
+        {
+          "from": "pe",
+          "to": "tr"
+        },
+        {
+          "from": "tr",
+          "to": "vq"
+        },
+        {
+          "from": "vq",
+          "to": "dec"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "d_model", "value": "64", "role": "encoder/codebook dim", "learnable": true},
-      {"name": "codebook_size K", "value": "32", "role": "memory size for VQ", "learnable": true},
-      {"name": "EMA decay", "value": "0.99", "role": "codebook EMA update rate", "learnable": false},
-      {"name": "commitment_cost", "value": "0.25 (computed but unused)", "role": "VQ commitment weight (not added to loss)", "learnable": false},
-      {"name": "n_heads", "value": "4", "role": "Transformer heads", "learnable": true},
-      {"name": "noise std fraction", "value": "0.1·std(x)", "role": "denoising-AE training noise", "learnable": false},
-      {"name": "kernel_size", "value": "3", "role": "Conv1d kernel for enc/dec", "learnable": true}
+      {
+        "name": "d_model",
+        "value": "64",
+        "role": "encoder/codebook dim",
+        "learnable": true
+      },
+      {
+        "name": "codebook_size K",
+        "value": "32",
+        "role": "memory size for VQ",
+        "learnable": true
+      },
+      {
+        "name": "EMA decay",
+        "value": "0.99",
+        "role": "codebook EMA update rate",
+        "learnable": false
+      },
+      {
+        "name": "commitment_cost",
+        "value": "0.25 (computed but unused)",
+        "role": "VQ commitment weight (not added to loss)",
+        "learnable": false
+      },
+      {
+        "name": "n_heads",
+        "value": "4",
+        "role": "Transformer heads",
+        "learnable": true
+      },
+      {
+        "name": "noise std fraction",
+        "value": "0.1·std(x)",
+        "role": "denoising-AE training noise",
+        "learnable": false
+      },
+      {
+        "name": "kernel_size",
+        "value": "3",
+        "role": "Conv1d kernel for enc/dec",
+        "learnable": true
+      }
     ],
     "diff_from_baseline": "Vs DLinear/TimesNet/PatchTST: introduces a vector-quantization memory layer between encoder and decoder; nearest of K=32 codes is selected and gradient is straight-through; codebook updated by EMA (not gradient). Adds Gaussian denoising during training. Note: commitment loss is computed but cannot be added to the framework loss, so VQ is essentially used as a discrete information bottleneck.",
     "confidence": "high"
@@ -74,27 +219,92 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x → instance norm"},
-        {"id": "tb", "label": "Temporal branch: patch-mask + sin PE + Tx"},
-        {"id": "vb", "label": "Variate branch: var-mask + learn PE + Tx"},
-        {"id": "fuse", "label": "α·out_t + (1-α)·out_v"},
-        {"id": "out", "label": "de-norm + final proj"}
+        {
+          "id": "x",
+          "label": "x → instance norm",
+          "kind": "tensor"
+        },
+        {
+          "id": "tb",
+          "label": "Temporal branch: patch-mask + sin PE + Tx",
+          "kind": "attn"
+        },
+        {
+          "id": "vb",
+          "label": "Variate branch: var-mask + learn PE + Tx",
+          "kind": "attn"
+        },
+        {
+          "id": "fuse",
+          "label": "α·out_t + (1-α)·out_v",
+          "kind": "op"
+        },
+        {
+          "id": "out",
+          "label": "de-norm + final proj",
+          "kind": "linear"
+        }
       ],
       "edges": [
-        {"from": "x", "to": "tb"},
-        {"from": "x", "to": "vb"},
-        {"from": "tb", "to": "fuse"},
-        {"from": "vb", "to": "fuse"},
-        {"from": "fuse", "to": "out"}
+        {
+          "from": "x",
+          "to": "tb"
+        },
+        {
+          "from": "x",
+          "to": "vb"
+        },
+        {
+          "from": "tb",
+          "to": "fuse"
+        },
+        {
+          "from": "vb",
+          "to": "fuse"
+        },
+        {
+          "from": "fuse",
+          "to": "out"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "patch_len", "value": "10", "role": "size of contiguous time patches in temporal mask", "learnable": false},
-      {"name": "mask_p_t", "value": "0.4", "role": "Bernoulli prob of masking a temporal patch", "learnable": false},
-      {"name": "mask_p_v", "value": "0.4", "role": "Bernoulli prob of masking a variate", "learnable": false},
-      {"name": "α (per-variate fusion)", "value": "0.5 init, shape (1,1,enc_in)", "role": "learnable convex combination of branches", "learnable": true},
-      {"name": "d_model / n_heads / e_layers / d_ff", "value": "128 / 8 / 2 / 256", "role": "Transformer hyperparameters", "learnable": true},
-      {"name": "mask tokens", "value": "trunc-normal init", "role": "learnable [MASK] tokens for both branches", "learnable": true}
+      {
+        "name": "patch_len",
+        "value": "10",
+        "role": "size of contiguous time patches in temporal mask",
+        "learnable": false
+      },
+      {
+        "name": "mask_p_t",
+        "value": "0.4",
+        "role": "Bernoulli prob of masking a temporal patch",
+        "learnable": false
+      },
+      {
+        "name": "mask_p_v",
+        "value": "0.4",
+        "role": "Bernoulli prob of masking a variate",
+        "learnable": false
+      },
+      {
+        "name": "α (per-variate fusion)",
+        "value": "0.5 init, shape (1,1,enc_in)",
+        "role": "learnable convex combination of branches",
+        "learnable": true
+      },
+      {
+        "name": "d_model / n_heads / e_layers / d_ff",
+        "value": "128 / 8 / 2 / 256",
+        "role": "Transformer hyperparameters",
+        "learnable": true
+      },
+      {
+        "name": "mask tokens",
+        "value": "trunc-normal init",
+        "role": "learnable [MASK] tokens for both branches",
+        "learnable": true
+      }
     ],
     "diff_from_baseline": "Vs DLinear/TimesNet/PatchTST: uses TWO transformer encoders in parallel — a temporal-axis branch with patch masking (length-10 patches at 0.4 prob) and a variate-axis branch (one token per channel, mask 0.4 of channels), each replacing masked tokens with a learned [MASK]; outputs are recombined per variate via a learnable α. Reconstruction is computed as α·temporal + (1-α)·variate, then de-normalized.",
     "confidence": "high"
@@ -106,32 +316,117 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x → instance norm → Linear"},
-        {"id": "decomp", "label": "AvgPool (k=17 trend, k=7 mid)"},
-        {"id": "paths", "label": "DW+PW conv per band"},
-        {"id": "shrink", "label": "soft-shrink(detail, λ=0.12)·0.85"},
-        {"id": "gate", "label": "freq-energy → 3 sigmoid gates"},
-        {"id": "ctx", "label": "channel-mix MLP·σ(gate)"},
-        {"id": "out", "label": "Linear → de-norm"}
+        {
+          "id": "x",
+          "label": "x → instance norm → Linear",
+          "kind": "tensor"
+        },
+        {
+          "id": "decomp",
+          "label": "AvgPool (k=17 trend, k=7 mid)",
+          "kind": "op"
+        },
+        {
+          "id": "paths",
+          "label": "DW+PW conv per band",
+          "kind": "conv"
+        },
+        {
+          "id": "shrink",
+          "label": "soft-shrink(detail, λ=0.12)·0.85",
+          "kind": "op"
+        },
+        {
+          "id": "gate",
+          "label": "freq-energy → 3 sigmoid gates",
+          "kind": "act"
+        },
+        {
+          "id": "ctx",
+          "label": "channel-mix MLP·σ(gate)",
+          "kind": "ffn"
+        },
+        {
+          "id": "out",
+          "label": "Linear → de-norm",
+          "kind": "linear"
+        }
       ],
       "edges": [
-        {"from": "x", "to": "decomp"},
-        {"from": "decomp", "to": "paths"},
-        {"from": "paths", "to": "shrink"},
-        {"from": "x", "to": "gate", "label": "rFFT energy"},
-        {"from": "gate", "to": "out"},
-        {"from": "shrink", "to": "out"},
-        {"from": "ctx", "to": "out"}
+        {
+          "from": "x",
+          "to": "decomp"
+        },
+        {
+          "from": "decomp",
+          "to": "paths"
+        },
+        {
+          "from": "paths",
+          "to": "shrink"
+        },
+        {
+          "from": "x",
+          "to": "gate",
+          "label": "rFFT energy"
+        },
+        {
+          "from": "gate",
+          "to": "out"
+        },
+        {
+          "from": "shrink",
+          "to": "out"
+        },
+        {
+          "from": "ctx",
+          "to": "out"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "k_trend, k_mid", "value": "17, 7", "role": "AvgPool kernel sizes for trend / mid bands", "learnable": false},
-      {"name": "DW conv kernels", "value": "trend=9, band=5, detail=3", "role": "per-band depthwise conv receptive field", "learnable": true},
-      {"name": "detail_shrink (λ)", "value": "0.12", "role": "soft-threshold for detail features", "learnable": false},
-      {"name": "detail_scale", "value": "0.85", "role": "post-shrink detail attenuation (anti-identity)", "learnable": false},
-      {"name": "freq cuts", "value": "n_freq//6, n_freq//3", "role": "low/mid/high band split for energy gating", "learnable": false},
-      {"name": "channel-context weight", "value": "0.15", "role": "scale of channel-mix context added to recon", "learnable": false},
-      {"name": "hidden", "value": "max(16, d_model=64)", "role": "hidden width", "learnable": true}
+      {
+        "name": "k_trend, k_mid",
+        "value": "17, 7",
+        "role": "AvgPool kernel sizes for trend / mid bands",
+        "learnable": false
+      },
+      {
+        "name": "DW conv kernels",
+        "value": "trend=9, band=5, detail=3",
+        "role": "per-band depthwise conv receptive field",
+        "learnable": true
+      },
+      {
+        "name": "detail_shrink (λ)",
+        "value": "0.12",
+        "role": "soft-threshold for detail features",
+        "learnable": false
+      },
+      {
+        "name": "detail_scale",
+        "value": "0.85",
+        "role": "post-shrink detail attenuation (anti-identity)",
+        "learnable": false
+      },
+      {
+        "name": "freq cuts",
+        "value": "n_freq//6, n_freq//3",
+        "role": "low/mid/high band split for energy gating",
+        "learnable": false
+      },
+      {
+        "name": "channel-context weight",
+        "value": "0.15",
+        "role": "scale of channel-mix context added to recon",
+        "learnable": false
+      },
+      {
+        "name": "hidden",
+        "value": "max(16, d_model=64)",
+        "role": "hidden width",
+        "learnable": true
+      }
     ],
     "diff_from_baseline": "Vs DLinear (which only does seasonal/trend Linear) and TimesNet/PatchTST: explicitly decomposes via stacked AvgPool into trend/band/detail, applies separate depthwise+pointwise conv pipelines per band, and intentionally underfits detail by soft-thresholding (λ=0.12) and scaling by 0.85 so anomalies remain in the residual; FFT-energy of x conditions a per-band sigmoid gate that mixes the recon, plus a channel-mix MLP injects cross-channel context.",
     "confidence": "high"

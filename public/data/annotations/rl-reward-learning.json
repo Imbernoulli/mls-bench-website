@@ -7,30 +7,109 @@
     "formula": "$$f(s,a,s') = g(s,a) + \\gamma\\,h(s') - h(s),\\qquad \\mathcal{L}_{\\mathrm{disc}} = -\\big(\\mathbb{E}_E f - \\mathbb{E}_\\pi f\\big) + 10\\,(\\|\\nabla f\\|_2 - 1)^2,$$ $$\\mathrm{reward}(s,a,s') = \\mathrm{clamp}(f(s,a,s'),\\,\\pm 10),\\qquad \\mathcal{L}_{\\mathrm{BC}} = w_{\\mathrm{BC}}\\big(-\\mathbb{E}_E\\log\\pi(a|s) - 0.001\\,\\mathbb{H}[\\pi]\\big),$$ $$w_{\\mathrm{BC}} = \\max\\!\\big(0.01,\\,\\tfrac{1}{2}(1+\\cos(\\pi\\,p))\\big),\\quad p = \\min\\!\\big(1, \\tfrac{\\text{step}}{0.75\\cdot \\text{total}}\\big),\\ \\text{BC steps} = \\lceil 15\\,w_{\\mathrm{BC}}\\rceil.$$",
     "diagram": {
       "nodes": [
-        {"id": "g", "label": "g(s,a)"},
-        {"id": "h", "label": "h(s)"},
-        {"id": "f", "label": "f = g + γh' − h"},
-        {"id": "wgp", "label": "Wasserstein critic + GP"},
-        {"id": "rew", "label": "clamp(f, ±10)"},
-        {"id": "bc", "label": "cos-annealed BC"}
+        {
+          "id": "g",
+          "label": "g(s,a)",
+          "kind": "ffn"
+        },
+        {
+          "id": "h",
+          "label": "h(s)",
+          "kind": "ffn"
+        },
+        {
+          "id": "f",
+          "label": "f = g + γh' − h",
+          "kind": "tensor"
+        },
+        {
+          "id": "wgp",
+          "label": "Wasserstein critic + GP",
+          "kind": "loss"
+        },
+        {
+          "id": "rew",
+          "label": "clamp(f, ±10)",
+          "kind": "op"
+        },
+        {
+          "id": "bc",
+          "label": "cos-annealed BC",
+          "kind": "loss"
+        }
       ],
       "edges": [
-        {"from": "g", "to": "f"},
-        {"from": "h", "to": "f"},
-        {"from": "f", "to": "wgp"},
-        {"from": "f", "to": "rew"},
-        {"from": "bc", "to": "rew"}
+        {
+          "from": "g",
+          "to": "f"
+        },
+        {
+          "from": "h",
+          "to": "f"
+        },
+        {
+          "from": "f",
+          "to": "wgp"
+        },
+        {
+          "from": "f",
+          "to": "rew"
+        },
+        {
+          "from": "bc",
+          "to": "rew"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "γ (shaping)", "value": "0.99", "role": "potential discount", "learnable": false},
-      {"name": "disc_lr", "value": "min(args.irl_lr, 1e-4)", "role": "Adam(0.5, 0.9) for Wasserstein stability", "learnable": false},
-      {"name": "grad_penalty_coef", "value": "10.0", "role": "WGAN-GP λ", "learnable": false},
-      {"name": "reward_clip", "value": "±10", "role": "PPO reward clamp", "learnable": false},
-      {"name": "bc_anneal_fraction", "value": "0.75", "role": "fraction of training over which BC weight cosine-decays", "learnable": false},
-      {"name": "bc_floor", "value": "0.01", "role": "min BC weight late in training", "learnable": false},
-      {"name": "n_bc_steps_max", "value": "15", "role": "max BC grad steps per IRL update", "learnable": false},
-      {"name": "BC entropy bonus", "value": "0.001", "role": "small entropy reg in BC loss", "learnable": false}
+      {
+        "name": "γ (shaping)",
+        "value": "0.99",
+        "role": "potential discount",
+        "learnable": false
+      },
+      {
+        "name": "disc_lr",
+        "value": "min(args.irl_lr, 1e-4)",
+        "role": "Adam(0.5, 0.9) for Wasserstein stability",
+        "learnable": false
+      },
+      {
+        "name": "grad_penalty_coef",
+        "value": "10.0",
+        "role": "WGAN-GP λ",
+        "learnable": false
+      },
+      {
+        "name": "reward_clip",
+        "value": "±10",
+        "role": "PPO reward clamp",
+        "learnable": false
+      },
+      {
+        "name": "bc_anneal_fraction",
+        "value": "0.75",
+        "role": "fraction of training over which BC weight cosine-decays",
+        "learnable": false
+      },
+      {
+        "name": "bc_floor",
+        "value": "0.01",
+        "role": "min BC weight late in training",
+        "learnable": false
+      },
+      {
+        "name": "n_bc_steps_max",
+        "value": "15",
+        "role": "max BC grad steps per IRL update",
+        "learnable": false
+      },
+      {
+        "name": "BC entropy bonus",
+        "value": "0.001",
+        "role": "small entropy reg in BC loss",
+        "learnable": false
+      }
     ],
     "init_recovers": "Wasserstein-AIRL when w_BC = 0; AIRL when GP→0",
     "diff_from_baseline": "Versus AIRL/GAIL, swaps the BCE discriminator for a Wasserstein critic with WGAN-GP and clamps the resulting reward (±10) for PPO; layered with a cosine-annealed BC update on the policy whose step count and weight both decay over 75% of training.",
@@ -43,12 +122,42 @@
     "kind": "formula",
     "formula": "$$\\mathcal{L}_{\\mathrm{disc}} = \\mathrm{BCE}\\big(D, [1-\\varepsilon, \\varepsilon]\\big) + 10\\,\\mathbb{E}_{\\hat x}(\\|\\nabla D(\\hat x)\\| - 1)^2,\\quad \\varepsilon = 0.1,$$ $$\\mathrm{reward}(s,a,s') = D_{\\mathrm{logit}}(s,a,s'),\\qquad \\mathcal{L}_{\\mathrm{BC}} = -\\mathbb{E}_E\\log\\pi(a|s) - 0.001\\,\\mathbb{H}[\\pi].$$",
     "key_hyperparams": [
-      {"name": "disc_lr", "value": "min(args.irl_lr, 1e-4)", "role": "discriminator LR cap", "learnable": false},
-      {"name": "label_smoothing ε", "value": "0.1", "role": "soft labels on D", "learnable": false},
-      {"name": "grad_penalty_coef", "value": "10.0", "role": "WGAN-GP λ", "learnable": false},
-      {"name": "bc_weight", "value": "0.5 (set; loss is updated separately, full-strength)", "role": "scale of BC loss vs disc", "learnable": false},
-      {"name": "bc_entropy_coef", "value": "0.001", "role": "entropy bonus inside BC", "learnable": false},
-      {"name": "policy clip", "value": "0.5", "role": "grad-norm clip on BC step", "learnable": false}
+      {
+        "name": "disc_lr",
+        "value": "min(args.irl_lr, 1e-4)",
+        "role": "discriminator LR cap",
+        "learnable": false
+      },
+      {
+        "name": "label_smoothing ε",
+        "value": "0.1",
+        "role": "soft labels on D",
+        "learnable": false
+      },
+      {
+        "name": "grad_penalty_coef",
+        "value": "10.0",
+        "role": "WGAN-GP λ",
+        "learnable": false
+      },
+      {
+        "name": "bc_weight",
+        "value": "0.5 (set; loss is updated separately, full-strength)",
+        "role": "scale of BC loss vs disc",
+        "learnable": false
+      },
+      {
+        "name": "bc_entropy_coef",
+        "value": "0.001",
+        "role": "entropy bonus inside BC",
+        "learnable": false
+      },
+      {
+        "name": "policy clip",
+        "value": "0.5",
+        "role": "grad-norm clip on BC step",
+        "learnable": false
+      }
     ],
     "init_recovers": "GAIL when BC head removed and label smoothing = 0",
     "diff_from_baseline": "Versus GAIL, adds label-smoothing on the BCE discriminator, WGAN-GP gradient penalty, raw discriminator logit as reward, and a per-update BC step on the policy with entropy bonus.",
@@ -61,11 +170,36 @@
     "kind": "formula",
     "formula": "$$f(s,a,s') = g(s,a) + \\gamma h(s') - h(s),$$ $$\\mathcal{L}_{\\mathrm{disc}} = \\tfrac{1}{2}\\mathbb{E}_E (f-1)^2 + \\tfrac{1}{2}\\mathbb{E}_\\pi (f+1)^2 + 10\\,(\\|\\nabla f\\|-1)^2,$$ $$\\mathcal{L}_{\\mathrm{BC}} = \\tfrac{1}{N}\\sum_i \\big\\|\\mu_\\pi(s_i) - a^E_i\\big\\|^2,\\quad N = 20\\,\\text{steps},\\ \\sigma_\\pi\\,\\text{not updated}.$$",
     "key_hyperparams": [
-      {"name": "γ (shaping)", "value": "0.99", "role": "potential discount", "learnable": false},
-      {"name": "grad_penalty_coef", "value": "10.0", "role": "WGAN-GP λ", "learnable": false},
-      {"name": "LSGAN targets", "value": "+1 expert / −1 policy", "role": "least-squares discriminator targets", "learnable": false},
-      {"name": "n_bc_steps", "value": "20", "role": "BC mean-only steps per IRL update", "learnable": false},
-      {"name": "BC loss type", "value": "MSE on actor_mean", "role": "skip log-prob and entropy", "learnable": false}
+      {
+        "name": "γ (shaping)",
+        "value": "0.99",
+        "role": "potential discount",
+        "learnable": false
+      },
+      {
+        "name": "grad_penalty_coef",
+        "value": "10.0",
+        "role": "WGAN-GP λ",
+        "learnable": false
+      },
+      {
+        "name": "LSGAN targets",
+        "value": "+1 expert / −1 policy",
+        "role": "least-squares discriminator targets",
+        "learnable": false
+      },
+      {
+        "name": "n_bc_steps",
+        "value": "20",
+        "role": "BC mean-only steps per IRL update",
+        "learnable": false
+      },
+      {
+        "name": "BC loss type",
+        "value": "MSE on actor_mean",
+        "role": "skip log-prob and entropy",
+        "learnable": false
+      }
     ],
     "init_recovers": "Plain AIRL when LSGAN→BCE and BC head removed",
     "diff_from_baseline": "Versus AIRL, replaces the BCE discriminator with LSGAN ((f−1)², (f+1)²) plus WGAN-GP, and runs a 20-step BC update each round that only matches the policy's action mean (not log-prob), explicitly leaving log_std unchanged to avoid variance collapse.",
@@ -79,33 +213,127 @@
     "formula": "$$g(s,a,s') = m\\,g_{sa}(s,a) + (1-m)\\,g_{sd}(s, s'-s),\\quad m = \\sigma(\\mathrm{MLP}(s,a,\\Delta s)),\\quad f = g + \\gamma h(s') - h(s),$$ $$\\mathcal{L} = \\mathrm{BCE}(D,[1-\\varepsilon,\\varepsilon]) + 0.2\\,\\mathbb{E}\\,\\mathrm{ReLU}(0.75 - (f_E - f_\\pi)) + 0.15\\,\\sum_i w_i\\,\\mathrm{ReLU}(f_{\\pi,i})^2 + 10(\\|\\nabla f\\|-1)^2,$$ $$w_i = \\mathrm{softmax}\\!\\big((f_{\\pi,i} - \\bar f_\\pi)/2\\big)\\quad\\text{(detached)}.$$",
     "diagram": {
       "nodes": [
-        {"id": "sa", "label": "g_sa(s,a)"},
-        {"id": "sd", "label": "g_sd(s, Δs)"},
-        {"id": "gate", "label": "σ(mix_net)"},
-        {"id": "g", "label": "m·g_sa + (1−m)·g_sd"},
-        {"id": "h", "label": "h(s)"},
-        {"id": "f", "label": "f = g + γh' − h"}
+        {
+          "id": "sa",
+          "label": "g_sa(s,a)",
+          "kind": "ffn"
+        },
+        {
+          "id": "sd",
+          "label": "g_sd(s, Δs)",
+          "kind": "ffn"
+        },
+        {
+          "id": "gate",
+          "label": "σ(mix_net)",
+          "kind": "act"
+        },
+        {
+          "id": "g",
+          "label": "m·g_sa + (1−m)·g_sd",
+          "kind": "tensor"
+        },
+        {
+          "id": "h",
+          "label": "h(s)",
+          "kind": "ffn"
+        },
+        {
+          "id": "f",
+          "label": "f = g + γh' − h",
+          "kind": "tensor"
+        }
       ],
       "edges": [
-        {"from": "sa", "to": "g"},
-        {"from": "sd", "to": "g"},
-        {"from": "gate", "to": "g"},
-        {"from": "g", "to": "f"},
-        {"from": "h", "to": "f"}
+        {
+          "from": "sa",
+          "to": "g"
+        },
+        {
+          "from": "sd",
+          "to": "g"
+        },
+        {
+          "from": "gate",
+          "to": "g"
+        },
+        {
+          "from": "g",
+          "to": "f"
+        },
+        {
+          "from": "h",
+          "to": "f"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "γ (shaping)", "value": "0.99", "role": "potential discount", "learnable": false},
-      {"name": "disc_lr", "value": "min(args.irl_lr, 2e-4)", "role": "discriminator LR cap", "learnable": false},
-      {"name": "grad_penalty_coef", "value": "10.0", "role": "WGAN-GP λ", "learnable": false},
-      {"name": "rank_coef", "value": "0.2", "role": "pairwise margin loss weight", "learnable": false},
-      {"name": "margin", "value": "0.75", "role": "expert-policy logit gap target", "learnable": false},
-      {"name": "cons_coef", "value": "0.15", "role": "conservative penalty weight", "learnable": false},
-      {"name": "softmax temperature", "value": "2.0", "role": "softmax weight on top policy logits", "learnable": false},
-      {"name": "label_smoothing", "value": "0.08", "role": "BCE soft labels", "learnable": false},
-      {"name": "g_sa hidden", "value": "256-256", "role": "(s,a) head", "learnable": false},
-      {"name": "g_sd hidden", "value": "128-128", "role": "(s, Δs) head", "learnable": false},
-      {"name": "mix_net", "value": "Tanh MLP, hidden 128", "role": "gate logit between the two heads", "learnable": false}
+      {
+        "name": "γ (shaping)",
+        "value": "0.99",
+        "role": "potential discount",
+        "learnable": false
+      },
+      {
+        "name": "disc_lr",
+        "value": "min(args.irl_lr, 2e-4)",
+        "role": "discriminator LR cap",
+        "learnable": false
+      },
+      {
+        "name": "grad_penalty_coef",
+        "value": "10.0",
+        "role": "WGAN-GP λ",
+        "learnable": false
+      },
+      {
+        "name": "rank_coef",
+        "value": "0.2",
+        "role": "pairwise margin loss weight",
+        "learnable": false
+      },
+      {
+        "name": "margin",
+        "value": "0.75",
+        "role": "expert-policy logit gap target",
+        "learnable": false
+      },
+      {
+        "name": "cons_coef",
+        "value": "0.15",
+        "role": "conservative penalty weight",
+        "learnable": false
+      },
+      {
+        "name": "softmax temperature",
+        "value": "2.0",
+        "role": "softmax weight on top policy logits",
+        "learnable": false
+      },
+      {
+        "name": "label_smoothing",
+        "value": "0.08",
+        "role": "BCE soft labels",
+        "learnable": false
+      },
+      {
+        "name": "g_sa hidden",
+        "value": "256-256",
+        "role": "(s,a) head",
+        "learnable": false
+      },
+      {
+        "name": "g_sd hidden",
+        "value": "128-128",
+        "role": "(s, Δs) head",
+        "learnable": false
+      },
+      {
+        "name": "mix_net",
+        "value": "Tanh MLP, hidden 128",
+        "role": "gate logit between the two heads",
+        "learnable": false
+      }
     ],
     "init_recovers": "AIRL with single g(s,a) when m → 1",
     "diff_from_baseline": "Versus AIRL, replaces the single g head with a learnable mixture of (s,a) and (s, Δs) experts; trains with BCE + softened ranking margin + softmax-tilted conservative penalty on top-reward policy samples + WGAN-GP, all behind label smoothing 0.08.",
@@ -118,12 +346,42 @@
     "kind": "formula",
     "formula": "$$f(s,a,s') = g(s,a) + \\gamma h(s') - h(s),\\quad \\mathcal{L}_{\\mathrm{disc}} = \\mathrm{BCE}(D,[1-\\varepsilon,\\varepsilon]) + 10(\\|\\nabla f\\|-1)^2,\\ \\varepsilon = 0.1,$$ $$\\mathrm{reward} = f(s,a,s')\\ \\text{(raw logit)},\\qquad \\mathcal{L}_{\\mathrm{BC}} = -\\mathbb{E}_E\\log\\pi(a|s) - 0.5\\,\\mathbb{H}[\\pi],\\ \\text{12 steps/update}.$$",
     "key_hyperparams": [
-      {"name": "γ (shaping)", "value": "0.99", "role": "potential discount", "learnable": false},
-      {"name": "grad_penalty_coef", "value": "10.0", "role": "WGAN-GP λ", "learnable": false},
-      {"name": "label_smoothing ε", "value": "0.1", "role": "BCE soft labels", "learnable": false},
-      {"name": "n_bc_steps", "value": "12", "role": "BC steps per IRL update", "learnable": false},
-      {"name": "entropy_coef", "value": "0.5", "role": "VERY high entropy bonus (vs typical 0.001)", "learnable": false},
-      {"name": "policy clip", "value": "0.5", "role": "BC grad-norm clip", "learnable": false}
+      {
+        "name": "γ (shaping)",
+        "value": "0.99",
+        "role": "potential discount",
+        "learnable": false
+      },
+      {
+        "name": "grad_penalty_coef",
+        "value": "10.0",
+        "role": "WGAN-GP λ",
+        "learnable": false
+      },
+      {
+        "name": "label_smoothing ε",
+        "value": "0.1",
+        "role": "BCE soft labels",
+        "learnable": false
+      },
+      {
+        "name": "n_bc_steps",
+        "value": "12",
+        "role": "BC steps per IRL update",
+        "learnable": false
+      },
+      {
+        "name": "entropy_coef",
+        "value": "0.5",
+        "role": "VERY high entropy bonus (vs typical 0.001)",
+        "learnable": false
+      },
+      {
+        "name": "policy clip",
+        "value": "0.5",
+        "role": "BC grad-norm clip",
+        "learnable": false
+      }
     ],
     "init_recovers": "AIRL+BC when entropy_coef → 0",
     "diff_from_baseline": "Versus AIRL, keeps the shaped network but trains the discriminator with GAIL BCE + label smoothing + WGAN-GP and uses raw f(s,a,s') as reward; adds a 12-step BC head per round with an unusually large 0.5 entropy bonus that explicitly prevents the policy std from collapsing.",

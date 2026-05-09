@@ -6,12 +6,12 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "feat", "label": "Alpha360 features [N,F,T]"},
-        {"id": "rnn", "label": "LSTM/GRU x2 (h=64)"},
-        {"id": "pcm", "label": "Predefined-Concept Module (stock×concept)"},
-        {"id": "hcm", "label": "Hidden-Concept Module (top-1 cosine)"},
-        {"id": "ind", "label": "Individual-Info residual"},
-        {"id": "sum", "label": "Sum + linear readout"}
+        {"id": "feat", "kind": "tensor", "label": "Alpha360 features [N,F,T]"},
+        {"id": "rnn", "kind": "rnn", "label": "LSTM/GRU x2 (h=64)"},
+        {"id": "pcm", "kind": "op", "label": "Predefined-Concept Module (stock×concept)"},
+        {"id": "hcm", "kind": "op", "label": "Hidden-Concept Module (top-1 cosine)"},
+        {"id": "ind", "kind": "op", "label": "Individual-Info residual"},
+        {"id": "sum", "kind": "linear", "label": "Sum + linear readout"}
       ],
       "edges": [
         {"from": "feat", "to": "rnn"},
@@ -40,12 +40,12 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "feat", "label": "Alpha360 features [N,F,T]"},
-        {"id": "rnn", "label": "LSTM/GRU x2 (h=64, dropout=0.7)"},
-        {"id": "trans", "label": "Linear transformation"},
-        {"id": "att", "label": "All-pairs attention softmax(LeakyReLU(a^T[h_i||h_j]))"},
-        {"id": "agg", "label": "Att·H + H residual"},
-        {"id": "head", "label": "Linear -> 1"}
+        {"id": "feat", "kind": "tensor", "label": "Alpha360 features [N,F,T]"},
+        {"id": "rnn", "kind": "rnn", "label": "LSTM/GRU x2 (h=64, dropout=0.7)"},
+        {"id": "trans", "kind": "linear", "label": "Linear transformation"},
+        {"id": "att", "kind": "attn", "label": "All-pairs attention softmax(LeakyReLU(a^T[h_i||h_j]))"},
+        {"id": "agg", "kind": "add", "label": "Att·H + H residual"},
+        {"id": "head", "kind": "linear", "label": "Linear -> 1"}
       ],
       "edges": [
         {"from": "feat", "to": "rnn"},

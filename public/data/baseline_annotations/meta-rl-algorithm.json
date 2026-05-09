@@ -39,12 +39,12 @@
     "pseudocode": "1. Pre-process each transition $(s, a, r [, s'])$ with a 2-layer MLP to dim $h$\n2. Run GRU over the temporally-ordered sequence; head outputs $(\\mu_t, \\log\\sigma_t^2)$ at every step\n3. Sample $z_t \\sim \\mathcal{N}(\\mu_t, \\sigma_t^2)$ as the current belief\n4. Reward decoder $\\hat{r}(s, a, z)$ predicts reward conditional on belief\n5. ELBO: reconstruct rewards across the trajectory + KL$(q(z_t|\\tau_{1:t}) \\,\\|\\, \\mathcal{N}(0, I))$\n6. Condition SAC policy and Qs on $z_t$ from the latest GRU hidden state",
     "diagram": {
       "nodes": [
-        {"id": "ctx", "label": "context (s,a,r,[s'])"},
-        {"id": "mlp", "label": "MLP pre-process"},
-        {"id": "gru", "label": "GRU encoder"},
-        {"id": "z", "label": "(mu_t, sigma_t)"},
-        {"id": "rdec", "label": "Reward decoder"},
-        {"id": "sac", "label": "SAC actor + twin Q (z-cond)"}
+        {"id": "ctx", "label": "context (s,a,r,[s'])", "kind": "tensor"},
+        {"id": "mlp", "label": "MLP pre-process", "kind": "ffn"},
+        {"id": "gru", "label": "GRU encoder", "kind": "rnn"},
+        {"id": "z", "label": "(mu_t, sigma_t)", "kind": "tensor"},
+        {"id": "rdec", "label": "Reward decoder", "kind": "ffn"},
+        {"id": "sac", "label": "SAC actor + twin Q (z-cond)", "kind": "op"}
       ],
       "edges": [
         {"from": "ctx", "to": "mlp"},

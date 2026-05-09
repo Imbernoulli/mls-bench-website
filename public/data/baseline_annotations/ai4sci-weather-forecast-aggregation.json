@@ -7,10 +7,10 @@
     "formula": "$$\\mathrm{out}_{b,l} = \\mathrm{MHA}(q,\\, x_{b,:,l},\\, x_{b,:,l}),\\qquad q\\in\\mathbb{R}^{1\\times D}\\ \\text{learnable}$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x [B,V,L,D]"},
-        {"id": "q", "label": "Learnable query q [1,D]"},
-        {"id": "mha", "label": "MultiheadAttention (heads=H)"},
-        {"id": "out", "label": "out [B,L,D]"}
+        {"id": "x", "label": "x [B,V,L,D]", "kind": "tensor"},
+        {"id": "q", "label": "Learnable query q [1,D]", "kind": "param"},
+        {"id": "mha", "label": "MultiheadAttention (heads=H)", "kind": "attn"},
+        {"id": "out", "label": "out [B,L,D]", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "mha", "label": "K,V (per location)"},

@@ -7,33 +7,121 @@
     "formula": "$$ \\mathrm{RMSNorm}(x) = \\tfrac{x}{\\sqrt{\\overline{x^2}+\\varepsilon}}\\odot \\gamma, \\quad g_{\\text{init}} = (2L)^{-1/2} $$\n$$ x \\leftarrow x + g_{\\text{attn}}\\odot \\mathrm{RMSNorm}_{\\text{post}}^{(1)}\\big(\\text{Attn}(\\mathrm{RMSNorm}_{\\text{pre}}^{(1)}(x))\\big) $$\n$$ x \\leftarrow x + g_{\\text{mlp}}\\odot \\mathrm{RMSNorm}_{\\text{post}}^{(2)}\\big(\\text{MLP}(\\mathrm{RMSNorm}_{\\text{pre}}^{(2)}(x))\\big) $$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x"},
-        {"id": "ln1", "label": "RMSNorm pre"},
-        {"id": "attn", "label": "Attn"},
-        {"id": "ln1p", "label": "RMSNorm post"},
-        {"id": "g1", "label": "gate g_attn"},
-        {"id": "ln2", "label": "RMSNorm pre"},
-        {"id": "mlp", "label": "MLP"},
-        {"id": "g2", "label": "RMSNorm post + gate g_mlp"}
+        {
+          "id": "x",
+          "label": "x",
+          "kind": "tensor"
+        },
+        {
+          "id": "ln1",
+          "label": "RMSNorm pre",
+          "kind": "norm"
+        },
+        {
+          "id": "attn",
+          "label": "Attn",
+          "kind": "attn"
+        },
+        {
+          "id": "ln1p",
+          "label": "RMSNorm post",
+          "kind": "norm"
+        },
+        {
+          "id": "g1",
+          "label": "gate g_attn",
+          "kind": "param"
+        },
+        {
+          "id": "ln2",
+          "label": "RMSNorm pre",
+          "kind": "norm"
+        },
+        {
+          "id": "mlp",
+          "label": "MLP",
+          "kind": "ffn"
+        },
+        {
+          "id": "g2",
+          "label": "RMSNorm post + gate g_mlp",
+          "kind": "norm"
+        }
       ],
       "edges": [
-        {"from": "x", "to": "ln1"},
-        {"from": "ln1", "to": "attn"},
-        {"from": "attn", "to": "ln1p"},
-        {"from": "ln1p", "to": "g1"},
-        {"from": "g1", "to": "ln2"},
-        {"from": "ln2", "to": "mlp"},
-        {"from": "mlp", "to": "g2"}
+        {
+          "from": "x",
+          "to": "ln1"
+        },
+        {
+          "from": "ln1",
+          "to": "attn"
+        },
+        {
+          "from": "attn",
+          "to": "ln1p"
+        },
+        {
+          "from": "ln1p",
+          "to": "g1"
+        },
+        {
+          "from": "g1",
+          "to": "ln2"
+        },
+        {
+          "from": "ln2",
+          "to": "mlp"
+        },
+        {
+          "from": "mlp",
+          "to": "g2"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "norm", "value": "RMSNorm", "role": "no mean centering, scale-only", "learnable": false},
-      {"name": "ε", "value": "1e-5", "role": "RMSNorm epsilon", "learnable": false},
-      {"name": "γ", "value": "1.0 init", "role": "RMSNorm scale (per-feature)", "learnable": true},
-      {"name": "block_norm_count", "value": "4", "role": "ln_pre1, ln_post1, ln_pre2, ln_post2 per block", "learnable": false},
-      {"name": "g_attn", "value": "(2L)^(-1/2) init", "role": "per-channel attention residual gate", "learnable": true},
-      {"name": "g_mlp", "value": "(2L)^(-1/2) init", "role": "per-channel MLP residual gate", "learnable": true},
-      {"name": "n_layer", "value": "12 (small) / 24 (medium)", "role": "L used in init scale", "learnable": false}
+      {
+        "name": "norm",
+        "value": "RMSNorm",
+        "role": "no mean centering, scale-only",
+        "learnable": false
+      },
+      {
+        "name": "ε",
+        "value": "1e-5",
+        "role": "RMSNorm epsilon",
+        "learnable": false
+      },
+      {
+        "name": "γ",
+        "value": "1.0 init",
+        "role": "RMSNorm scale (per-feature)",
+        "learnable": true
+      },
+      {
+        "name": "block_norm_count",
+        "value": "4",
+        "role": "ln_pre1, ln_post1, ln_pre2, ln_post2 per block",
+        "learnable": false
+      },
+      {
+        "name": "g_attn",
+        "value": "(2L)^(-1/2) init",
+        "role": "per-channel attention residual gate",
+        "learnable": true
+      },
+      {
+        "name": "g_mlp",
+        "value": "(2L)^(-1/2) init",
+        "role": "per-channel MLP residual gate",
+        "learnable": true
+      },
+      {
+        "name": "n_layer",
+        "value": "12 (small) / 24 (medium)",
+        "role": "L used in init scale",
+        "learnable": false
+      }
     ],
     "init_recovers": "rmsnorm_post sandwich baseline at gate init = 1",
     "diff_from_baseline": "Extends the rmsnorm_post (sandwich) baseline by adding learnable per-channel residual gates on both attention and MLP outputs, initialized to $(2L)^{-1/2}$ for depth-aware scaling.",
@@ -47,29 +135,100 @@
     "formula": "$$ \\mathrm{RMSNorm}(x) = \\tfrac{x}{\\sqrt{\\overline{x^2}+\\varepsilon}}\\odot \\gamma + \\beta, \\quad \\alpha_{\\text{init}} = 10^{-3} $$\n$$ x \\leftarrow x + \\alpha_{\\text{attn}}\\odot \\text{Attn}(\\mathrm{RMSNorm}(x)) $$\n$$ x \\leftarrow x + \\alpha_{\\text{mlp}}\\odot \\text{MLP}(\\mathrm{RMSNorm}(x)) $$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x"},
-        {"id": "ln1", "label": "RMSNorm"},
-        {"id": "attn", "label": "Attn"},
-        {"id": "g1", "label": "alpha_attn (per-channel)"},
-        {"id": "ln2", "label": "RMSNorm"},
-        {"id": "mlp", "label": "MLP"},
-        {"id": "g2", "label": "alpha_mlp (per-channel)"}
+        {
+          "id": "x",
+          "label": "x",
+          "kind": "tensor"
+        },
+        {
+          "id": "ln1",
+          "label": "RMSNorm",
+          "kind": "norm"
+        },
+        {
+          "id": "attn",
+          "label": "Attn",
+          "kind": "attn"
+        },
+        {
+          "id": "g1",
+          "label": "alpha_attn (per-channel)",
+          "kind": "param"
+        },
+        {
+          "id": "ln2",
+          "label": "RMSNorm",
+          "kind": "norm"
+        },
+        {
+          "id": "mlp",
+          "label": "MLP",
+          "kind": "ffn"
+        },
+        {
+          "id": "g2",
+          "label": "alpha_mlp (per-channel)",
+          "kind": "param"
+        }
       ],
       "edges": [
-        {"from": "x", "to": "ln1"},
-        {"from": "ln1", "to": "attn"},
-        {"from": "attn", "to": "g1"},
-        {"from": "g1", "to": "ln2"},
-        {"from": "ln2", "to": "mlp"},
-        {"from": "mlp", "to": "g2"}
+        {
+          "from": "x",
+          "to": "ln1"
+        },
+        {
+          "from": "ln1",
+          "to": "attn"
+        },
+        {
+          "from": "attn",
+          "to": "g1"
+        },
+        {
+          "from": "g1",
+          "to": "ln2"
+        },
+        {
+          "from": "ln2",
+          "to": "mlp"
+        },
+        {
+          "from": "mlp",
+          "to": "g2"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "norm", "value": "RMSNorm + bias (when bias=True)", "role": "scale-only norm with optional learnable shift", "learnable": false},
-      {"name": "ε", "value": "1e-5", "role": "RMSNorm epsilon", "learnable": false},
-      {"name": "α_attn", "value": "1e-3 init", "role": "per-channel LayerScale on attention residual", "learnable": true},
-      {"name": "α_mlp", "value": "1e-3 init", "role": "per-channel LayerScale on MLP residual", "learnable": true},
-      {"name": "learning_rate", "value": "7e-4", "role": "raised from 6e-4 via CONFIG_OVERRIDES", "learnable": false}
+      {
+        "name": "norm",
+        "value": "RMSNorm + bias (when bias=True)",
+        "role": "scale-only norm with optional learnable shift",
+        "learnable": false
+      },
+      {
+        "name": "ε",
+        "value": "1e-5",
+        "role": "RMSNorm epsilon",
+        "learnable": false
+      },
+      {
+        "name": "α_attn",
+        "value": "1e-3 init",
+        "role": "per-channel LayerScale on attention residual",
+        "learnable": true
+      },
+      {
+        "name": "α_mlp",
+        "value": "1e-3 init",
+        "role": "per-channel LayerScale on MLP residual",
+        "learnable": true
+      },
+      {
+        "name": "learning_rate",
+        "value": "7e-4",
+        "role": "raised from 6e-4 via CONFIG_OVERRIDES",
+        "learnable": false
+      }
     ],
     "init_recovers": "rmsnorm baseline (Pre-LN) when α_attn = α_mlp = 1",
     "diff_from_baseline": "Extends the rmsnorm baseline with CaiT-style per-channel LayerScale parameters (init 1e-3) on both residuals to dampen sublayer outputs early, and bumps learning rate to 7e-4.",
@@ -83,29 +242,101 @@
     "formula": "$$ \\mathrm{RMSNorm}(x) = \\tfrac{x}{\\sqrt{\\overline{x^2}+\\varepsilon}}\\odot \\gamma, \\quad \\lambda_{\\text{init}} = 0.1 $$\n$$ h_1 = \\mathrm{RMSNorm}_1(x), \\;\\; a = \\lambda_1\\odot \\text{Attn}(h_1), \\;\\; h_2 = \\mathrm{RMSNorm}_2(h_1+a) $$\n$$ x_{\\text{out}} = (x+a) + \\lambda_2\\odot \\text{MLP}(h_2) $$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x"},
-        {"id": "ln1", "label": "RMSNorm h1"},
-        {"id": "attn", "label": "Attn"},
-        {"id": "ls1", "label": "lambda_1 (per-ch)"},
-        {"id": "ln2", "label": "RMSNorm(h1+a)"},
-        {"id": "mlp", "label": "MLP"},
-        {"id": "ls2", "label": "lambda_2 (per-ch)"}
+        {
+          "id": "x",
+          "label": "x",
+          "kind": "tensor"
+        },
+        {
+          "id": "ln1",
+          "label": "RMSNorm h1",
+          "kind": "norm"
+        },
+        {
+          "id": "attn",
+          "label": "Attn",
+          "kind": "attn"
+        },
+        {
+          "id": "ls1",
+          "label": "lambda_1 (per-ch)",
+          "kind": "param"
+        },
+        {
+          "id": "ln2",
+          "label": "RMSNorm(h1+a)",
+          "kind": "norm"
+        },
+        {
+          "id": "mlp",
+          "label": "MLP",
+          "kind": "ffn"
+        },
+        {
+          "id": "ls2",
+          "label": "lambda_2 (per-ch)",
+          "kind": "param"
+        }
       ],
       "edges": [
-        {"from": "x", "to": "ln1"},
-        {"from": "ln1", "to": "attn"},
-        {"from": "attn", "to": "ls1"},
-        {"from": "ls1", "to": "ln2", "label": "h1 + a"},
-        {"from": "ln2", "to": "mlp"},
-        {"from": "mlp", "to": "ls2"}
+        {
+          "from": "x",
+          "to": "ln1"
+        },
+        {
+          "from": "ln1",
+          "to": "attn"
+        },
+        {
+          "from": "attn",
+          "to": "ls1"
+        },
+        {
+          "from": "ls1",
+          "to": "ln2",
+          "label": "h1 + a"
+        },
+        {
+          "from": "ln2",
+          "to": "mlp"
+        },
+        {
+          "from": "mlp",
+          "to": "ls2"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "norm", "value": "RMSNorm", "role": "scale-only", "learnable": false},
-      {"name": "ε", "value": "1e-5", "role": "RMSNorm epsilon", "learnable": false},
-      {"name": "ls_1", "value": "0.1 init", "role": "per-channel LayerScale on attention residual", "learnable": true},
-      {"name": "ls_2", "value": "0.1 init", "role": "per-channel LayerScale on MLP residual", "learnable": true},
-      {"name": "ln2_input", "value": "h1 + a", "role": "MLP norm receives normed-x plus attn output instead of x+a", "learnable": false}
+      {
+        "name": "norm",
+        "value": "RMSNorm",
+        "role": "scale-only",
+        "learnable": false
+      },
+      {
+        "name": "ε",
+        "value": "1e-5",
+        "role": "RMSNorm epsilon",
+        "learnable": false
+      },
+      {
+        "name": "ls_1",
+        "value": "0.1 init",
+        "role": "per-channel LayerScale on attention residual",
+        "learnable": true
+      },
+      {
+        "name": "ls_2",
+        "value": "0.1 init",
+        "role": "per-channel LayerScale on MLP residual",
+        "learnable": true
+      },
+      {
+        "name": "ln2_input",
+        "value": "h1 + a",
+        "role": "MLP norm receives normed-x plus attn output instead of x+a",
+        "learnable": false
+      }
     ],
     "init_recovers": "Pre-LN RMSNorm with downscaled residuals at λ=0.1; reduces to rmsnorm baseline at λ=1 (modulo the h1+a vs x+a mismatch)",
     "diff_from_baseline": "Replaces LayerNorm with RMSNorm and adds per-channel LayerScale (init 0.1) on both residuals; the second norm operates on h1 + a (normed input + attention output) rather than the standard residual stream x + a.",
@@ -119,27 +350,92 @@
     "formula": "$$ \\mu = \\overline{x}_{-1}, \\;\\; x_c = x - \\mu, \\;\\; \\sigma_p = \\sqrt{\\tfrac{1}{p}\\sum_{i<p}x_{c,i}^2 + \\varepsilon} $$\n$$ \\mathrm{pRMS}(x) = \\big(\\tfrac{x_c}{\\sigma_p} + \\mu\\big)\\odot \\gamma + \\beta, \\quad p = \\max(1, \\tfrac{d}{4}) $$\n$$ x \\leftarrow x + \\text{Attn}(\\mathrm{pRMS}_1(x)) $$\n$$ x \\leftarrow x + \\tfrac{1}{\\sqrt{2}}\\,\\text{MLP}(\\mathrm{pRMS}_2(x)) $$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x"},
-        {"id": "ln1", "label": "pRMSNorm 1"},
-        {"id": "attn", "label": "Attn"},
-        {"id": "ln2", "label": "pRMSNorm 2"},
-        {"id": "mlp", "label": "MLP"},
-        {"id": "scale", "label": "x 1/sqrt(2)"}
+        {
+          "id": "x",
+          "label": "x",
+          "kind": "tensor"
+        },
+        {
+          "id": "ln1",
+          "label": "pRMSNorm 1",
+          "kind": "norm"
+        },
+        {
+          "id": "attn",
+          "label": "Attn",
+          "kind": "attn"
+        },
+        {
+          "id": "ln2",
+          "label": "pRMSNorm 2",
+          "kind": "norm"
+        },
+        {
+          "id": "mlp",
+          "label": "MLP",
+          "kind": "ffn"
+        },
+        {
+          "id": "scale",
+          "label": "x 1/sqrt(2)",
+          "kind": "mul"
+        }
       ],
       "edges": [
-        {"from": "x", "to": "ln1"},
-        {"from": "ln1", "to": "attn"},
-        {"from": "attn", "to": "ln2", "label": "+ residual"},
-        {"from": "ln2", "to": "mlp"},
-        {"from": "mlp", "to": "scale"}
+        {
+          "from": "x",
+          "to": "ln1"
+        },
+        {
+          "from": "ln1",
+          "to": "attn"
+        },
+        {
+          "from": "attn",
+          "to": "ln2",
+          "label": "+ residual"
+        },
+        {
+          "from": "ln2",
+          "to": "mlp"
+        },
+        {
+          "from": "mlp",
+          "to": "scale"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "ε", "value": "1e-5", "role": "norm epsilon", "learnable": false},
-      {"name": "prms_fraction", "value": "ndim/4", "role": "first ndim/4 features used to estimate the RMS", "learnable": false},
-      {"name": "γ", "value": "1.0 init", "role": "norm scale", "learnable": true},
-      {"name": "β", "value": "0 init (when bias=True)", "role": "norm shift", "learnable": true},
-      {"name": "mlp_residual_scale", "value": "1/sqrt(2)", "role": "post-attention MLP residual gain", "learnable": false}
+      {
+        "name": "ε",
+        "value": "1e-5",
+        "role": "norm epsilon",
+        "learnable": false
+      },
+      {
+        "name": "prms_fraction",
+        "value": "ndim/4",
+        "role": "first ndim/4 features used to estimate the RMS",
+        "learnable": false
+      },
+      {
+        "name": "γ",
+        "value": "1.0 init",
+        "role": "norm scale",
+        "learnable": true
+      },
+      {
+        "name": "β",
+        "value": "0 init (when bias=True)",
+        "role": "norm shift",
+        "learnable": true
+      },
+      {
+        "name": "mlp_residual_scale",
+        "value": "1/sqrt(2)",
+        "role": "post-attention MLP residual gain",
+        "learnable": false
+      }
     ],
     "init_recovers": "Pre-LN block with a custom partial-RMS norm; recovers full RMSNorm only if p=ndim and mean is removed",
     "diff_from_baseline": "Replaces LayerNorm with a mean-preserving 'pRMSNorm' (mean centred but RMS estimated only from the first 1/4 of features and added back to mu) and divides the MLP residual by sqrt(2) for variance balancing.",
@@ -153,30 +449,104 @@
     "formula": "$$ h = \\mathrm{RMSNorm}_1(x), \\quad x \\leftarrow x + \\tfrac{1}{\\sqrt{2}}\\,\\mathrm{RMSNorm}_a(\\text{Attn}(h)) + \\tfrac{1}{\\sqrt{2}}\\,\\mathrm{RMSNorm}_m(\\text{MLP}(h)) $$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x"},
-        {"id": "ln1", "label": "RMSNorm"},
-        {"id": "attn", "label": "Attn"},
-        {"id": "lna", "label": "RMSNorm"},
-        {"id": "mlp", "label": "MLP"},
-        {"id": "lnm", "label": "RMSNorm"},
-        {"id": "sum", "label": "x + (a+m)/sqrt(2)"}
+        {
+          "id": "x",
+          "label": "x",
+          "kind": "tensor"
+        },
+        {
+          "id": "ln1",
+          "label": "RMSNorm",
+          "kind": "norm"
+        },
+        {
+          "id": "attn",
+          "label": "Attn",
+          "kind": "attn"
+        },
+        {
+          "id": "lna",
+          "label": "RMSNorm",
+          "kind": "norm"
+        },
+        {
+          "id": "mlp",
+          "label": "MLP",
+          "kind": "ffn"
+        },
+        {
+          "id": "lnm",
+          "label": "RMSNorm",
+          "kind": "norm"
+        },
+        {
+          "id": "sum",
+          "label": "x + (a+m)/sqrt(2)",
+          "kind": "add"
+        }
       ],
       "edges": [
-        {"from": "x", "to": "ln1"},
-        {"from": "ln1", "to": "attn"},
-        {"from": "ln1", "to": "mlp"},
-        {"from": "attn", "to": "lna"},
-        {"from": "mlp", "to": "lnm"},
-        {"from": "lna", "to": "sum"},
-        {"from": "lnm", "to": "sum"}
+        {
+          "from": "x",
+          "to": "ln1"
+        },
+        {
+          "from": "ln1",
+          "to": "attn"
+        },
+        {
+          "from": "ln1",
+          "to": "mlp"
+        },
+        {
+          "from": "attn",
+          "to": "lna"
+        },
+        {
+          "from": "mlp",
+          "to": "lnm"
+        },
+        {
+          "from": "lna",
+          "to": "sum"
+        },
+        {
+          "from": "lnm",
+          "to": "sum"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "norm", "value": "RMSNorm", "role": "scale-only", "learnable": false},
-      {"name": "ε", "value": "1e-5", "role": "RMSNorm epsilon", "learnable": false},
-      {"name": "γ", "value": "1.0 init", "role": "per-norm scale (3 norms per block)", "learnable": true},
-      {"name": "alpha", "value": "1/sqrt(2)", "role": "per-branch residual scale", "learnable": false},
-      {"name": "block_norm_count", "value": "3", "role": "ln_1, ln_attn, ln_mlp per block", "learnable": false}
+      {
+        "name": "norm",
+        "value": "RMSNorm",
+        "role": "scale-only",
+        "learnable": false
+      },
+      {
+        "name": "ε",
+        "value": "1e-5",
+        "role": "RMSNorm epsilon",
+        "learnable": false
+      },
+      {
+        "name": "γ",
+        "value": "1.0 init",
+        "role": "per-norm scale (3 norms per block)",
+        "learnable": true
+      },
+      {
+        "name": "alpha",
+        "value": "1/sqrt(2)",
+        "role": "per-branch residual scale",
+        "learnable": false
+      },
+      {
+        "name": "block_norm_count",
+        "value": "3",
+        "role": "ln_1, ln_attn, ln_mlp per block",
+        "learnable": false
+      }
     ],
     "init_recovers": "rmsnorm_parallel baseline when post-RMSNorms are identity and α=1",
     "diff_from_baseline": "Generalises rmsnorm_parallel by giving each parallel branch its own post-sublayer RMSNorm (sandwich-on-parallel) and scaling each branch's contribution by 1/sqrt(2) for variance preservation.",

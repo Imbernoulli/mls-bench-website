@@ -6,12 +6,12 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "delta", "label": "$\\Delta e$ (1280)"},
-        {"id": "fc1", "label": "Linear 1280$\\to$512"},
-        {"id": "drop", "label": "Dropout 0.1"},
-        {"id": "relu", "label": "ReLU"},
-        {"id": "fc2", "label": "Linear 512$\\to$1"},
-        {"id": "y", "label": "$\\hat y$"}
+        {"id": "delta", "label": "$\\Delta e$ (1280)", "kind": "tensor"},
+        {"id": "fc1", "label": "Linear 1280$\\to$512", "kind": "linear"},
+        {"id": "drop", "label": "Dropout 0.1", "kind": "op"},
+        {"id": "relu", "label": "ReLU", "kind": "act"},
+        {"id": "fc2", "label": "Linear 512$\\to$1", "kind": "linear"},
+        {"id": "y", "label": "$\\hat y$", "kind": "tensor"}
       ],
       "edges": [
         {"from": "delta", "to": "fc1"},
@@ -35,12 +35,12 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "concat", "label": "[$e$, $\\Delta e$] (2560)"},
-        {"id": "proj", "label": "Linear $\\to$ 64$\\times$40"},
-        {"id": "conv", "label": "3x ResConv1D (k=3,5,7) + GELU"},
-        {"id": "pool", "label": "Global avg pool"},
-        {"id": "head", "label": "MLP head $\\to$ 1"},
-        {"id": "y", "label": "$\\hat y$"}
+        {"id": "concat", "label": "[$e$, $\\Delta e$] (2560)", "kind": "concat"},
+        {"id": "proj", "label": "Linear $\\to$ 64$\\times$40", "kind": "linear"},
+        {"id": "conv", "label": "3x ResConv1D (k=3,5,7) + GELU", "kind": "conv"},
+        {"id": "pool", "label": "Global avg pool", "kind": "op"},
+        {"id": "head", "label": "MLP head $\\to$ 1", "kind": "ffn"},
+        {"id": "y", "label": "$\\hat y$", "kind": "tensor"}
       ],
       "edges": [
         {"from": "concat", "to": "proj"},

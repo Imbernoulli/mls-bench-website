@@ -8,13 +8,13 @@
     "pseudocode": "// 1. mask-aware z-score: subtract observed mean, divide by observed std (per channel)\n// 2. tokens $\\leftarrow$ DataEmbed($x$) + $W_m \\cdot \\mathrm{mask}$\n// 3. for each layer: ImpAttn(Q, K, V) with bias $-s^{(h)}\\log(1+|i-j|) + b^{(h)} r_j$, then PWFFN\n// 4. add complex-valued rFFT residual filter (zero-init)\n// 5. project to $C$ channels, de-normalize",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x_enc"},
-        {"id": "mn", "label": "mask-norm"},
-        {"id": "emb", "label": "DataEmbed + W·mask"},
-        {"id": "blk", "label": "ImpAttn block ×L"},
-        {"id": "spec", "label": "rFFT residual"},
-        {"id": "proj", "label": "Linear proj"},
-        {"id": "y", "label": "x_hat"}
+        {"id": "x", "kind": "tensor", "label": "x_enc"},
+        {"id": "mn", "kind": "norm", "label": "mask-norm"},
+        {"id": "emb", "kind": "embed", "label": "DataEmbed + W·mask"},
+        {"id": "blk", "kind": "attn", "label": "ImpAttn block ×L"},
+        {"id": "spec", "kind": "op", "label": "rFFT residual"},
+        {"id": "proj", "kind": "linear", "label": "Linear proj"},
+        {"id": "y", "kind": "tensor", "label": "x_hat"}
       ],
       "edges": [
         {"from": "x", "to": "mn"},
@@ -42,14 +42,14 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x_enc (B,T,C)"},
-        {"id": "ve", "label": "var Linear(1,d)"},
-        {"id": "te", "label": "DataEmbed (broadcast)"},
-        {"id": "mn", "label": "mask-cond LN"},
-        {"id": "tc", "label": "Temporal Conv1d ×2"},
-        {"id": "vi", "label": "Var-attn"},
-        {"id": "tx", "label": "Time Transformer Encoder"},
-        {"id": "y", "label": "Linear→x_hat + 0.1·refine"}
+        {"id": "x", "kind": "tensor", "label": "x_enc (B,T,C)"},
+        {"id": "ve", "kind": "linear", "label": "var Linear(1,d)"},
+        {"id": "te", "kind": "embed", "label": "DataEmbed (broadcast)"},
+        {"id": "mn", "kind": "norm", "label": "mask-cond LN"},
+        {"id": "tc", "kind": "conv", "label": "Temporal Conv1d ×2"},
+        {"id": "vi", "kind": "attn", "label": "Var-attn"},
+        {"id": "tx", "kind": "attn", "label": "Time Transformer Encoder"},
+        {"id": "y", "kind": "linear", "label": "Linear→x_hat + 0.1·refine"}
       ],
       "edges": [
         {"from": "x", "to": "ve"},
@@ -79,14 +79,14 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x_enc (norm)"},
-        {"id": "ci", "label": "channel-indep B*C×1×T"},
-        {"id": "pe", "label": "patch + mask concat embed"},
-        {"id": "se", "label": "+ step embedding"},
-        {"id": "tx", "label": "TransformerEncoder"},
-        {"id": "head", "label": "Flatten + Linear(T)"},
-        {"id": "loop", "label": "iterate, refill (1-mask)·x_hat"},
-        {"id": "y", "label": "x_hat denorm"}
+        {"id": "x", "kind": "tensor", "label": "x_enc (norm)"},
+        {"id": "ci", "kind": "tensor", "label": "channel-indep B*C×1×T"},
+        {"id": "pe", "kind": "embed", "label": "patch + mask concat embed"},
+        {"id": "se", "kind": "embed", "label": "+ step embedding"},
+        {"id": "tx", "kind": "attn", "label": "TransformerEncoder"},
+        {"id": "head", "kind": "linear", "label": "Flatten + Linear(T)"},
+        {"id": "loop", "kind": "op", "label": "iterate, refill (1-mask)·x_hat"},
+        {"id": "y", "kind": "tensor", "label": "x_hat denorm"}
       ],
       "edges": [
         {"from": "x", "to": "ci"},

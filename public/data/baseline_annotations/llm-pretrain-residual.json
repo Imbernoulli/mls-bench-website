@@ -7,12 +7,12 @@
     "formula": "$$x_{b+1} = \\sum_{j=0}^{b}\\,\\mathrm{softmax}\\!\\big(\\langle q_b,\\, \\mathrm{RMSNorm}(x_j)\\rangle\\big)_j\\,x_j$$",
     "diagram": {
       "nodes": [
-        {"id": "emb", "label": "embedding x0"},
-        {"id": "b0", "label": "Block 0: 4 layers (Pre-LN)"},
-        {"id": "q1", "label": "Query q1 attends over {x0, x_b0}"},
-        {"id": "b1", "label": "Block 1: 4 layers"},
-        {"id": "qN", "label": "Query qN ... over all block outputs"},
-        {"id": "out", "label": "final aggregation -> LM head"}
+        {"id": "emb", "label": "embedding x0", "kind": "embed"},
+        {"id": "b0", "label": "Block 0: 4 layers (Pre-LN)", "kind": "op"},
+        {"id": "q1", "label": "Query q1 attends over {x0, x_b0}", "kind": "attn"},
+        {"id": "b1", "label": "Block 1: 4 layers", "kind": "op"},
+        {"id": "qN", "label": "Query qN ... over all block outputs", "kind": "attn"},
+        {"id": "out", "label": "final aggregation -> LM head", "kind": "linear"}
       ],
       "edges": [
         {"from": "emb", "to": "b0"},

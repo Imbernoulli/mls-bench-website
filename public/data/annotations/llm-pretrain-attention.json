@@ -7,11 +7,11 @@
     "formula": "$$q' = e^{\\alpha_h}\\cdot \\mathrm{RoPE}(\\mathrm{RMS}(q)), \\quad k' = \\mathrm{RoPE}(\\mathrm{RMS}(k)), \\quad \\mathrm{Attn} = \\mathrm{softmax}\\!\\left(\\frac{q' k'^{\\top}}{\\sqrt{d_k}}\\right) v$$",
     "diagram": {
       "nodes": [
-        {"id": "qkv", "label": "QKV proj"},
-        {"id": "rms", "label": "RMSNorm Q,K"},
-        {"id": "rope", "label": "RoPE rotate"},
-        {"id": "scale", "label": "× exp(α_h)"},
-        {"id": "sdpa", "label": "scaled dot-prod"}
+        {"id": "qkv", "kind": "linear", "label": "QKV proj"},
+        {"id": "rms", "kind": "norm", "label": "RMSNorm Q,K"},
+        {"id": "rope", "kind": "pos", "label": "RoPE rotate"},
+        {"id": "scale", "kind": "mul", "label": "× exp(α_h)"},
+        {"id": "sdpa", "kind": "attn", "label": "scaled dot-prod"}
       ],
       "edges": [
         {"from": "qkv", "to": "rms"},
@@ -51,13 +51,13 @@
     "formula": "$$\\mathrm{QKV}_t' = \\tau\\odot\\mathrm{QKV}_t + (1-\\tau)\\odot\\mathrm{QKV}_{t-1},\\quad q\\leftarrow s_h\\cdot\\mathrm{RoPE}(\\mathrm{RMS}(q')),\\; k\\leftarrow\\mathrm{RoPE}(\\mathrm{RMS}(k'))$$",
     "diagram": {
       "nodes": [
-        {"id": "qkv", "label": "QKV proj"},
-        {"id": "shift", "label": "shift right by 1"},
-        {"id": "mix", "label": "mix τ⊙x+(1-τ)⊙shift(x)"},
-        {"id": "rms", "label": "RMSNorm Q,K"},
-        {"id": "rope", "label": "RoPE"},
-        {"id": "scale", "label": "× s_h"},
-        {"id": "sdpa", "label": "scaled dot-prod"}
+        {"id": "qkv", "kind": "linear", "label": "QKV proj"},
+        {"id": "shift", "kind": "op", "label": "shift right by 1"},
+        {"id": "mix", "kind": "mul", "label": "mix τ⊙x+(1-τ)⊙shift(x)"},
+        {"id": "rms", "kind": "norm", "label": "RMSNorm Q,K"},
+        {"id": "rope", "kind": "pos", "label": "RoPE"},
+        {"id": "scale", "kind": "mul", "label": "× s_h"},
+        {"id": "sdpa", "kind": "attn", "label": "scaled dot-prod"}
       ],
       "edges": [
         {"from": "qkv", "to": "mix"},
@@ -87,12 +87,12 @@
     "formula": "$$q\\leftarrow \\mathrm{RoPE}(g^Q_h\\,\\mathrm{RMS}(q)),\\; k\\leftarrow \\mathrm{RoPE}(g^K_h\\,\\mathrm{RMS}(k)),\\quad \\mathrm{logits}_{ij} \\mathrel{+}= -\\mathrm{ReLU}(\\rho_h)\\cdot|i-j|$$",
     "diagram": {
       "nodes": [
-        {"id": "qkv", "label": "QKV proj"},
-        {"id": "rms", "label": "RMSNorm Q,K"},
-        {"id": "gain", "label": "× g_h^Q, g_h^K"},
-        {"id": "rope", "label": "RoPE (interleaved)"},
-        {"id": "bias", "label": "−ReLU(ρ_h)·|i−j|"},
-        {"id": "sdpa", "label": "SDPA + bias"}
+        {"id": "qkv", "kind": "linear", "label": "QKV proj"},
+        {"id": "rms", "kind": "norm", "label": "RMSNorm Q,K"},
+        {"id": "gain", "kind": "mul", "label": "× g_h^Q, g_h^K"},
+        {"id": "rope", "kind": "pos", "label": "RoPE (interleaved)"},
+        {"id": "bias", "kind": "pos", "label": "−ReLU(ρ_h)·|i−j|"},
+        {"id": "sdpa", "kind": "attn", "label": "SDPA + bias"}
       ],
       "edges": [
         {"from": "qkv", "to": "rms"},

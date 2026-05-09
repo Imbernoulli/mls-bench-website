@@ -20,13 +20,13 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "s", "label": "state s"},
-        {"id": "actor", "label": "Tanh-Gaussian actor π(·|s)"},
-        {"id": "rsample", "label": "rsample → a, log π"},
-        {"id": "twin", "label": "Twin Q1, Q2"},
-        {"id": "soft", "label": "y = r + γ[min Q' - α log π']"},
-        {"id": "alpha", "label": "α auto-tune (target H = -|A|)"},
-        {"id": "out", "label": "Update actor, critics, α"}
+        {"id": "s", "label": "state s", "kind": "tensor"},
+        {"id": "actor", "label": "Tanh-Gaussian actor π(·|s)", "kind": "op"},
+        {"id": "rsample", "label": "rsample → a, log π", "kind": "op"},
+        {"id": "twin", "label": "Twin Q1, Q2", "kind": "op"},
+        {"id": "soft", "label": "y = r + γ[min Q' - α log π']", "kind": "op"},
+        {"id": "alpha", "label": "α auto-tune (target H = -|A|)", "kind": "param"},
+        {"id": "out", "label": "Update actor, critics, α", "kind": "op"}
       ],
       "edges": [
         {"from": "s", "to": "actor"},

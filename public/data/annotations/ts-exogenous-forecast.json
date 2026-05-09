@@ -8,14 +8,14 @@
     "pseudocode": "// 1. decompose $x$ at kernels 15 and 25; per-scale season/trend Linear → forecasts\n// 2. mix scales: $\\mathrm{base} = \\sigma(a)\\,\\mathrm{out}_{15} + (1-\\sigma(a))\\,\\mathrm{out}_{25}$\n// 3. instance-normalize $x$;  target query $q = W_q\\,x_{\\text{target}}$, keys $K = W_k\\,x$\n// 4. attention $\\alpha = \\mathrm{softmax}(qK^\\top/\\sqrt{d})$ over channels\n// 5. per-channel normalize base, mix exo $= \\alpha V(\\widetilde{\\mathrm{base}})$, denormalize to target scale\n// 6. $\\hat y_{\\text{target}} = (1-\\sigma(g))\\,\\mathrm{base}_{\\text{target}} + \\sigma(g)\\,\\mathrm{exo}$;  pass through $\\mathrm{base}$ for non-target channels",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x_enc"},
-        {"id": "ds", "label": "decomp k=15"},
-        {"id": "dl", "label": "decomp k=25"},
-        {"id": "lin", "label": "linear S+T"},
-        {"id": "base", "label": "base [B,C,P]"},
-        {"id": "att", "label": "target-Q attn"},
-        {"id": "g", "label": "gate ~0.05"},
-        {"id": "out", "label": "out [B,P,C]"}
+        {"id": "x", "label": "x_enc", "kind": "tensor"},
+        {"id": "ds", "label": "decomp k=15", "kind": "op"},
+        {"id": "dl", "label": "decomp k=25", "kind": "op"},
+        {"id": "lin", "label": "linear S+T", "kind": "linear"},
+        {"id": "base", "label": "base [B,C,P]", "kind": "tensor"},
+        {"id": "att", "label": "target-Q attn", "kind": "attn"},
+        {"id": "g", "label": "gate ~0.05", "kind": "mul"},
+        {"id": "out", "label": "out [B,P,C]", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "ds"},
@@ -50,14 +50,14 @@
     "pseudocode": "// 1. instance-normalize $x$ over time\n// 2. global gate $w = \\sigma(\\mathrm{MLP}(\\mathrm{flatten}(x)))$;  $\\tilde x = x\\odot w + x$\n// 3. concatenate time features as extra channels\n// 4. permute to $[B, C', L]$ and embed each row to $d$ via a Linear; add learned variable-positional embedding\n// 5. run TransformerEncoder across the variable axis\n// 6. project each token to pred_len, keep first enc_in tokens, denormalize",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x_enc (norm)"},
-        {"id": "gate", "label": "GlobalExogenousGate (MLP→σ)"},
-        {"id": "cat", "label": "concat time features"},
-        {"id": "ve", "label": "VariableEmbedding (L→d)"},
-        {"id": "pos", "label": "var_pos_embed"},
-        {"id": "enc", "label": "TransformerEnc (across variables)"},
-        {"id": "head", "label": "Linear (d→pred_len)"},
-        {"id": "out", "label": "out [B,P,C]"}
+        {"id": "x", "label": "x_enc (norm)", "kind": "tensor"},
+        {"id": "gate", "label": "GlobalExogenousGate (MLP→σ)", "kind": "mul"},
+        {"id": "cat", "label": "concat time features", "kind": "concat"},
+        {"id": "ve", "label": "VariableEmbedding (L→d)", "kind": "embed"},
+        {"id": "pos", "label": "var_pos_embed", "kind": "pos"},
+        {"id": "enc", "label": "TransformerEnc (across variables)", "kind": "attn"},
+        {"id": "head", "label": "Linear (d→pred_len)", "kind": "linear"},
+        {"id": "out", "label": "out [B,P,C]", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "gate"},
@@ -88,14 +88,14 @@
     "pseudocode": "// 1. RevIN-normalize $x$;  permute to $[B, C, L]$ and replicate-pad\n// 2. unfold into patches of length 16 with stride 8 → $[B, C, P, 16]$\n// 3. patch embed: Linear$(16 → d)$ + learned position\n// 4. per-channel time TransformerEncoder (2 layers, 4 heads, d=128)\n// 5. flatten patches per channel → tokens of size $P\\cdot d$, run MHA + FFN across variables\n// 6. final Linear head $(P\\cdot d → \\mathrm{pred\\_len})$, transpose back, RevIN-denormalize",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x_enc (RevIN)"},
-        {"id": "patch", "label": "patch len=16, stride=8"},
-        {"id": "emb", "label": "Linear → d=128 + pos"},
-        {"id": "te", "label": "TransformerEnc time (2 layers, 4 heads)"},
-        {"id": "flat", "label": "flatten patches → P*d"},
-        {"id": "va", "label": "MHA over variables (4 heads) + FFN"},
-        {"id": "head", "label": "Linear (P*d → pred_len)"},
-        {"id": "out", "label": "out [B,pred,C] (RevIN^-1)"}
+        {"id": "x", "label": "x_enc (RevIN)", "kind": "tensor"},
+        {"id": "patch", "label": "patch len=16, stride=8", "kind": "op"},
+        {"id": "emb", "label": "Linear → d=128 + pos", "kind": "embed"},
+        {"id": "te", "label": "TransformerEnc time (2 layers, 4 heads)", "kind": "attn"},
+        {"id": "flat", "label": "flatten patches → P*d", "kind": "op"},
+        {"id": "va", "label": "MHA over variables (4 heads) + FFN", "kind": "attn"},
+        {"id": "head", "label": "Linear (P*d → pred_len)", "kind": "linear"},
+        {"id": "out", "label": "out [B,pred,C] (RevIN^-1)", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "patch"},

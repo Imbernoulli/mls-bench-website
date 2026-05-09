@@ -39,13 +39,13 @@
     "formula": "$$P = \\mathrm{TransformerEnc}(\\mu_1,\\dots,\\mu_N),\\quad q' = \\mathrm{LN}(q + \\mathrm{MHA}(q, P, P)),\\quad q'' = \\mathrm{LN}(q' + \\mathrm{FFN}(q')),$$ $$\\mathrm{score}(q, c) = \\tau\\,\\frac{q''}{\\|q''\\|}\\cdot\\frac{P_c}{\\|P_c\\|},\\qquad \\mathcal{L} = \\mathrm{CE} + 0.1\\cdot\\overline{\\mathrm{ReLU}\\!\\big(\\hat P\\hat P^\\top - I\\big)}.$$",
     "diagram": {
       "nodes": [
-        {"id": "sf", "label": "support feats"},
-        {"id": "p0", "label": "class means"},
-        {"id": "tr", "label": "Transformer (8 head)"},
-        {"id": "p1", "label": "task-aware prototypes"},
-        {"id": "q", "label": "query feats"},
-        {"id": "ca", "label": "Cross-Attn + FFN"},
-        {"id": "scr", "label": "τ·cosine"}
+        {"id": "sf", "label": "support feats", "kind": "tensor"},
+        {"id": "p0", "label": "class means", "kind": "tensor"},
+        {"id": "tr", "label": "Transformer (8 head)", "kind": "attn"},
+        {"id": "p1", "label": "task-aware prototypes", "kind": "tensor"},
+        {"id": "q", "label": "query feats", "kind": "tensor"},
+        {"id": "ca", "label": "Cross-Attn + FFN", "kind": "attn"},
+        {"id": "scr", "label": "τ·cosine", "kind": "op"}
       ],
       "edges": [
         {"from": "sf", "to": "p0"},
@@ -76,13 +76,13 @@
     "formula": "$$g_c = \\sigma(\\mathrm{MLP}(\\mu_c)),\\quad \\hat\\mu_c = g_c\\odot\\mu_c,\\quad \\sigma^2_c = g_c^2\\odot\\widehat{\\mathrm{Var}}_c + 5{\\cdot}10^{-4},$$ $$(\\gamma, \\beta) = \\mathrm{MLP}([q;\\bar{\\hat\\mu}]),\\quad \\hat q = q\\odot(1 + 0.1\\tanh\\gamma) + 0.1\\beta,$$ $$w = \\mathrm{softmax}(\\mathrm{MLP}([\\bar{\\hat\\mu}; \\bar{\\sigma^2}])),\\ \\mathrm{score}(\\hat q, c) = |s|\\!\\cdot\\!\\big(w_0\\cos + w_1(-\\overline{(\\hat q-\\hat\\mu_c)^2/\\sigma^2_c}) + w_2(-\\overline{(\\hat q-\\hat\\mu_c)^2})\\big).$$",
     "diagram": {
       "nodes": [
-        {"id": "sf", "label": "support feats"},
-        {"id": "p", "label": "gated proto + var"},
-        {"id": "ctx", "label": "episode context μ̄,σ²̄"},
-        {"id": "mw", "label": "metric mixer w"},
-        {"id": "q", "label": "query"},
-        {"id": "film", "label": "FiLM γ,β"},
-        {"id": "scr", "label": "|s|·(w₀cos+w₁mahal+w₂L2)"}
+        {"id": "sf", "label": "support feats", "kind": "tensor"},
+        {"id": "p", "label": "gated proto + var", "kind": "tensor"},
+        {"id": "ctx", "label": "episode context μ̄,σ²̄", "kind": "tensor"},
+        {"id": "mw", "label": "metric mixer w", "kind": "param"},
+        {"id": "q", "label": "query", "kind": "tensor"},
+        {"id": "film", "label": "FiLM γ,β", "kind": "op"},
+        {"id": "scr", "label": "|s|·(w₀cos+w₁mahal+w₂L2)", "kind": "op"}
       ],
       "edges": [
         {"from": "sf", "to": "p"},
@@ -115,12 +115,12 @@
     "formula": "$$\\hat q = \\mathrm{LN}\\!\\big(q + W_o\\,\\mathrm{MHA}_4(W_q q,\\,W_k\\mu,\\,W_v\\mu)\\big),\\qquad q' = \\frac{\\hat q - \\bar{\\hat q}}{s_{\\hat q}},$$ $$(\\gamma, \\beta) = \\mathrm{MLP}([\\bar\\mu; s_\\mu]),\\quad q'' = \\gamma\\odot q' + \\beta,$$ $$\\mathrm{score} = \\mathrm{softmax}\\,\\big(\\sigma(f)\\,\\cos(q''\\tau_c, \\mu) + (1-\\sigma(f))\\,(-\\|q''\\tau_l - \\mu\\|^2/10)\\big).$$",
     "diagram": {
       "nodes": [
-        {"id": "q", "label": "query"},
-        {"id": "p", "label": "prototypes μ"},
-        {"id": "ca", "label": "4-head Cross-Attn"},
-        {"id": "ln", "label": "LayerNorm + standardize"},
-        {"id": "film", "label": "FiLM (μ̄, σ_μ)"},
-        {"id": "scr", "label": "σ(f)·cos + (1-σ(f))·(-L2/10)"}
+        {"id": "q", "label": "query", "kind": "tensor"},
+        {"id": "p", "label": "prototypes μ", "kind": "tensor"},
+        {"id": "ca", "label": "4-head Cross-Attn", "kind": "attn"},
+        {"id": "ln", "label": "LayerNorm + standardize", "kind": "norm"},
+        {"id": "film", "label": "FiLM (μ̄, σ_μ)", "kind": "op"},
+        {"id": "scr", "label": "σ(f)·cos + (1-σ(f))·(-L2/10)", "kind": "op"}
       ],
       "edges": [
         {"from": "q", "to": "ca"},

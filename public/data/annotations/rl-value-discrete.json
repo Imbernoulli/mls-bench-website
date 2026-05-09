@@ -7,12 +7,12 @@
     "formula": "$$ \\pi_{\\bar\\theta}(a|s) = \\mathrm{softmax}\\!\\big(Q_{\\bar\\theta}(s,\\cdot)/\\tau\\big), \\quad r' = r + \\alpha \\tau\\,\\mathrm{clip}\\!\\big(\\log\\pi_{\\bar\\theta}(a|s),\\,-1,\\,0\\big) $$\n$$ y = r' + \\gamma(1-d)\\max_{a'} Q_{\\bar\\theta}(s', a'),\\;\\; \\mathcal{L} = \\mathrm{MSE}(Q_\\theta(s,a), y) $$\n$$ a_{\\text{select}} = \\arg\\max_a 0.5\\,Q_\\theta(s,a) + 0.5\\,Q_{\\bar\\theta}(s,a) $$",
     "diagram": {
       "nodes": [
-        {"id": "obs", "label": "obs"},
-        {"id": "enc", "label": "MLPEncoder (frozen 120,84)"},
-        {"id": "head", "label": "Linear → Q(s,·)"},
-        {"id": "munch", "label": "Munchausen log-policy"},
-        {"id": "tgt", "label": "max_a Q_target(s',a')"},
-        {"id": "loss", "label": "MSE TD loss"}
+        {"id": "obs", "label": "obs", "kind": "tensor"},
+        {"id": "enc", "label": "MLPEncoder (frozen 120,84)", "kind": "ffn"},
+        {"id": "head", "label": "Linear → Q(s,·)", "kind": "linear"},
+        {"id": "munch", "label": "Munchausen log-policy", "kind": "softmax"},
+        {"id": "tgt", "label": "max_a Q_target(s',a')", "kind": "op"},
+        {"id": "loss", "label": "MSE TD loss", "kind": "loss"}
       ],
       "edges": [
         {"from": "obs", "to": "enc"},
@@ -43,13 +43,13 @@
     "formula": "$$ Q_k(s,a),\\,k=1..5;\\;\\; \\bar Q = \\tfrac{1}{5}\\sum_k Q_k,\\;\\; s_Q = \\sqrt{\\mathrm{Var}_k Q_k} $$\n$$ a_{\\text{select}} = \\arg\\max_a \\bar Q(s,a) + \\beta s_Q(s,a) $$\n$$ y = \\mathrm{clip}\\big(r + \\gamma(1-d)\\,\\max_{a'} (\\bar Q_{\\bar\\theta} - \\beta s_{Q,\\bar\\theta})(s',a'),\\,-1000,\\,1000\\big) $$\n$$ w_i = \\tfrac{1}{1+\\sqrt{\\mathrm{Var}_k Q_k(s_i,a_i)+\\varepsilon}}, \\quad \\mathcal{L} = \\overline{w_i \\cdot \\mathrm{Huber}_{10}(Q_k(s_i,a_i) - y_i)} $$",
     "diagram": {
       "nodes": [
-        {"id": "obs", "label": "obs"},
-        {"id": "enc", "label": "MLPEncoder (84-d)"},
-        {"id": "k", "label": "5 linear heads Q_k"},
-        {"id": "stats", "label": "mean +/- beta * std"},
-        {"id": "act", "label": "UCB action"},
-        {"id": "tgt", "label": "pessimistic target max"},
-        {"id": "loss", "label": "weighted Huber per head"}
+        {"id": "obs", "label": "obs", "kind": "tensor"},
+        {"id": "enc", "label": "MLPEncoder (84-d)", "kind": "ffn"},
+        {"id": "k", "label": "5 linear heads Q_k", "kind": "linear"},
+        {"id": "stats", "label": "mean +/- beta * std", "kind": "op"},
+        {"id": "act", "label": "UCB action", "kind": "op"},
+        {"id": "tgt", "label": "pessimistic target max", "kind": "op"},
+        {"id": "loss", "label": "weighted Huber per head", "kind": "loss"}
       ],
       "edges": [
         {"from": "obs", "to": "enc"},
@@ -82,14 +82,14 @@
     "formula": "$$ Q(s,a) = V(s) + A(s,a) - \\overline{A(s,\\cdot)}, \\quad \\pi_\\theta(a|s) = \\mathrm{softmax}(Q/\\tau),\\;\\; \\log\\pi_\\theta(a|s) $$\n$$ V_{soft}(s') = \\sum_{a'} \\pi_{\\bar\\theta}(a'|s')\\big(Q_{\\bar\\theta}(s',a') - \\tau \\log\\pi_{\\bar\\theta}(a'|s')\\big) $$\n$$ y = r + \\alpha\\tau\\,\\mathrm{clip}(\\log\\pi_\\theta(a|s),-1,0) + \\gamma(1-d)V_{soft}(s'),\\;\\; \\mathcal{L} = \\mathrm{SL1}(Q(s,a), y) $$",
     "diagram": {
       "nodes": [
-        {"id": "obs", "label": "obs"},
-        {"id": "enc", "label": "MLPEncoder"},
-        {"id": "vh", "label": "V head"},
-        {"id": "ah", "label": "A head"},
-        {"id": "q", "label": "Q = V + A - mean(A)"},
-        {"id": "munch", "label": "Munchausen log-pi term"},
-        {"id": "vsoft", "label": "V_soft target"},
-        {"id": "loss", "label": "Smooth-L1 TD"}
+        {"id": "obs", "label": "obs", "kind": "tensor"},
+        {"id": "enc", "label": "MLPEncoder", "kind": "ffn"},
+        {"id": "vh", "label": "V head", "kind": "linear"},
+        {"id": "ah", "label": "A head", "kind": "linear"},
+        {"id": "q", "label": "Q = V + A - mean(A)", "kind": "add"},
+        {"id": "munch", "label": "Munchausen log-pi term", "kind": "softmax"},
+        {"id": "vsoft", "label": "V_soft target", "kind": "op"},
+        {"id": "loss", "label": "Smooth-L1 TD", "kind": "loss"}
       ],
       "edges": [
         {"from": "obs", "to": "enc"},
@@ -122,14 +122,14 @@
     "formula": "$$ Q(s,a) = V(s) + (A(s,a) - \\overline{A(s,\\cdot)}),\\;\\; U(s,a) = (A(s,a) - \\overline{A(s,\\cdot)})^2 $$\n$$ \\beta(t) = 0.08 + \\min(t/250{,}000, 1)\\cdot(0.01 - 0.08) $$\n$$ a^\\* = \\arg\\max_{a'} \\big(Q_\\theta - \\beta U_\\theta\\big)(s',a'),\\;\\; y = r + \\gamma(1-d)\\,Q_{\\bar\\theta}(s', a^\\*) $$\n$$ \\mathcal{L} = \\mathrm{SL1}(Q_\\theta(s,a), y) + \\beta\\,\\overline{\\sigma(Q_\\theta - y)\\,U_\\theta(s,a)} + 0.05\\,\\mathrm{SL1}(Q_\\theta(s,a), Q_{\\bar\\theta}(s,a)) $$",
     "diagram": {
       "nodes": [
-        {"id": "obs", "label": "obs"},
-        {"id": "enc", "label": "MLPEncoder"},
-        {"id": "vh", "label": "V head"},
-        {"id": "ah", "label": "A head"},
-        {"id": "q", "label": "Q = V + A_centered"},
-        {"id": "u", "label": "U = A_centered^2"},
-        {"id": "act", "label": "argmax (Q - beta_end * U)"},
-        {"id": "loss", "label": "SL1 + beta*sigmoid(opt)*U + 0.05*SL1(target)"}
+        {"id": "obs", "label": "obs", "kind": "tensor"},
+        {"id": "enc", "label": "MLPEncoder", "kind": "ffn"},
+        {"id": "vh", "label": "V head", "kind": "linear"},
+        {"id": "ah", "label": "A head", "kind": "linear"},
+        {"id": "q", "label": "Q = V + A_centered", "kind": "add"},
+        {"id": "u", "label": "U = A_centered^2", "kind": "op"},
+        {"id": "act", "label": "argmax (Q - beta_end * U)", "kind": "op"},
+        {"id": "loss", "label": "SL1 + beta*sigmoid(opt)*U + 0.05*SL1(target)", "kind": "loss"}
       ],
       "edges": [
         {"from": "obs", "to": "enc"},

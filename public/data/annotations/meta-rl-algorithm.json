@@ -26,12 +26,12 @@
     "formula": "$$h_t = \\mathrm{MLP}(o_t,a_t,r_t),\\qquad \\tilde h = \\mathrm{LN}\\bigl(h + W_O\\,\\mathrm{MHA}(h)\\bigr)$$\n$$z = \\mu + \\sigma\\,\\varepsilon,\\quad (\\mu, \\log\\sigma^2) = \\mathrm{MLP}\\bigl([\\mathrm{mean}_t \\tilde h,\\ \\max_t \\tilde h]\\bigr)$$",
     "diagram": {
       "nodes": [
-        {"id": "ctx", "label": "context (o,a,r)"},
-        {"id": "enc", "label": "transition MLP"},
-        {"id": "mha", "label": "self-attention"},
-        {"id": "agg", "label": "mean + max pool"},
-        {"id": "post", "label": "Gaussian z"},
-        {"id": "sac", "label": "SAC heads (Q,V,π)"}
+        {"id": "ctx", "label": "context (o,a,r)", "kind": "tensor"},
+        {"id": "enc", "label": "transition MLP", "kind": "ffn"},
+        {"id": "mha", "label": "self-attention", "kind": "attn"},
+        {"id": "agg", "label": "mean + max pool", "kind": "op"},
+        {"id": "post", "label": "Gaussian z", "kind": "tensor"},
+        {"id": "sac", "label": "SAC heads (Q,V,π)", "kind": "op"}
       ],
       "edges": [
         {"from": "ctx", "to": "enc"},

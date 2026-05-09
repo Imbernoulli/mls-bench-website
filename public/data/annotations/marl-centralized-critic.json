@@ -6,13 +6,13 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "s", "label": "state ⊕ id"},
-        {"id": "o", "label": "obs ⊕ mean(obs) ⊕ id"},
-        {"id": "hs", "label": "ReLU(state_fc)"},
-        {"id": "ho", "label": "ReLU(obs_fc)"},
-        {"id": "g", "label": "σ(gate_fc(h_o))"},
-        {"id": "fuse", "label": "LN(g·h_s + (1-g)·h_o)"},
-        {"id": "v", "label": "MLP → V_i"}
+        {"id": "s", "kind": "concat", "label": "state ⊕ id"},
+        {"id": "o", "kind": "concat", "label": "obs ⊕ mean(obs) ⊕ id"},
+        {"id": "hs", "kind": "act", "label": "ReLU(state_fc)"},
+        {"id": "ho", "kind": "act", "label": "ReLU(obs_fc)"},
+        {"id": "g", "kind": "act", "label": "σ(gate_fc(h_o))"},
+        {"id": "fuse", "kind": "norm", "label": "LN(g·h_s + (1-g)·h_o)"},
+        {"id": "v", "kind": "ffn", "label": "MLP → V_i"}
       ],
       "edges": [
         {"from": "s", "to": "hs"},
@@ -40,12 +40,12 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "s", "label": "state token"},
-        {"id": "o", "label": "obs ⊕ id tokens"},
-        {"id": "tx", "label": "TransformerEncoder ×2"},
-        {"id": "g", "label": "global out (pos 0)"},
-        {"id": "a", "label": "agent outs (1..n)"},
-        {"id": "head", "label": "MLP([a_i, g]) → V_i"}
+        {"id": "s", "kind": "tensor", "label": "state token"},
+        {"id": "o", "kind": "concat", "label": "obs ⊕ id tokens"},
+        {"id": "tx", "kind": "attn", "label": "TransformerEncoder ×2"},
+        {"id": "g", "kind": "tensor", "label": "global out (pos 0)"},
+        {"id": "a", "kind": "tensor", "label": "agent outs (1..n)"},
+        {"id": "head", "kind": "ffn", "label": "MLP([a_i, g]) → V_i"}
       ],
       "edges": [
         {"from": "s", "to": "tx"},
@@ -75,12 +75,12 @@
     "formula": "$$A_h=\\mathrm{softmax}\\big(W_h(s)\\big),\\;m_i=\\sum_h\\sum_j A_h(s)_{ij}\\,h_{j,h},\\;V_i=\\mathrm{MLP}([h_i,\\,m_i,\\,s])$$",
     "diagram": {
       "nodes": [
-        {"id": "obs", "label": "obs ⊕ id"},
-        {"id": "h", "label": "feat_ext"},
-        {"id": "hyper", "label": "hyper_w(state) → A_h"},
-        {"id": "msg", "label": "Σ A_h(s)·h"},
-        {"id": "cat", "label": "[h, m, state]"},
-        {"id": "v", "label": "Residual MLP → V_i"}
+        {"id": "obs", "kind": "concat", "label": "obs ⊕ id"},
+        {"id": "h", "kind": "op", "label": "feat_ext"},
+        {"id": "hyper", "kind": "attn", "label": "hyper_w(state) → A_h"},
+        {"id": "msg", "kind": "op", "label": "Σ A_h(s)·h"},
+        {"id": "cat", "kind": "concat", "label": "[h, m, state]"},
+        {"id": "v", "kind": "ffn", "label": "Residual MLP → V_i"}
       ],
       "edges": [
         {"from": "obs", "to": "h"},
@@ -108,13 +108,13 @@
     "formula": "$$\\tilde h_i=h_i\\!\\odot(1+\\tanh\\gamma(s))+\\beta(s),\\;\\mathrm{attn}=\\mathrm{softmax}\\!\\left(\\frac{QK^\\top}{\\sqrt{d}\\,(1+\\mathrm{softplus}\\,\\tau(s))}\\right)V,\\;V_i=(1-\\sigma(g))V_{\\text{loc}}+\\sigma(g)V_{\\text{rel}}$$",
     "diagram": {
       "nodes": [
-        {"id": "o", "label": "obs ⊕ id"},
-        {"id": "loc", "label": "obs encoder (residual)"},
-        {"id": "s", "label": "state encoder g"},
-        {"id": "film", "label": "FiLM scale+shift"},
-        {"id": "attn", "label": "QKV self-attn / temp(s)"},
-        {"id": "rel", "label": "MsgGate σ"},
-        {"id": "head", "label": "(1-σ)V_loc + σV_rel"}
+        {"id": "o", "kind": "concat", "label": "obs ⊕ id"},
+        {"id": "loc", "kind": "op", "label": "obs encoder (residual)"},
+        {"id": "s", "kind": "op", "label": "state encoder g"},
+        {"id": "film", "kind": "op", "label": "FiLM scale+shift"},
+        {"id": "attn", "kind": "attn", "label": "QKV self-attn / temp(s)"},
+        {"id": "rel", "kind": "act", "label": "MsgGate σ"},
+        {"id": "head", "kind": "add", "label": "(1-σ)V_loc + σV_rel"}
       ],
       "edges": [
         {"from": "o", "to": "loc"},
@@ -146,14 +146,14 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "o", "label": "obs encoder + LN"},
-        {"id": "a1", "label": "MHSA + LN ×1"},
-        {"id": "a2", "label": "MHSA + LN ×2"},
-        {"id": "q", "label": "context_vector query"},
-        {"id": "team", "label": "MHA(query, attn2)"},
-        {"id": "s", "label": "state MLP + LN"},
-        {"id": "fuse", "label": "[team, state, id]"},
-        {"id": "v", "label": "MLP → V_i"}
+        {"id": "o", "kind": "norm", "label": "obs encoder + LN"},
+        {"id": "a1", "kind": "attn", "label": "MHSA + LN ×1"},
+        {"id": "a2", "kind": "attn", "label": "MHSA + LN ×2"},
+        {"id": "q", "kind": "param", "label": "context_vector query"},
+        {"id": "team", "kind": "attn", "label": "MHA(query, attn2)"},
+        {"id": "s", "kind": "norm", "label": "state MLP + LN"},
+        {"id": "fuse", "kind": "concat", "label": "[team, state, id]"},
+        {"id": "v", "kind": "ffn", "label": "MLP → V_i"}
       ],
       "edges": [
         {"from": "o", "to": "a1"},

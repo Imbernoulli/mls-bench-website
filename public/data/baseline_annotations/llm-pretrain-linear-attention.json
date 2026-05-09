@@ -6,13 +6,13 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Input x"},
-        {"id": "ln", "label": "LN"},
-        {"id": "qkv", "label": "Q,K,V proj"},
-        {"id": "conv", "label": "Short conv (k=4)"},
-        {"id": "act", "label": "SiLU + L2 norm on Q,K"},
-        {"id": "delta", "label": "Delta-rule recurrence (β-gated)"},
-        {"id": "out", "label": "Output"}
+        {"id": "x", "label": "Input x", "kind": "tensor"},
+        {"id": "ln", "label": "LN", "kind": "norm"},
+        {"id": "qkv", "label": "Q,K,V proj", "kind": "linear"},
+        {"id": "conv", "label": "Short conv (k=4)", "kind": "conv"},
+        {"id": "act", "label": "SiLU + L2 norm on Q,K", "kind": "act"},
+        {"id": "delta", "label": "Delta-rule recurrence (β-gated)", "kind": "attn"},
+        {"id": "out", "label": "Output", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "ln"},
@@ -40,13 +40,13 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Input x"},
-        {"id": "ln", "label": "LN"},
-        {"id": "proj", "label": "Q,K,V (expand_k=0.5)"},
-        {"id": "decay", "label": "Data-dep decay α_t"},
-        {"id": "rec", "label": "Gated recurrence S_t = α_t·S_{t-1} + k_t v_t^T"},
-        {"id": "gate", "label": "SiLU output gate"},
-        {"id": "out", "label": "Output"}
+        {"id": "x", "label": "Input x", "kind": "tensor"},
+        {"id": "ln", "label": "LN", "kind": "norm"},
+        {"id": "proj", "label": "Q,K,V (expand_k=0.5)", "kind": "linear"},
+        {"id": "decay", "label": "Data-dep decay α_t", "kind": "op"},
+        {"id": "rec", "label": "Gated recurrence S_t = α_t·S_{t-1} + k_t v_t^T", "kind": "attn"},
+        {"id": "gate", "label": "SiLU output gate", "kind": "act"},
+        {"id": "out", "label": "Output", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "ln"},
@@ -74,13 +74,13 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Input x"},
-        {"id": "ln", "label": "LN"},
-        {"id": "qkv", "label": "Q,K,V proj"},
-        {"id": "decay", "label": "Per-head fixed γ_h"},
-        {"id": "ret", "label": "Retention S_t = γ_h S_{t-1} + k_t v_t^T"},
-        {"id": "gate", "label": "Swish output gate"},
-        {"id": "out", "label": "Output"}
+        {"id": "x", "label": "Input x", "kind": "tensor"},
+        {"id": "ln", "label": "LN", "kind": "norm"},
+        {"id": "qkv", "label": "Q,K,V proj", "kind": "linear"},
+        {"id": "decay", "label": "Per-head fixed γ_h", "kind": "param"},
+        {"id": "ret", "label": "Retention S_t = γ_h S_{t-1} + k_t v_t^T", "kind": "attn"},
+        {"id": "gate", "label": "Swish output gate", "kind": "act"},
+        {"id": "out", "label": "Output", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "ln"},

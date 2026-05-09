@@ -6,11 +6,36 @@
     "kind": "pseudocode",
     "pseudocode": "// 1. _pydfs(node):\n// 2.   if node terminal: record & return; if depth ≥ max or pruned: return depth-proportional backtrack\n// 3.   compute budget_frac = remaining/max_queries; max_retries = beam, +1 if depth≤1, +1 if depth≤3\n// 4.   if budget_frac < 0.25: max_retries ← 1; elif < 0.4: ≤ 2  // throttle\n// 5.   for attempt in range(max_retries): add diversity prompt → _step → recurse on leaf\n// 6.   give-up backtrack length ← max(3, depth/2)  // proportional\n// 7. while terminals < target and budget left: restart _pydfs(root)  // root restart with accumulated diversity",
     "key_hyperparams": [
-      {"name": "max_retries (depth≤1)", "value": "max(beam, 3)", "role": "pyramid widening at root", "learnable": false},
-      {"name": "max_retries (depth≤3)", "value": "max(beam, 2)", "role": "pyramid widening shallow", "learnable": false},
-      {"name": "low-budget cutoff", "value": "0.25", "role": "throttle to 1 retry", "learnable": false},
-      {"name": "mid-budget cutoff", "value": "0.4", "role": "throttle to 2 retries", "learnable": false},
-      {"name": "give-up backtrack", "value": "max(3, depth/2)", "role": "deeper failures jump back further", "learnable": false}
+      {
+        "name": "max_retries (depth≤1)",
+        "value": "max(beam, 3)",
+        "role": "pyramid widening at root",
+        "learnable": false
+      },
+      {
+        "name": "max_retries (depth≤3)",
+        "value": "max(beam, 2)",
+        "role": "pyramid widening shallow",
+        "learnable": false
+      },
+      {
+        "name": "low-budget cutoff",
+        "value": "0.25",
+        "role": "throttle to 1 retry",
+        "learnable": false
+      },
+      {
+        "name": "mid-budget cutoff",
+        "value": "0.4",
+        "role": "throttle to 2 retries",
+        "learnable": false
+      },
+      {
+        "name": "give-up backtrack",
+        "value": "max(3, depth/2)",
+        "role": "deeper failures jump back further",
+        "learnable": false
+      }
     ],
     "init_recovers": "DFSDT when widening and throttling are off",
     "diff_from_baseline": "Versus DFSDT, adds depth-dependent fanout (more retries near root), budget-aware retry throttling, depth-proportional give-up backtracking, and an outer root-restart loop driven by accumulated diversity prompts.",
@@ -23,9 +48,24 @@
     "kind": "pseudocode",
     "pseudocode": "// 1. dfs(node):\n// 2.   handle terminal/pruned/depth/budget base cases\n// 3.   for i in range(tree_beam_size):\n// 4.     diversity prompt if siblings exist → _step\n// 5.     leaf ← new_leaves[-1]\n// 6.     count strong error keywords in leaf.observation; if ≥2 → mark pruned, continue\n// 7.     if dfs(leaf) finds answer: return True\n// 8. fallback: collect all unpruned non-terminal nodes, sort by depth, expand top tree_beam_size with diversity",
     "key_hyperparams": [
-      {"name": "error_keyword_threshold", "value": "2", "role": "min keyword hits to prune leaf", "learnable": false},
-      {"name": "error_keywords", "value": "['error','not found','failed','invalid','permission denied','Exception','timeout']", "role": "lexical pruning vocabulary", "learnable": false},
-      {"name": "fallback_width", "value": "tree_beam_size", "role": "shallow nodes expanded in fallback pass", "learnable": false}
+      {
+        "name": "error_keyword_threshold",
+        "value": "2",
+        "role": "min keyword hits to prune leaf",
+        "learnable": false
+      },
+      {
+        "name": "error_keywords",
+        "value": "['error','not found','failed','invalid','permission denied','Exception','timeout']",
+        "role": "lexical pruning vocabulary",
+        "learnable": false
+      },
+      {
+        "name": "fallback_width",
+        "value": "tree_beam_size",
+        "role": "shallow nodes expanded in fallback pass",
+        "learnable": false
+      }
     ],
     "init_recovers": "Plain DFSDT when no observation contains ≥2 error keywords",
     "diff_from_baseline": "Versus DFSDT, adds lexical observation-quality pruning (≥2 error keywords kills the leaf without recursing) and a second BFS-like fallback pass that re-expands shallow surviving nodes if DFS exits empty.",
@@ -39,28 +79,93 @@
     "formula": "$$\\mathrm{score}(n) = 1.0\\,d(n) - 1.5\\,e(n) - 0.5\\,x(n)$$",
     "diagram": {
       "nodes": [
-        {"id": "f", "label": "frontier"},
-        {"id": "score", "label": "score = d − 1.5e − 0.5x"},
-        {"id": "pop", "label": "pop argmax"},
-        {"id": "step", "label": "_step + diversity"},
-        {"id": "leaf", "label": "leaf"},
-        {"id": "back", "label": "re-enqueue parent if x<beam−1"}
+        {
+          "id": "f",
+          "label": "frontier",
+          "kind": "op"
+        },
+        {
+          "id": "score",
+          "label": "score = d − 1.5e − 0.5x",
+          "kind": "op"
+        },
+        {
+          "id": "pop",
+          "label": "pop argmax",
+          "kind": "op"
+        },
+        {
+          "id": "step",
+          "label": "_step + diversity",
+          "kind": "op"
+        },
+        {
+          "id": "leaf",
+          "label": "leaf",
+          "kind": "op"
+        },
+        {
+          "id": "back",
+          "label": "re-enqueue parent if x<beam−1",
+          "kind": "op"
+        }
       ],
       "edges": [
-        {"from": "f", "to": "score"},
-        {"from": "score", "to": "pop"},
-        {"from": "pop", "to": "step"},
-        {"from": "step", "to": "leaf"},
-        {"from": "pop", "to": "back"},
-        {"from": "back", "to": "f"},
-        {"from": "leaf", "to": "f"}
+        {
+          "from": "f",
+          "to": "score"
+        },
+        {
+          "from": "score",
+          "to": "pop"
+        },
+        {
+          "from": "pop",
+          "to": "step"
+        },
+        {
+          "from": "step",
+          "to": "leaf"
+        },
+        {
+          "from": "pop",
+          "to": "back"
+        },
+        {
+          "from": "back",
+          "to": "f"
+        },
+        {
+          "from": "leaf",
+          "to": "f"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "w_depth", "value": "1.0", "role": "reward deeper nodes", "learnable": false},
-      {"name": "w_path_errors", "value": "1.5", "role": "penalty per accumulated error on path", "learnable": false},
-      {"name": "w_expand_num", "value": "0.5", "role": "penalty per re-expansion of node", "learnable": false},
-      {"name": "consecutive_error_kill", "value": "2", "role": "prune leaf after this many in-a-row errors", "learnable": false}
+      {
+        "name": "w_depth",
+        "value": "1.0",
+        "role": "reward deeper nodes",
+        "learnable": false
+      },
+      {
+        "name": "w_path_errors",
+        "value": "1.5",
+        "role": "penalty per accumulated error on path",
+        "learnable": false
+      },
+      {
+        "name": "w_expand_num",
+        "value": "0.5",
+        "role": "penalty per re-expansion of node",
+        "learnable": false
+      },
+      {
+        "name": "consecutive_error_kill",
+        "value": "2",
+        "role": "prune leaf after this many in-a-row errors",
+        "learnable": false
+      }
     ],
     "init_recovers": "DFS when path_errors and expand_num stay at 0",
     "diff_from_baseline": "Replaces recursive DFSDT with a single global priority queue scored by linear (depth, errors, expansions). Avoids LLM ranking entirely; parents get re-queued until their beam is spent. Adds early kill after 2 consecutive errors.",
@@ -73,12 +178,42 @@
     "kind": "pseudocode",
     "pseudocode": "// 1. heuristic(n) = 1.2·[Action Input] + 1.1·[obs_code=0] − 0.6·[error keywords] + 0.6·prior − 0.55·local_failures − 0.18·expand_trials − 0.10·repair_visits − 0.10·d + 0.04·(max_depth−d)\n// 2. while frontier not empty and budget left:\n// 3.   pop argmax heuristic\n// 4.   width ← 1; if depth≤2 & first trial & budget>10: width ← min(remaining, 2)\n// 5.   for _ in range(width): diversity → _step → record leaf; on dead-end notify nearest expandable parent (++local_failures)\n// 6.   if viable_siblings >1, not yet ranked, budget>max(8,beam+4), depth≤4: prior ← _rank_nodes(siblings)  // costly\n// 7.   keep top-k siblings (k=2 if depth≤4 else 1; k=1 if budget<12; k≤3 if failures>1 & depth≤2)\n// 8.   re-queue node for repair if depth≤4 and failures>0 (budget _repair_budget(d): 2/1/0 by depth)",
     "key_hyperparams": [
-      {"name": "weights (action, obs_ok, err, prior, fails, trials, repairs, depth, slack)", "value": "[1.2, 1.1, -0.6, 0.6, -0.55, -0.18, -0.10, -0.10, 0.04]", "role": "heuristic linear combo", "learnable": false},
-      {"name": "repair_budget(d)", "value": "{d≤2:2, d≤4:1, else:0}", "role": "max repair re-queues per node", "learnable": false},
-      {"name": "shallow_widen_depth", "value": "2", "role": "depths that get width 2 on first trial", "learnable": false},
-      {"name": "rank_depth_cap", "value": "4", "role": "only run LLM ranking at depth ≤4", "learnable": false},
-      {"name": "rank_budget_floor", "value": "max(8, beam+4)", "role": "min remaining budget to invoke ranker", "learnable": false},
-      {"name": "keep_k_default", "value": "2 (depth≤4) else 1", "role": "siblings kept alive on frontier", "learnable": false}
+      {
+        "name": "weights (action, obs_ok, err, prior, fails, trials, repairs, depth, slack)",
+        "value": "[1.2, 1.1, -0.6, 0.6, -0.55, -0.18, -0.10, -0.10, 0.04]",
+        "role": "heuristic linear combo",
+        "learnable": false
+      },
+      {
+        "name": "repair_budget(d)",
+        "value": "{d≤2:2, d≤4:1, else:0}",
+        "role": "max repair re-queues per node",
+        "learnable": false
+      },
+      {
+        "name": "shallow_widen_depth",
+        "value": "2",
+        "role": "depths that get width 2 on first trial",
+        "learnable": false
+      },
+      {
+        "name": "rank_depth_cap",
+        "value": "4",
+        "role": "only run LLM ranking at depth ≤4",
+        "learnable": false
+      },
+      {
+        "name": "rank_budget_floor",
+        "value": "max(8, beam+4)",
+        "role": "min remaining budget to invoke ranker",
+        "learnable": false
+      },
+      {
+        "name": "keep_k_default",
+        "value": "2 (depth≤4) else 1",
+        "role": "siblings kept alive on frontier",
+        "learnable": false
+      }
     ],
     "init_recovers": "Greedy DFS when no widening fires and no ranking is invoked",
     "diff_from_baseline": "Versus DFSDT/dfs_ranked, replaces recursion with a heuristic priority queue that progressively widens only near the root, propagates dead-ends to the nearest expandable ancestor, and rationings the LLM pairwise ranker to a single invocation per shallow ambiguous node.",
@@ -91,14 +226,54 @@
     "kind": "pseudocode",
     "pseudocode": "// 1. _node_score(n): if terminal → 200/150; if pruned → 20 (give-up) or 10\n// 2.   if obs_code==0: base 30; bonus for parseable JSON dict/list, length, keys like 'data','results'; minus 4 per error keyword; plus 3 per success keyword\n// 3.   depth bonus (10−d) if d≤10 else penalty 0.5·(d−10)\n// 4. _enhanced_dfsdt(n):\n// 5.   beam ← tree_beam_size if budget_ratio<0.5 else max(1, beam−1)\n// 6.   for i in range(beam): diversity → _step → score leaf → push (s, leaf)\n// 7.   sort by score desc; for each (s, child): if s<−15 prune, else recurse",
     "key_hyperparams": [
-      {"name": "score_terminal_finish", "value": "200", "role": "score for is_terminal & code=3", "learnable": false},
-      {"name": "score_giveup", "value": "20", "role": "score for code=4 prune", "learnable": false},
-      {"name": "json_dict_bonus", "value": "5 + min(len, 12)", "role": "bonus for valid JSON dict observation", "learnable": false},
-      {"name": "error_kw_penalty", "value": "-4 per keyword", "role": "lexical penalty", "learnable": false},
-      {"name": "success_kw_bonus", "value": "+3 per keyword", "role": "lexical reward", "learnable": false},
-      {"name": "depth_efficient_bonus", "value": "10 - depth (depth ≤10)", "role": "shorter solutions preferred", "learnable": false},
-      {"name": "low_score_prune", "value": "-15", "role": "skip child below this score", "learnable": false},
-      {"name": "budget_threshold", "value": "0.5", "role": "below: full beam; above: beam-1", "learnable": false}
+      {
+        "name": "score_terminal_finish",
+        "value": "200",
+        "role": "score for is_terminal & code=3",
+        "learnable": false
+      },
+      {
+        "name": "score_giveup",
+        "value": "20",
+        "role": "score for code=4 prune",
+        "learnable": false
+      },
+      {
+        "name": "json_dict_bonus",
+        "value": "5 + min(len, 12)",
+        "role": "bonus for valid JSON dict observation",
+        "learnable": false
+      },
+      {
+        "name": "error_kw_penalty",
+        "value": "-4 per keyword",
+        "role": "lexical penalty",
+        "learnable": false
+      },
+      {
+        "name": "success_kw_bonus",
+        "value": "+3 per keyword",
+        "role": "lexical reward",
+        "learnable": false
+      },
+      {
+        "name": "depth_efficient_bonus",
+        "value": "10 - depth (depth ≤10)",
+        "role": "shorter solutions preferred",
+        "learnable": false
+      },
+      {
+        "name": "low_score_prune",
+        "value": "-15",
+        "role": "skip child below this score",
+        "learnable": false
+      },
+      {
+        "name": "budget_threshold",
+        "value": "0.5",
+        "role": "below: full beam; above: beam-1",
+        "learnable": false
+      }
     ],
     "init_recovers": "DFSDT when all generated children get equal scores",
     "diff_from_baseline": "Versus DFSDT, adds a no-cost local heuristic scorer over each child observation (JSON shape, success/error keyword vocabulary, depth efficiency, status code). Recursion order is best-first by that score; very low-scoring children are pruned outright. Beam halves once half the query budget is spent.",

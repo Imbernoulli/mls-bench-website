@@ -7,13 +7,13 @@
     "formula": "$$\\hat y=\\hat y_{\\text{DLinear}}+\\mathrm{IFFT}\\!\\Big[\\mathrm{cplx}\\big(\\mathrm{MLP}_{\\text{GELU}}([\\Re(\\mathrm{FFT}\\,x),\\Im(\\mathrm{FFT}\\,x)])\\big)\\Big]$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "RevIN(x)"},
-        {"id": "dec", "label": "moving-avg decomp"},
-        {"id": "lin", "label": "trend / season Linears"},
-        {"id": "fft", "label": "rFFT"},
-        {"id": "mlp", "label": "MLP(GELU) [Re, Im]"},
-        {"id": "ifft", "label": "IFFT to pred_len"},
-        {"id": "out", "label": "+ correction → DeRevIN"}
+        {"id": "x", "label": "RevIN(x)", "kind": "norm"},
+        {"id": "dec", "label": "moving-avg decomp", "kind": "op"},
+        {"id": "lin", "label": "trend / season Linears", "kind": "linear"},
+        {"id": "fft", "label": "rFFT", "kind": "op"},
+        {"id": "mlp", "label": "MLP(GELU) [Re, Im]", "kind": "ffn"},
+        {"id": "ifft", "label": "IFFT to pred_len", "kind": "op"},
+        {"id": "out", "label": "+ correction → DeRevIN", "kind": "add"}
       ],
       "edges": [
         {"from": "x", "to": "dec"},
@@ -43,14 +43,14 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Norm(x)"},
-        {"id": "dec", "label": "decomp_multi (3/5/7/11)"},
-        {"id": "season", "label": "mean → DataEmb → Encoder"},
-        {"id": "trend", "label": "mean → Linear(L→H)"},
-        {"id": "sproj", "label": "Linear(L→H) (d_model)"},
-        {"id": "head", "label": "Linear(d_model → c_out)"},
-        {"id": "fuse", "label": "w_s·ŷ_s + w_t·ŷ_t"},
-        {"id": "out", "label": "DeNorm"}
+        {"id": "x", "label": "Norm(x)", "kind": "norm"},
+        {"id": "dec", "label": "decomp_multi (3/5/7/11)", "kind": "op"},
+        {"id": "season", "label": "mean → DataEmb → Encoder", "kind": "attn"},
+        {"id": "trend", "label": "mean → Linear(L→H)", "kind": "linear"},
+        {"id": "sproj", "label": "Linear(L→H) (d_model)", "kind": "linear"},
+        {"id": "head", "label": "Linear(d_model → c_out)", "kind": "linear"},
+        {"id": "fuse", "label": "w_s·ŷ_s + w_t·ŷ_t", "kind": "add"},
+        {"id": "out", "label": "DeNorm", "kind": "norm"}
       ],
       "edges": [
         {"from": "x", "to": "dec"},
@@ -82,14 +82,14 @@
     "formula": "$$\\tilde S_k=S_k+\\sum_{c'} W^{(k)}_{c',c}\\,S_{k,c'},\\;k=0..K-1,\\;\\hat y=\\mathrm{Linear}_{\\text{season}}(\\mathrm{IFFT}(\\tilde S))+\\mathrm{Linear}_{\\text{trend}}(T)$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "RevIN(x)"},
-        {"id": "dec", "label": "moving-avg decomp"},
-        {"id": "fft", "label": "rFFT(season)"},
-        {"id": "mix", "label": "Σ W^{(k)}·S_k (top-k)"},
-        {"id": "ifft", "label": "IFFT"},
-        {"id": "linseason", "label": "Linear season (L→H)"},
-        {"id": "lintrend", "label": "Linear trend (L→H)"},
-        {"id": "out", "label": "+ DeRevIN"}
+        {"id": "x", "label": "RevIN(x)", "kind": "norm"},
+        {"id": "dec", "label": "moving-avg decomp", "kind": "op"},
+        {"id": "fft", "label": "rFFT(season)", "kind": "op"},
+        {"id": "mix", "label": "Σ W^{(k)}·S_k (top-k)", "kind": "linear"},
+        {"id": "ifft", "label": "IFFT", "kind": "op"},
+        {"id": "linseason", "label": "Linear season (L→H)", "kind": "linear"},
+        {"id": "lintrend", "label": "Linear trend (L→H)", "kind": "linear"},
+        {"id": "out", "label": "+ DeRevIN", "kind": "add"}
       ],
       "edges": [
         {"from": "x", "to": "dec"},

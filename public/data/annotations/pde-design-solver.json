@@ -7,13 +7,13 @@
     "formula": "$$s_{b,h,n,g} = \\frac{(W_{slice}\\,x_{mid})_{b,h,n,g}}{\\tau_h} + \\big[\\mathrm{MLP}_{spatial}(\\mathrm{coords}_{b,n})\\big]_{h,g},\\quad \\alpha_{b,h,n,g} = \\mathrm{softmax}_g(s),\\quad x \\leftarrow x + \\gamma_\\ell \\odot \\mathrm{Attn}(\\mathrm{LN}_1 x, \\mathrm{coords}),\\;\\gamma_\\ell \\sim 10^{-2}$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "(coords, fx)"},
-        {"id": "enc", "label": "Preprocess MLP"},
-        {"id": "blk", "label": "EnhancedTransolverBlock x L"},
-        {"id": "attn", "label": "SpatialSliceAttention"},
-        {"id": "spat", "label": "spatial-bias MLP"},
-        {"id": "ls", "label": "LayerScale γ"},
-        {"id": "mlp2", "label": "Linear out_dim (last block)"}
+        {"id": "x", "label": "(coords, fx)", "kind": "tensor"},
+        {"id": "enc", "label": "Preprocess MLP", "kind": "ffn"},
+        {"id": "blk", "label": "EnhancedTransolverBlock x L", "kind": "op"},
+        {"id": "attn", "label": "SpatialSliceAttention", "kind": "attn"},
+        {"id": "spat", "label": "spatial-bias MLP", "kind": "ffn"},
+        {"id": "ls", "label": "LayerScale γ", "kind": "param"},
+        {"id": "mlp2", "label": "Linear out_dim (last block)", "kind": "linear"}
       ],
       "edges": [
         {"from": "x", "to": "enc"},
@@ -46,14 +46,14 @@
     "formula": "$$\\mu_g = \\sum_n w_{n,g}\\,p_n / \\sum_n w_{n,g},\\quad \\sigma_g = \\sqrt{\\sum_n w_{n,g}\\,p_n^2/\\sum_n w_{n,g} - \\mu_g^2},\\quad t_g \\leftarrow t_g + \\mathrm{MLP}([\\mu_g; \\sigma_g]),\\quad A_{ij} = q_i k_j^\\top + \\mathrm{MLP}(\\mu_i - \\mu_j)$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "(x, fx)"},
-        {"id": "norm", "label": "z-score raw coords"},
-        {"id": "enc", "label": "Preprocess MLP"},
-        {"id": "blk", "label": "Custom_Block x L"},
-        {"id": "slice", "label": "physics slicing + geom emb"},
-        {"id": "attn", "label": "slice attn + relpos bias"},
-        {"id": "gate", "label": "sigmoid gate (out * gate)"},
-        {"id": "swi", "label": "SwiGLU FFN"}
+        {"id": "x", "label": "(x, fx)", "kind": "tensor"},
+        {"id": "norm", "label": "z-score raw coords", "kind": "norm"},
+        {"id": "enc", "label": "Preprocess MLP", "kind": "ffn"},
+        {"id": "blk", "label": "Custom_Block x L", "kind": "op"},
+        {"id": "slice", "label": "physics slicing + geom emb", "kind": "op"},
+        {"id": "attn", "label": "slice attn + relpos bias", "kind": "attn"},
+        {"id": "gate", "label": "sigmoid gate (out * gate)", "kind": "mul"},
+        {"id": "swi", "label": "SwiGLU FFN", "kind": "ffn"}
       ],
       "edges": [
         {"from": "x", "to": "norm"},
@@ -86,15 +86,15 @@
     "formula": "$$z \\leftarrow z + g\\,\\mathrm{SAGE}(\\mathrm{LN}_l z) + (1-g)\\,\\mathrm{Attn}_{phys}(\\mathrm{LN}_g z),\\quad g = \\sigma(W[\\mathrm{SAGE}(\\cdot);\\mathrm{Attn}(\\cdot)]),\\quad z \\leftarrow z(1+\\sigma(W_{gf}[z; x; fx])) + W_{gp}[\\overline z; \\max z]$$",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "x, fx"},
-        {"id": "enc", "label": "Encoder MLP"},
-        {"id": "cgate", "label": "coord+feat gate"},
-        {"id": "gp", "label": "global mean+max proj"},
-        {"id": "blk", "label": "HybridGeoPhysicsBlock x L"},
-        {"id": "loc", "label": "SAGEConv (local)"},
-        {"id": "gl", "label": "Physics_Attention (global)"},
-        {"id": "gate", "label": "sigmoid gate alpha"},
-        {"id": "ffn", "label": "FFN"}
+        {"id": "in", "label": "x, fx", "kind": "tensor"},
+        {"id": "enc", "label": "Encoder MLP", "kind": "ffn"},
+        {"id": "cgate", "label": "coord+feat gate", "kind": "mul"},
+        {"id": "gp", "label": "global mean+max proj", "kind": "op"},
+        {"id": "blk", "label": "HybridGeoPhysicsBlock x L", "kind": "op"},
+        {"id": "loc", "label": "SAGEConv (local)", "kind": "conv"},
+        {"id": "gl", "label": "Physics_Attention (global)", "kind": "attn"},
+        {"id": "gate", "label": "sigmoid gate alpha", "kind": "mul"},
+        {"id": "ffn", "label": "FFN", "kind": "ffn"}
       ],
       "edges": [
         {"from": "in", "to": "enc"},
@@ -128,15 +128,15 @@
     "formula": "$$\\mathrm{FF}(x) = [\\sin(2\\pi B x), \\cos(2\\pi B x)] W_{\\mathrm{FF}}\\;,\\quad z_{\\mathrm{fused}} = g\\,\\mathrm{SAGE}(z) + (1-g)\\,\\mathrm{Attn}_{phys}(z),\\quad g = \\sigma(W[\\,z_{loc};\\,z_{glob}\\,])$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "coords"},
-        {"id": "ff", "label": "FourierFeatureEmbed"},
-        {"id": "fx", "label": "fx (features)"},
-        {"id": "enc", "label": "Encoder MLP"},
-        {"id": "blk", "label": "HybridBlock x L"},
-        {"id": "loc", "label": "SAGEConv local"},
-        {"id": "phys", "label": "PhysicsSliceAttn global"},
-        {"id": "gate", "label": "Linear -> sigmoid gate"},
-        {"id": "mlp", "label": "MLP residual"}
+        {"id": "x", "label": "coords", "kind": "tensor"},
+        {"id": "ff", "label": "FourierFeatureEmbed", "kind": "pos"},
+        {"id": "fx", "label": "fx (features)", "kind": "tensor"},
+        {"id": "enc", "label": "Encoder MLP", "kind": "ffn"},
+        {"id": "blk", "label": "HybridBlock x L", "kind": "op"},
+        {"id": "loc", "label": "SAGEConv local", "kind": "conv"},
+        {"id": "phys", "label": "PhysicsSliceAttn global", "kind": "attn"},
+        {"id": "gate", "label": "Linear -> sigmoid gate", "kind": "mul"},
+        {"id": "mlp", "label": "MLP residual", "kind": "ffn"}
       ],
       "edges": [
         {"from": "x", "to": "ff"},
@@ -168,14 +168,14 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "(x, fx)"},
-        {"id": "enc", "label": "Encoder MLP"},
-        {"id": "g1", "label": "SAGEConv1 + BN + GELU"},
-        {"id": "g2", "label": "SAGEConv2 + BN + GELU"},
-        {"id": "ln1", "label": "LN"},
-        {"id": "phys", "label": "Physics_Attention_Irregular_Mesh"},
-        {"id": "ln2mlp", "label": "LN + MLP residual"},
-        {"id": "dec", "label": "Decoder MLP"}
+        {"id": "in", "label": "(x, fx)", "kind": "tensor"},
+        {"id": "enc", "label": "Encoder MLP", "kind": "ffn"},
+        {"id": "g1", "label": "SAGEConv1 + BN + GELU", "kind": "conv"},
+        {"id": "g2", "label": "SAGEConv2 + BN + GELU", "kind": "conv"},
+        {"id": "ln1", "label": "LN", "kind": "norm"},
+        {"id": "phys", "label": "Physics_Attention_Irregular_Mesh", "kind": "attn"},
+        {"id": "ln2mlp", "label": "LN + MLP residual", "kind": "ffn"},
+        {"id": "dec", "label": "Decoder MLP", "kind": "ffn"}
       ],
       "edges": [
         {"from": "in", "to": "enc"},

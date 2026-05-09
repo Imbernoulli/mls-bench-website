@@ -22,13 +22,13 @@
     "pseudocode": "// 1. compute bigram hash $h_2 = ((x_t r_1) \\oplus (x_{t-1} r_2))\\,\\bmod\\,2|V|$\n// 2. compute trigram hash $h_3 = ((x_t r_1) \\oplus (x_{t-1} r_2) \\oplus (x_{t-2} r_3))\\,\\bmod\\,2|V|$\n// 3. cache LayerNormed value/bigram/trigram embeddings $\\widetilde V, \\widetilde B, \\widetilde T$\n// 4. forward pass returns $\\mathrm{wte}(x) + \\mathrm{wpe}(t)$ for layer 0\n// 5. before each block $\\ell$: add $g^{(v)}_\\ell\\widetilde V + g^{(b)}_\\ell\\widetilde B + g^{(t)}_\\ell\\widetilde T$ to the residual stream\n// 6. lm_head shares $\\mathrm{wte}$ weights",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "tokens"},
-        {"id": "wte", "label": "wte + wpe"},
-        {"id": "vte", "label": "value table V"},
-        {"id": "bg", "label": "bigram hash B"},
-        {"id": "tg", "label": "trigram hash T"},
-        {"id": "gate", "label": "per-layer gates g_l"},
-        {"id": "blk", "label": "block L (residual add)"}
+        {"id": "x", "label": "tokens", "kind": "tensor"},
+        {"id": "wte", "label": "wte + wpe", "kind": "embed"},
+        {"id": "vte", "label": "value table V", "kind": "embed"},
+        {"id": "bg", "label": "bigram hash B", "kind": "embed"},
+        {"id": "tg", "label": "trigram hash T", "kind": "embed"},
+        {"id": "gate", "label": "per-layer gates g_l", "kind": "param"},
+        {"id": "blk", "label": "block L (residual add)", "kind": "add"}
       ],
       "edges": [
         {"from": "x", "to": "wte", "label": "input"},

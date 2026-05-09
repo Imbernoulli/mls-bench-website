@@ -38,13 +38,13 @@
     "formula": "$$y=\\mathrm{GELU}\\!\\Big(\\mathrm{shortcut}(x)+\\alpha_{c}\\odot\\big[F(x)\\!\\cdot\\!\\sigma(\\mathrm{SE}(F(x)))\\big]\\!\\cdot\\!\\mathrm{Drop}(p_\\ell)\\Big),\\;\\;p_\\ell=\\tfrac{\\ell}{L}\\,p_{\\max}(L)$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x"},
-        {"id": "main", "label": "Conv-BN-GELU-Conv-BN"},
-        {"id": "se", "label": "SE (GELU, sigmoid)"},
-        {"id": "alpha", "label": "alpha_c (per-channel, init 0.1)"},
-        {"id": "drop", "label": "depth-decay drop"},
-        {"id": "short", "label": "AvgPool/1x1 shortcut"},
-        {"id": "out", "label": "GELU(short + .)"}
+        {"id": "x", "label": "x", "kind": "tensor"},
+        {"id": "main", "label": "Conv-BN-GELU-Conv-BN", "kind": "conv"},
+        {"id": "se", "label": "SE (GELU, sigmoid)", "kind": "op"},
+        {"id": "alpha", "label": "alpha_c (per-channel, init 0.1)", "kind": "param"},
+        {"id": "drop", "label": "depth-decay drop", "kind": "op"},
+        {"id": "short", "label": "AvgPool/1x1 shortcut", "kind": "op"},
+        {"id": "out", "label": "GELU(short + .)", "kind": "act"}
       ],
       "edges": [
         {"from": "x", "to": "main"},

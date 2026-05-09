@@ -6,15 +6,60 @@
     "kind": "formula",
     "formula": "$$\\mathcal{L} = \\frac{\\sum (1+2\\mathbb{1}[A^2A>0])\\,d_{ij}\\,\\mathrm{BCE}(\\hat{A},A)\\,M_v}{\\sum M_v} + 0.1\\,\\mathrm{pad} + 0.3\\,\\mathrm{BCE_{node}} + 0.005\\frac{t}{300}\\,\\mathrm{KL} + 0.1\\,\\mathrm{MSE}(\\sigma(\\hat{A})\\mathbf{1},\\,A\\mathbf{1})$$",
     "key_hyperparams": [
-      {"name": "hidden_dim", "value": "256", "role": "GCN/decoder width", "learnable": false},
-      {"name": "latent_dim", "value": "64", "role": "VAE latent size", "learnable": false},
-      {"name": "triangle_weight", "value": "3.0", "role": "BCE multiplier on triangle-participating edges", "learnable": false},
-      {"name": "deg_weight", "value": "0.1", "role": "weight on per-node degree MSE", "learnable": false},
-      {"name": "pad_weight", "value": "0.1", "role": "weight on padded-region BCE", "learnable": false},
-      {"name": "node_weight", "value": "0.3", "role": "weight on node-existence BCE", "learnable": false},
-      {"name": "kl_warmup", "value": "0.005 * min(1, t/300)", "role": "KL weight with linear warmup", "learnable": false},
-      {"name": "buffer_size", "value": "min(2000, max(200, 5*max_nodes))", "role": "empirical posterior buffer", "learnable": false},
-      {"name": "fit_emp_split", "value": "50/50", "role": "fitted-Gaussian vs per-point empirical sampling mix", "learnable": false}
+      {
+        "name": "hidden_dim",
+        "value": "256",
+        "role": "GCN/decoder width",
+        "learnable": false
+      },
+      {
+        "name": "latent_dim",
+        "value": "64",
+        "role": "VAE latent size",
+        "learnable": false
+      },
+      {
+        "name": "triangle_weight",
+        "value": "3.0",
+        "role": "BCE multiplier on triangle-participating edges",
+        "learnable": false
+      },
+      {
+        "name": "deg_weight",
+        "value": "0.1",
+        "role": "weight on per-node degree MSE",
+        "learnable": false
+      },
+      {
+        "name": "pad_weight",
+        "value": "0.1",
+        "role": "weight on padded-region BCE",
+        "learnable": false
+      },
+      {
+        "name": "node_weight",
+        "value": "0.3",
+        "role": "weight on node-existence BCE",
+        "learnable": false
+      },
+      {
+        "name": "kl_warmup",
+        "value": "0.005 * min(1, t/300)",
+        "role": "KL weight with linear warmup",
+        "learnable": false
+      },
+      {
+        "name": "buffer_size",
+        "value": "min(2000, max(200, 5*max_nodes))",
+        "role": "empirical posterior buffer",
+        "learnable": false
+      },
+      {
+        "name": "fit_emp_split",
+        "value": "50/50",
+        "role": "fitted-Gaussian vs per-point empirical sampling mix",
+        "learnable": false
+      }
     ],
     "init_recovers": "Vanilla GraphVAE baseline at all auxiliary weights = 0",
     "diff_from_baseline": "Replaces the GraphVAE baseline's plain BCE+KL with triangle-weighted, degree-conditioned reconstruction, a node-count-conditioned decoder, and a hybrid empirical-aggregate-posterior sampler (instead of a unit Gaussian).",
@@ -29,30 +74,103 @@
     "pseudocode": "// 1. encode $A$ with 2-layer GCN, mean-pool to $g$, output $(\\mu,\\log\\sigma^2)$; $z = \\mu + \\sigma\\odot\\epsilon$\n// 2. discriminator step: maximise $\\log D(z) + \\log(1-D(z_p))$ with $z_p\\sim N(0,I)$\n// 3. generator step: decode node embeddings $E\\!=\\!W z$, edge logits $\\hat A = E E^\\top$, node-existence head $\\hat n = \\mathrm{MLP}(z)$\n// 4. minimise $\\mathrm{BCE}(\\hat A, A) + 0.5\\,\\mathrm{BCE}(\\hat n, \\mathbb{1}[d>0]) + 0.1\\,\\mathrm{BCE}(D(z),1)$\n// 5. sample: $z\\sim N(0,I)$, decode, threshold edges and nodes, mask pad",
     "diagram": {
       "nodes": [
-        {"id": "A", "label": "adj A"},
-        {"id": "enc", "label": "GCN encoder"},
-        {"id": "z", "label": "z (mu, logvar)"},
-        {"id": "node", "label": "node decoder"},
-        {"id": "ip", "label": "inner-product"},
-        {"id": "Ahat", "label": "edge logits"},
-        {"id": "D", "label": "discriminator"},
-        {"id": "prior", "label": "z ~ N(0,I)"}
+        {
+          "id": "A",
+          "label": "adj A",
+          "kind": "tensor"
+        },
+        {
+          "id": "enc",
+          "label": "GCN encoder",
+          "kind": "op"
+        },
+        {
+          "id": "z",
+          "label": "z (mu, logvar)",
+          "kind": "tensor"
+        },
+        {
+          "id": "node",
+          "label": "node decoder",
+          "kind": "ffn"
+        },
+        {
+          "id": "ip",
+          "label": "inner-product",
+          "kind": "op"
+        },
+        {
+          "id": "Ahat",
+          "label": "edge logits",
+          "kind": "tensor"
+        },
+        {
+          "id": "D",
+          "label": "discriminator",
+          "kind": "ffn"
+        },
+        {
+          "id": "prior",
+          "label": "z ~ N(0,I)",
+          "kind": "tensor"
+        }
       ],
       "edges": [
-        {"from": "A", "to": "enc"},
-        {"from": "enc", "to": "z"},
-        {"from": "z", "to": "node"},
-        {"from": "node", "to": "ip"},
-        {"from": "ip", "to": "Ahat"},
-        {"from": "z", "to": "D"},
-        {"from": "prior", "to": "D"}
+        {
+          "from": "A",
+          "to": "enc"
+        },
+        {
+          "from": "enc",
+          "to": "z"
+        },
+        {
+          "from": "z",
+          "to": "node"
+        },
+        {
+          "from": "node",
+          "to": "ip"
+        },
+        {
+          "from": "ip",
+          "to": "Ahat"
+        },
+        {
+          "from": "z",
+          "to": "D"
+        },
+        {
+          "from": "prior",
+          "to": "D"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "hidden_dim", "value": "256", "role": "GCN/decoder width", "learnable": false},
-      {"name": "latent_dim", "value": "64", "role": "graph-level latent size", "learnable": false},
-      {"name": "node_loss_w", "value": "0.5", "role": "node-existence BCE weight", "learnable": false},
-      {"name": "adv_loss_w", "value": "0.1", "role": "encoder adversarial weight", "learnable": false}
+      {
+        "name": "hidden_dim",
+        "value": "256",
+        "role": "GCN/decoder width",
+        "learnable": false
+      },
+      {
+        "name": "latent_dim",
+        "value": "64",
+        "role": "graph-level latent size",
+        "learnable": false
+      },
+      {
+        "name": "node_loss_w",
+        "value": "0.5",
+        "role": "node-existence BCE weight",
+        "learnable": false
+      },
+      {
+        "name": "adv_loss_w",
+        "value": "0.1",
+        "role": "encoder adversarial weight",
+        "learnable": false
+      }
     ],
     "init_recovers": "GraphVAE baseline when adversarial weight = 0",
     "diff_from_baseline": "Swaps the GraphVAE baseline's KL-regularized prior for an adversarial autoencoder (separate encoder/decoder + discriminator optimisers), and replaces the dense MLP edge decoder with an inner-product over generated node embeddings.",
@@ -65,13 +183,48 @@
     "kind": "pseudocode",
     "pseudocode": "// Train:\n// 1. for each batch $(A, n)$:\n// 2.   sample $t \\sim U(0,1)$, symmetric Gaussian $Z$\n// 3.   $A_t \\leftarrow t\\,A + (1-t)\\,Z$ (linear interpolation)\n// 4.   $(\\hat A, \\hat n) \\leftarrow f_\\theta(A_t, t)$ via 5 GraphBlocks (node+edge MP)\n// 5.   minimize $\\mathrm{BCE}(\\hat A, A) + 0.5\\,\\mathrm{BCE}(\\hat n, \\mathbb{1}[d>0])$ with grad-clip 1.0\n// Sample:\n// 6. $A_0 \\leftarrow$ symmetric Gaussian noise\n// 7. for $s = 0..99$: $t \\leftarrow s/100$;  $A_{t} \\mathrel{+}= (\\sigma(\\hat A) - A_t)/(100-s)$\n// 8. binarize > 0.5; mask by predicted node existence",
     "key_hyperparams": [
-      {"name": "hidden_dim", "value": "96", "role": "node/edge feature width", "learnable": false},
-      {"name": "n_layers", "value": "5", "role": "GraphBlock stack depth", "learnable": false},
-      {"name": "lr", "value": "1e-3", "role": "AdamW lr", "learnable": false},
-      {"name": "weight_decay", "value": "1e-4", "role": "AdamW WD", "learnable": false},
-      {"name": "n_steps", "value": "100", "role": "Euler integration steps at sampling", "learnable": false},
-      {"name": "node_loss_w", "value": "0.5", "role": "node-existence loss weight", "learnable": false},
-      {"name": "grad_clip", "value": "1.0", "role": "max grad norm", "learnable": false}
+      {
+        "name": "hidden_dim",
+        "value": "96",
+        "role": "node/edge feature width",
+        "learnable": false
+      },
+      {
+        "name": "n_layers",
+        "value": "5",
+        "role": "GraphBlock stack depth",
+        "learnable": false
+      },
+      {
+        "name": "lr",
+        "value": "1e-3",
+        "role": "AdamW lr",
+        "learnable": false
+      },
+      {
+        "name": "weight_decay",
+        "value": "1e-4",
+        "role": "AdamW WD",
+        "learnable": false
+      },
+      {
+        "name": "n_steps",
+        "value": "100",
+        "role": "Euler integration steps at sampling",
+        "learnable": false
+      },
+      {
+        "name": "node_loss_w",
+        "value": "0.5",
+        "role": "node-existence loss weight",
+        "learnable": false
+      },
+      {
+        "name": "grad_clip",
+        "value": "1.0",
+        "role": "max grad norm",
+        "learnable": false
+      }
     ],
     "diff_from_baseline": "A custom flow-matching graph generator that replaces the GraphVAE/GRAN/DiGress baselines: a node+edge graph transformer is trained on linear interpolations between Gaussian noise and clean adjacencies, then 100-step Euler integrated at inference time.",
     "confidence": "medium"
@@ -85,34 +238,130 @@
     "pseudocode": "// 1. flatten upper triangle of $A$ + normalised node count → MLP encoder → $(\\mu,\\log\\sigma^2)$\n// 2. $z = \\mu + \\sigma\\,\\epsilon$;\\;decode role memberships $M(z) = \\mathrm{softmax}(\\mathrm{MLP}([z,\\mathrm{pos}]))$\n// 3. $R \\leftarrow (R_{\\text{raw}} + R_{\\text{raw}}^\\top)/2$;\\;edge probs $p_{ij} = \\sigma(M R M^\\top + b(z))$\n// 4. node-count head $\\hat n = \\mathrm{argmax}(\\mathrm{MLP}(z)) + 2$\n// 5. masked-BCE on valid pairs + structural moment matching on $\\rho, \\bar d, S_2, T$\n// 6. sample: draw $z$ from cached posterior + 0.15$\\sigma$ jitter, decode, binarize, mask",
     "diagram": {
       "nodes": [
-        {"id": "A", "label": "adj A"},
-        {"id": "enc", "label": "MLP encoder (triu)"},
-        {"id": "z", "label": "z, log var"},
-        {"id": "M", "label": "role memberships M(z)"},
-        {"id": "R", "label": "role matrix R"},
-        {"id": "P", "label": "edge probs"},
-        {"id": "n", "label": "node-count head"}
+        {
+          "id": "A",
+          "label": "adj A",
+          "kind": "tensor"
+        },
+        {
+          "id": "enc",
+          "label": "MLP encoder (triu)",
+          "kind": "ffn"
+        },
+        {
+          "id": "z",
+          "label": "z, log var",
+          "kind": "tensor"
+        },
+        {
+          "id": "M",
+          "label": "role memberships M(z)",
+          "kind": "ffn"
+        },
+        {
+          "id": "R",
+          "label": "role matrix R",
+          "kind": "param"
+        },
+        {
+          "id": "P",
+          "label": "edge probs",
+          "kind": "tensor"
+        },
+        {
+          "id": "n",
+          "label": "node-count head",
+          "kind": "ffn"
+        }
       ],
       "edges": [
-        {"from": "A", "to": "enc"},
-        {"from": "enc", "to": "z"},
-        {"from": "z", "to": "M"},
-        {"from": "z", "to": "n"},
-        {"from": "M", "to": "P"},
-        {"from": "R", "to": "P"}
+        {
+          "from": "A",
+          "to": "enc"
+        },
+        {
+          "from": "enc",
+          "to": "z"
+        },
+        {
+          "from": "z",
+          "to": "M"
+        },
+        {
+          "from": "z",
+          "to": "n"
+        },
+        {
+          "from": "M",
+          "to": "P"
+        },
+        {
+          "from": "R",
+          "to": "P"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "hidden_dim", "value": "160", "role": "encoder/decoder width", "learnable": false},
-      {"name": "latent_dim", "value": "32", "role": "graph latent size", "learnable": false},
-      {"name": "n_roles", "value": "8", "role": "K = number of latent roles", "learnable": false},
-      {"name": "lr", "value": "2e-3", "role": "Adam lr", "learnable": false},
-      {"name": "moment_w", "value": "0.8", "role": "weight on edge-density/degree/2-star/triangle L1 matching", "learnable": false},
-      {"name": "count_w", "value": "0.7", "role": "weight on node-count CE", "learnable": false},
-      {"name": "kl_w", "value": "0.01", "role": "weight on KL", "learnable": false},
-      {"name": "entropy_w", "value": "-0.02", "role": "negative entropy regularizer", "learnable": false},
-      {"name": "grad_clip", "value": "2.0", "role": "max grad norm", "learnable": false},
-      {"name": "post_jitter", "value": "0.15", "role": "noise std added to cached posterior at sampling", "learnable": false}
+      {
+        "name": "hidden_dim",
+        "value": "160",
+        "role": "encoder/decoder width",
+        "learnable": false
+      },
+      {
+        "name": "latent_dim",
+        "value": "32",
+        "role": "graph latent size",
+        "learnable": false
+      },
+      {
+        "name": "n_roles",
+        "value": "8",
+        "role": "K = number of latent roles",
+        "learnable": false
+      },
+      {
+        "name": "lr",
+        "value": "2e-3",
+        "role": "Adam lr",
+        "learnable": false
+      },
+      {
+        "name": "moment_w",
+        "value": "0.8",
+        "role": "weight on edge-density/degree/2-star/triangle L1 matching",
+        "learnable": false
+      },
+      {
+        "name": "count_w",
+        "value": "0.7",
+        "role": "weight on node-count CE",
+        "learnable": false
+      },
+      {
+        "name": "kl_w",
+        "value": "0.01",
+        "role": "weight on KL",
+        "learnable": false
+      },
+      {
+        "name": "entropy_w",
+        "value": "-0.02",
+        "role": "negative entropy regularizer",
+        "learnable": false
+      },
+      {
+        "name": "grad_clip",
+        "value": "2.0",
+        "role": "max grad norm",
+        "learnable": false
+      },
+      {
+        "name": "post_jitter",
+        "value": "0.15",
+        "role": "noise std added to cached posterior at sampling",
+        "learnable": false
+      }
     ],
     "init_recovers": "GraphVAE baseline when role matrix is rank-1 and moment_w = count_w = 0",
     "diff_from_baseline": "Replaces the GraphVAE baseline's full MxN^2 dense decoder with a low-rank graphon-style decoder (memberships + symmetric role matrix), adds explicit node-count classification, differentiable structural-moment matching, entropy regularization, and aggregated-posterior sampling.",
@@ -125,14 +374,54 @@
     "kind": "pseudocode",
     "pseudocode": "// Train:\n// 1. eigvals $\\leftarrow$ eigvalsh($D-A+0.01I$)\n// 2. $t \\sim \\mathcal{U}\\{0..99\\}$; flip-prob $p_{ij} = 0.5(1-\\bar\\alpha_t)\\cdot(1+0.5\\,\\hat I_{ij})$ where $\\hat I$ scales with degree-product\n// 3. $A_t \\leftarrow A \\oplus \\mathbb{1}[U<p]$ (symmetric flips above diag)\n// 4. node + edge logits = denoise($A_t, t/T,$ eigvals)\n// 5. loss = $\\mathrm{BCE}_{\\text{edge}} + \\mathrm{BCE}_{\\text{node}} + 0.3\\,\\mathrm{MSE}(\\hat d, d) + 0.3\\,\\mathrm{MSE}(\\widehat{\\text{clust}}, \\text{clust})$\n// Sample:\n// 6. $A_T \\sim \\mathrm{Bernoulli}(0.5)$; reverse-diffusion 100 steps using denoiser; mask by predicted node existence",
     "key_hyperparams": [
-      {"name": "hidden_dim", "value": "192", "role": "transformer width", "learnable": false},
-      {"name": "n_heads", "value": "4", "role": "attention heads", "learnable": false},
-      {"name": "n_steps", "value": "100", "role": "discrete diffusion timesteps", "learnable": false},
-      {"name": "schedule", "value": "cosine, s=0.008", "role": "alpha-bar schedule", "learnable": false},
-      {"name": "lr", "value": "5e-4", "role": "Adam lr", "learnable": false},
-      {"name": "deg_clust_w", "value": "0.3", "role": "weight on degree+clustering structural regs", "learnable": false},
-      {"name": "importance_scale", "value": "0.5", "role": "extra flip-prob multiplier on high-degree edges", "learnable": false},
-      {"name": "laplacian_eps", "value": "0.01", "role": "diagonal regularizer for eigvalsh stability", "learnable": false}
+      {
+        "name": "hidden_dim",
+        "value": "192",
+        "role": "transformer width",
+        "learnable": false
+      },
+      {
+        "name": "n_heads",
+        "value": "4",
+        "role": "attention heads",
+        "learnable": false
+      },
+      {
+        "name": "n_steps",
+        "value": "100",
+        "role": "discrete diffusion timesteps",
+        "learnable": false
+      },
+      {
+        "name": "schedule",
+        "value": "cosine, s=0.008",
+        "role": "alpha-bar schedule",
+        "learnable": false
+      },
+      {
+        "name": "lr",
+        "value": "5e-4",
+        "role": "Adam lr",
+        "learnable": false
+      },
+      {
+        "name": "deg_clust_w",
+        "value": "0.3",
+        "role": "weight on degree+clustering structural regs",
+        "learnable": false
+      },
+      {
+        "name": "importance_scale",
+        "value": "0.5",
+        "role": "extra flip-prob multiplier on high-degree edges",
+        "learnable": false
+      },
+      {
+        "name": "laplacian_eps",
+        "value": "0.01",
+        "role": "diagonal regularizer for eigvalsh stability",
+        "learnable": false
+      }
     ],
     "init_recovers": "DiGress-style discrete diffusion baseline when spectral conditioning and degree-aware corruption are disabled",
     "diff_from_baseline": "Builds on the DiGress baseline's edge-flip diffusion, but conditions the denoiser on Laplacian eigenvalues, weights the flip distribution by degree-product importance, and adds explicit MSE regularizers on predicted degree and clustering.",

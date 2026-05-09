@@ -6,14 +6,14 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "x_t (3x32x32) + t-emb"},
-        {"id": "d1", "label": "AttnDown 32x32 (128)"},
-        {"id": "d2", "label": "AttnDown 16x16 (256)"},
-        {"id": "d3", "label": "AttnDown 8x8 (256)"},
-        {"id": "d4", "label": "AttnDown 4x4 (256)"},
-        {"id": "mid", "label": "MidBlock + Attn"},
-        {"id": "up", "label": "AttnUp x4 (mirror)"},
-        {"id": "out", "label": "ε-pred (3x32x32)"}
+        {"id": "in", "label": "x_t (3x32x32) + t-emb", "kind": "tensor"},
+        {"id": "d1", "label": "AttnDown 32x32 (128)", "kind": "attn"},
+        {"id": "d2", "label": "AttnDown 16x16 (256)", "kind": "attn"},
+        {"id": "d3", "label": "AttnDown 8x8 (256)", "kind": "attn"},
+        {"id": "d4", "label": "AttnDown 4x4 (256)", "kind": "attn"},
+        {"id": "mid", "label": "MidBlock + Attn", "kind": "attn"},
+        {"id": "up", "label": "AttnUp x4 (mirror)", "kind": "attn"},
+        {"id": "out", "label": "ε-pred (3x32x32)", "kind": "tensor"}
       ],
       "edges": [
         {"from": "in", "to": "d1"},
@@ -41,14 +41,14 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "x_t (3x32x32) + t-emb"},
-        {"id": "d1", "label": "Down 32x32 (128)"},
-        {"id": "d2", "label": "Down 16x16 (256)"},
-        {"id": "d3", "label": "Down 8x8 (256)"},
-        {"id": "d4", "label": "Down 4x4 (256)"},
-        {"id": "mid", "label": "MidBlock (1 attn)"},
-        {"id": "up", "label": "Up x4 (no attn, mirror)"},
-        {"id": "out", "label": "ε-pred (3x32x32)"}
+        {"id": "in", "label": "x_t (3x32x32) + t-emb", "kind": "tensor"},
+        {"id": "d1", "label": "Down 32x32 (128)", "kind": "conv"},
+        {"id": "d2", "label": "Down 16x16 (256)", "kind": "conv"},
+        {"id": "d3", "label": "Down 8x8 (256)", "kind": "conv"},
+        {"id": "d4", "label": "Down 4x4 (256)", "kind": "conv"},
+        {"id": "mid", "label": "MidBlock (1 attn)", "kind": "attn"},
+        {"id": "up", "label": "Up x4 (no attn, mirror)", "kind": "conv"},
+        {"id": "out", "label": "ε-pred (3x32x32)", "kind": "tensor"}
       ],
       "edges": [
         {"from": "in", "to": "d1"},
@@ -74,14 +74,14 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "x_t (3x32x32) + t-emb"},
-        {"id": "d1", "label": "Down 32x32 (128)"},
-        {"id": "d2", "label": "AttnDown 16x16 (256)"},
-        {"id": "d3", "label": "Down 8x8 (256)"},
-        {"id": "d4", "label": "Down 4x4 (256)"},
-        {"id": "mid", "label": "MidBlock + Attn"},
-        {"id": "u3", "label": "AttnUp 16x16 (256)"},
-        {"id": "out", "label": "ε-pred (3x32x32)"}
+        {"id": "in", "label": "x_t (3x32x32) + t-emb", "kind": "tensor"},
+        {"id": "d1", "label": "Down 32x32 (128)", "kind": "conv"},
+        {"id": "d2", "label": "AttnDown 16x16 (256)", "kind": "attn"},
+        {"id": "d3", "label": "Down 8x8 (256)", "kind": "conv"},
+        {"id": "d4", "label": "Down 4x4 (256)", "kind": "conv"},
+        {"id": "mid", "label": "MidBlock + Attn", "kind": "attn"},
+        {"id": "u3", "label": "AttnUp 16x16 (256)", "kind": "attn"},
+        {"id": "out", "label": "ε-pred (3x32x32)", "kind": "tensor"}
       ],
       "edges": [
         {"from": "in", "to": "d1"},

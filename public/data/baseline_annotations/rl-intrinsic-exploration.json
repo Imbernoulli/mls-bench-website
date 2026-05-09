@@ -7,28 +7,94 @@
     "formula": "$$\\phi_t = \\mathrm{Encoder}(o_t),\\;\\; \\hat{\\phi}_{t+1} = f_{\\text{fwd}}(\\phi_t, a_t);\\;\\; r^{\\text{int}}_t = \\tfrac{1}{2}\\|\\hat{\\phi}_{t+1} - \\phi_{t+1}\\|^2$$\n$$\\mathcal{L}_{\\text{ICM}} = \\mathrm{CE}\\big(f_{\\text{inv}}(\\phi_t,\\phi_{t+1}),\\,a_t\\big) + 0.2\\cdot \\tfrac{1}{2}\\|\\hat{\\phi}_{t+1} - \\mathrm{sg}(\\phi_{t+1})\\|^2;\\quad A = c_e A^{\\text{ext}} + c_i A^{\\text{int}}$$",
     "diagram": {
       "nodes": [
-        {"id": "obs", "label": "Last frame (84x84)"},
-        {"id": "norm", "label": "Normalize (obs_rms, clip ±5)"},
-        {"id": "enc", "label": "Conv 32-64-64 + Linear-256 ReLU"},
-        {"id": "fwd", "label": "Forward model (phi_t || a) -> phi_{t+1}"},
-        {"id": "inv", "label": "Inverse model (phi_t || phi_{t+1}) -> a"},
-        {"id": "bonus", "label": "1/2 ||phi_hat - phi||^2"},
-        {"id": "mix", "label": "ext_coef * A_ext + int_coef * A_int"}
+        {
+          "id": "obs",
+          "label": "Last frame (84x84)",
+          "kind": "tensor"
+        },
+        {
+          "id": "norm",
+          "label": "Normalize (obs_rms, clip ±5)",
+          "kind": "norm"
+        },
+        {
+          "id": "enc",
+          "label": "Conv 32-64-64 + Linear-256 ReLU",
+          "kind": "conv"
+        },
+        {
+          "id": "fwd",
+          "label": "Forward model (phi_t || a) -> phi_{t+1}",
+          "kind": "ffn"
+        },
+        {
+          "id": "inv",
+          "label": "Inverse model (phi_t || phi_{t+1}) -> a",
+          "kind": "ffn"
+        },
+        {
+          "id": "bonus",
+          "label": "1/2 ||phi_hat - phi||^2",
+          "kind": "op"
+        },
+        {
+          "id": "mix",
+          "label": "ext_coef * A_ext + int_coef * A_int",
+          "kind": "op"
+        }
       ],
       "edges": [
-        {"from": "obs", "to": "norm"},
-        {"from": "norm", "to": "enc"},
-        {"from": "enc", "to": "fwd"},
-        {"from": "enc", "to": "inv"},
-        {"from": "fwd", "to": "bonus"},
-        {"from": "bonus", "to": "mix"}
+        {
+          "from": "obs",
+          "to": "norm"
+        },
+        {
+          "from": "norm",
+          "to": "enc"
+        },
+        {
+          "from": "enc",
+          "to": "fwd"
+        },
+        {
+          "from": "enc",
+          "to": "inv"
+        },
+        {
+          "from": "fwd",
+          "to": "bonus"
+        },
+        {
+          "from": "bonus",
+          "to": "mix"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "feature dim", "value": "256", "role": "encoder output", "learnable": true},
-      {"name": "forward_loss coef", "value": "0.2", "role": "weighting in ICM loss", "learnable": false},
-      {"name": "inverse_loss coef", "value": "1.0", "role": "weighting in ICM loss", "learnable": false},
-      {"name": "advantage mix", "value": "ext_coef*A_ext + int_coef*A_int", "role": "policy uses combined advantage", "learnable": false}
+      {
+        "name": "feature dim",
+        "value": "256",
+        "role": "encoder output",
+        "learnable": true
+      },
+      {
+        "name": "forward_loss coef",
+        "value": "0.2",
+        "role": "weighting in ICM loss",
+        "learnable": false
+      },
+      {
+        "name": "inverse_loss coef",
+        "value": "1.0",
+        "role": "weighting in ICM loss",
+        "learnable": false
+      },
+      {
+        "name": "advantage mix",
+        "value": "ext_coef*A_ext + int_coef*A_int",
+        "role": "policy uses combined advantage",
+        "learnable": false
+      }
     ],
     "diff_from_baseline": "Pathak et al., \"Curiosity-driven Exploration by Self-supervised Prediction\" (ICML 2017). Learns a feature space invariant to uncontrollable dynamics via the inverse model and uses forward-prediction error in that space as the intrinsic reward.",
     "confidence": "high"
@@ -40,8 +106,18 @@
     "kind": "pseudocode",
     "pseudocode": "1. `compute_bonus(obs, next_obs, a) = 0`.\n2. `normalize_rollout_rewards(r) = 0`.\n3. `loss(...) = 0` (no parameters trained for bonus).\n4. `mix_advantages(A_ext, A_int) = ext_coef * A_ext` (A_int is dropped).\n5. PPO actor + critic update is the only training signal.",
     "key_hyperparams": [
-      {"name": "trainable params", "value": "0", "role": "no bonus module to optimize", "learnable": false},
-      {"name": "advantage mix", "value": "ext_coef * A_ext", "role": "intrinsic stream ignored", "learnable": false}
+      {
+        "name": "trainable params",
+        "value": "0",
+        "role": "no bonus module to optimize",
+        "learnable": false
+      },
+      {
+        "name": "advantage mix",
+        "value": "ext_coef * A_ext",
+        "role": "intrinsic stream ignored",
+        "learnable": false
+      }
     ],
     "diff_from_baseline": "Schulman et al., PPO (2017) on Atari (CleanRL ppo_atari_envpool). Reference comparator with no intrinsic exploration — measures how far policy gradient gets on sparse-reward Atari without any novelty signal.",
     "confidence": "high"
@@ -54,29 +130,98 @@
     "formula": "$$\\phi^\\star = T_{\\text{rand}}(\\bar{o}),\\;\\; \\hat\\phi = P_\\theta(\\bar{o});\\quad r^{\\text{int}}_t = \\tfrac{1}{2}\\|\\hat\\phi(\\bar{o}_{t+1}) - \\phi^\\star(\\bar{o}_{t+1})\\|_2^2$$\n$$\\mathcal{L}_{\\text{RND}} = \\frac{\\sum_i m_i\\,\\mathrm{MSE}(\\hat\\phi_i, \\phi^\\star_i)}{\\max(1,\\sum m_i)},\\;\\; m_i \\sim \\mathrm{Bernoulli}(p_{\\text{update}})$$",
     "diagram": {
       "nodes": [
-        {"id": "obs", "label": "Last frame (84x84)"},
-        {"id": "norm", "label": "Normalize (obs_rms, clip ±5)"},
-        {"id": "tgt", "label": "Target Conv 32-64-64 + 512 (frozen)"},
-        {"id": "pred", "label": "Predictor Conv 32-64-64 + 512-512-512"},
-        {"id": "mse", "label": "1/2 ||pred - target||^2"},
-        {"id": "rew", "label": "Rew norm via reward_rms"},
-        {"id": "mix", "label": "ext_coef * A_ext + int_coef * A_int"}
+        {
+          "id": "obs",
+          "label": "Last frame (84x84)",
+          "kind": "tensor"
+        },
+        {
+          "id": "norm",
+          "label": "Normalize (obs_rms, clip ±5)",
+          "kind": "norm"
+        },
+        {
+          "id": "tgt",
+          "label": "Target Conv 32-64-64 + 512 (frozen)",
+          "kind": "conv"
+        },
+        {
+          "id": "pred",
+          "label": "Predictor Conv 32-64-64 + 512-512-512",
+          "kind": "conv"
+        },
+        {
+          "id": "mse",
+          "label": "1/2 ||pred - target||^2",
+          "kind": "op"
+        },
+        {
+          "id": "rew",
+          "label": "Rew norm via reward_rms",
+          "kind": "norm"
+        },
+        {
+          "id": "mix",
+          "label": "ext_coef * A_ext + int_coef * A_int",
+          "kind": "op"
+        }
       ],
       "edges": [
-        {"from": "obs", "to": "norm"},
-        {"from": "norm", "to": "tgt"},
-        {"from": "norm", "to": "pred"},
-        {"from": "tgt", "to": "mse"},
-        {"from": "pred", "to": "mse"},
-        {"from": "mse", "to": "rew"},
-        {"from": "rew", "to": "mix"}
+        {
+          "from": "obs",
+          "to": "norm"
+        },
+        {
+          "from": "norm",
+          "to": "tgt"
+        },
+        {
+          "from": "norm",
+          "to": "pred"
+        },
+        {
+          "from": "tgt",
+          "to": "mse"
+        },
+        {
+          "from": "pred",
+          "to": "mse"
+        },
+        {
+          "from": "mse",
+          "to": "rew"
+        },
+        {
+          "from": "rew",
+          "to": "mix"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "predictor LeakyReLU", "value": "Conv 32-64-64 + Lin 512x3", "role": "trainable prediction net", "learnable": true},
-      {"name": "target", "value": "frozen random Conv+Lin 512", "role": "fixed regression target", "learnable": false},
-      {"name": "update_proportion", "value": "args.update_proportion", "role": "Bernoulli mask on per-sample loss", "learnable": false},
-      {"name": "rew norm", "value": "reward_rms via discounted forward filter", "role": "scale-stabilize int rewards", "learnable": false}
+      {
+        "name": "predictor LeakyReLU",
+        "value": "Conv 32-64-64 + Lin 512x3",
+        "role": "trainable prediction net",
+        "learnable": true
+      },
+      {
+        "name": "target",
+        "value": "frozen random Conv+Lin 512",
+        "role": "fixed regression target",
+        "learnable": false
+      },
+      {
+        "name": "update_proportion",
+        "value": "args.update_proportion",
+        "role": "Bernoulli mask on per-sample loss",
+        "learnable": false
+      },
+      {
+        "name": "rew norm",
+        "value": "reward_rms via discounted forward filter",
+        "role": "scale-stabilize int rewards",
+        "learnable": false
+      }
     ],
     "diff_from_baseline": "Burda et al., \"Exploration by Random Network Distillation\" (ICLR 2019). Prediction error of a random target is high on novel observations, providing a stationary, parameter-free novelty signal; CleanRL ppo_rnd_envpool reference implementation.",
     "confidence": "high"

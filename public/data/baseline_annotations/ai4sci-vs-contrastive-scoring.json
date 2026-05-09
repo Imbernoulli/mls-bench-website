@@ -6,9 +6,24 @@
     "kind": "formula",
     "formula": "$$z_p = \\frac{W_p f_p}{\\|W_p f_p\\|_2},\\; z_m = \\frac{W_m f_m}{\\|W_m f_m\\|_2};\\quad \\mathcal{L} = -\\frac{1}{2N}\\sum_i \\log\\frac{e^{\\tau\\, z_{p,i}\\cdot z_{m,i}}}{\\sum_j e^{\\tau\\, z_{p,i}\\cdot z_{m,j}}} + (\\text{symmetric})$$",
     "key_hyperparams": [
-      {"name": "embed_dim", "value": "128", "role": "shared projection dim", "learnable": false},
-      {"name": "logit_scale", "value": "log(13)", "role": "init temperature", "learnable": true},
-      {"name": "proj_head", "value": "Linear-ReLU-Linear", "role": "non-linear projection", "learnable": true}
+      {
+        "name": "embed_dim",
+        "value": "128",
+        "role": "shared projection dim",
+        "learnable": false
+      },
+      {
+        "name": "logit_scale",
+        "value": "log(13)",
+        "role": "init temperature",
+        "learnable": true
+      },
+      {
+        "name": "proj_head",
+        "value": "Linear-ReLU-Linear",
+        "role": "non-linear projection",
+        "learnable": true
+      }
     ],
     "diff_from_baseline": "Gao et al., DrugCLIP (NeurIPS 2023). Standard CLIP-style symmetric contrastive on Euclidean unit-sphere embeddings; pocket-to-ligand and ligand-to-pocket softmax with shared temperature. The simplest contrastive virtual screening baseline; no activity-aware ranking or hierarchy.",
     "confidence": "high"
@@ -21,31 +36,107 @@
     "formula": "$$\\mathcal{L}_{\\text{HCC}} = \\mathcal{L}_{\\text{poc}\\to\\text{mol}} + \\mathcal{L}_{\\text{mol}\\to\\text{poc}} + \\mathcal{L}_{\\text{rank}},\\quad \\mathcal{L}_{\\text{rank}} = -\\sum_{i,k}\\frac{\\log \\mathrm{softmax}(s_{i,k} \\mid \\{s_{i,j}: a_{i,j} < a_{i,k}-\\log_{10}3\\})}{\\log(k+2)\\sqrt{L_i}}$$",
     "diagram": {
       "nodes": [
-        {"id": "feat", "label": "Pocket / Protein / Mol features"},
-        {"id": "proj", "label": "Linear-ReLU-Linear proj (128)"},
-        {"id": "norm", "label": "L2 normalize"},
-        {"id": "sim", "label": "logit_scale * dot product"},
-        {"id": "fn", "label": "Mask false negatives (uniprot, pocket-lig SMILES)"},
-        {"id": "ce", "label": "Pocket->Mol & Mol->Pocket NLL"},
-        {"id": "rank", "label": "Activity-aware DCG ranking"},
-        {"id": "sum", "label": "Sum over both pathways"}
+        {
+          "id": "feat",
+          "label": "Pocket / Protein / Mol features",
+          "kind": "tensor"
+        },
+        {
+          "id": "proj",
+          "label": "Linear-ReLU-Linear proj (128)",
+          "kind": "ffn"
+        },
+        {
+          "id": "norm",
+          "label": "L2 normalize",
+          "kind": "norm"
+        },
+        {
+          "id": "sim",
+          "label": "logit_scale * dot product",
+          "kind": "op"
+        },
+        {
+          "id": "fn",
+          "label": "Mask false negatives (uniprot, pocket-lig SMILES)",
+          "kind": "op"
+        },
+        {
+          "id": "ce",
+          "label": "Pocket->Mol & Mol->Pocket NLL",
+          "kind": "loss"
+        },
+        {
+          "id": "rank",
+          "label": "Activity-aware DCG ranking",
+          "kind": "loss"
+        },
+        {
+          "id": "sum",
+          "label": "Sum over both pathways",
+          "kind": "op"
+        }
       ],
       "edges": [
-        {"from": "feat", "to": "proj"},
-        {"from": "proj", "to": "norm"},
-        {"from": "norm", "to": "sim"},
-        {"from": "sim", "to": "fn"},
-        {"from": "fn", "to": "ce"},
-        {"from": "fn", "to": "rank"},
-        {"from": "ce", "to": "sum"},
-        {"from": "rank", "to": "sum"}
+        {
+          "from": "feat",
+          "to": "proj"
+        },
+        {
+          "from": "proj",
+          "to": "norm"
+        },
+        {
+          "from": "norm",
+          "to": "sim"
+        },
+        {
+          "from": "sim",
+          "to": "fn"
+        },
+        {
+          "from": "fn",
+          "to": "ce"
+        },
+        {
+          "from": "fn",
+          "to": "rank"
+        },
+        {
+          "from": "ce",
+          "to": "sum"
+        },
+        {
+          "from": "rank",
+          "to": "sum"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "embed_dim", "value": "128", "role": "projection dim", "learnable": false},
-      {"name": "logit_scale", "value": "log(13)", "role": "temperature", "learnable": true},
-      {"name": "rank_threshold", "value": "log10(3)", "role": "activity gap to consider negative for ranking", "learnable": false},
-      {"name": "pathway", "value": "pocket+protein", "role": "two parallel HCC losses summed", "learnable": false}
+      {
+        "name": "embed_dim",
+        "value": "128",
+        "role": "projection dim",
+        "learnable": false
+      },
+      {
+        "name": "logit_scale",
+        "value": "log(13)",
+        "role": "temperature",
+        "learnable": true
+      },
+      {
+        "name": "rank_threshold",
+        "value": "log10(3)",
+        "role": "activity gap to consider negative for ranking",
+        "learnable": false
+      },
+      {
+        "name": "pathway",
+        "value": "pocket+protein",
+        "role": "two parallel HCC losses summed",
+        "learnable": false
+      }
     ],
     "diff_from_baseline": "HypSeek (Wang et al., AAAI 2026 / arXiv:2508.15480) — Euclidean ablation. Adds activity-aware DCG-weighted ranking term (1/log(rank+2)) and pocket-list normalization 1/sqrt(L_i) on top of vanilla CLIP, with false-negative masking via shared UniProt id and pocket-ligand SMILES sets.",
     "confidence": "high"
@@ -58,35 +149,127 @@
     "formula": "$$h = \\exp^{\\kappa}_{0}(\\alpha\\, W f),\\;\\; \\mathcal{L} = \\mathcal{L}_{\\text{HCC}}^{\\text{poc}} + \\mathcal{L}_{\\text{HCC}}^{\\text{prot}} + \\gamma_{\\text{chl}}\\big(\\lambda_r\\,\\mathrm{ReLU}(d-r_k) + \\lambda_a\\,\\mathrm{ReLU}(\\phi - \\eta_k\\omega)\\big) + \\lambda_{\\text{ang}}R_{\\text{ang}} + \\lambda_{\\text{het}}R_{\\text{het}}$$",
     "diagram": {
       "nodes": [
-        {"id": "feat", "label": "Pocket/Protein/Mol features"},
-        {"id": "proj", "label": "Linear-ReLU-Linear * exp(alpha)"},
-        {"id": "lor", "label": "exp_map0 -> Lorentz hyperboloid"},
-        {"id": "hcc", "label": "HCC pocket+protein pathways"},
-        {"id": "cone", "label": "Cone hierarchy: radial(d-r_k)+angular(phi-eta*omega)"},
-        {"id": "areg", "label": "Angular margin reg R_ang"},
-        {"id": "het", "label": "Heterogeneous rank-weighted reg R_het"},
-        {"id": "sum", "label": "Total loss"}
+        {
+          "id": "feat",
+          "label": "Pocket/Protein/Mol features",
+          "kind": "tensor"
+        },
+        {
+          "id": "proj",
+          "label": "Linear-ReLU-Linear * exp(alpha)",
+          "kind": "ffn"
+        },
+        {
+          "id": "lor",
+          "label": "exp_map0 -> Lorentz hyperboloid",
+          "kind": "op"
+        },
+        {
+          "id": "hcc",
+          "label": "HCC pocket+protein pathways",
+          "kind": "loss"
+        },
+        {
+          "id": "cone",
+          "label": "Cone hierarchy: radial(d-r_k)+angular(phi-eta*omega)",
+          "kind": "loss"
+        },
+        {
+          "id": "areg",
+          "label": "Angular margin reg R_ang",
+          "kind": "loss"
+        },
+        {
+          "id": "het",
+          "label": "Heterogeneous rank-weighted reg R_het",
+          "kind": "loss"
+        },
+        {
+          "id": "sum",
+          "label": "Total loss",
+          "kind": "loss"
+        }
       ],
       "edges": [
-        {"from": "feat", "to": "proj"},
-        {"from": "proj", "to": "lor"},
-        {"from": "lor", "to": "hcc"},
-        {"from": "lor", "to": "cone"},
-        {"from": "lor", "to": "areg"},
-        {"from": "lor", "to": "het"},
-        {"from": "hcc", "to": "sum"},
-        {"from": "cone", "to": "sum"},
-        {"from": "areg", "to": "sum"},
-        {"from": "het", "to": "sum"}
+        {
+          "from": "feat",
+          "to": "proj"
+        },
+        {
+          "from": "proj",
+          "to": "lor"
+        },
+        {
+          "from": "lor",
+          "to": "hcc"
+        },
+        {
+          "from": "lor",
+          "to": "cone"
+        },
+        {
+          "from": "lor",
+          "to": "areg"
+        },
+        {
+          "from": "lor",
+          "to": "het"
+        },
+        {
+          "from": "hcc",
+          "to": "sum"
+        },
+        {
+          "from": "cone",
+          "to": "sum"
+        },
+        {
+          "from": "areg",
+          "to": "sum"
+        },
+        {
+          "from": "het",
+          "to": "sum"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "kappa", "value": "exp(curv)∈[0.1,10]", "role": "Lorentz curvature", "learnable": true},
-      {"name": "alpha", "value": "exp(alpha)≤1", "role": "per-modality scale", "learnable": true},
-      {"name": "gamma_chl", "value": "0.1", "role": "cone weight", "learnable": false},
-      {"name": "lambda_rad/ang", "value": "0.5/0.5", "role": "radial/angular cone weights", "learnable": false},
-      {"name": "lambda_het", "value": "0.10", "role": "heterogeneous reg", "learnable": false},
-      {"name": "beta", "value": "80.5", "role": "het exponential rank decay", "learnable": false}
+      {
+        "name": "kappa",
+        "value": "exp(curv)∈[0.1,10]",
+        "role": "Lorentz curvature",
+        "learnable": true
+      },
+      {
+        "name": "alpha",
+        "value": "exp(alpha)≤1",
+        "role": "per-modality scale",
+        "learnable": true
+      },
+      {
+        "name": "gamma_chl",
+        "value": "0.1",
+        "role": "cone weight",
+        "learnable": false
+      },
+      {
+        "name": "lambda_rad/ang",
+        "value": "0.5/0.5",
+        "role": "radial/angular cone weights",
+        "learnable": false
+      },
+      {
+        "name": "lambda_het",
+        "value": "0.10",
+        "role": "heterogeneous reg",
+        "learnable": false
+      },
+      {
+        "name": "beta",
+        "value": "80.5",
+        "role": "het exponential rank decay",
+        "learnable": false
+      }
     ],
     "diff_from_baseline": "HypSeek full (Wang et al., AAAI 2026). Adds Lorentz hyperboloid embedding (exp_map0 with learnable curvature), cone hierarchy losses (bounded radial distance and entailment angle vs half-aperture per activity bucket), angular margin and rank-weighted heterogeneous regularization on top of HCC. Strongest baseline.",
     "confidence": "high"

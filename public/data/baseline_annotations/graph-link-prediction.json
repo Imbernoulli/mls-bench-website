@@ -6,25 +6,74 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Node features X"},
-        {"id": "gcn", "label": "GCN×L (BN, ReLU, dropout)"},
-        {"id": "z", "label": "Embeddings Z"},
-        {"id": "pair", "label": "[z_u, z_v, z_u⊙z_v]"},
-        {"id": "mlp", "label": "MLP decoder (3 layers)"},
-        {"id": "score", "label": "Edge score"}
+        {
+          "id": "x",
+          "label": "Node features X",
+          "kind": "tensor"
+        },
+        {
+          "id": "gcn",
+          "label": "GCN×L (BN, ReLU, dropout)",
+          "kind": "op"
+        },
+        {
+          "id": "z",
+          "label": "Embeddings Z",
+          "kind": "tensor"
+        },
+        {
+          "id": "pair",
+          "label": "[z_u, z_v, z_u⊙z_v]",
+          "kind": "concat"
+        },
+        {
+          "id": "mlp",
+          "label": "MLP decoder (3 layers)",
+          "kind": "ffn"
+        },
+        {
+          "id": "score",
+          "label": "Edge score",
+          "kind": "tensor"
+        }
       ],
       "edges": [
-        {"from": "x", "to": "gcn"},
-        {"from": "gcn", "to": "z"},
-        {"from": "z", "to": "pair"},
-        {"from": "pair", "to": "mlp"},
-        {"from": "mlp", "to": "score"}
+        {
+          "from": "x",
+          "to": "gcn"
+        },
+        {
+          "from": "gcn",
+          "to": "z"
+        },
+        {
+          "from": "z",
+          "to": "pair"
+        },
+        {
+          "from": "pair",
+          "to": "mlp"
+        },
+        {
+          "from": "mlp",
+          "to": "score"
+        }
       ]
     },
     "formula": "$$s(u,v) = \\mathrm{MLP}\\big([z_u\\;\\|\\;z_v\\;\\|\\;z_u \\odot z_v]\\big),\\quad Z = \\mathrm{GCN}_L(X, A)$$",
     "key_hyperparams": [
-      {"name": "hidden", "value": "256", "role": "embedding/MLP width", "learnable": false},
-      {"name": "L", "value": "2", "role": "GCN layers", "learnable": false}
+      {
+        "name": "hidden",
+        "value": "256",
+        "role": "embedding/MLP width",
+        "learnable": false
+      },
+      {
+        "name": "L",
+        "value": "2",
+        "role": "GCN layers",
+        "learnable": false
+      }
     ],
     "diff_from_baseline": "Kipf & Welling 2017 GCN encoder + standard OGB MLP-decoder link predictor. Concatenated pair features (source, target, Hadamard) feed a small MLP; default OGB link-prediction reference for citation/coauthorship graphs.",
     "confidence": "high"
@@ -36,25 +85,74 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "X, edge_index"},
-        {"id": "enc", "label": "GCN×L + BN"},
-        {"id": "z", "label": "Z"},
-        {"id": "feat", "label": "[z_u, z_v, z_u⊙z_v, |z_u-z_v|]"},
-        {"id": "dec", "label": "MLP decoder"},
-        {"id": "score", "label": "Edge score"}
+        {
+          "id": "x",
+          "label": "X, edge_index",
+          "kind": "tensor"
+        },
+        {
+          "id": "enc",
+          "label": "GCN×L + BN",
+          "kind": "op"
+        },
+        {
+          "id": "z",
+          "label": "Z",
+          "kind": "tensor"
+        },
+        {
+          "id": "feat",
+          "label": "[z_u, z_v, z_u⊙z_v, |z_u-z_v|]",
+          "kind": "concat"
+        },
+        {
+          "id": "dec",
+          "label": "MLP decoder",
+          "kind": "ffn"
+        },
+        {
+          "id": "score",
+          "label": "Edge score",
+          "kind": "tensor"
+        }
       ],
       "edges": [
-        {"from": "x", "to": "enc"},
-        {"from": "enc", "to": "z"},
-        {"from": "z", "to": "feat"},
-        {"from": "feat", "to": "dec"},
-        {"from": "dec", "to": "score"}
+        {
+          "from": "x",
+          "to": "enc"
+        },
+        {
+          "from": "enc",
+          "to": "z"
+        },
+        {
+          "from": "z",
+          "to": "feat"
+        },
+        {
+          "from": "feat",
+          "to": "dec"
+        },
+        {
+          "from": "dec",
+          "to": "score"
+        }
       ]
     },
     "formula": "$$s(u,v) = \\mathrm{MLP}\\big([z_u\\;\\|\\;z_v\\;\\|\\;z_u\\odot z_v\\;\\|\\;|z_u-z_v|]\\big)$$",
     "key_hyperparams": [
-      {"name": "hidden", "value": "256", "role": "embedding/MLP width", "learnable": false},
-      {"name": "pair feats", "value": "concat+Hadamard+|Δ|", "role": "structural pair vector", "learnable": false}
+      {
+        "name": "hidden",
+        "value": "256",
+        "role": "embedding/MLP width",
+        "learnable": false
+      },
+      {
+        "name": "pair feats",
+        "value": "concat+Hadamard+|Δ|",
+        "role": "structural pair vector",
+        "learnable": false
+      }
     ],
     "diff_from_baseline": "Zhang & Chen, NeurIPS 2018 — SEAL. Original method extracts k-hop enclosing subgraphs with DRNL labelling; this baseline approximates that with a richer pairwise feature decoder (adding |z_u-z_v|) over a GCN encoder, avoiding subgraph extraction.",
     "confidence": "high"
@@ -66,28 +164,87 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "X, A"},
-        {"id": "gcn", "label": "Shared GCN"},
-        {"id": "mu", "label": "μ head"},
-        {"id": "logstd", "label": "log σ head"},
-        {"id": "z", "label": "z = μ + σ·ε"},
-        {"id": "dec", "label": "z_u · z_v"},
-        {"id": "score", "label": "Edge score (+KL)"}
+        {
+          "id": "x",
+          "label": "X, A",
+          "kind": "tensor"
+        },
+        {
+          "id": "gcn",
+          "label": "Shared GCN",
+          "kind": "op"
+        },
+        {
+          "id": "mu",
+          "label": "μ head",
+          "kind": "linear"
+        },
+        {
+          "id": "logstd",
+          "label": "log σ head",
+          "kind": "linear"
+        },
+        {
+          "id": "z",
+          "label": "z = μ + σ·ε",
+          "kind": "tensor"
+        },
+        {
+          "id": "dec",
+          "label": "z_u · z_v",
+          "kind": "op"
+        },
+        {
+          "id": "score",
+          "label": "Edge score (+KL)",
+          "kind": "tensor"
+        }
       ],
       "edges": [
-        {"from": "x", "to": "gcn"},
-        {"from": "gcn", "to": "mu"},
-        {"from": "gcn", "to": "logstd"},
-        {"from": "mu", "to": "z"},
-        {"from": "logstd", "to": "z"},
-        {"from": "z", "to": "dec"},
-        {"from": "dec", "to": "score"}
+        {
+          "from": "x",
+          "to": "gcn"
+        },
+        {
+          "from": "gcn",
+          "to": "mu"
+        },
+        {
+          "from": "gcn",
+          "to": "logstd"
+        },
+        {
+          "from": "mu",
+          "to": "z"
+        },
+        {
+          "from": "logstd",
+          "to": "z"
+        },
+        {
+          "from": "z",
+          "to": "dec"
+        },
+        {
+          "from": "dec",
+          "to": "score"
+        }
       ]
     },
     "formula": "$$s(u,v) = z_u^\\top z_v + w_{KL}\\,\\mathrm{KL}\\big(q(Z\\mid X,A)\\,\\|\\,\\mathcal{N}(0,I)\\big)/N$$",
     "key_hyperparams": [
-      {"name": "kl_weight", "value": "0.005", "role": "KL regularisation strength", "learnable": false},
-      {"name": "hidden", "value": "256", "role": "latent dim", "learnable": false}
+      {
+        "name": "kl_weight",
+        "value": "0.005",
+        "role": "KL regularisation strength",
+        "learnable": false
+      },
+      {
+        "name": "hidden",
+        "value": "256",
+        "role": "latent dim",
+        "learnable": false
+      }
     ],
     "diff_from_baseline": "Kipf & Welling, NeurIPS-W 2016 — Variational Graph Auto-Encoders. Stochastic GCN encoder + dot-product decoder; KL term injected into per-edge scores so it backprops through the encoder. Canonical generative link-prediction baseline.",
     "confidence": "high"

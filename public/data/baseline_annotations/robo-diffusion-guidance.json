@@ -23,12 +23,12 @@
     "pseudocode": "1. Train DiT1d on observations only (not obs+act) with continuous-time SDE\n2. Condition on normalized return via MLPCondition with label dropout (CFG)\n3. Train inverse dynamics MLP $\\hat{a}_t = \\text{InvDyn}(s_t, s_{t+1})$ with Tanh output\n4. Inference: sample state trajectory $\\tau \\sim p_\\theta(\\tau \\,|\\, R_{\\text{target}})$ via solver with $w_{cfg}$\n5. Use $a_t = \\text{InvDyn}(\\text{obs}, \\tau_{1})$ to recover the executed action\n6. No candidate re-ranking; placeholders for logp/idx",
     "diagram": {
       "nodes": [
-        {"id": "ret", "label": "target return"},
-        {"id": "cond", "label": "MLPCondition (label dropout)"},
-        {"id": "dit", "label": "DiT1d (state-only)"},
-        {"id": "sde", "label": "ContinuousDiffusionSDE"},
-        {"id": "inv", "label": "MlpInvDynamic (s, s') -> a"},
-        {"id": "act", "label": "act"}
+        {"id": "ret", "label": "target return", "kind": "tensor"},
+        {"id": "cond", "label": "MLPCondition (label dropout)", "kind": "ffn"},
+        {"id": "dit", "label": "DiT1d (state-only)", "kind": "attn"},
+        {"id": "sde", "label": "ContinuousDiffusionSDE", "kind": "op"},
+        {"id": "inv", "label": "MlpInvDynamic (s, s') -> a", "kind": "ffn"},
+        {"id": "act", "label": "act", "kind": "tensor"}
       ],
       "edges": [
         {"from": "ret", "to": "cond"},

@@ -45,7 +45,7 @@
     "name": "R-Learner",
     "tagline": "Robinson-decomposition meta-learner: regress Y residual on T residual times tau(X) with weights $\\tilde T^2$.",
     "kind": "formula",
-    "formula": "$$\\hat\\tau = \\arg\\min_\\tau \\sum_i \\big(Y_i-\\hat m(X_i)\\big) - \\big(T_i-\\hat e(X_i)\\big)\\,\\tau(X_i)\\big)^2,\\quad \\text{equivalently use pseudo } \\tilde Y_i/\\tilde T_i \\text{ with weight } \\tilde T_i^2$$",
+    "formula": "$$\\hat\\tau = \\arg\\min_\\tau \\sum_i \\big((Y_i-\\hat m(X_i)) - (T_i-\\hat e(X_i))\\,\\tau(X_i)\\big)^2,\\quad \\text{equivalently use pseudo } \\tilde Y_i/\\tilde T_i \\text{ with weight } \\tilde T_i^2$$",
     "key_hyperparams": [
       {"name": "K-folds", "value": "5", "role": "cross-fit $\\hat m, \\hat e$", "learnable": false},
       {"name": "propensity clip", "value": "[0.05, 0.95]", "role": "denominator stability", "learnable": false},

@@ -6,11 +6,36 @@
     "kind": "pseudocode",
     "pseudocode": "// Per transition x:\n// 1. h <- x\n// 2. for each (fc_i, ln_i, se1_i, se2_i):\n// 3.   h_new <- ReLU(fc_i(h))\n// 4.   $\\alpha$ <- $\\sigma(W_{se2}\\,\\mathrm{ReLU}(W_{se1} h_{new}))$  // SE gate (bottleneck d_h/4)\n// 5.   h_new <- h_new $\\odot$ $\\alpha$\n// 6.   h <- ln_i(h + h_new) if dims match else ln_i(h_new)\n// 7. return last_fc(h)  // per-transition Gaussian params (PoG aggregated by agent)",
     "key_hyperparams": [
-      {"name": "hidden_sizes", "value": "PEARL default (200,200,200)", "role": "MLP trunk widths", "learnable": false},
-      {"name": "se_bottleneck_ratio", "value": "1/4", "role": "SE gate bottleneck size = d_h//4", "learnable": false},
-      {"name": "norm", "value": "LayerNorm", "role": "post-residual normalization", "learnable": false},
-      {"name": "init_w", "value": "3e-3", "role": "uniform init range for output linear", "learnable": false},
-      {"name": "hidden_bias_fill", "value": "0.1", "role": "trunk fc bias init", "learnable": false}
+      {
+        "name": "hidden_sizes",
+        "value": "PEARL default (200,200,200)",
+        "role": "MLP trunk widths",
+        "learnable": false
+      },
+      {
+        "name": "se_bottleneck_ratio",
+        "value": "1/4",
+        "role": "SE gate bottleneck size = d_h//4",
+        "learnable": false
+      },
+      {
+        "name": "norm",
+        "value": "LayerNorm",
+        "role": "post-residual normalization",
+        "learnable": false
+      },
+      {
+        "name": "init_w",
+        "value": "3e-3",
+        "role": "uniform init range for output linear",
+        "learnable": false
+      },
+      {
+        "name": "hidden_bias_fill",
+        "value": "0.1",
+        "role": "trunk fc bias init",
+        "learnable": false
+      }
     ],
     "init_recovers": "MLP encoder baseline when SE gate -> 1 and residual is removed",
     "diff_from_baseline": "Augments the mlp_encoder baseline with a per-layer Squeeze-Excitation feature gate (sigmoid bottleneck on the post-activation) and adds residual + LayerNorm around each block, while keeping per-transition outputs for product-of-Gaussians aggregation.",
@@ -24,32 +49,115 @@
     "formula": "$$ h = \\mathrm{MLP}(x) + \\mathrm{PE}(\\text{seq}), \\quad P \\in \\mathbb{R}^{4\\times d}\\;(\\text{learnable}) $$\n$$ h \\leftarrow \\mathrm{LN}\\!\\big(h + \\mathrm{MHA}_{2}(Q\\!=\\!h, K\\!=\\!P, V\\!=\\!P)\\big),\\;\\; h \\leftarrow \\mathrm{LN}(h + \\mathrm{FFN}_{2d}(h)) $$\n$$ \\text{out}_t = W_o h_t $$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "(s,a,r,s')"},
-        {"id": "mlp", "label": "MLP embed"},
-        {"id": "pe", "label": "+ sinusoidal PE"},
-        {"id": "proto", "label": "4 learnable prototypes"},
-        {"id": "xattn", "label": "MHA (Q=h, K=V=P)"},
-        {"id": "ln1", "label": "LN + residual"},
-        {"id": "ffn", "label": "FFN 2x"},
-        {"id": "out", "label": "per-token Gaussian"}
+        {
+          "id": "x",
+          "label": "(s,a,r,s')",
+          "kind": "tensor"
+        },
+        {
+          "id": "mlp",
+          "label": "MLP embed",
+          "kind": "ffn"
+        },
+        {
+          "id": "pe",
+          "label": "+ sinusoidal PE",
+          "kind": "pos"
+        },
+        {
+          "id": "proto",
+          "label": "4 learnable prototypes",
+          "kind": "param"
+        },
+        {
+          "id": "xattn",
+          "label": "MHA (Q=h, K=V=P)",
+          "kind": "attn"
+        },
+        {
+          "id": "ln1",
+          "label": "LN + residual",
+          "kind": "norm"
+        },
+        {
+          "id": "ffn",
+          "label": "FFN 2x",
+          "kind": "ffn"
+        },
+        {
+          "id": "out",
+          "label": "per-token Gaussian",
+          "kind": "tensor"
+        }
       ],
       "edges": [
-        {"from": "x", "to": "mlp"},
-        {"from": "mlp", "to": "pe"},
-        {"from": "pe", "to": "xattn"},
-        {"from": "proto", "to": "xattn"},
-        {"from": "xattn", "to": "ln1"},
-        {"from": "ln1", "to": "ffn"},
-        {"from": "ffn", "to": "out"}
+        {
+          "from": "x",
+          "to": "mlp"
+        },
+        {
+          "from": "mlp",
+          "to": "pe"
+        },
+        {
+          "from": "pe",
+          "to": "xattn"
+        },
+        {
+          "from": "proto",
+          "to": "xattn"
+        },
+        {
+          "from": "xattn",
+          "to": "ln1"
+        },
+        {
+          "from": "ln1",
+          "to": "ffn"
+        },
+        {
+          "from": "ffn",
+          "to": "out"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "num_prototypes", "value": "4", "role": "learnable task prototypes K=V", "learnable": true},
-      {"name": "num_heads", "value": "2", "role": "MHA heads", "learnable": false},
-      {"name": "hidden_dim", "value": "hidden_sizes[-1]", "role": "embedding/attention width", "learnable": false},
-      {"name": "ffn_expansion", "value": "2x", "role": "post-attention FFN width", "learnable": false},
-      {"name": "pos_encoding", "value": "sinusoidal (max 5000)", "role": "temporal order signal", "learnable": false},
-      {"name": "prototype_init_std", "value": "0.01", "role": "Gaussian init for P", "learnable": false}
+      {
+        "name": "num_prototypes",
+        "value": "4",
+        "role": "learnable task prototypes K=V",
+        "learnable": true
+      },
+      {
+        "name": "num_heads",
+        "value": "2",
+        "role": "MHA heads",
+        "learnable": false
+      },
+      {
+        "name": "hidden_dim",
+        "value": "hidden_sizes[-1]",
+        "role": "embedding/attention width",
+        "learnable": false
+      },
+      {
+        "name": "ffn_expansion",
+        "value": "2x",
+        "role": "post-attention FFN width",
+        "learnable": false
+      },
+      {
+        "name": "pos_encoding",
+        "value": "sinusoidal (max 5000)",
+        "role": "temporal order signal",
+        "learnable": false
+      },
+      {
+        "name": "prototype_init_std",
+        "value": "0.01",
+        "role": "Gaussian init for P",
+        "learnable": false
+      }
     ],
     "init_recovers": "near-MLP baseline when prototypes are zero (cross-attention contributes ~0)",
     "diff_from_baseline": "Replaces self-attention or recurrent context with a transformer block whose keys/values are 4 learnable task prototypes, plus sinusoidal positional encoding and a 2x FFN; outputs are still per-transition for PoG.",
@@ -63,30 +171,103 @@
     "formula": "$$ h_i = \\mathrm{MLP}(x_i),\\;\\; H = \\mathrm{LN}(H + \\mathrm{MHA}_4(H,H,H)) $$\n$$ \\bar h = \\tfrac{1}{N}\\sum_i h_i,\\;\\; (\\mu, \\log\\sigma^2) = W_o \\bar h $$\n$$ \\text{out}_i = (\\mu,\\;\\log\\sigma^2 + \\log N)\\quad\\forall i $$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x_i"},
-        {"id": "mlp", "label": "MLP per-trans"},
-        {"id": "attn", "label": "self-MHA 4h"},
-        {"id": "ln", "label": "LN + residual"},
-        {"id": "pool", "label": "mean over N"},
-        {"id": "head", "label": "W_o → (mu, logvar)"},
-        {"id": "fix", "label": "logvar += log N"},
-        {"id": "out", "label": "broadcast x N"}
+        {
+          "id": "x",
+          "label": "x_i",
+          "kind": "tensor"
+        },
+        {
+          "id": "mlp",
+          "label": "MLP per-trans",
+          "kind": "ffn"
+        },
+        {
+          "id": "attn",
+          "label": "self-MHA 4h",
+          "kind": "attn"
+        },
+        {
+          "id": "ln",
+          "label": "LN + residual",
+          "kind": "norm"
+        },
+        {
+          "id": "pool",
+          "label": "mean over N",
+          "kind": "op"
+        },
+        {
+          "id": "head",
+          "label": "W_o → (mu, logvar)",
+          "kind": "linear"
+        },
+        {
+          "id": "fix",
+          "label": "logvar += log N",
+          "kind": "op"
+        },
+        {
+          "id": "out",
+          "label": "broadcast x N",
+          "kind": "tensor"
+        }
       ],
       "edges": [
-        {"from": "x", "to": "mlp"},
-        {"from": "mlp", "to": "attn"},
-        {"from": "attn", "to": "ln"},
-        {"from": "ln", "to": "pool"},
-        {"from": "pool", "to": "head"},
-        {"from": "head", "to": "fix"},
-        {"from": "fix", "to": "out"}
+        {
+          "from": "x",
+          "to": "mlp"
+        },
+        {
+          "from": "mlp",
+          "to": "attn"
+        },
+        {
+          "from": "attn",
+          "to": "ln"
+        },
+        {
+          "from": "ln",
+          "to": "pool"
+        },
+        {
+          "from": "pool",
+          "to": "head"
+        },
+        {
+          "from": "head",
+          "to": "fix"
+        },
+        {
+          "from": "fix",
+          "to": "out"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "num_heads", "value": "4", "role": "self-attention heads", "learnable": false},
-      {"name": "hidden_dim", "value": "hidden_sizes[-1]", "role": "MLP and attn width", "learnable": false},
-      {"name": "pool", "value": "mean over N", "role": "set summary before posterior", "learnable": false},
-      {"name": "logvar_correction", "value": "+log(N)", "role": "undo PoG variance over-shrinkage", "learnable": false}
+      {
+        "name": "num_heads",
+        "value": "4",
+        "role": "self-attention heads",
+        "learnable": false
+      },
+      {
+        "name": "hidden_dim",
+        "value": "hidden_sizes[-1]",
+        "role": "MLP and attn width",
+        "learnable": false
+      },
+      {
+        "name": "pool",
+        "value": "mean over N",
+        "role": "set summary before posterior",
+        "learnable": false
+      },
+      {
+        "name": "logvar_correction",
+        "value": "+log(N)",
+        "role": "undo PoG variance over-shrinkage",
+        "learnable": false
+      }
     ],
     "init_recovers": "attention_encoder baseline when pool is removed",
     "diff_from_baseline": "Generalises the attention_encoder by mean-pooling attended features into ONE Gaussian, broadcasting it to N copies, and adding $\\log N$ to logvar so PEARL's product-of-Gaussians aggregation does not falsely shrink variance.",
@@ -100,34 +281,125 @@
     "formula": "$$ h = \\mathrm{MLP}_2(x), \\quad (g, b) = W_{\\text{film}}(\\tanh r), \\quad h \\leftarrow h \\odot (1 + 0.5\\tanh g) + 0.5\\tanh b $$\n$$ y = W_{\\text{out}}(\\mathrm{ReLU}(h)) + 0.1\\,W_{\\text{skip}}(x), \\quad c = \\sigma(2|r|) $$\n$$ (\\mu, \\log\\sigma^2) = (c\\cdot y_{:d},\\; -5 + 6\\,\\sigma(y_{d:}) + (1-c)) $$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x = (s,a,r,...)"},
-        {"id": "mlp", "label": "2-layer MLP"},
-        {"id": "r", "label": "tanh(reward)"},
-        {"id": "film", "label": "FiLM (gamma, beta)"},
-        {"id": "out", "label": "W_out + 0.1 W_skip"},
-        {"id": "gate", "label": "c = sigmoid(2|r|)"},
-        {"id": "post", "label": "mu*c, logvar bounded"}
+        {
+          "id": "x",
+          "label": "x = (s,a,r,...)",
+          "kind": "tensor"
+        },
+        {
+          "id": "mlp",
+          "label": "2-layer MLP",
+          "kind": "ffn"
+        },
+        {
+          "id": "r",
+          "label": "tanh(reward)",
+          "kind": "act"
+        },
+        {
+          "id": "film",
+          "label": "FiLM (gamma, beta)",
+          "kind": "op"
+        },
+        {
+          "id": "out",
+          "label": "W_out + 0.1 W_skip",
+          "kind": "linear"
+        },
+        {
+          "id": "gate",
+          "label": "c = sigmoid(2|r|)",
+          "kind": "op"
+        },
+        {
+          "id": "post",
+          "label": "mu*c, logvar bounded",
+          "kind": "op"
+        }
       ],
       "edges": [
-        {"from": "x", "to": "mlp"},
-        {"from": "x", "to": "r"},
-        {"from": "r", "to": "film"},
-        {"from": "mlp", "to": "film"},
-        {"from": "film", "to": "out"},
-        {"from": "x", "to": "out", "label": "skip"},
-        {"from": "r", "to": "gate"},
-        {"from": "out", "to": "post"},
-        {"from": "gate", "to": "post"}
+        {
+          "from": "x",
+          "to": "mlp"
+        },
+        {
+          "from": "x",
+          "to": "r"
+        },
+        {
+          "from": "r",
+          "to": "film"
+        },
+        {
+          "from": "mlp",
+          "to": "film"
+        },
+        {
+          "from": "film",
+          "to": "out"
+        },
+        {
+          "from": "x",
+          "to": "out",
+          "label": "skip"
+        },
+        {
+          "from": "r",
+          "to": "gate"
+        },
+        {
+          "from": "out",
+          "to": "post"
+        },
+        {
+          "from": "gate",
+          "to": "post"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "trunk_depth", "value": "2", "role": "Linear-ReLU-Linear-ReLU MLP", "learnable": false},
-      {"name": "hidden", "value": "hidden_sizes[-1] (default 200)", "role": "MLP hidden", "learnable": false},
-      {"name": "film_input", "value": "tanh(r) (last feature)", "role": "modulation source", "learnable": false},
-      {"name": "film_clamp", "value": "0.5*tanh(g/b)", "role": "bounded modulation strength", "learnable": false},
-      {"name": "skip_weight", "value": "0.1", "role": "linear residual from raw input", "learnable": false},
-      {"name": "logvar_range", "value": "[-5, 1]", "role": "after sigmoid mapping", "learnable": false},
-      {"name": "confidence", "value": "sigmoid(2|r|)", "role": "scales mean and shifts logvar by (1-c)", "learnable": false}
+      {
+        "name": "trunk_depth",
+        "value": "2",
+        "role": "Linear-ReLU-Linear-ReLU MLP",
+        "learnable": false
+      },
+      {
+        "name": "hidden",
+        "value": "hidden_sizes[-1] (default 200)",
+        "role": "MLP hidden",
+        "learnable": false
+      },
+      {
+        "name": "film_input",
+        "value": "tanh(r) (last feature)",
+        "role": "modulation source",
+        "learnable": false
+      },
+      {
+        "name": "film_clamp",
+        "value": "0.5*tanh(g/b)",
+        "role": "bounded modulation strength",
+        "learnable": false
+      },
+      {
+        "name": "skip_weight",
+        "value": "0.1",
+        "role": "linear residual from raw input",
+        "learnable": false
+      },
+      {
+        "name": "logvar_range",
+        "value": "[-5, 1]",
+        "role": "after sigmoid mapping",
+        "learnable": false
+      },
+      {
+        "name": "confidence",
+        "value": "sigmoid(2|r|)",
+        "role": "scales mean and shifts logvar by (1-c)",
+        "learnable": false
+      }
     ],
     "init_recovers": "reward-conditioned MLP without FiLM/confidence when g,b -> 0 and c -> constant",
     "diff_from_baseline": "Replaces the plain MLP encoder with a FiLM-modulated MLP that uses the (last-feature) reward to gate features, adds a small linear input skip, and post-hoc rescales mean by a confidence c=σ(2|r|) plus shifts logvar by (1-c) and bounds it to [-5,1].",
@@ -140,12 +412,42 @@
     "kind": "pseudocode",
     "pseudocode": "// 1. x_0 <- input transition\n// 2. for each (fc_i, ln_i, proj_i):\n// 3.   res <- proj_i(x)              // identity if dim matches, linear else\n// 4.   x <- res + ReLU(ln_i(fc_i(x)))   // post-fc LN, residual\n// 5. $\\mu$ <- W_mean(x)\n// 6. $\\log\\sigma^2$ <- W_logvar(x)         // bias init = 0.5\n// 7. return concat($\\mu$, $\\log\\sigma^2$)  // per-transition Gaussian, PoG-aggregated",
     "key_hyperparams": [
-      {"name": "hidden_sizes", "value": "PEARL default (200,200,200)", "role": "MLP widths", "learnable": false},
-      {"name": "norm", "value": "LayerNorm post-fc", "role": "stabilises hidden statistics", "learnable": false},
-      {"name": "residual_proj", "value": "Linear when in_dim != h_dim, else Identity", "role": "shape-matching residual", "learnable": false},
-      {"name": "init_w", "value": "3e-3", "role": "uniform init for output heads", "learnable": false},
-      {"name": "logvar_bias_init", "value": "0.5", "role": "warm-start logvar slightly above 0", "learnable": false},
-      {"name": "split_heads", "value": "2 (mean, logvar)", "role": "explicit Gaussian param projection", "learnable": false}
+      {
+        "name": "hidden_sizes",
+        "value": "PEARL default (200,200,200)",
+        "role": "MLP widths",
+        "learnable": false
+      },
+      {
+        "name": "norm",
+        "value": "LayerNorm post-fc",
+        "role": "stabilises hidden statistics",
+        "learnable": false
+      },
+      {
+        "name": "residual_proj",
+        "value": "Linear when in_dim != h_dim, else Identity",
+        "role": "shape-matching residual",
+        "learnable": false
+      },
+      {
+        "name": "init_w",
+        "value": "3e-3",
+        "role": "uniform init for output heads",
+        "learnable": false
+      },
+      {
+        "name": "logvar_bias_init",
+        "value": "0.5",
+        "role": "warm-start logvar slightly above 0",
+        "learnable": false
+      },
+      {
+        "name": "split_heads",
+        "value": "2 (mean, logvar)",
+        "role": "explicit Gaussian param projection",
+        "learnable": false
+      }
     ],
     "init_recovers": "mlp_encoder baseline when residual coefficients zero",
     "diff_from_baseline": "Compared to the mlp_encoder baseline it adds per-layer LayerNorm, a residual connection (with shape-matching projection), and replaces the single output head with separate linear heads for mean and logvar (logvar bias initialised to 0.5).",

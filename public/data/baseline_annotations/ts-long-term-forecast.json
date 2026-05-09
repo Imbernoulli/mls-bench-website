@@ -6,13 +6,13 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Input window x ∈ ℝ^{L×C}"},
-        {"id": "ma", "label": "Moving-average decomp"},
-        {"id": "trend", "label": "Trend x_t"},
-        {"id": "seas", "label": "Seasonal x_s = x − x_t"},
-        {"id": "lin_t", "label": "Linear_T (L→H)"},
-        {"id": "lin_s", "label": "Linear_S (L→H)"},
-        {"id": "y", "label": "ŷ = ŷ_t + ŷ_s"}
+        {"id": "x", "label": "Input window x ∈ ℝ^{L×C}", "kind": "tensor"},
+        {"id": "ma", "label": "Moving-average decomp", "kind": "op"},
+        {"id": "trend", "label": "Trend x_t", "kind": "tensor"},
+        {"id": "seas", "label": "Seasonal x_s = x − x_t", "kind": "tensor"},
+        {"id": "lin_t", "label": "Linear_T (L→H)", "kind": "linear"},
+        {"id": "lin_s", "label": "Linear_S (L→H)", "kind": "linear"},
+        {"id": "y", "label": "ŷ = ŷ_t + ŷ_s", "kind": "add"}
       ],
       "edges": [
         {"from": "x", "to": "ma"},
@@ -39,13 +39,13 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x ∈ ℝ^{L×C}"},
-        {"id": "rin", "label": "RevIN normalize"},
-        {"id": "split", "label": "Per-channel split"},
-        {"id": "patch", "label": "Patchify (P=16, S=8)"},
-        {"id": "tx", "label": "Transformer encoder (channel-indep)"},
-        {"id": "head", "label": "Linear projection → H"},
-        {"id": "y", "label": "RevIN denorm → ŷ"}
+        {"id": "x", "label": "x ∈ ℝ^{L×C}", "kind": "tensor"},
+        {"id": "rin", "label": "RevIN normalize", "kind": "norm"},
+        {"id": "split", "label": "Per-channel split", "kind": "split"},
+        {"id": "patch", "label": "Patchify (P=16, S=8)", "kind": "op"},
+        {"id": "tx", "label": "Transformer encoder (channel-indep)", "kind": "attn"},
+        {"id": "head", "label": "Linear projection → H", "kind": "linear"},
+        {"id": "y", "label": "RevIN denorm → ŷ", "kind": "norm"}
       ],
       "edges": [
         {"from": "x", "to": "rin"},
@@ -71,12 +71,12 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Input x"},
-        {"id": "ms", "label": "Multi-scale downsampling"},
-        {"id": "pdm", "label": "Past-Decomposable-Mixing (bottom-up, season+trend)"},
-        {"id": "fmm", "label": "Future-Multipredictor-Mixing (top-down)"},
-        {"id": "agg", "label": "Aggregate scale heads"},
-        {"id": "y", "label": "ŷ"}
+        {"id": "x", "label": "Input x", "kind": "tensor"},
+        {"id": "ms", "label": "Multi-scale downsampling", "kind": "op"},
+        {"id": "pdm", "label": "Past-Decomposable-Mixing (bottom-up, season+trend)", "kind": "ffn"},
+        {"id": "fmm", "label": "Future-Multipredictor-Mixing (top-down)", "kind": "ffn"},
+        {"id": "agg", "label": "Aggregate scale heads", "kind": "op"},
+        {"id": "y", "label": "ŷ", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "ms"},
@@ -100,12 +100,12 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "endo", "label": "Endogenous series → patch tokens"},
-        {"id": "exo", "label": "Exogenous variates → global token"},
-        {"id": "self", "label": "Self-attention on patch tokens"},
-        {"id": "cross", "label": "Cross-attention (patch ⇄ global)"},
-        {"id": "ffn", "label": "FFN block"},
-        {"id": "head", "label": "Linear head → H"}
+        {"id": "endo", "label": "Endogenous series → patch tokens", "kind": "tensor"},
+        {"id": "exo", "label": "Exogenous variates → global token", "kind": "tensor"},
+        {"id": "self", "label": "Self-attention on patch tokens", "kind": "attn"},
+        {"id": "cross", "label": "Cross-attention (patch ⇄ global)", "kind": "attn"},
+        {"id": "ffn", "label": "FFN block", "kind": "ffn"},
+        {"id": "head", "label": "Linear head → H", "kind": "linear"}
       ],
       "edges": [
         {"from": "endo", "to": "self"},
@@ -129,12 +129,12 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x ∈ ℝ^{L×C}"},
-        {"id": "embed", "label": "Per-variate embedding (one token per channel)"},
-        {"id": "tx", "label": "Transformer encoder over C tokens"},
-        {"id": "ffn", "label": "Per-token FFN over time"},
-        {"id": "head", "label": "Linear → horizon H"},
-        {"id": "y", "label": "ŷ"}
+        {"id": "x", "label": "x ∈ ℝ^{L×C}", "kind": "tensor"},
+        {"id": "embed", "label": "Per-variate embedding (one token per channel)", "kind": "embed"},
+        {"id": "tx", "label": "Transformer encoder over C tokens", "kind": "attn"},
+        {"id": "ffn", "label": "Per-token FFN over time", "kind": "ffn"},
+        {"id": "head", "label": "Linear → horizon H", "kind": "linear"},
+        {"id": "y", "label": "ŷ", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "embed"},

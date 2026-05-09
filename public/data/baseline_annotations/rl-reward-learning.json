@@ -7,29 +7,98 @@
     "formula": "$$D(s,a,s')=\\frac{\\exp f}{\\exp f + \\pi(a|s)},\\quad f = g_\\phi(s,a)+\\gamma(1-d)h_\\psi(s')-h_\\psi(s);\\quad r_{\\text{PPO}} = \\mathrm{Norm}(f)$$",
     "diagram": {
       "nodes": [
-        {"id": "obs", "label": "(s, a, s', d)"},
-        {"id": "rms_in", "label": "RunningNorm(s, s')"},
-        {"id": "g", "label": "g_phi(s, a)"},
-        {"id": "h", "label": "h_psi(s)"},
-        {"id": "shape", "label": "f = g + gamma*(1-d)*h(s') - h(s)"},
-        {"id": "rms_out", "label": "RunningNorm(f)"},
-        {"id": "disc", "label": "Logit = raw_f - log pi(a|s) -> BCE"}
+        {
+          "id": "obs",
+          "label": "(s, a, s', d)",
+          "kind": "tensor"
+        },
+        {
+          "id": "rms_in",
+          "label": "RunningNorm(s, s')",
+          "kind": "norm"
+        },
+        {
+          "id": "g",
+          "label": "g_phi(s, a)",
+          "kind": "ffn"
+        },
+        {
+          "id": "h",
+          "label": "h_psi(s)",
+          "kind": "ffn"
+        },
+        {
+          "id": "shape",
+          "label": "f = g + gamma*(1-d)*h(s') - h(s)",
+          "kind": "tensor"
+        },
+        {
+          "id": "rms_out",
+          "label": "RunningNorm(f)",
+          "kind": "norm"
+        },
+        {
+          "id": "disc",
+          "label": "Logit = raw_f - log pi(a|s) -> BCE",
+          "kind": "loss"
+        }
       ],
       "edges": [
-        {"from": "obs", "to": "rms_in"},
-        {"from": "rms_in", "to": "g"},
-        {"from": "rms_in", "to": "h"},
-        {"from": "g", "to": "shape"},
-        {"from": "h", "to": "shape"},
-        {"from": "shape", "to": "rms_out"},
-        {"from": "shape", "to": "disc"}
+        {
+          "from": "obs",
+          "to": "rms_in"
+        },
+        {
+          "from": "rms_in",
+          "to": "g"
+        },
+        {
+          "from": "rms_in",
+          "to": "h"
+        },
+        {
+          "from": "g",
+          "to": "shape"
+        },
+        {
+          "from": "h",
+          "to": "shape"
+        },
+        {
+          "from": "shape",
+          "to": "rms_out"
+        },
+        {
+          "from": "shape",
+          "to": "disc"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "gamma", "value": "0.99", "role": "discount in shaping", "learnable": false},
-      {"name": "inner_updates", "value": "4 * args", "role": "extra discriminator steps per round", "learnable": false},
-      {"name": "batch_mult", "value": "4 * args", "role": "effective discriminator batch", "learnable": false},
-      {"name": "RunningNorm", "value": "obs + output", "role": "match imitation tuned configs", "learnable": false}
+      {
+        "name": "gamma",
+        "value": "0.99",
+        "role": "discount in shaping",
+        "learnable": false
+      },
+      {
+        "name": "inner_updates",
+        "value": "4 * args",
+        "role": "extra discriminator steps per round",
+        "learnable": false
+      },
+      {
+        "name": "batch_mult",
+        "value": "4 * args",
+        "role": "effective discriminator batch",
+        "learnable": false
+      },
+      {
+        "name": "RunningNorm",
+        "value": "obs + output",
+        "role": "match imitation tuned configs",
+        "learnable": false
+      }
     ],
     "diff_from_baseline": "Fu, Luo & Levine 2018 (ICLR). Recovers a state-dependent reward via potential-based shaping; matches the imitation library's tuned AIRL configuration with running-mean/std normalization on inputs and outputs.",
     "confidence": "high"
@@ -41,9 +110,24 @@
     "kind": "formula",
     "formula": "$$\\mathcal{L}_{\\text{BC}} = -\\frac{1}{B}\\sum_{(s_i,a_i)\\in\\mathcal{D}_E} \\log\\pi_\\theta(a_i\\mid s_i)\\;-\\;0.001\\,\\mathbb{E}[\\mathcal{H}(\\pi_\\theta(\\cdot|s))],\\quad r_{\\text{PPO}}=0$$",
     "key_hyperparams": [
-      {"name": "n_bc_steps", "value": "20", "role": "BC gradient steps per IRL round", "learnable": false},
-      {"name": "entropy bonus", "value": "0.001", "role": "exploration regularizer", "learnable": false},
-      {"name": "grad clip", "value": "0.5", "role": "policy gradient norm clip", "learnable": false}
+      {
+        "name": "n_bc_steps",
+        "value": "20",
+        "role": "BC gradient steps per IRL round",
+        "learnable": false
+      },
+      {
+        "name": "entropy bonus",
+        "value": "0.001",
+        "role": "exploration regularizer",
+        "learnable": false
+      },
+      {
+        "name": "grad clip",
+        "value": "0.5",
+        "role": "policy gradient norm clip",
+        "learnable": false
+      }
     ],
     "diff_from_baseline": "Pomerleau 1991 (NeurIPS) Behavioral Cloning. Direct supervised imitation of expert (s,a) pairs without reward learning; classical IL baseline that ignores PPO reward signal. Trains policy mean and log-std jointly via NLL.",
     "confidence": "high"
@@ -56,26 +140,85 @@
     "formula": "$$\\min_D \\mathbb{E}_\\pi[\\log(1-D(s,a,s'))] + \\mathbb{E}_E[\\log D(s,a,s')];\\quad r_{\\text{PPO}}(s,a,s') = -\\log(1-D)= -\\mathrm{logsigmoid}(-\\ell)$$",
     "diagram": {
       "nodes": [
-        {"id": "obs", "label": "(s, a, s')"},
-        {"id": "rms", "label": "RunningNorm(s, s')"},
-        {"id": "mlp", "label": "MLP 256-256-1"},
-        {"id": "logit", "label": "Logit l"},
-        {"id": "bce", "label": "BCE vs {1: expert, 0: policy}"},
-        {"id": "reward", "label": "r = -logsigmoid(-l)"}
+        {
+          "id": "obs",
+          "label": "(s, a, s')",
+          "kind": "tensor"
+        },
+        {
+          "id": "rms",
+          "label": "RunningNorm(s, s')",
+          "kind": "norm"
+        },
+        {
+          "id": "mlp",
+          "label": "MLP 256-256-1",
+          "kind": "ffn"
+        },
+        {
+          "id": "logit",
+          "label": "Logit l",
+          "kind": "tensor"
+        },
+        {
+          "id": "bce",
+          "label": "BCE vs {1: expert, 0: policy}",
+          "kind": "loss"
+        },
+        {
+          "id": "reward",
+          "label": "r = -logsigmoid(-l)",
+          "kind": "op"
+        }
       ],
       "edges": [
-        {"from": "obs", "to": "rms"},
-        {"from": "rms", "to": "mlp"},
-        {"from": "mlp", "to": "logit"},
-        {"from": "logit", "to": "bce"},
-        {"from": "logit", "to": "reward"}
+        {
+          "from": "obs",
+          "to": "rms"
+        },
+        {
+          "from": "rms",
+          "to": "mlp"
+        },
+        {
+          "from": "mlp",
+          "to": "logit"
+        },
+        {
+          "from": "logit",
+          "to": "bce"
+        },
+        {
+          "from": "logit",
+          "to": "reward"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "discriminator", "value": "MLP 256-256-1", "role": "classifier on (s,a,s')", "learnable": false},
-      {"name": "inner_updates", "value": "4 * args", "role": "discriminator steps per round", "learnable": false},
-      {"name": "batch_mult", "value": "4 * args", "role": "effective batch size", "learnable": false},
-      {"name": "RunningNorm", "value": "obs only", "role": "imitation-lib-style input norm", "learnable": false}
+      {
+        "name": "discriminator",
+        "value": "MLP 256-256-1",
+        "role": "classifier on (s,a,s')",
+        "learnable": false
+      },
+      {
+        "name": "inner_updates",
+        "value": "4 * args",
+        "role": "discriminator steps per round",
+        "learnable": false
+      },
+      {
+        "name": "batch_mult",
+        "value": "4 * args",
+        "role": "effective batch size",
+        "learnable": false
+      },
+      {
+        "name": "RunningNorm",
+        "value": "obs only",
+        "role": "imitation-lib-style input norm",
+        "learnable": false
+      }
     ],
     "diff_from_baseline": "Ho & Ermon 2016 (NeurIPS). Classic adversarial imitation learning: a discriminator distinguishes expert vs policy transitions; the policy is rewarded for fooling D. Implementation matches imitation library tuned GAIL with input running normalization.",
     "confidence": "high"

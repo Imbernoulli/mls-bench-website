@@ -7,15 +7,15 @@
     "formula": "$$v_h = (1-g_h)\\,V_b^{(g)}\\!\\big(\\mathrm{RMS}(z_g)\\big)_h + g_h\\,V_d^{(g)}\\!\\big(\\mathrm{RMS}(z_g)\\big)_h,\\;\\;g_h=\\sigma(\\theta_h)$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x"},
-        {"id": "qa", "label": "Q LoRA + RMS"},
-        {"id": "kv", "label": "kv_a_proj -> 2 latents + k_rope"},
-        {"id": "norm", "label": "per-group RMSNorm"},
-        {"id": "vb", "label": "kv_b (k_nope, v_main)"},
-        {"id": "vd", "label": "v_dual proj"},
-        {"id": "mix", "label": "sigmoid gate g_h"},
-        {"id": "rope", "label": "+ RoPE rope-slice"},
-        {"id": "y", "label": "SDPA -> o_proj"}
+        {"id": "x", "label": "x", "kind": "tensor"},
+        {"id": "qa", "label": "Q LoRA + RMS", "kind": "linear"},
+        {"id": "kv", "label": "kv_a_proj -> 2 latents + k_rope", "kind": "linear"},
+        {"id": "norm", "label": "per-group RMSNorm", "kind": "norm"},
+        {"id": "vb", "label": "kv_b (k_nope, v_main)", "kind": "linear"},
+        {"id": "vd", "label": "v_dual proj", "kind": "linear"},
+        {"id": "mix", "label": "sigmoid gate g_h", "kind": "mul"},
+        {"id": "rope", "label": "+ RoPE rope-slice", "kind": "pos"},
+        {"id": "y", "label": "SDPA -> o_proj", "kind": "attn"}
       ],
       "edges": [
         {"from": "x", "to": "qa"},
@@ -51,12 +51,12 @@
     "formula": "$$\\text{layer}\\;\\ell:\\;\\;z_\\ell = \\begin{cases}\\mathrm{RMS}\\!\\big(W_a^{kv}x\\big), & \\ell\\;\\text{even}\\\\[2pt] z_{\\ell-1}, & \\ell\\;\\text{odd}\\end{cases};\\quad (k,v)_\\ell = \\mathrm{Split}(W_b^{kv}z_\\ell)$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x"},
-        {"id": "even", "label": "even layer: kv_a + RMS -> cache"},
-        {"id": "odd", "label": "odd layer: pop cache (no new KV)"},
-        {"id": "kvb", "label": "kv_b -> (k_nope, v)"},
-        {"id": "rope", "label": "RoPE on rope-slice"},
-        {"id": "y", "label": "SDPA -> o_proj"}
+        {"id": "x", "label": "x", "kind": "tensor"},
+        {"id": "even", "label": "even layer: kv_a + RMS -> cache", "kind": "linear"},
+        {"id": "odd", "label": "odd layer: pop cache (no new KV)", "kind": "op"},
+        {"id": "kvb", "label": "kv_b -> (k_nope, v)", "kind": "linear"},
+        {"id": "rope", "label": "RoPE on rope-slice", "kind": "pos"},
+        {"id": "y", "label": "SDPA -> o_proj", "kind": "attn"}
       ],
       "edges": [
         {"from": "x", "to": "even"},
@@ -86,13 +86,13 @@
     "formula": "$$z_\\ell = W_a^{kv}x + \\tfrac{\\ell+1}{L}\\,a_{\\mathrm{anchor}},\\;\\;k=g\\odot k + (1-g)\\,k_{\\mathrm{skip}},\\;\\;v=g\\odot v + (1-g)\\,\\bar v$$ $$r_\\ell = \\begin{cases}\\,\\mathrm{head\\_dim}/2, & (\\ell+1)/L \\le 1/2\\\\ \\,\\mathrm{head\\_dim}/4, & \\text{else}\\end{cases},\\quad g=\\sigma(\\theta)$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x"},
-        {"id": "q", "label": "Q proj * q_group_gain"},
-        {"id": "lat", "label": "kv_a -> n_kv_head x r_ell + anchor"},
-        {"id": "share", "label": "(optional) reuse cached latent"},
-        {"id": "kvb", "label": "kv_b -> 2*group_size*head_dim"},
-        {"id": "gate", "label": "sigmoid kv_gate + kv_skip + mean V"},
-        {"id": "y", "label": "SDPA -> c_proj"}
+        {"id": "x", "label": "x", "kind": "tensor"},
+        {"id": "q", "label": "Q proj * q_group_gain", "kind": "linear"},
+        {"id": "lat", "label": "kv_a -> n_kv_head x r_ell + anchor", "kind": "linear"},
+        {"id": "share", "label": "(optional) reuse cached latent", "kind": "op"},
+        {"id": "kvb", "label": "kv_b -> 2*group_size*head_dim", "kind": "linear"},
+        {"id": "gate", "label": "sigmoid kv_gate + kv_skip + mean V", "kind": "mul"},
+        {"id": "y", "label": "SDPA -> c_proj", "kind": "attn"}
       ],
       "edges": [
         {"from": "x", "to": "q"},
@@ -125,13 +125,13 @@
     "formula": "$$\\text{KV bytes/token} = 2\\,(r_{kv}+d_{\\mathrm{rope}}) = 2\\,(56+32) = 176\\;\\;\\text{vs MQA}=256$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x"},
-        {"id": "qa", "label": "Q LoRA r=12*head_dim + RMS"},
-        {"id": "ka", "label": "kv_a_proj 56 + rope 32"},
-        {"id": "rms", "label": "kv_a_layernorm"},
-        {"id": "kb", "label": "kv_b -> n_head*(d_nope+d_v)"},
-        {"id": "rope", "label": "RoPE on rope-slice"},
-        {"id": "y", "label": "SDPA -> o_proj"}
+        {"id": "x", "label": "x", "kind": "tensor"},
+        {"id": "qa", "label": "Q LoRA r=12*head_dim + RMS", "kind": "linear"},
+        {"id": "ka", "label": "kv_a_proj 56 + rope 32", "kind": "linear"},
+        {"id": "rms", "label": "kv_a_layernorm", "kind": "norm"},
+        {"id": "kb", "label": "kv_b -> n_head*(d_nope+d_v)", "kind": "linear"},
+        {"id": "rope", "label": "RoPE on rope-slice", "kind": "pos"},
+        {"id": "y", "label": "SDPA -> o_proj", "kind": "attn"}
       ],
       "edges": [
         {"from": "x", "to": "qa"},
@@ -164,13 +164,13 @@
     "formula": "$$z_\\ell, k^{\\mathrm{rope}}_\\ell = \\begin{cases}\\,\\mathrm{RMS}(W_a^{kv}x), & \\ell\\;\\text{even}\\\\[2pt] (z_{\\ell-1}, k^{\\mathrm{rope}}_{\\ell-1}), & \\ell\\;\\text{odd}\\end{cases}$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x"},
-        {"id": "even", "label": "even layer: kv_a + RMS -> cache"},
-        {"id": "odd", "label": "odd layer: reuse cache, no new KV bytes"},
-        {"id": "kb", "label": "kv_b -> (k_nope, v)"},
-        {"id": "qa", "label": "Q LoRA r=80 + RMS"},
-        {"id": "rope", "label": "RoPE on 16-dim rope slice"},
-        {"id": "y", "label": "SDPA -> o_proj"}
+        {"id": "x", "label": "x", "kind": "tensor"},
+        {"id": "even", "label": "even layer: kv_a + RMS -> cache", "kind": "linear"},
+        {"id": "odd", "label": "odd layer: reuse cache, no new KV bytes", "kind": "op"},
+        {"id": "kb", "label": "kv_b -> (k_nope, v)", "kind": "linear"},
+        {"id": "qa", "label": "Q LoRA r=80 + RMS", "kind": "linear"},
+        {"id": "rope", "label": "RoPE on 16-dim rope slice", "kind": "pos"},
+        {"id": "y", "label": "SDPA -> o_proj", "kind": "attn"}
       ],
       "edges": [
         {"from": "x", "to": "even"},

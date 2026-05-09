@@ -6,13 +6,13 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Alpha158 features [B,1,158]"},
-        {"id": "gru1", "label": "GRU(158→64)"},
-        {"id": "gru2", "label": "GRU(64→64)"},
-        {"id": "gate", "label": "Gate (BN+sigmoid)"},
-        {"id": "trans", "label": "TransferLoss (cosine, 2 splits)"},
-        {"id": "fc", "label": "fc_out → 1"},
-        {"id": "y", "label": "Predicted return"}
+        {"id": "x", "label": "Alpha158 features [B,1,158]", "kind": "tensor"},
+        {"id": "gru1", "label": "GRU(158→64)", "kind": "rnn"},
+        {"id": "gru2", "label": "GRU(64→64)", "kind": "rnn"},
+        {"id": "gate", "label": "Gate (BN+sigmoid)", "kind": "mul"},
+        {"id": "trans", "label": "TransferLoss (cosine, 2 splits)", "kind": "loss"},
+        {"id": "fc", "label": "fc_out → 1", "kind": "linear"},
+        {"id": "y", "label": "Predicted return", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "gru1"},
@@ -58,12 +58,12 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Alpha158 + FilterCol (20 feats, seq=60)"},
-        {"id": "rnn", "label": "LSTM (hidden=64, 2 layers, attn)"},
-        {"id": "preds", "label": "Linear predictors (num_states=3)"},
-        {"id": "router", "label": "TRA router (LSTM + LR_TPE)"},
-        {"id": "trans", "label": "Sinkhorn transport (sample-wise)"},
-        {"id": "y", "label": "Routed prediction"}
+        {"id": "x", "label": "Alpha158 + FilterCol (20 feats, seq=60)", "kind": "tensor"},
+        {"id": "rnn", "label": "LSTM (hidden=64, 2 layers, attn)", "kind": "rnn"},
+        {"id": "preds", "label": "Linear predictors (num_states=3)", "kind": "linear"},
+        {"id": "router", "label": "TRA router (LSTM + LR_TPE)", "kind": "rnn"},
+        {"id": "trans", "label": "Sinkhorn transport (sample-wise)", "kind": "op"},
+        {"id": "y", "label": "Routed prediction", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "rnn"},

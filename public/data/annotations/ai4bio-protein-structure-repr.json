@@ -7,13 +7,13 @@
     "formula": "$$m_{ij} = \\mathrm{MLP}(h_i) \\odot W(e_{ij}), \\qquad \\alpha_{ij} = \\mathrm{softmax}_j\\, \\mathrm{MLP}([h_i, h_j, e_{ij}])$$\n$$h_j' = h_j + \\mathrm{LN}\\bigl(g_j \\odot \\sum_i \\alpha_{ij} m_{ij}\\bigr), \\quad g_j = \\sigma(W_g [h_j, \\mathrm{agg}_j])$$",
     "diagram": {
       "nodes": [
-        {"id": "h", "label": "node feat"},
-        {"id": "e", "label": "edge feat (RBF + type + dir)"},
-        {"id": "filt", "label": "edge filter W"},
-        {"id": "att", "label": "edge attention"},
-        {"id": "agg", "label": "weighted sum"},
-        {"id": "gate", "label": "residual gate"},
-        {"id": "pool", "label": "attn + sum pool"}
+        {"id": "h", "label": "node feat", "kind": "tensor"},
+        {"id": "e", "label": "edge feat (RBF + type + dir)", "kind": "tensor"},
+        {"id": "filt", "label": "edge filter W", "kind": "linear"},
+        {"id": "att", "label": "edge attention", "kind": "attn"},
+        {"id": "agg", "label": "weighted sum", "kind": "op"},
+        {"id": "gate", "label": "residual gate", "kind": "mul"},
+        {"id": "pool", "label": "attn + sum pool", "kind": "op"}
       ],
       "edges": [
         {"from": "h", "to": "filt"},
@@ -44,13 +44,13 @@
     "formula": "$$\\alpha_{ij} = \\mathrm{softmax}_j \\frac{q_i \\cdot (k_j + W_k e_{ij})}{\\sqrt{d_h}}, \\qquad m_{ij} = \\alpha_{ij} (v_j + W_v e_{ij})$$\n$$h_i \\leftarrow h_i + W_O \\sum_j m_{ij} + \\mathrm{FFN}(h_i), \\qquad e_{ij} \\leftarrow e_{ij} + \\phi_e([h_i, h_j, e_{ij}])$$",
     "diagram": {
       "nodes": [
-        {"id": "pos", "label": "Cα coords"},
-        {"id": "frame", "label": "local SE(3) frame"},
-        {"id": "edge", "label": "edge feat (RBF+rel+seq)"},
-        {"id": "qkv", "label": "Q/K/V proj"},
-        {"id": "att", "label": "edge-biased attention"},
-        {"id": "ffn", "label": "FFN + edge update"},
-        {"id": "pool", "label": "mean + max pool"}
+        {"id": "pos", "label": "Cα coords", "kind": "tensor"},
+        {"id": "frame", "label": "local SE(3) frame", "kind": "op"},
+        {"id": "edge", "label": "edge feat (RBF+rel+seq)", "kind": "tensor"},
+        {"id": "qkv", "label": "Q/K/V proj", "kind": "linear"},
+        {"id": "att", "label": "edge-biased attention", "kind": "attn"},
+        {"id": "ffn", "label": "FFN + edge update", "kind": "ffn"},
+        {"id": "pool", "label": "mean + max pool", "kind": "op"}
       ],
       "edges": [
         {"from": "pos", "to": "frame"},
@@ -80,14 +80,14 @@
     "formula": "$$m_{ij} = (1-k_{ij})\\,\\phi_{\\mathrm{spat}}([h_i,h_j,e_{ij}]) + k_{ij}\\,\\phi_{\\mathrm{seq}}([h_i,h_j,e_{ij}])$$\n$$h_j \\leftarrow \\mathrm{LN}\\!\\left(h_j + \\psi\\!\\left(h_j, \\mathrm{mean}_i m_{ij} \\odot g_j, \\tfrac{1}{\\sqrt{|N|}}\\sum_i m_{ij}\\right)\\right), \\quad g_j = \\sigma(W[h_j, \\mathrm{geom}_j])$$",
     "diagram": {
       "nodes": [
-        {"id": "geom", "label": "local curvature/anisotropy"},
-        {"id": "knn", "label": "kNN edges"},
-        {"id": "seq", "label": "sequence ±1,±2 edges"},
-        {"id": "spat", "label": "spatial MLP"},
-        {"id": "smlp", "label": "seq MLP"},
-        {"id": "gate", "label": "curvature gate g"},
-        {"id": "agg", "label": "mean + sym-norm sum"},
-        {"id": "pool", "label": "mean + max + sum + struct"}
+        {"id": "geom", "label": "local curvature/anisotropy", "kind": "tensor"},
+        {"id": "knn", "label": "kNN edges", "kind": "tensor"},
+        {"id": "seq", "label": "sequence ±1,±2 edges", "kind": "tensor"},
+        {"id": "spat", "label": "spatial MLP", "kind": "ffn"},
+        {"id": "smlp", "label": "seq MLP", "kind": "ffn"},
+        {"id": "gate", "label": "curvature gate g", "kind": "mul"},
+        {"id": "agg", "label": "mean + sym-norm sum", "kind": "op"},
+        {"id": "pool", "label": "mean + max + sum + struct", "kind": "op"}
       ],
       "edges": [
         {"from": "knn", "to": "spat"},
@@ -117,13 +117,13 @@
     "formula": "$$\\mathrm{RBF}(d) = \\exp\\!\\left(-\\tfrac{(d-\\mu_k)^2}{2\\gamma_k^2}\\right)\\exp(-d/r_{\\max}), \\qquad m_{ij}^{(s)} = \\mathrm{MLP}_s([h_i, h_j, \\mathrm{RBF}_s(d_{ij})])$$\n$$h_i \\leftarrow h_i + \\frac{1}{|S|}\\sum_{s\\in S}\\,\\mathrm{LN}\\!\\bigl(h_i + \\mathrm{Update}(h_i, \\mathrm{mean}_j m_{ij}^{(s)})\\bigr)$$",
     "diagram": {
       "nodes": [
-        {"id": "pos", "label": "Cα coords"},
-        {"id": "rg", "label": "radius_graph r=20Å"},
-        {"id": "buc", "label": "bucket: local/med/long"},
-        {"id": "rbf", "label": "learnable RBF μ,γ"},
-        {"id": "msg", "label": "scalar+vector message"},
-        {"id": "agg", "label": "scale-averaged update"},
-        {"id": "pool", "label": "attn + mean + max"}
+        {"id": "pos", "label": "Cα coords", "kind": "tensor"},
+        {"id": "rg", "label": "radius_graph r=20Å", "kind": "op"},
+        {"id": "buc", "label": "bucket: local/med/long", "kind": "split"},
+        {"id": "rbf", "label": "learnable RBF μ,γ", "kind": "op"},
+        {"id": "msg", "label": "scalar+vector message", "kind": "tensor"},
+        {"id": "agg", "label": "scale-averaged update", "kind": "op"},
+        {"id": "pool", "label": "attn + mean + max", "kind": "op"}
       ],
       "edges": [
         {"from": "pos", "to": "rg"},
@@ -153,13 +153,13 @@
     "formula": "$$\\alpha_{ij} = \\mathrm{softmax}_j\\!\\left(\\frac{q_j \\cdot k_i}{\\sqrt{d_h}} + b_h(d_{ij}, d_{ij}^2, \\hat r_{ij}, \\rho_j, \\cos\\theta_{ij})\\right)$$\n$$h_j \\leftarrow \\mathrm{LN}(h_j + W_O \\sum_i \\alpha_{ij} v_i), \\qquad h_{\\text{out}} = W\\!\\left(\\sum_\\ell w_\\ell h^{(\\ell)}\\right)$$",
     "diagram": {
       "nodes": [
-        {"id": "pos", "label": "Cα coords"},
-        {"id": "edge", "label": "kNN edges + angular feats"},
-        {"id": "gmp", "label": "GeometricMP (even layers)"},
-        {"id": "mha", "label": "AngularAttention (odd layers)"},
-        {"id": "lw", "label": "softmax layer weights"},
-        {"id": "vn", "label": "virtual-node global ctx"},
-        {"id": "out", "label": "concat + MLP"}
+        {"id": "pos", "label": "Cα coords", "kind": "tensor"},
+        {"id": "edge", "label": "kNN edges + angular feats", "kind": "tensor"},
+        {"id": "gmp", "label": "GeometricMP (even layers)", "kind": "op"},
+        {"id": "mha", "label": "AngularAttention (odd layers)", "kind": "attn"},
+        {"id": "lw", "label": "softmax layer weights", "kind": "softmax"},
+        {"id": "vn", "label": "virtual-node global ctx", "kind": "tensor"},
+        {"id": "out", "label": "concat + MLP", "kind": "ffn"}
       ],
       "edges": [
         {"from": "pos", "to": "edge"},

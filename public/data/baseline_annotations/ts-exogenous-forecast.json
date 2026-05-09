@@ -7,12 +7,12 @@
     "formula": "$$x^{tr}_t = \\frac{1}{k}\\sum_{i=t-k/2}^{t+k/2} x_i,\\;\\; x^{se}_t = x_t - x^{tr}_t,\\quad \\hat{y}_{1:H} = W_{tr}\\,x^{tr}_{1:L} + W_{se}\\,x^{se}_{1:L}$$",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "Input $x_{1:L}$"},
-        {"id": "trend", "label": "Moving Avg (trend)"},
-        {"id": "seas", "label": "Residual (seasonal)"},
-        {"id": "wt", "label": "Linear $W_{tr}$"},
-        {"id": "ws", "label": "Linear $W_{se}$"},
-        {"id": "out", "label": "Forecast $\\hat{y}_{1:H}$"}
+        {"id": "in", "label": "Input $x_{1:L}$", "kind": "tensor"},
+        {"id": "trend", "label": "Moving Avg (trend)", "kind": "op"},
+        {"id": "seas", "label": "Residual (seasonal)", "kind": "op"},
+        {"id": "wt", "label": "Linear $W_{tr}$", "kind": "linear"},
+        {"id": "ws", "label": "Linear $W_{se}$", "kind": "linear"},
+        {"id": "out", "label": "Forecast $\\hat{y}_{1:H}$", "kind": "tensor"}
       ],
       "edges": [
         {"from": "in", "to": "trend"},
@@ -38,13 +38,13 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "Multivariate $X \\in \\mathbb{R}^{L\\times C}$"},
-        {"id": "rev", "label": "RevIN per channel"},
-        {"id": "patch", "label": "Patchify (size 16, stride 8)"},
-        {"id": "embed", "label": "Linear + Pos Embed"},
-        {"id": "enc", "label": "Transformer Encoder (shared)"},
-        {"id": "head", "label": "Flatten + Linear Head"},
-        {"id": "out", "label": "Forecast $\\hat{Y}$"}
+        {"id": "in", "label": "Multivariate $X \\in \\mathbb{R}^{L\\times C}$", "kind": "tensor"},
+        {"id": "rev", "label": "RevIN per channel", "kind": "norm"},
+        {"id": "patch", "label": "Patchify (size 16, stride 8)", "kind": "op"},
+        {"id": "embed", "label": "Linear + Pos Embed", "kind": "embed"},
+        {"id": "enc", "label": "Transformer Encoder (shared)", "kind": "attn"},
+        {"id": "head", "label": "Flatten + Linear Head", "kind": "linear"},
+        {"id": "out", "label": "Forecast $\\hat{Y}$", "kind": "tensor"}
       ],
       "edges": [
         {"from": "in", "to": "rev"},
@@ -71,13 +71,13 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "endo", "label": "Endogenous $x^{tgt}$"},
-        {"id": "exo", "label": "Exogenous variates"},
-        {"id": "epatch", "label": "Patchify endogenous"},
-        {"id": "vtok", "label": "Variate tokens (per channel)"},
-        {"id": "self", "label": "Self-Attn (patches + global)"},
-        {"id": "cross", "label": "Cross-Attn (patches $\\leftarrow$ variates)"},
-        {"id": "head", "label": "Forecast Head"}
+        {"id": "endo", "label": "Endogenous $x^{tgt}$", "kind": "tensor"},
+        {"id": "exo", "label": "Exogenous variates", "kind": "tensor"},
+        {"id": "epatch", "label": "Patchify endogenous", "kind": "op"},
+        {"id": "vtok", "label": "Variate tokens (per channel)", "kind": "embed"},
+        {"id": "self", "label": "Self-Attn (patches + global)", "kind": "attn"},
+        {"id": "cross", "label": "Cross-Attn (patches $\\leftarrow$ variates)", "kind": "attn"},
+        {"id": "head", "label": "Forecast Head", "kind": "linear"}
       ],
       "edges": [
         {"from": "endo", "to": "epatch"},
@@ -103,12 +103,12 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "$X \\in \\mathbb{R}^{L\\times C}$"},
-        {"id": "embed", "label": "Variate Token Embed: $\\mathbb{R}^L\\to\\mathbb{R}^{d}$"},
-        {"id": "vattn", "label": "Self-Attn across variates"},
-        {"id": "ffn", "label": "FFN per variate token"},
-        {"id": "proj", "label": "Linear $\\to$ horizon $H$"},
-        {"id": "out", "label": "Forecast $\\hat{Y}\\in\\mathbb{R}^{H\\times C}$"}
+        {"id": "in", "label": "$X \\in \\mathbb{R}^{L\\times C}$", "kind": "tensor"},
+        {"id": "embed", "label": "Variate Token Embed: $\\mathbb{R}^L\\to\\mathbb{R}^{d}$", "kind": "embed"},
+        {"id": "vattn", "label": "Self-Attn across variates", "kind": "attn"},
+        {"id": "ffn", "label": "FFN per variate token", "kind": "ffn"},
+        {"id": "proj", "label": "Linear $\\to$ horizon $H$", "kind": "linear"},
+        {"id": "out", "label": "Forecast $\\hat{Y}\\in\\mathbb{R}^{H\\times C}$", "kind": "tensor"}
       ],
       "edges": [
         {"from": "in", "to": "embed"},

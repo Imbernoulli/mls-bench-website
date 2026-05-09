@@ -7,14 +7,14 @@
     "formula": "$$\\hat{y} = \\alpha \\, W_{\\text{lin}}\\Delta + (1-\\alpha)\\, \\mathrm{Head}\\bigl(\\,\\mathrm{Enc}_{\\Delta}(g(e)\\odot\\Delta) \\;\\Vert\\; \\mathrm{Enc}_{\\times}(e\\odot\\Delta)\\,\\bigr),\\quad \\alpha = \\sigma(b)$$",
     "diagram": {
       "nodes": [
-        {"id": "e", "label": "embedding e"},
-        {"id": "d", "label": "delta Δ"},
-        {"id": "g", "label": "context gate g(e)"},
-        {"id": "gd", "label": "g⊙Δ"},
-        {"id": "x", "label": "e⊙Δ interaction"},
-        {"id": "fuse", "label": "fusion MLP"},
-        {"id": "lin", "label": "linear residual"},
-        {"id": "out", "label": "α·lin + (1-α)·MLP"}
+        {"id": "e", "label": "embedding e", "kind": "tensor"},
+        {"id": "d", "label": "delta Δ", "kind": "tensor"},
+        {"id": "g", "label": "context gate g(e)", "kind": "op"},
+        {"id": "gd", "label": "g⊙Δ", "kind": "mul"},
+        {"id": "x", "label": "e⊙Δ interaction", "kind": "mul"},
+        {"id": "fuse", "label": "fusion MLP", "kind": "ffn"},
+        {"id": "lin", "label": "linear residual", "kind": "linear"},
+        {"id": "out", "label": "α·lin + (1-α)·MLP", "kind": "add"}
       ],
       "edges": [
         {"from": "e", "to": "g"},
@@ -50,14 +50,14 @@
     "formula": "$$x = \\mathrm{DeltaProj}(\\Delta),\\quad c = \\mathrm{CtxProj}\\bigl([\\,e_{wt}\\Vert e\\Vert e_{wt}\\odot\\Delta\\,]\\bigr),\\quad (\\gamma,\\beta)=\\mathrm{FiLM}(c),\\quad \\hat{y}=\\mathrm{MLP}\\bigl([\\,c\\Vert x(1+\\gamma)+\\beta\\Vert\\Vert\\Delta\\Vert_2\\Vert\\cos(e,e_{wt})\\Vert\\Vert e_{wt}\\Vert\\Vert\\Vert e\\Vert\\,]\\bigr)$$",
     "diagram": {
       "nodes": [
-        {"id": "e", "label": "mutant e"},
-        {"id": "d", "label": "Δ"},
-        {"id": "wt", "label": "WT = e − Δ"},
-        {"id": "ctx", "label": "context proj"},
-        {"id": "film", "label": "FiLM (γ, β)"},
-        {"id": "dx", "label": "Δ proj"},
-        {"id": "geo", "label": "norms + cos sim"},
-        {"id": "out", "label": "combiner MLP"}
+        {"id": "e", "label": "mutant e", "kind": "tensor"},
+        {"id": "d", "label": "Δ", "kind": "tensor"},
+        {"id": "wt", "label": "WT = e − Δ", "kind": "tensor"},
+        {"id": "ctx", "label": "context proj", "kind": "linear"},
+        {"id": "film", "label": "FiLM (γ, β)", "kind": "op"},
+        {"id": "dx", "label": "Δ proj", "kind": "linear"},
+        {"id": "geo", "label": "norms + cos sim", "kind": "op"},
+        {"id": "out", "label": "combiner MLP", "kind": "ffn"}
       ],
       "edges": [
         {"from": "e", "to": "wt"},
@@ -108,15 +108,15 @@
     "formula": "$$\\mathrm{Attn}(e,\\Delta)=\\mathrm{softmax}_H\\!\\bigl(\\tfrac{q_\\Delta\\odot k_e}{\\sqrt{d}}\\bigr)\\,v_e,\\quad x_{\\text{mul}}=\\mathrm{MLP}(e\\odot\\Delta),\\quad x_{\\text{gate}}=\\sigma(\\mathrm{MLP}(\\Delta))\\odot e$$$$\\Delta \\leftarrow \\mathrm{LN}\\bigl(\\Delta + \\mathrm{MLP}([\\mathrm{Attn}\\Vert x_{\\text{mul}}\\Vert x_{\\text{gate}}])\\bigr)\\quad \\text{(}\\times 3\\text{)},\\;\\hat{y}=\\mathrm{Head}(\\Delta)$$",
     "diagram": {
       "nodes": [
-        {"id": "e", "label": "embedding"},
-        {"id": "d", "label": "delta"},
-        {"id": "ep", "label": "emb proj 384"},
-        {"id": "dp", "label": "delta proj 384"},
-        {"id": "blk", "label": "fusion block ×3"},
-        {"id": "attn", "label": "cross-attn (Q=Δ, K,V=e)"},
-        {"id": "mul", "label": "e⊙Δ MLP"},
-        {"id": "gate", "label": "σ(MLP(Δ))⊙e"},
-        {"id": "head", "label": "MLP head"}
+        {"id": "e", "label": "embedding", "kind": "tensor"},
+        {"id": "d", "label": "delta", "kind": "tensor"},
+        {"id": "ep", "label": "emb proj 384", "kind": "linear"},
+        {"id": "dp", "label": "delta proj 384", "kind": "linear"},
+        {"id": "blk", "label": "fusion block ×3", "kind": "op"},
+        {"id": "attn", "label": "cross-attn (Q=Δ, K,V=e)", "kind": "attn"},
+        {"id": "mul", "label": "e⊙Δ MLP", "kind": "ffn"},
+        {"id": "gate", "label": "σ(MLP(Δ))⊙e", "kind": "mul"},
+        {"id": "head", "label": "MLP head", "kind": "ffn"}
       ],
       "edges": [
         {"from": "e", "to": "ep"},

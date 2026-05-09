@@ -7,13 +7,13 @@
     "formula": "$$\\text{MultiScaleBlock: } x \\leftarrow \\mathrm{BN}(x + W_1\\,\\mathrm{Concat}_{k\\in\\{3,5,7\\}}\\mathrm{GELU}(\\mathrm{DWConv}_{k,d}(x)))$$\n$$\\text{Spectral gate: } g = \\sigma\\!\\bigl(W[\\mathrm{mean}_f|\\mathcal{F}x|,\\,\\mathrm{std}_f|\\mathcal{F}x|]\\bigr),\\ x \\leftarrow x \\odot g$$\n$$\\text{dropout} = \\mathrm{clip}(0.15 + 0.25\\cdot\\min(C/50, 1),\\ 0.1,\\ 0.45)$$",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "[B,T,C] InstanceNorm"},
-        {"id": "proj", "label": "Conv1d 7, BN, GELU"},
-        {"id": "ms", "label": "3x MultiScaleBlock (d=1,2,4)"},
-        {"id": "down", "label": "AvgPool when T>128"},
-        {"id": "sg", "label": "SpectralGate (FFT mean+std)"},
-        {"id": "pool", "label": "Mean + Max + Attn pool"},
-        {"id": "head", "label": "LN + 2-layer MLP"}
+        {"id": "in", "label": "[B,T,C] InstanceNorm", "kind": "norm"},
+        {"id": "proj", "label": "Conv1d 7, BN, GELU", "kind": "conv"},
+        {"id": "ms", "label": "3x MultiScaleBlock (d=1,2,4)", "kind": "conv"},
+        {"id": "down", "label": "AvgPool when T>128", "kind": "op"},
+        {"id": "sg", "label": "SpectralGate (FFT mean+std)", "kind": "mul"},
+        {"id": "pool", "label": "Mean + Max + Attn pool", "kind": "op"},
+        {"id": "head", "label": "LN + 2-layer MLP", "kind": "ffn"}
       ],
       "edges": [
         {"from": "in", "to": "proj"},

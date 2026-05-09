@@ -6,11 +6,11 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "obs", "label": "Local obs_i"},
-        {"id": "id", "label": "Agent one-hot e_i"},
-        {"id": "concat", "label": "concat"},
-        {"id": "fc", "label": "MLP (h, h, 1) ReLU"},
-        {"id": "v", "label": "V_i"}
+        {"id": "obs", "kind": "tensor", "label": "Local obs_i"},
+        {"id": "id", "kind": "tensor", "label": "Agent one-hot e_i"},
+        {"id": "concat", "kind": "concat", "label": "concat"},
+        {"id": "fc", "kind": "ffn", "label": "MLP (h, h, 1) ReLU"},
+        {"id": "v", "kind": "tensor", "label": "V_i"}
       ],
       "edges": [
         {"from": "obs", "to": "concat"},
@@ -34,11 +34,11 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "s", "label": "Global state s"},
-        {"id": "id", "label": "Agent one-hot e_i"},
-        {"id": "concat", "label": "concat"},
-        {"id": "mlp", "label": "MLP (h, h, 1) ReLU"},
-        {"id": "v", "label": "V_i(s)"}
+        {"id": "s", "kind": "tensor", "label": "Global state s"},
+        {"id": "id", "kind": "tensor", "label": "Agent one-hot e_i"},
+        {"id": "concat", "kind": "concat", "label": "concat"},
+        {"id": "mlp", "kind": "ffn", "label": "MLP (h, h, 1) ReLU"},
+        {"id": "v", "kind": "tensor", "label": "V_i(s)"}
       ],
       "edges": [
         {"from": "s", "to": "concat"},
@@ -62,12 +62,12 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "obs", "label": "obs_i"},
-        {"id": "s", "label": "broadcast state"},
-        {"id": "tok", "label": "token = Linear(obs⊕s)"},
-        {"id": "tx", "label": "Transformer encoder (1 layer, 4 heads, GELU)"},
-        {"id": "head", "label": "Linear → V_i"},
-        {"id": "v", "label": "Per-agent V"}
+        {"id": "obs", "kind": "tensor", "label": "obs_i"},
+        {"id": "s", "kind": "tensor", "label": "broadcast state"},
+        {"id": "tok", "kind": "linear", "label": "token = Linear(obs⊕s)"},
+        {"id": "tx", "kind": "attn", "label": "Transformer encoder (1 layer, 4 heads, GELU)"},
+        {"id": "head", "kind": "linear", "label": "Linear → V_i"},
+        {"id": "v", "kind": "tensor", "label": "Per-agent V"}
       ],
       "edges": [
         {"from": "obs", "to": "tok"},

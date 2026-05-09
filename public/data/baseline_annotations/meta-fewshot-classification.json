@@ -7,12 +7,12 @@
     "formula": "$$\\hat y_q = \\sum_{i=1}^{N_s} a(\\hat q, \\hat s_i)\\, y_i,\\quad a(\\hat q, \\hat s_i) = \\mathrm{softmax}_i\\!\\left(\\hat q\\cdot \\frac{\\hat s_i}{\\lVert\\hat s_i\\rVert}\\right);\\quad \\mathcal{L} = \\mathrm{NLL}(\\log\\hat y, y)$$",
     "diagram": {
       "nodes": [
-        {"id": "img", "label": "Image batch"},
-        {"id": "bk", "label": "CNN backbone"},
-        {"id": "biLSTM", "label": "BiLSTM(support)"},
-        {"id": "qLSTM", "label": "Attn-LSTM (25 steps)"},
-        {"id": "cos", "label": "Cosine softmax"},
-        {"id": "ce", "label": "Soft label vote -> NLL"}
+        {"id": "img", "label": "Image batch", "kind": "tensor"},
+        {"id": "bk", "label": "CNN backbone", "kind": "conv"},
+        {"id": "biLSTM", "label": "BiLSTM(support)", "kind": "rnn"},
+        {"id": "qLSTM", "label": "Attn-LSTM (25 steps)", "kind": "rnn"},
+        {"id": "cos", "label": "Cosine softmax", "kind": "softmax"},
+        {"id": "ce", "label": "Soft label vote -> NLL", "kind": "loss"}
       ],
       "edges": [
         {"from": "img", "to": "bk"},
@@ -51,12 +51,12 @@
     "formula": "$$r_{q,k} = g_\\phi\\!\\left(\\big[\\,F_k^{\\text{proto}}\\,\\Vert\\,F_q\\,\\big]\\right) \\in [0,1],\\qquad \\mathcal{L} = \\frac{1}{|Q|}\\sum_{q,k} (r_{q,k} - \\mathbb{1}[y_q=k])^2$$",
     "diagram": {
       "nodes": [
-        {"id": "img", "label": "Support / query"},
-        {"id": "bk", "label": "CNN backbone (no pool)"},
-        {"id": "proto", "label": "Mean feature map / class"},
-        {"id": "cat", "label": "Concat(query, proto)"},
-        {"id": "relmod", "label": "Conv -> BN -> ReLU x2 -> MLP"},
-        {"id": "sig", "label": "Sigmoid -> MSE loss"}
+        {"id": "img", "label": "Support / query", "kind": "tensor"},
+        {"id": "bk", "label": "CNN backbone (no pool)", "kind": "conv"},
+        {"id": "proto", "label": "Mean feature map / class", "kind": "tensor"},
+        {"id": "cat", "label": "Concat(query, proto)", "kind": "concat"},
+        {"id": "relmod", "label": "Conv -> BN -> ReLU x2 -> MLP", "kind": "conv"},
+        {"id": "sig", "label": "Sigmoid -> MSE loss", "kind": "loss"}
       ],
       "edges": [
         {"from": "img", "to": "bk"},

@@ -7,12 +7,12 @@
     "formula": "$$L^{\\text{PPO}} = -\\mathbb{E}\\!\\left[\\min\\!\\big(r_t \\hat{A}_t,\\;\\mathrm{clip}(r_t,1-\\epsilon,1+\\epsilon)\\hat{A}_t\\big)\\right] + c_v L^V_{\\text{clip}} - c_e \\mathcal{H},\\quad \\hat{A}_t = \\mathrm{GAE}_{\\gamma=0.998,\\lambda=0.95}$$",
     "diagram": {
       "nodes": [
-        {"id": "obs", "label": "Actor obs"},
-        {"id": "actor", "label": "MLP [256,256,256] + ELU"},
-        {"id": "head", "label": "Linear -> action"},
-        {"id": "std", "label": "Diag-Gaussian std (param)"},
-        {"id": "critic_obs", "label": "Critic obs"},
-        {"id": "critic", "label": "MLP [256,256,256] -> 1"}
+        {"id": "obs", "kind": "tensor", "label": "Actor obs"},
+        {"id": "actor", "kind": "ffn", "label": "MLP [256,256,256] + ELU"},
+        {"id": "head", "kind": "linear", "label": "Linear -> action"},
+        {"id": "std", "kind": "param", "label": "Diag-Gaussian std (param)"},
+        {"id": "critic_obs", "kind": "tensor", "label": "Critic obs"},
+        {"id": "critic", "kind": "ffn", "label": "MLP [256,256,256] -> 1"}
       ],
       "edges": [
         {"from": "obs", "to": "actor"},
@@ -52,12 +52,12 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "obs", "label": "Actor obs"},
-        {"id": "l1", "label": "Linear 512 + LayerNorm + ELU"},
-        {"id": "l2", "label": "Linear 256 + LayerNorm + ELU"},
-        {"id": "l3", "label": "Linear 128 + LayerNorm + ELU"},
-        {"id": "head", "label": "Linear -> action"},
-        {"id": "critic", "label": "Mirror critic [512,256,128] -> 1"}
+        {"id": "obs", "kind": "tensor", "label": "Actor obs"},
+        {"id": "l1", "kind": "norm", "label": "Linear 512 + LayerNorm + ELU"},
+        {"id": "l2", "kind": "norm", "label": "Linear 256 + LayerNorm + ELU"},
+        {"id": "l3", "kind": "norm", "label": "Linear 128 + LayerNorm + ELU"},
+        {"id": "head", "kind": "linear", "label": "Linear -> action"},
+        {"id": "critic", "kind": "ffn", "label": "Mirror critic [512,256,128] -> 1"}
       ],
       "edges": [
         {"from": "obs", "to": "l1"},

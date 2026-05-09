@@ -7,14 +7,14 @@
     "formula": "$$g=\\sigma\\!\\left(W[e_{\\mathrm{static}};\\, f(x)]\\right),\\quad e_{\\mathrm{spatial}}=g\\odot e_{\\mathrm{static}}+(1-g)\\odot f(x),\\qquad \\hat y=\\mathrm{Encoder}([e_{ts};\\,e_{\\mathrm{spatial}};\\,e_{\\mathrm{tid}};\\,e_{\\mathrm{diw}}])+W_{\\mathrm{trend}}\\,\\mathrm{MA}_5(x)$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x [B,T,N]"},
-        {"id": "ma", "label": "MA(k=5)"},
-        {"id": "tr", "label": "trend Linear"},
-        {"id": "ts", "label": "ts Linear→h"},
-        {"id": "stat", "label": "static node emb"},
-        {"id": "dsi", "label": "DSI gate"},
-        {"id": "enc", "label": "ResMLP×L (4h)"},
-        {"id": "out", "label": "+ → y"}
+        {"id": "x", "label": "x [B,T,N]", "kind": "tensor"},
+        {"id": "ma", "label": "MA(k=5)", "kind": "op"},
+        {"id": "tr", "label": "trend Linear", "kind": "linear"},
+        {"id": "ts", "label": "ts Linear→h", "kind": "linear"},
+        {"id": "stat", "label": "static node emb", "kind": "embed"},
+        {"id": "dsi", "label": "DSI gate", "kind": "op"},
+        {"id": "enc", "label": "ResMLP×L (4h)", "kind": "ffn"},
+        {"id": "out", "label": "+ → y", "kind": "add"}
       ],
       "edges": [
         {"from": "x", "to": "ma"},
@@ -48,14 +48,14 @@
     "formula": "$$\\mathrm{SpatialMixer}(x)=\\mathrm{LN}\\!\\left(x + \\mathrm{maxpool}_r\\bigl(W_{\\mathrm{up}}\\,W_{\\mathrm{down}}\\,x^{\\top}\\bigr)\\right),\\qquad x\\to\\mathrm{RevIN}\\to[\\,e_{ts};\\,e_{\\mathrm{spatial}};\\,e_{\\mathrm{tid}};\\,e_{\\mathrm{diw}}\\,]\\to(\\mathrm{Mixer}\\circ\\mathrm{ResMLP})^{L}\\to\\mathrm{Head}\\to\\mathrm{RevIN}^{-1}$$",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "x [B,T,N]"},
-        {"id": "rin", "label": "RevIN norm"},
-        {"id": "emb", "label": "[ts,spatial,tid,diw] (4h)"},
-        {"id": "mix", "label": "SpatialMixer"},
-        {"id": "mlp", "label": "ResMLP"},
-        {"id": "loop", "label": "× num_layers"},
-        {"id": "head", "label": "Linear→T'"},
-        {"id": "out", "label": "RevIN denorm → y"}
+        {"id": "in", "label": "x [B,T,N]", "kind": "tensor"},
+        {"id": "rin", "label": "RevIN norm", "kind": "norm"},
+        {"id": "emb", "label": "[ts,spatial,tid,diw] (4h)", "kind": "embed"},
+        {"id": "mix", "label": "SpatialMixer", "kind": "op"},
+        {"id": "mlp", "label": "ResMLP", "kind": "ffn"},
+        {"id": "loop", "label": "× num_layers", "kind": "op"},
+        {"id": "head", "label": "Linear→T'", "kind": "linear"},
+        {"id": "out", "label": "RevIN denorm → y", "kind": "norm"}
       ],
       "edges": [
         {"from": "in", "to": "rin"},
@@ -87,15 +87,15 @@
     "formula": "$$\\delta_u=2\\sigma(W_u\\,c),\\;\\delta_v=2\\sigma(W_v\\,c),\\quad E_u=e_u\\odot\\delta_u,\\;E_v=e_v\\odot\\delta_v,\\quad A=\\mathrm{softmax}\\!\\left(\\mathrm{ReLU}\\!\\left(\\frac{E_u E_v^{\\top}}{\\sqrt{d}}\\right)\\right),\\quad h_{\\ell+1}=\\mathrm{LN}\\bigl(\\mathrm{ResMLP}(h_{\\ell})+W_o A\\,h_{\\ell}\\bigr)$$",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "x → ts/spatial/tid/diw → 4h"},
-        {"id": "ctx", "label": "ctx = [tid;diw]"},
-        {"id": "eu", "label": "E_u = e_u·δ_u(ctx)"},
-        {"id": "ev", "label": "E_v = e_v·δ_v(ctx)"},
-        {"id": "adj", "label": "A=softmax(ReLU(E_u E_vᵀ/√d))"},
-        {"id": "gcn", "label": "DynamicGraphConv"},
-        {"id": "mlp", "label": "ResMLP"},
-        {"id": "ln", "label": "LN(GCN+MLP)×L"},
-        {"id": "head", "label": "Linear→T'"}
+        {"id": "in", "label": "x → ts/spatial/tid/diw → 4h", "kind": "embed"},
+        {"id": "ctx", "label": "ctx = [tid;diw]", "kind": "tensor"},
+        {"id": "eu", "label": "E_u = e_u·δ_u(ctx)", "kind": "mul"},
+        {"id": "ev", "label": "E_v = e_v·δ_v(ctx)", "kind": "mul"},
+        {"id": "adj", "label": "A=softmax(ReLU(E_u E_vᵀ/√d))", "kind": "softmax"},
+        {"id": "gcn", "label": "DynamicGraphConv", "kind": "op"},
+        {"id": "mlp", "label": "ResMLP", "kind": "ffn"},
+        {"id": "ln", "label": "LN(GCN+MLP)×L", "kind": "norm"},
+        {"id": "head", "label": "Linear→T'", "kind": "linear"}
       ],
       "edges": [
         {"from": "in", "to": "gcn"},
@@ -132,15 +132,15 @@
     "formula": "$$a=\\mathrm{softmax}(W_a h),\\quad p_k=\\frac{\\sum_n a_{nk} h_n}{\\sum_n a_{nk}}+\\bar p_k,\\quad c_n=\\sum_k a_{nk} p_k,\\quad h\\!\\leftarrow\\!\\mathrm{LN}\\!\\bigl(h+c\\odot\\sigma(Wh)\\bigr)\\!+\\!\\mathrm{FFN}$$\n$$\\hat y=\\underbrace{W_s\\,s+W_t\\,t}_{\\text{DLinear base}}+\\underbrace{\\sigma\\!\\bigl(\\langle W_n h, W_t \\phi\\rangle/\\sqrt d\\bigr)\\,\\langle\\tanh W_b h,\\tanh W_b \\phi\\rangle/\\sqrt d}_{\\text{prototype × future-calendar residual}}+b(h)$$",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "x → RevIN"},
-        {"id": "dec", "label": "MA decomp(s,t)"},
-        {"id": "base", "label": "DLinear base"},
-        {"id": "enc", "label": "in_proj+diff_proj+node_emb"},
-        {"id": "cal", "label": "+tod+dow embs"},
-        {"id": "pb", "label": "ProtoBlock×L (k=16)"},
-        {"id": "fut", "label": "future tod/dow/hor + ctx"},
-        {"id": "res", "label": "gated low-rank residual"},
-        {"id": "out", "label": "RevIN denorm → y"}
+        {"id": "in", "label": "x → RevIN", "kind": "norm"},
+        {"id": "dec", "label": "MA decomp(s,t)", "kind": "op"},
+        {"id": "base", "label": "DLinear base", "kind": "linear"},
+        {"id": "enc", "label": "in_proj+diff_proj+node_emb", "kind": "embed"},
+        {"id": "cal", "label": "+tod+dow embs", "kind": "embed"},
+        {"id": "pb", "label": "ProtoBlock×L (k=16)", "kind": "op"},
+        {"id": "fut", "label": "future tod/dow/hor + ctx", "kind": "embed"},
+        {"id": "res", "label": "gated low-rank residual", "kind": "op"},
+        {"id": "out", "label": "RevIN denorm → y", "kind": "norm"}
       ],
       "edges": [
         {"from": "in", "to": "dec"},
@@ -176,15 +176,15 @@
     "formula": "$$k=W_K \\mathrm{LN}(x)+\\phi(\\mathrm{tod},\\mathrm{dow}),\\quad q=W_Q \\mathrm{LN}(x),\\quad A=\\mathrm{softmax}\\!\\left(\\frac{q k^{\\top}}{\\sqrt{d/4}}\\right),\\quad x\\!\\leftarrow\\!\\mathrm{LN}(x+W_O A x)$$\n$$\\hat y_{\\mathrm{season}}=W_h h_{\\mathrm{season}},\\quad \\hat y_{\\mathrm{trend}}=W_t \\mathrm{MA}_3(x),\\quad \\hat y=\\mathrm{RevIN}^{-1}(\\hat y_{\\mathrm{season}}+\\hat y_{\\mathrm{trend}})$$",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "x [B,T,N] → RevIN"},
-        {"id": "dec", "label": "MA_3 decomp"},
-        {"id": "tre", "label": "trend Linear"},
-        {"id": "sea", "label": "seasonal Linear→h"},
-        {"id": "ctx", "label": "tod_dow gate ctx"},
-        {"id": "tcg", "label": "TimeCondGraph attention"},
-        {"id": "ffn", "label": "STBlock×L"},
-        {"id": "head", "label": "Linear→T'"},
-        {"id": "out", "label": "RevIN denorm → y"}
+        {"id": "in", "label": "x [B,T,N] → RevIN", "kind": "norm"},
+        {"id": "dec", "label": "MA_3 decomp", "kind": "op"},
+        {"id": "tre", "label": "trend Linear", "kind": "linear"},
+        {"id": "sea", "label": "seasonal Linear→h", "kind": "linear"},
+        {"id": "ctx", "label": "tod_dow gate ctx", "kind": "tensor"},
+        {"id": "tcg", "label": "TimeCondGraph attention", "kind": "attn"},
+        {"id": "ffn", "label": "STBlock×L", "kind": "ffn"},
+        {"id": "head", "label": "Linear→T'", "kind": "linear"},
+        {"id": "out", "label": "RevIN denorm → y", "kind": "norm"}
       ],
       "edges": [
         {"from": "in", "to": "dec"},

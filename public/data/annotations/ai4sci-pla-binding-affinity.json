@@ -7,14 +7,14 @@
     "formula": "$$h^{\\ell+1}_v = g_v\\,\\mathrm{IntraGate}(h^{\\ell}_v) + (1-g_v)\\,\\mathrm{CrossAttn}(h^{\\ell}_v),\\quad g_v=\\sigma(W[h_{\\mathrm{intra}};h_{\\mathrm{cross}}])$$",
     "diagram": {
       "nodes": [
-        {"id": "lig", "label": "ligand h"},
-        {"id": "poc", "label": "pocket h"},
-        {"id": "intra", "label": "edge-gated intra"},
-        {"id": "cross", "label": "edge-bias cross-attn"},
-        {"id": "fuse", "label": "sigmoid fusion"},
-        {"id": "lp", "label": "L->P score - bias"},
-        {"id": "pl", "label": "P->L score - bias"},
-        {"id": "out", "label": "mean(L->P, P->L)"}
+        {"id": "lig", "label": "ligand h", "kind": "tensor"},
+        {"id": "poc", "label": "pocket h", "kind": "tensor"},
+        {"id": "intra", "label": "edge-gated intra", "kind": "op"},
+        {"id": "cross", "label": "edge-bias cross-attn", "kind": "attn"},
+        {"id": "fuse", "label": "sigmoid fusion", "kind": "mul"},
+        {"id": "lp", "label": "L->P score - bias", "kind": "op"},
+        {"id": "pl", "label": "P->L score - bias", "kind": "op"},
+        {"id": "out", "label": "mean(L->P, P->L)", "kind": "op"}
       ],
       "edges": [
         {"from": "lig", "to": "intra"},
@@ -47,12 +47,12 @@
     "formula": "$$\\alpha_{ij}^{h}=\\mathrm{softmax}_{j}\\!\\Big(\\tfrac{q_i\\cdot k_j}{\\sqrt{d}}+b_h(e_{ij})\\Big),\\;\\;\\mathrm{msg}_{ij}^{h}=\\alpha_{ij}^{h}(v_j+e_{ij}^{h})$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "node h"},
-        {"id": "ln", "label": "LayerNorm"},
-        {"id": "gat", "label": "4-head GeoGAT (intra+inter)"},
-        {"id": "add", "label": "residual sum"},
-        {"id": "ffn", "label": "LN -> Linear-SiLU-Linear FFN"},
-        {"id": "out", "label": "h + FFN(h)"}
+        {"id": "x", "label": "node h", "kind": "tensor"},
+        {"id": "ln", "label": "LayerNorm", "kind": "norm"},
+        {"id": "gat", "label": "4-head GeoGAT (intra+inter)", "kind": "attn"},
+        {"id": "add", "label": "residual sum", "kind": "add"},
+        {"id": "ffn", "label": "LN -> Linear-SiLU-Linear FFN", "kind": "ffn"},
+        {"id": "out", "label": "h + FFN(h)", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "ln"},
@@ -82,14 +82,14 @@
     "formula": "$$g_{ij}=\\sigma\\!\\big(W_s x_i+W_d x_j+W_e e_{ij}\\big),\\quad m_{ij}=g_{ij}\\odot\\mathrm{MLP}([x_i;e_{ij}])$$ $$\\mathcal{L}=\\mathrm{MSE}(\\hat y, y)+0.35\\!\\sum_{k\\in\\{lp,pl\\}}\\!\\Big(\\tfrac{(\\hat y_k-y)^2}{2\\sigma_k^2}+\\log\\sigma_k\\Big)+0.15\\,e^{-(\\sigma_{lp}+\\sigma_{pl})}\\|\\hat y_{lp}-\\hat y_{pl}\\|^2$$",
     "diagram": {
       "nodes": [
-        {"id": "src", "label": "src x"},
-        {"id": "dst", "label": "dst x"},
-        {"id": "edge", "label": "edge e"},
-        {"id": "gate", "label": "tri-gate sigmoid"},
-        {"id": "pool", "label": "mean + softmax-attn pool"},
-        {"id": "head", "label": "main MLP head"},
-        {"id": "dual", "label": "dual edge-sum heads"},
-        {"id": "y", "label": "0.7 main + 0.3 sigma-weighted dual"}
+        {"id": "src", "label": "src x", "kind": "tensor"},
+        {"id": "dst", "label": "dst x", "kind": "tensor"},
+        {"id": "edge", "label": "edge e", "kind": "tensor"},
+        {"id": "gate", "label": "tri-gate sigmoid", "kind": "mul"},
+        {"id": "pool", "label": "mean + softmax-attn pool", "kind": "op"},
+        {"id": "head", "label": "main MLP head", "kind": "ffn"},
+        {"id": "dual", "label": "dual edge-sum heads", "kind": "op"},
+        {"id": "y", "label": "0.7 main + 0.3 sigma-weighted dual", "kind": "op"}
       ],
       "edges": [
         {"from": "src", "to": "gate"},
@@ -121,14 +121,14 @@
     "formula": "$$g_{ij}=\\sigma(W_g[h_i;e_{ij}]),\\;m_{ij}=g_{ij}\\odot\\mathrm{MLP}([h_i;e_{ij}]),\\;\\hat y=\\mathrm{Fusion}\\big([\\hat y_{lp},\\hat y_{pl},\\hat y_{\\mathrm{graph}}]\\big)$$",
     "diagram": {
       "nodes": [
-        {"id": "lig", "label": "ligand h"},
-        {"id": "poc", "label": "pocket h"},
-        {"id": "cig", "label": "CIGConv intra"},
-        {"id": "geo", "label": "GeoGated inter"},
-        {"id": "ms", "label": "multi-scale pool"},
-        {"id": "lp", "label": "L->P head"},
-        {"id": "pl", "label": "P->L head"},
-        {"id": "fuse", "label": "Linear(3,1) fusion"}
+        {"id": "lig", "label": "ligand h", "kind": "tensor"},
+        {"id": "poc", "label": "pocket h", "kind": "tensor"},
+        {"id": "cig", "label": "CIGConv intra", "kind": "op"},
+        {"id": "geo", "label": "GeoGated inter", "kind": "op"},
+        {"id": "ms", "label": "multi-scale pool", "kind": "op"},
+        {"id": "lp", "label": "L->P head", "kind": "op"},
+        {"id": "pl", "label": "P->L head", "kind": "op"},
+        {"id": "fuse", "label": "Linear(3,1) fusion", "kind": "linear"}
       ],
       "edges": [
         {"from": "lig", "to": "cig"},
@@ -160,14 +160,14 @@
     "formula": "$$\\hat y = W_f[\\hat y_{\\mathrm{atom}};\\hat y_{\\mathrm{inter}};\\hat y_{\\mathrm{graph}}],\\quad \\mathcal{L} = \\mathrm{MSE}(\\hat y,y) + 0.3\\!\\!\\sum_{k}\\mathrm{MSE}(\\hat y_k,y) + 0.1\\!\\!\\sum_{k\\neq k'}\\!\\mathrm{MSE}(\\hat y_k,\\hat y_{k'})$$",
     "diagram": {
       "nodes": [
-        {"id": "lig", "label": "ligand"},
-        {"id": "poc", "label": "pocket"},
-        {"id": "intra", "label": "IntraGNN x3 (per molecule)"},
-        {"id": "attn", "label": "multi-head inter attn (L<->P)"},
-        {"id": "atom", "label": "atom-pool head"},
-        {"id": "inter", "label": "edge-pair inter head"},
-        {"id": "graph", "label": "graph-pool head"},
-        {"id": "fuse", "label": "Linear(3,1)"}
+        {"id": "lig", "label": "ligand", "kind": "tensor"},
+        {"id": "poc", "label": "pocket", "kind": "tensor"},
+        {"id": "intra", "label": "IntraGNN x3 (per molecule)", "kind": "op"},
+        {"id": "attn", "label": "multi-head inter attn (L<->P)", "kind": "attn"},
+        {"id": "atom", "label": "atom-pool head", "kind": "op"},
+        {"id": "inter", "label": "edge-pair inter head", "kind": "op"},
+        {"id": "graph", "label": "graph-pool head", "kind": "op"},
+        {"id": "fuse", "label": "Linear(3,1)", "kind": "linear"}
       ],
       "edges": [
         {"from": "lig", "to": "intra"},

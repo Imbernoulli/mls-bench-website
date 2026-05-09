@@ -7,12 +7,12 @@
     "formula": "$$ S = \\mathrm{softmax}_{\\text{nodes}}(\\mathrm{MLP}(X)),\\quad X' = S^\\top X,\\quad A' = S^\\top A S $$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Node embeddings $X$"},
-        {"id": "mask", "label": "to_dense_batch + mask"},
-        {"id": "assign", "label": "MLP $\\to$ softmax assignment $S \\in \\mathbb{R}^{N\\times K}$"},
-        {"id": "pool", "label": "$X' = S^\\top X$"},
-        {"id": "mean", "label": "Mean over $K$ clusters"},
-        {"id": "out", "label": "Graph embedding"}
+        {"id": "x", "label": "Node embeddings $X$", "kind": "tensor"},
+        {"id": "mask", "label": "to_dense_batch + mask", "kind": "op"},
+        {"id": "assign", "label": "MLP $\\to$ softmax assignment $S \\in \\mathbb{R}^{N\\times K}$", "kind": "softmax"},
+        {"id": "pool", "label": "$X' = S^\\top X$", "kind": "op"},
+        {"id": "mean", "label": "Mean over $K$ clusters", "kind": "op"},
+        {"id": "out", "label": "Graph embedding", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "mask"},
@@ -50,13 +50,13 @@
     "formula": "$$ \\mathrm{score}_v = \\mathrm{GNN}(X,A)_v,\\quad \\mathrm{idx} = \\mathrm{topk}(\\mathrm{score}, \\lceil rN \\rceil) $$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Node feats $X$"},
-        {"id": "r0", "label": "Sum+Mean readout (level 0)"},
-        {"id": "p1", "label": "SAGPool ratio=0.5"},
-        {"id": "r1", "label": "Sum+Mean readout (level 1)"},
-        {"id": "p2", "label": "SAGPool ratio=0.5"},
-        {"id": "r2", "label": "Sum+Mean readout (level 2)"},
-        {"id": "concat", "label": "Concat $\\to$ Linear"}
+        {"id": "x", "label": "Node feats $X$", "kind": "tensor"},
+        {"id": "r0", "label": "Sum+Mean readout (level 0)", "kind": "op"},
+        {"id": "p1", "label": "SAGPool ratio=0.5", "kind": "op"},
+        {"id": "r1", "label": "Sum+Mean readout (level 1)", "kind": "op"},
+        {"id": "p2", "label": "SAGPool ratio=0.5", "kind": "op"},
+        {"id": "r2", "label": "Sum+Mean readout (level 2)", "kind": "op"},
+        {"id": "concat", "label": "Concat $\\to$ Linear", "kind": "concat"}
       ],
       "edges": [
         {"from": "x", "to": "r0"},
@@ -84,13 +84,13 @@
     "formula": "$$ s = \\mathrm{MHA}(\\text{seed}, X, X;\\, \\text{key\\_pad}=\\neg\\text{mask}),\\; h_G = \\mathrm{LN}(s + \\mathrm{FFN}(\\mathrm{LN}(s))) $$",
     "diagram": {
       "nodes": [
-        {"id": "seed", "label": "Learnable seed $\\in \\mathbb{R}^{1\\times d}$"},
-        {"id": "x", "label": "Padded node feats $X$"},
-        {"id": "mha", "label": "Multi-head Attention (4 heads)"},
-        {"id": "ln1", "label": "LayerNorm + residual"},
-        {"id": "ffn", "label": "FFN (hidden_dim$\\to$2x$\\to$hidden_dim)"},
-        {"id": "ln2", "label": "LayerNorm + residual"},
-        {"id": "out", "label": "Graph embedding"}
+        {"id": "seed", "label": "Learnable seed $\\in \\mathbb{R}^{1\\times d}$", "kind": "param"},
+        {"id": "x", "label": "Padded node feats $X$", "kind": "tensor"},
+        {"id": "mha", "label": "Multi-head Attention (4 heads)", "kind": "attn"},
+        {"id": "ln1", "label": "LayerNorm + residual", "kind": "norm"},
+        {"id": "ffn", "label": "FFN (hidden_dim$\\to$2x$\\to$hidden_dim)", "kind": "ffn"},
+        {"id": "ln2", "label": "LayerNorm + residual", "kind": "norm"},
+        {"id": "out", "label": "Graph embedding", "kind": "tensor"}
       ],
       "edges": [
         {"from": "seed", "to": "mha"},

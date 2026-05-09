@@ -6,27 +6,86 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "Backbone X (B,L,4,3)"},
-        {"id": "feat", "label": "Node (6 scalar / 3 vector) + Edge (16+16 RBF / 1 vector)"},
-        {"id": "proj", "label": "GVP input projection + LayerNorm"},
-        {"id": "conv", "label": "x3 GVPConv (msg + FF, scalar/vector)"},
-        {"id": "out", "label": "Linear -> hidden_dim"},
-        {"id": "dec", "label": "MLP decoder -> NUM_AA"}
+        {
+          "id": "in",
+          "label": "Backbone X (B,L,4,3)",
+          "kind": "tensor"
+        },
+        {
+          "id": "feat",
+          "label": "Node (6 scalar / 3 vector) + Edge (16+16 RBF / 1 vector)",
+          "kind": "tensor"
+        },
+        {
+          "id": "proj",
+          "label": "GVP input projection + LayerNorm",
+          "kind": "linear"
+        },
+        {
+          "id": "conv",
+          "label": "x3 GVPConv (msg + FF, scalar/vector)",
+          "kind": "op"
+        },
+        {
+          "id": "out",
+          "label": "Linear -> hidden_dim",
+          "kind": "linear"
+        },
+        {
+          "id": "dec",
+          "label": "MLP decoder -> NUM_AA",
+          "kind": "ffn"
+        }
       ],
       "edges": [
-        {"from": "in", "to": "feat"},
-        {"from": "feat", "to": "proj"},
-        {"from": "proj", "to": "conv"},
-        {"from": "conv", "to": "out"},
-        {"from": "out", "to": "dec"}
+        {
+          "from": "in",
+          "to": "feat"
+        },
+        {
+          "from": "feat",
+          "to": "proj"
+        },
+        {
+          "from": "proj",
+          "to": "conv"
+        },
+        {
+          "from": "conv",
+          "to": "out"
+        },
+        {
+          "from": "out",
+          "to": "dec"
+        }
       ]
     },
     "pseudocode": "1. Build kNN graph on Cα; node scalars = 6 dihedrals, node vectors = unit (Cα→N, Cα→C, Cα→O).\n2. Edge scalars = 16 RBF distances + 16-d sinusoidal residue offset; edge vector = unit Cα→Cα'.\n3. GVP input projects (s,v) tuples; GVPLayerNorm normalises scalar + rescales vector magnitude.\n4. For each layer: gather neighbour (s,v); message GVP -> mean over masked neighbours; feed-forward GVP; residual + norm.\n5. Project final scalar features to hidden_dim and feed an MLP decoder for amino-acid logits.",
     "key_hyperparams": [
-      {"name": "num_layers", "value": "3", "role": "GVPConv depth", "learnable": false},
-      {"name": "k_neighbors", "value": "30", "role": "kNN graph size", "learnable": false},
-      {"name": "node_s_h / node_v_h", "value": "100 / 16", "role": "hidden scalar/vector dims", "learnable": false},
-      {"name": "num_rbf", "value": "16", "role": "edge distance basis", "learnable": false}
+      {
+        "name": "num_layers",
+        "value": "3",
+        "role": "GVPConv depth",
+        "learnable": false
+      },
+      {
+        "name": "k_neighbors",
+        "value": "30",
+        "role": "kNN graph size",
+        "learnable": false
+      },
+      {
+        "name": "node_s_h / node_v_h",
+        "value": "100 / 16",
+        "role": "hidden scalar/vector dims",
+        "learnable": false
+      },
+      {
+        "name": "num_rbf",
+        "value": "16",
+        "role": "edge distance basis",
+        "learnable": false
+      }
     ],
     "diff_from_baseline": "Jing et al., ICLR 2021 — Geometric Vector Perceptrons. SE(3)-equivariant message passing over scalar+vector tuples, the canonical structure-aware baseline for protein representation learning.",
     "confidence": "high"
@@ -38,26 +97,83 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "feat", "label": "Node: 6 atom-pair RBFs + 3 virtual-pair RBFs + 6 dihedrals + 6 orient"},
-        {"id": "edge", "label": "Edge: 15 atom-pair RBFs + 9 virtual RBFs + 4 angles + 8 dirs + 16 PE"},
-        {"id": "embed", "label": "Linear + BatchNorm node/edge embedding"},
-        {"id": "block", "label": "x10 PiFold layer (attn + FFN + edge MLP + ctx gate)"},
-        {"id": "dec", "label": "Linear decoder -> NUM_AA (non-autoregressive)"}
+        {
+          "id": "feat",
+          "label": "Node: 6 atom-pair RBFs + 3 virtual-pair RBFs + 6 dihedrals + 6 orient",
+          "kind": "tensor"
+        },
+        {
+          "id": "edge",
+          "label": "Edge: 15 atom-pair RBFs + 9 virtual RBFs + 4 angles + 8 dirs + 16 PE",
+          "kind": "tensor"
+        },
+        {
+          "id": "embed",
+          "label": "Linear + BatchNorm node/edge embedding",
+          "kind": "embed"
+        },
+        {
+          "id": "block",
+          "label": "x10 PiFold layer (attn + FFN + edge MLP + ctx gate)",
+          "kind": "op"
+        },
+        {
+          "id": "dec",
+          "label": "Linear decoder -> NUM_AA (non-autoregressive)",
+          "kind": "linear"
+        }
       ],
       "edges": [
-        {"from": "feat", "to": "embed"},
-        {"from": "edge", "to": "embed"},
-        {"from": "embed", "to": "block"},
-        {"from": "block", "to": "dec"}
+        {
+          "from": "feat",
+          "to": "embed"
+        },
+        {
+          "from": "edge",
+          "to": "embed"
+        },
+        {
+          "from": "embed",
+          "to": "block"
+        },
+        {
+          "from": "block",
+          "to": "dec"
+        }
       ]
     },
     "pseudocode": "1. Build kNN graph on Cα; learn 3 virtual atoms in the local N-Cα-C frame.\n2. Node features: RBFs over 6 intra-residue atom pairs + virtual pairs, plus 6 dihedrals and 6 frame orientations.\n3. Edge features: RBFs over 15 inter-residue atom pairs + virtual pairs, 4 angles, 8 directions, 16-d positional encoding.\n4. PiFoldLayer = multi-head attention with edge-conditioned bias + FFN + edge-update MLP + global mean-pool context gate.\n5. After 10 layers, single Linear decoder predicts amino-acid logits non-autoregressively.",
     "key_hyperparams": [
-      {"name": "num_encoder_layers", "value": "10", "role": "PiFold layer depth (CONFIG override)", "learnable": false},
-      {"name": "k_neighbors", "value": "30", "role": "kNN graph size", "learnable": false},
-      {"name": "num_heads", "value": "4", "role": "attention heads", "learnable": false},
-      {"name": "n_virtual_atoms", "value": "3", "role": "learned local-frame atoms", "learnable": true},
-      {"name": "batch_size", "value": "8", "role": "CONFIG_OVERRIDES batch", "learnable": false}
+      {
+        "name": "num_encoder_layers",
+        "value": "10",
+        "role": "PiFold layer depth (CONFIG override)",
+        "learnable": false
+      },
+      {
+        "name": "k_neighbors",
+        "value": "30",
+        "role": "kNN graph size",
+        "learnable": false
+      },
+      {
+        "name": "num_heads",
+        "value": "4",
+        "role": "attention heads",
+        "learnable": false
+      },
+      {
+        "name": "n_virtual_atoms",
+        "value": "3",
+        "role": "learned local-frame atoms",
+        "learnable": true
+      },
+      {
+        "name": "batch_size",
+        "value": "8",
+        "role": "CONFIG_OVERRIDES batch",
+        "learnable": false
+      }
     ],
     "diff_from_baseline": "Gao et al., ICLR 2023 — PiFold. Combines virtual atoms, multi-atom-pair RBFs and an attention-based encoder with global context gating; current SOTA-class baseline for non-autoregressive fixed-backbone design.",
     "confidence": "high"
@@ -69,25 +185,77 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "atoms", "label": "N, Cα, C, O + virtual Cβ"},
-        {"id": "feat", "label": "Edge: 25 atom-pair RBFs + 16 PE; Node: fwd+sidechain orient (6)"},
-        {"id": "embed", "label": "Linear + LayerNorm node/edge embedding"},
-        {"id": "enc", "label": "x3 EncLayer (node + edge update via concat-MLP)"},
-        {"id": "dec", "label": "MLP decoder -> NUM_AA"}
+        {
+          "id": "atoms",
+          "label": "N, Cα, C, O + virtual Cβ",
+          "kind": "tensor"
+        },
+        {
+          "id": "feat",
+          "label": "Edge: 25 atom-pair RBFs + 16 PE; Node: fwd+sidechain orient (6)",
+          "kind": "tensor"
+        },
+        {
+          "id": "embed",
+          "label": "Linear + LayerNorm node/edge embedding",
+          "kind": "embed"
+        },
+        {
+          "id": "enc",
+          "label": "x3 EncLayer (node + edge update via concat-MLP)",
+          "kind": "op"
+        },
+        {
+          "id": "dec",
+          "label": "MLP decoder -> NUM_AA",
+          "kind": "ffn"
+        }
       ],
       "edges": [
-        {"from": "atoms", "to": "feat"},
-        {"from": "feat", "to": "embed"},
-        {"from": "embed", "to": "enc"},
-        {"from": "enc", "to": "dec"}
+        {
+          "from": "atoms",
+          "to": "feat"
+        },
+        {
+          "from": "feat",
+          "to": "embed"
+        },
+        {
+          "from": "embed",
+          "to": "enc"
+        },
+        {
+          "from": "enc",
+          "to": "dec"
+        }
       ]
     },
     "pseudocode": "1. Build virtual Cβ from N-Cα-C, then kNN graph on Cα distances.\n2. Compute 25 pairwise RBFs over all (N,Cα,C,O,Cβ) atom pairs and concatenate with sinusoidal residue-offset encoding to form edge features.\n3. Node features = forward Cα direction and sidechain orientation vector.\n4. EncLayer: concat $[h_i, e_{ij}, h_j]$ -> 3-layer MLP message; sum-aggregate / scale=30 + LayerNorm + residual; then symmetric edge-update MLP and LayerNorm.\n5. Decoder MLP maps final node features to amino-acid log-probs (simplified non-autoregressive head).",
     "key_hyperparams": [
-      {"name": "num_layers", "value": "3", "role": "encoder depth", "learnable": false},
-      {"name": "k_neighbors", "value": "30", "role": "kNN graph size", "learnable": false},
-      {"name": "num_rbf", "value": "16", "role": "RBF basis per atom pair", "learnable": false},
-      {"name": "scale", "value": "30", "role": "neighbour-sum normaliser", "learnable": false}
+      {
+        "name": "num_layers",
+        "value": "3",
+        "role": "encoder depth",
+        "learnable": false
+      },
+      {
+        "name": "k_neighbors",
+        "value": "30",
+        "role": "kNN graph size",
+        "learnable": false
+      },
+      {
+        "name": "num_rbf",
+        "value": "16",
+        "role": "RBF basis per atom pair",
+        "learnable": false
+      },
+      {
+        "name": "scale",
+        "value": "30",
+        "role": "neighbour-sum normaliser",
+        "learnable": false
+      }
     ],
     "diff_from_baseline": "Dauparas et al., Science 2022 — ProteinMPNN. All-atom pairwise distance MPNN that became the de-facto reference for backbone-conditioned protein design.",
     "confidence": "high"

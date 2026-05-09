@@ -7,15 +7,15 @@
     "formula": "$$\\hat y = w_{\\mathrm{nn}}\\,\\mathrm{zscore}(\\hat y_{\\mathrm{NN}}) + (1-w_{\\mathrm{nn}})\\,\\mathrm{zscore}(\\hat y_{\\mathrm{LGBM}})$$ $$\\mathcal{L} = \\mathrm{MSE}(\\hat y_{\\mathrm{NN}}, y) - \\lambda\\,\\mathrm{Pearson}(\\hat y_{\\mathrm{NN}}, y),\\;\\;\\lambda=0.15$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Alpha360 -> [N, 60, 6]"},
-        {"id": "gate", "label": "AdaptiveFeatureGate"},
-        {"id": "proj", "label": "Linear+LN"},
-        {"id": "lstm", "label": "2-layer LSTM (last hidden)"},
-        {"id": "trf", "label": "2-layer TransformerEncoder + temporal attn pool"},
-        {"id": "fuse", "label": "Softmax(2) gated fusion"},
-        {"id": "head", "label": "MLP head -> y_NN"},
-        {"id": "lgbm", "label": "LightGBM y_LGBM"},
-        {"id": "out", "label": "0.5 zscore mix"}
+        {"id": "x", "label": "Alpha360 -> [N, 60, 6]", "kind": "tensor"},
+        {"id": "gate", "label": "AdaptiveFeatureGate", "kind": "mul"},
+        {"id": "proj", "label": "Linear+LN", "kind": "linear"},
+        {"id": "lstm", "label": "2-layer LSTM (last hidden)", "kind": "rnn"},
+        {"id": "trf", "label": "2-layer TransformerEncoder + temporal attn pool", "kind": "attn"},
+        {"id": "fuse", "label": "Softmax(2) gated fusion", "kind": "softmax"},
+        {"id": "head", "label": "MLP head -> y_NN", "kind": "ffn"},
+        {"id": "lgbm", "label": "LightGBM y_LGBM", "kind": "op"},
+        {"id": "out", "label": "0.5 zscore mix", "kind": "op"}
       ],
       "edges": [
         {"from": "x", "to": "gate"},
@@ -52,11 +52,11 @@
     "formula": "$$\\alpha_t = \\mathrm{softmax}_t\\!\\Big(\\frac{\\langle q, h_t\\rangle}{\\sqrt{H}}\\Big),\\;\\;c=\\sum_t \\alpha_t h_t,\\;\\;\\hat y = W_o\\,\\mathrm{drop}(c)$$ $$\\mathcal{L} = \\mathrm{MSE}(\\hat y, y) - \\lambda\\,\\mathrm{Pearson}(\\hat y, y),\\;\\;\\lambda=0.3$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "[N, 60, 6]"},
-        {"id": "gru", "label": "2-layer GRU H=64"},
-        {"id": "ln", "label": "LayerNorm"},
-        {"id": "attn", "label": "learned-query attention"},
-        {"id": "out", "label": "Linear head"}
+        {"id": "x", "label": "[N, 60, 6]", "kind": "tensor"},
+        {"id": "gru", "label": "2-layer GRU H=64", "kind": "rnn"},
+        {"id": "ln", "label": "LayerNorm", "kind": "norm"},
+        {"id": "attn", "label": "learned-query attention", "kind": "attn"},
+        {"id": "out", "label": "Linear head", "kind": "linear"}
       ],
       "edges": [
         {"from": "x", "to": "gru"},
@@ -105,10 +105,10 @@
     "formula": "$$\\hat y = W\\,h_T,\\quad \\mathcal{L} = \\frac{1}{|S|}\\sum_{(i,t)\\in S}(\\hat y_{i,t}-y_{i,t})^2,\\;\\;S=\\{i: y_i\\;\\text{finite}\\}$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "[N, 60, 6]"},
-        {"id": "lstm", "label": "2-layer LSTM H=64 (Xavier IH / orth HH / forget bias = 1)"},
-        {"id": "head", "label": "Linear (Xavier)"},
-        {"id": "y", "label": "scalar"}
+        {"id": "x", "label": "[N, 60, 6]", "kind": "tensor"},
+        {"id": "lstm", "label": "2-layer LSTM H=64 (Xavier IH / orth HH / forget bias = 1)", "kind": "rnn"},
+        {"id": "head", "label": "Linear (Xavier)", "kind": "linear"},
+        {"id": "y", "label": "scalar", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "lstm"},

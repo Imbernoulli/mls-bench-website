@@ -7,11 +7,11 @@
     "formula": "$$ \\begin{aligned} L_{\\text{vocab}} &= E + A N^{-\\alpha} + B V^{-\\beta} + C D^{-\\gamma} \\\\ L_{\\text{lrbsz}} &= A D^{-\\alpha} + B N^{-\\beta} + C + K_l (l - l_0)^2 + E\\,(\\log b + b_0/b) \\\\ L_{\\text{dc}} &= E + A N^{-\\alpha} + B D_{\\text{eff}}^{-\\beta},\\quad D_{\\text{eff}} = U(1 - e^{-D/U}) \\end{aligned} $$",
     "diagram": {
       "nodes": [
-        {"id": "data", "label": "Train trials grouped by categorical metadata"},
-        {"id": "form", "label": "Pick benchmark-specific symbolic form"},
-        {"id": "fit", "label": "scipy.optimize.least_squares with multi-start (soft_l1, log/linear residuals)"},
-        {"id": "params", "label": "Per-group fitted coefficients"},
-        {"id": "predict", "label": "Eval on held-out trials per group"}
+        {"id": "data", "label": "Train trials grouped by categorical metadata", "kind": "tensor"},
+        {"id": "form", "label": "Pick benchmark-specific symbolic form", "kind": "op"},
+        {"id": "fit", "label": "scipy.optimize.least_squares with multi-start (soft_l1, log/linear residuals)", "kind": "op"},
+        {"id": "params", "label": "Per-group fitted coefficients", "kind": "param"},
+        {"id": "predict", "label": "Eval on held-out trials per group", "kind": "op"}
       ],
       "edges": [
         {"from": "data", "to": "form"},

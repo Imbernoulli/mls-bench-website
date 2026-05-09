@@ -7,14 +7,14 @@
     "formula": "$$h = \\mathrm{LN}\\big(\\,[\\,h_{\\text{CLS}}\\;\\Vert\\;\\sum_i \\alpha_i h_i\\;\\Vert\\;\\phi(\\bar p_{\\text{CLS}})\\;\\Vert\\;\\phi(\\bar p_{\\text{diag}})\\,]\\big),\\quad \\hat y = \\frac{1}{K}\\sum_{k=1}^{K} W_o\\,\\mathrm{Drop}_k(h)$$",
     "diagram": {
       "nodes": [
-        {"id": "enc", "label": "Uni-Mol encoder"},
-        {"id": "cls", "label": "[CLS] token"},
-        {"id": "atn", "label": "Attn-pool atoms"},
-        {"id": "pcls", "label": "Pair row [CLS]"},
-        {"id": "pdg", "label": "Pair diagonal"},
-        {"id": "fus", "label": "Fusion + LN"},
-        {"id": "drop", "label": "Multi-sample dropout"},
-        {"id": "out", "label": "Task head"}
+        {"id": "enc", "kind": "op", "label": "Uni-Mol encoder"},
+        {"id": "cls", "kind": "tensor", "label": "[CLS] token"},
+        {"id": "atn", "kind": "attn", "label": "Attn-pool atoms"},
+        {"id": "pcls", "kind": "tensor", "label": "Pair row [CLS]"},
+        {"id": "pdg", "kind": "tensor", "label": "Pair diagonal"},
+        {"id": "fus", "kind": "concat", "label": "Fusion + LN"},
+        {"id": "drop", "kind": "op", "label": "Multi-sample dropout"},
+        {"id": "out", "kind": "linear", "label": "Task head"}
       ],
       "edges": [
         {"from": "enc", "to": "cls"},
@@ -36,8 +36,8 @@
       {"name": "encoder", "value": "15 layers, 512 dim, 64 heads, 2048 FFN", "role": "Uni-Mol base architecture (unchanged, weights loaded)", "learnable": true}
     ],
     "init_recovers": "Uni-Mol [CLS] head when attention-pool and pair branches are zeroed.",
-    "diff_from_baseline": "Keeps the Uni-Mol pretrained encoder verbatim but swaps the simple dropout+linear ClassificationHead for a four-view fusion ([CLS], attention-weighted atom pool, [CLS]-row pair summary, diagonal pair summary) followed by multi-sample dropout averaging.",
-    "confidence": "high"
+    "diff_from_baseline": "Code as displayed has an IndentationError on line 354 — the first `MultiViewReadout` is cut off mid-method and a duplicate class header restarts the definition; the displayed file is the agent's final (broken) edit while the leaderboard score is from an earlier successful test (#2). Intended design: keeps the Uni-Mol pretrained encoder verbatim but swaps the simple dropout+linear ClassificationHead for a four-view fusion ([CLS], attention-weighted atom pool, [CLS]-row pair summary, diagonal pair summary) followed by multi-sample dropout averaging.",
+    "confidence": "medium"
   },
   {
     "model": "gemini-3.1-pro-preview",
@@ -47,13 +47,13 @@
     "formula": "$$\\alpha = \\mathrm{softmax}\\!\\left(\\frac{(W_q h_{\\mathrm{CLS}})(W_k[\\,h^{\\text{UM}}\\Vert h^{\\text{DMP}}])^\\top}{\\sqrt{d_b}}\\right),\\;\\; c = \\gamma\\,\\mathrm{LN}\\!\\big(\\alpha\\, W_v[\\,h^{\\text{UM}}\\Vert h^{\\text{DMP}}]\\big),\\;\\; \\hat y = W_o[\\,h_{\\mathrm{CLS}}\\Vert c\\Vert\\tilde r_{\\text{RDKit}}]$$",
     "diagram": {
       "nodes": [
-        {"id": "um", "label": "Uni-Mol encoder"},
-        {"id": "dmp", "label": "D-MPNN encoder"},
-        {"id": "rdkit", "label": "RDKit 17-d feats"},
-        {"id": "cls", "label": "[CLS] (query)"},
-        {"id": "kv", "label": "[atoms || dmpnn] (KV)"},
-        {"id": "xattn", "label": "Cross-attn + γ"},
-        {"id": "head", "label": "Linear out"}
+        {"id": "um", "kind": "op", "label": "Uni-Mol encoder"},
+        {"id": "dmp", "kind": "op", "label": "D-MPNN encoder"},
+        {"id": "rdkit", "kind": "tensor", "label": "RDKit 17-d feats"},
+        {"id": "cls", "kind": "tensor", "label": "[CLS] (query)"},
+        {"id": "kv", "kind": "concat", "label": "[atoms || dmpnn] (KV)"},
+        {"id": "xattn", "kind": "attn", "label": "Cross-attn + γ"},
+        {"id": "head", "kind": "linear", "label": "Linear out"}
       ],
       "edges": [
         {"from": "um", "to": "cls"},
@@ -86,14 +86,14 @@
     "formula": "$$g_e = \\sigma\\!\\big(W_g(\\phi_e(e_{ij}) + W_d\\,\\mathrm{RBF}(\\lVert p_i - p_j\\rVert))\\big),\\;\\; \\hat y = \\mathrm{sig}\\!\\big(W_m[\\,h_g\\Vert h_{\\text{geo}}\\Vert |y_g-y_{\\text{geo}}|]\\big)\\odot y_g + (1-\\cdot)\\odot y_{\\text{geo}}$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Atom feats"},
-        {"id": "ggn", "label": "GeoEdgeGated conv x4"},
-        {"id": "mp", "label": "Mean+Max pool"},
-        {"id": "geo", "label": "Per-atom radial geom"},
-        {"id": "yg", "label": "Graph head"},
-        {"id": "ye", "label": "Geometry head"},
-        {"id": "gate", "label": "Disagreement gate"},
-        {"id": "out", "label": "Mixed logits"}
+        {"id": "x", "kind": "tensor", "label": "Atom feats"},
+        {"id": "ggn", "kind": "op", "label": "GeoEdgeGated conv x4"},
+        {"id": "mp", "kind": "op", "label": "Mean+Max pool"},
+        {"id": "geo", "kind": "tensor", "label": "Per-atom radial geom"},
+        {"id": "yg", "kind": "linear", "label": "Graph head"},
+        {"id": "ye", "kind": "linear", "label": "Geometry head"},
+        {"id": "gate", "kind": "mul", "label": "Disagreement gate"},
+        {"id": "out", "kind": "tensor", "label": "Mixed logits"}
       ],
       "edges": [
         {"from": "x", "to": "ggn"},
@@ -126,12 +126,12 @@
     "formula": "$$w_{ij} = \\exp\\!\\big(-\\tfrac{\\lVert p_i - p_j\\rVert^2}{2\\sigma^2}\\big),\\;\\; h^{(t+1)}_{ij} = \\mathrm{ReLU}\\!\\big(h^{(0)}_{ij} + W_h\\big(\\sum_{k\\to i} w_{ki}\\, h^{(t)}_{ki} - h^{(t)}_{ji}\\big)\\big)$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Atom + bond feats"},
-        {"id": "dmp", "label": "Dist-gated D-MPNN"},
-        {"id": "sum", "label": "Sum pool"},
-        {"id": "atn", "label": "Multi-head attn pool"},
-        {"id": "rd", "label": "RDKit (running-norm)"},
-        {"id": "head", "label": "MLP head"}
+        {"id": "x", "kind": "tensor", "label": "Atom + bond feats"},
+        {"id": "dmp", "kind": "op", "label": "Dist-gated D-MPNN"},
+        {"id": "sum", "kind": "op", "label": "Sum pool"},
+        {"id": "atn", "kind": "attn", "label": "Multi-head attn pool"},
+        {"id": "rd", "kind": "tensor", "label": "RDKit (running-norm)"},
+        {"id": "head", "kind": "ffn", "label": "MLP head"}
       ],
       "edges": [
         {"from": "x", "to": "dmp"},
@@ -162,13 +162,13 @@
     "formula": "$$w_{ij} = \\sigma\\!\\big(W_w\\,\\phi_d(d_{ij}, t_{ij})\\big),\\;\\; h_v' = \\mathrm{MLP}\\!\\big((1+\\varepsilon)h_v + \\sum_{u\\to v} w_{uv}\\,(h_u + W_e e_{uv})\\big),\\;\\; \\hat y = W_o[\\,\\bar h \\Vert W_r \\tilde r_{\\text{RDKit}}]$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Atom feats"},
-        {"id": "tok", "label": "Uni-Mol embed (frozen)"},
-        {"id": "cat", "label": "Concat node feats"},
-        {"id": "ggn", "label": "GeoGIN x4"},
-        {"id": "pool", "label": "Mean pool"},
-        {"id": "rd", "label": "RDKit branch"},
-        {"id": "head", "label": "MLP head"}
+        {"id": "x", "kind": "tensor", "label": "Atom feats"},
+        {"id": "tok", "kind": "embed", "label": "Uni-Mol embed (frozen)"},
+        {"id": "cat", "kind": "concat", "label": "Concat node feats"},
+        {"id": "ggn", "kind": "op", "label": "GeoGIN x4"},
+        {"id": "pool", "kind": "op", "label": "Mean pool"},
+        {"id": "rd", "kind": "tensor", "label": "RDKit branch"},
+        {"id": "head", "kind": "ffn", "label": "MLP head"}
       ],
       "edges": [
         {"from": "x", "to": "cat"},

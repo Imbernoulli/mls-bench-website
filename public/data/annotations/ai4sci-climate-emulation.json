@@ -7,14 +7,14 @@
     "formula": "$$h_{i+1} = \\mathrm{Block}\\big((1+\\gamma_i(s))\\odot h_i + \\beta_i(s)\\big),\\quad h \\leftarrow h \\odot \\sigma(\\mathrm{SE}(h)),\\quad \\hat{y}_{sl} = \\mathrm{Head}(h) + W_{skip}\\, s$$",
     "diagram": {
       "nodes": [
-        {"id": "ml", "label": "9x60 profile"},
-        {"id": "sl", "label": "scalars s"},
-        {"id": "proj", "label": "scalar->2x60"},
-        {"id": "stem", "label": "Conv1d stem"},
-        {"id": "blk", "label": "8 GatedRes (k=3,5)"},
-        {"id": "se", "label": "SE attn"},
-        {"id": "mlh", "label": "ML head 6x60"},
-        {"id": "slh", "label": "SL head + skip"}
+        {"id": "ml", "label": "9x60 profile", "kind": "tensor"},
+        {"id": "sl", "label": "scalars s", "kind": "tensor"},
+        {"id": "proj", "label": "scalar->2x60", "kind": "linear"},
+        {"id": "stem", "label": "Conv1d stem", "kind": "conv"},
+        {"id": "blk", "label": "8 GatedRes (k=3,5)", "kind": "op"},
+        {"id": "se", "label": "SE attn", "kind": "attn"},
+        {"id": "mlh", "label": "ML head 6x60", "kind": "linear"},
+        {"id": "slh", "label": "SL head + skip", "kind": "linear"}
       ],
       "edges": [
         {"from": "ml", "to": "stem"},
@@ -51,14 +51,14 @@
     "formula": "$$h \\leftarrow h + \\mathrm{LevelMix}(\\mathrm{LN}(h)),\\quad h \\leftarrow h + \\gamma_s\\cdot \\mathrm{MLP}\\big(\\gamma_i(s)\\odot \\mathrm{LN}(h)+\\beta_i(s)\\big)$$",
     "diagram": {
       "nodes": [
-        {"id": "ml", "label": "9x60"},
-        {"id": "tok", "label": "Linear -> 60x192"},
-        {"id": "pos", "label": "+ pos embed"},
-        {"id": "sl", "label": "scalars s"},
-        {"id": "film", "label": "FiLM MLP"},
-        {"id": "blk", "label": "10x FiLMMixer"},
-        {"id": "mlh", "label": "ML head + raw skip"},
-        {"id": "slh", "label": "soft pool + SL MLP"}
+        {"id": "ml", "label": "9x60", "kind": "tensor"},
+        {"id": "tok", "label": "Linear -> 60x192", "kind": "linear"},
+        {"id": "pos", "label": "+ pos embed", "kind": "pos"},
+        {"id": "sl", "label": "scalars s", "kind": "tensor"},
+        {"id": "film", "label": "FiLM MLP", "kind": "ffn"},
+        {"id": "blk", "label": "10x FiLMMixer", "kind": "op"},
+        {"id": "mlh", "label": "ML head + raw skip", "kind": "linear"},
+        {"id": "slh", "label": "soft pool + SL MLP", "kind": "ffn"}
       ],
       "edges": [
         {"from": "ml", "to": "tok"},
@@ -95,14 +95,14 @@
     "formula": "$$\\mathrm{Block}: a,b = \\mathrm{DW}(\\mathrm{PW}_1 x);\\; x \\leftarrow x + \\mathrm{PW}_2(a\\odot \\sigma(b));\\; x \\leftarrow x + \\mathrm{SE}(\\mathrm{FF}(x));\\; h \\leftarrow h\\big(1+0.1\\gamma(s)\\big)+0.1\\beta(s)$$",
     "diagram": {
       "nodes": [
-        {"id": "ml", "label": "9x60 profile"},
-        {"id": "sl", "label": "scalars s"},
-        {"id": "emb", "label": "PW embed + pos"},
-        {"id": "ctx", "label": "scalar MLP -> ctx"},
-        {"id": "blks", "label": "6 ProfileBlocks (k=3,5,3,7,3,5)"},
-        {"id": "head_p", "label": "Profile head"},
-        {"id": "pool", "label": "mean+max pool"},
-        {"id": "head_s", "label": "Scalar head"}
+        {"id": "ml", "label": "9x60 profile", "kind": "tensor"},
+        {"id": "sl", "label": "scalars s", "kind": "tensor"},
+        {"id": "emb", "label": "PW embed + pos", "kind": "embed"},
+        {"id": "ctx", "label": "scalar MLP -> ctx", "kind": "ffn"},
+        {"id": "blks", "label": "6 ProfileBlocks (k=3,5,3,7,3,5)", "kind": "op"},
+        {"id": "head_p", "label": "Profile head", "kind": "linear"},
+        {"id": "pool", "label": "mean+max pool", "kind": "op"},
+        {"id": "head_s", "label": "Scalar head", "kind": "linear"}
       ],
       "edges": [
         {"from": "ml", "to": "emb"},
@@ -137,14 +137,14 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "ml", "label": "9x60 profile"},
-        {"id": "sl", "label": "scalars"},
-        {"id": "emb", "label": "Linear -> 60x128"},
-        {"id": "pos", "label": "+ pos embed"},
-        {"id": "slb", "label": "scalar bias"},
-        {"id": "cnn", "label": "2 depthwise convs"},
-        {"id": "tr", "label": "4-layer Transformer"},
-        {"id": "out", "label": "per-level head + pooled SL head"}
+        {"id": "ml", "label": "9x60 profile", "kind": "tensor"},
+        {"id": "sl", "label": "scalars", "kind": "tensor"},
+        {"id": "emb", "label": "Linear -> 60x128", "kind": "linear"},
+        {"id": "pos", "label": "+ pos embed", "kind": "pos"},
+        {"id": "slb", "label": "scalar bias", "kind": "op"},
+        {"id": "cnn", "label": "2 depthwise convs", "kind": "conv"},
+        {"id": "tr", "label": "4-layer Transformer", "kind": "attn"},
+        {"id": "out", "label": "per-level head + pooled SL head", "kind": "linear"}
       ],
       "edges": [
         {"from": "ml", "to": "emb"},

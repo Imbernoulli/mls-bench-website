@@ -6,13 +6,13 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "encode features (MLP)"},
-        {"id": "d1", "label": "Down: SAGEConv + BN + ReLU"},
-        {"id": "p1", "label": "DownSample: random/topK pool + radius_graph"},
-        {"id": "d2", "label": "More down levels (L=5, channels x2)"},
-        {"id": "u1", "label": "UpSample: nearest-neighbor cluster"},
-        {"id": "u2", "label": "Concat skip + SAGEConv + BN"},
-        {"id": "out", "label": "decode -> per-point flow vars"}
+        {"id": "in", "label": "encode features (MLP)", "kind": "ffn"},
+        {"id": "d1", "label": "Down: SAGEConv + BN + ReLU", "kind": "conv"},
+        {"id": "p1", "label": "DownSample: random/topK pool + radius_graph", "kind": "op"},
+        {"id": "d2", "label": "More down levels (L=5, channels x2)", "kind": "conv"},
+        {"id": "u1", "label": "UpSample: nearest-neighbor cluster", "kind": "op"},
+        {"id": "u2", "label": "Concat skip + SAGEConv + BN", "kind": "conv"},
+        {"id": "out", "label": "decode -> per-point flow vars", "kind": "ffn"}
       ],
       "edges": [
         {"from": "in", "to": "d1"},
@@ -41,11 +41,11 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "encode (MLP) fun_dim+space_dim -> n_hidden"},
-        {"id": "in1", "label": "SAGEConv in_layer + BN + ReLU"},
-        {"id": "hid", "label": "n_layers-1 x SAGEConv + BN + ReLU"},
-        {"id": "out", "label": "SAGEConv out_layer"},
-        {"id": "dec", "label": "decode (MLP) -> out_dim per node"}
+        {"id": "in", "label": "encode (MLP) fun_dim+space_dim -> n_hidden", "kind": "ffn"},
+        {"id": "in1", "label": "SAGEConv in_layer + BN + ReLU", "kind": "conv"},
+        {"id": "hid", "label": "n_layers-1 x SAGEConv + BN + ReLU", "kind": "conv"},
+        {"id": "out", "label": "SAGEConv out_layer", "kind": "conv"},
+        {"id": "dec", "label": "decode (MLP) -> out_dim per node", "kind": "ffn"}
       ],
       "edges": [
         {"from": "in", "to": "in1"},
@@ -69,11 +69,11 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "encode coords + features"},
-        {"id": "ptmlp", "label": "in_block MLP"},
-        {"id": "g", "label": "max_block MLP -> global max-pool"},
-        {"id": "cat", "label": "concat [point feats, broadcast global]"},
-        {"id": "out_block", "label": "out_block MLP -> fcfinal -> decode"}
+        {"id": "in", "label": "encode coords + features", "kind": "ffn"},
+        {"id": "ptmlp", "label": "in_block MLP", "kind": "ffn"},
+        {"id": "g", "label": "max_block MLP -> global max-pool", "kind": "op"},
+        {"id": "cat", "label": "concat [point feats, broadcast global]", "kind": "concat"},
+        {"id": "out_block", "label": "out_block MLP -> fcfinal -> decode", "kind": "ffn"}
       ],
       "edges": [
         {"from": "in", "to": "ptmlp"},
@@ -99,11 +99,11 @@
     "formula": "$$\\mathrm{Transolver\\,block}(z) = z + \\mathrm{MLP}(\\mathrm{LN}(z + \\mathrm{Physics\\text{-}Attn}(\\mathrm{LN}(z))))$$",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "x (coords) + fx (features)"},
-        {"id": "pre", "label": "preprocess MLP -> hidden + placeholder"},
-        {"id": "blocks", "label": "n_layers x Transolver_block (PhysAttn + MLP)"},
-        {"id": "physattn", "label": "Physics_Attention_Irregular_Mesh(slice_num=32)"},
-        {"id": "out", "label": "last block: LN + Linear -> out_dim"}
+        {"id": "in", "label": "x (coords) + fx (features)", "kind": "tensor"},
+        {"id": "pre", "label": "preprocess MLP -> hidden + placeholder", "kind": "ffn"},
+        {"id": "blocks", "label": "n_layers x Transolver_block (PhysAttn + MLP)", "kind": "op"},
+        {"id": "physattn", "label": "Physics_Attention_Irregular_Mesh(slice_num=32)", "kind": "attn"},
+        {"id": "out", "label": "last block: LN + Linear -> out_dim", "kind": "linear"}
       ],
       "edges": [
         {"from": "in", "to": "pre"},

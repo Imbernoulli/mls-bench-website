@@ -6,13 +6,13 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "Alpha360 [N, 360]"},
-        {"id": "rs", "label": "reshape → [N, 60, 6]"},
-        {"id": "lstm1", "label": "LSTM (h=64)"},
-        {"id": "lstm2", "label": "LSTM (h=64)"},
-        {"id": "last", "label": "take last timestep [N, 64]"},
-        {"id": "fc", "label": "Linear 64 → 1"},
-        {"id": "out", "label": "ŷ next-day return"}
+        {"id": "in", "label": "Alpha360 [N, 360]", "kind": "tensor"},
+        {"id": "rs", "label": "reshape → [N, 60, 6]", "kind": "op"},
+        {"id": "lstm1", "label": "LSTM (h=64)", "kind": "rnn"},
+        {"id": "lstm2", "label": "LSTM (h=64)", "kind": "rnn"},
+        {"id": "last", "label": "take last timestep [N, 64]", "kind": "op"},
+        {"id": "fc", "label": "Linear 64 → 1", "kind": "linear"},
+        {"id": "out", "label": "ŷ next-day return", "kind": "tensor"}
       ],
       "edges": [
         {"from": "in", "to": "rs"},
@@ -56,13 +56,13 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "Alpha360 [N, 360]"},
-        {"id": "rs", "label": "reshape → [N, 60, 6]"},
-        {"id": "emb", "label": "Linear 6 → 64 + sin/cos PE"},
-        {"id": "enc", "label": "TransformerEncoder ×2 (nhead=2)"},
-        {"id": "last", "label": "take last timestep [N, 64]"},
-        {"id": "fc", "label": "Linear 64 → 1"},
-        {"id": "out", "label": "ŷ next-day return"}
+        {"id": "in", "label": "Alpha360 [N, 360]", "kind": "tensor"},
+        {"id": "rs", "label": "reshape → [N, 60, 6]", "kind": "op"},
+        {"id": "emb", "label": "Linear 6 → 64 + sin/cos PE", "kind": "pos"},
+        {"id": "enc", "label": "TransformerEncoder ×2 (nhead=2)", "kind": "attn"},
+        {"id": "last", "label": "take last timestep [N, 64]", "kind": "op"},
+        {"id": "fc", "label": "Linear 64 → 1", "kind": "linear"},
+        {"id": "out", "label": "ŷ next-day return", "kind": "tensor"}
       ],
       "edges": [
         {"from": "in", "to": "rs"},

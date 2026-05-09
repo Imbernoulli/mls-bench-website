@@ -6,14 +6,14 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "x  (B, 556)"},
-        {"id": "split", "label": "split: profile (9x60) | scalar (16-17)"},
-        {"id": "cat", "label": "Conv1d in: 10 ch x 60"},
-        {"id": "stem", "label": "Conv1d 10->128, ReLU"},
-        {"id": "blocks", "label": "8x Residual{BN,Conv,ReLU,Drop,Conv}"},
-        {"id": "ml", "label": "Conv1x1 -> 6x60 multi-level"},
-        {"id": "sl", "label": "AvgPool+MLP -> 8 single-level"},
-        {"id": "out", "label": "concat -> y (B, 368)"}
+        {"id": "in", "label": "x  (B, 556)", "kind": "tensor"},
+        {"id": "split", "label": "split: profile (9x60) | scalar (16-17)", "kind": "split"},
+        {"id": "cat", "label": "Conv1d in: 10 ch x 60", "kind": "op"},
+        {"id": "stem", "label": "Conv1d 10->128, ReLU", "kind": "conv"},
+        {"id": "blocks", "label": "8x Residual{BN,Conv,ReLU,Drop,Conv}", "kind": "op"},
+        {"id": "ml", "label": "Conv1x1 -> 6x60 multi-level", "kind": "conv"},
+        {"id": "sl", "label": "AvgPool+MLP -> 8 single-level", "kind": "ffn"},
+        {"id": "out", "label": "concat -> y (B, 368)", "kind": "concat"}
       ],
       "edges": [
         {"from": "in", "to": "split"},
@@ -42,11 +42,11 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "x (B, 556)"},
-        {"id": "enc", "label": "Encoder: 768->512->384->256->128"},
-        {"id": "lat", "label": "Linear -> latent (5)"},
-        {"id": "dec", "label": "Decoder: 128->256->384->512->768"},
-        {"id": "out", "label": "Linear -> y (B, 368)"}
+        {"id": "in", "label": "x (B, 556)", "kind": "tensor"},
+        {"id": "enc", "label": "Encoder: 768->512->384->256->128", "kind": "ffn"},
+        {"id": "lat", "label": "Linear -> latent (5)", "kind": "linear"},
+        {"id": "dec", "label": "Decoder: 128->256->384->512->768", "kind": "ffn"},
+        {"id": "out", "label": "Linear -> y (B, 368)", "kind": "linear"}
       ],
       "edges": [
         {"from": "in", "to": "enc"},
@@ -72,11 +72,11 @@
     "formula": "$$\\mathcal{L}_{\\text{NLL}}(x,y) = \\tfrac{1}{2}\\big(\\log\\sigma^2(x) + \\frac{(y-\\mu(x))^2}{\\sigma^2(x)}\\big)$$",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "x (B, 556)"},
-        {"id": "bb", "label": "5x{Linear+LN+Drop+ReLU}, hidden=768"},
-        {"id": "mu", "label": "head_mean -> mu"},
-        {"id": "lv", "label": "head_logvar -> log var (clamped [-10,10])"},
-        {"id": "out", "label": "predict mu (NLL trains both)"}
+        {"id": "in", "label": "x (B, 556)", "kind": "tensor"},
+        {"id": "bb", "label": "5x{Linear+LN+Drop+ReLU}, hidden=768", "kind": "ffn"},
+        {"id": "mu", "label": "head_mean -> mu", "kind": "linear"},
+        {"id": "lv", "label": "head_logvar -> log var (clamped [-10,10])", "kind": "linear"},
+        {"id": "out", "label": "predict mu (NLL trains both)", "kind": "loss"}
       ],
       "edges": [
         {"from": "in", "to": "bb"},
@@ -101,13 +101,13 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "reshape -> [B, 25, 60] -> pad to 64"},
-        {"id": "e1", "label": "Conv stem + 3x ResBlock1d (128ch)"},
-        {"id": "e2", "label": "Down 2x + 3x ResBlock1d (256ch)"},
-        {"id": "mid", "label": "Down + ResBlock + Self-Attn + ResBlock"},
-        {"id": "d2", "label": "Up 2x + concat skip + 3x ResBlock"},
-        {"id": "d1", "label": "Up 2x + concat skip + 3x ResBlock"},
-        {"id": "out", "label": "GroupNorm + Conv -> profile/scalar split"}
+        {"id": "in", "label": "reshape -> [B, 25, 60] -> pad to 64", "kind": "tensor"},
+        {"id": "e1", "label": "Conv stem + 3x ResBlock1d (128ch)", "kind": "conv"},
+        {"id": "e2", "label": "Down 2x + 3x ResBlock1d (256ch)", "kind": "conv"},
+        {"id": "mid", "label": "Down + ResBlock + Self-Attn + ResBlock", "kind": "attn"},
+        {"id": "d2", "label": "Up 2x + concat skip + 3x ResBlock", "kind": "conv"},
+        {"id": "d1", "label": "Up 2x + concat skip + 3x ResBlock", "kind": "conv"},
+        {"id": "out", "label": "GroupNorm + Conv -> profile/scalar split", "kind": "conv"}
       ],
       "edges": [
         {"from": "in", "to": "e1"},

@@ -6,12 +6,12 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "obs", "label": "obs_dict {ee_pose, gripper, object, ...}"},
-        {"id": "proj", "label": "Per-modality Linear+ReLU → ℝᴱ"},
-        {"id": "stack", "label": "Stack: tokens [B,M,E]"},
-        {"id": "mha", "label": "MultiheadAttention (heads=2)"},
-        {"id": "ln", "label": "LayerNorm + residual"},
-        {"id": "out", "label": "flatten → ℝ^{M·E}"}
+        {"id": "obs", "label": "obs_dict {ee_pose, gripper, object, ...}", "kind": "tensor"},
+        {"id": "proj", "label": "Per-modality Linear+ReLU → ℝᴱ", "kind": "linear"},
+        {"id": "stack", "label": "Stack: tokens [B,M,E]", "kind": "tensor"},
+        {"id": "mha", "label": "MultiheadAttention (heads=2)", "kind": "attn"},
+        {"id": "ln", "label": "LayerNorm + residual", "kind": "norm"},
+        {"id": "out", "label": "flatten → ℝ^{M·E}", "kind": "tensor"}
       ],
       "edges": [
         {"from": "obs", "to": "proj"},

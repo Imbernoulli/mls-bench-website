@@ -7,10 +7,10 @@
     "formula": "$$h \\leftarrow h + \\mathrm{gate}(c)\\odot \\mathrm{AdaLN}(h;\\,\\gamma(c),\\,\\beta(c))$$",
     "diagram": {
       "nodes": [
-        {"id": "h", "label": "ResBlock features h"},
-        {"id": "c", "label": "class_emb c"},
-        {"id": "ada", "label": "AdaLNBlock(γ,β,gate)"},
-        {"id": "out", "label": "h ← h + gate·LN(γ,β)(h)"}
+        {"id": "h", "label": "ResBlock features h", "kind": "tensor"},
+        {"id": "c", "label": "class_emb c", "kind": "tensor"},
+        {"id": "ada", "label": "AdaLNBlock(γ,β,gate)", "kind": "norm"},
+        {"id": "out", "label": "h ← h + gate·LN(γ,β)(h)", "kind": "add"}
       ],
       "edges": [
         {"from": "h", "to": "ada"},
@@ -42,10 +42,10 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "h", "label": "ResBlock features h"},
-        {"id": "c", "label": "class_emb c"},
-        {"id": "ca", "label": "CrossAttn(Q=h, K=V=c, heads=4)"},
-        {"id": "out", "label": "h_out"}
+        {"id": "h", "label": "ResBlock features h", "kind": "tensor"},
+        {"id": "c", "label": "class_emb c", "kind": "tensor"},
+        {"id": "ca", "label": "CrossAttn(Q=h, K=V=c, heads=4)", "kind": "attn"},
+        {"id": "out", "label": "h_out", "kind": "tensor"}
       ],
       "edges": [
         {"from": "h", "to": "ca", "label": "Q"},

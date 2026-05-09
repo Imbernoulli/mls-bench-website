@@ -6,13 +6,13 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x [B,L,C]"},
-        {"id": "decomp", "label": "Series decomposition (moving-avg)"},
-        {"id": "trend", "label": "trend [B,L,C]"},
-        {"id": "season", "label": "seasonal [B,L,C]"},
-        {"id": "lin", "label": "Per-channel Linear (L→T) ×2"},
-        {"id": "sum", "label": "trend + seasonal"},
-        {"id": "head", "label": "Flatten + Linear → class logits"}
+        {"id": "x", "label": "x [B,L,C]", "kind": "tensor"},
+        {"id": "decomp", "label": "Series decomposition (moving-avg)", "kind": "split"},
+        {"id": "trend", "label": "trend [B,L,C]", "kind": "tensor"},
+        {"id": "season", "label": "seasonal [B,L,C]", "kind": "tensor"},
+        {"id": "lin", "label": "Per-channel Linear (L→T) ×2", "kind": "linear"},
+        {"id": "sum", "label": "trend + seasonal", "kind": "add"},
+        {"id": "head", "label": "Flatten + Linear → class logits", "kind": "linear"}
       ],
       "edges": [
         {"from": "x", "to": "decomp"},
@@ -39,13 +39,13 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x [B,L,C]"},
-        {"id": "ci", "label": "Channel-independent: reshape to [B·C, L, 1]"},
-        {"id": "patch", "label": "Patchify (size P, stride S)"},
-        {"id": "embed", "label": "Linear → tokens [B·C, N, D]"},
-        {"id": "tx", "label": "Transformer Encoder × e_layers"},
-        {"id": "pool", "label": "Flatten / mean over patches"},
-        {"id": "head", "label": "Per-class Linear"}
+        {"id": "x", "label": "x [B,L,C]", "kind": "tensor"},
+        {"id": "ci", "label": "Channel-independent: reshape to [B·C, L, 1]", "kind": "op"},
+        {"id": "patch", "label": "Patchify (size P, stride S)", "kind": "op"},
+        {"id": "embed", "label": "Linear → tokens [B·C, N, D]", "kind": "linear"},
+        {"id": "tx", "label": "Transformer Encoder × e_layers", "kind": "attn"},
+        {"id": "pool", "label": "Flatten / mean over patches", "kind": "op"},
+        {"id": "head", "label": "Per-class Linear", "kind": "linear"}
       ],
       "edges": [
         {"from": "x", "to": "ci"},
@@ -72,13 +72,13 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x [B,L,C]"},
-        {"id": "fft", "label": "FFT → top-k periods p₁..p_k"},
-        {"id": "fold", "label": "Reshape to 2D [B,k,p,L/p,C]"},
-        {"id": "incep", "label": "Inception 2D (num_kernels) per period"},
-        {"id": "agg", "label": "Adaptive aggregation by period weights"},
-        {"id": "stack", "label": "Stack TimesBlock × e_layers"},
-        {"id": "head", "label": "Pool + Linear → class logits"}
+        {"id": "x", "label": "x [B,L,C]", "kind": "tensor"},
+        {"id": "fft", "label": "FFT → top-k periods p₁..p_k", "kind": "op"},
+        {"id": "fold", "label": "Reshape to 2D [B,k,p,L/p,C]", "kind": "op"},
+        {"id": "incep", "label": "Inception 2D (num_kernels) per period", "kind": "conv"},
+        {"id": "agg", "label": "Adaptive aggregation by period weights", "kind": "op"},
+        {"id": "stack", "label": "Stack TimesBlock × e_layers", "kind": "op"},
+        {"id": "head", "label": "Pool + Linear → class logits", "kind": "linear"}
       ],
       "edges": [
         {"from": "x", "to": "fft"},

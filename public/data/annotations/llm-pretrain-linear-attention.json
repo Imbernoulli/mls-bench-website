@@ -6,11 +6,11 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x"},
-        {"id": "ln", "label": "LayerNorm"},
-        {"id": "gla", "label": "GLA(expand_k=f(l))"},
-        {"id": "mlp", "label": "MLP"},
-        {"id": "out", "label": "block out"}
+        {"id": "x", "label": "x", "kind": "tensor"},
+        {"id": "ln", "label": "LayerNorm", "kind": "norm"},
+        {"id": "gla", "label": "GLA(expand_k=f(l))", "kind": "attn"},
+        {"id": "mlp", "label": "MLP", "kind": "ffn"},
+        {"id": "out", "label": "block out", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "ln"},
@@ -37,12 +37,12 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x"},
-        {"id": "delta", "label": "DeltaNet"},
-        {"id": "decay", "label": "·sigmoid(decay_h)"},
-        {"id": "gate", "label": "g = σ(W_g x)"},
-        {"id": "blend", "label": "g·delta + (1-g)·x"},
-        {"id": "proj", "label": "Linear + dropout"}
+        {"id": "x", "label": "x", "kind": "tensor"},
+        {"id": "delta", "label": "DeltaNet", "kind": "attn"},
+        {"id": "decay", "label": "·sigmoid(decay_h)", "kind": "mul"},
+        {"id": "gate", "label": "g = σ(W_g x)", "kind": "op"},
+        {"id": "blend", "label": "g·delta + (1-g)·x", "kind": "add"},
+        {"id": "proj", "label": "Linear + dropout", "kind": "linear"}
       ],
       "edges": [
         {"from": "x", "to": "delta"},
@@ -70,14 +70,14 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x"},
-        {"id": "in", "label": "Linear in_proj"},
-        {"id": "split", "label": "split d/2 + d/2"},
-        {"id": "gla", "label": "GLA(d/2, h/2)"},
-        {"id": "dn", "label": "DeltaNet(d/2, h/2)"},
-        {"id": "cat", "label": "concat"},
-        {"id": "gate", "label": "silu(W·DWConv1d(x))"},
-        {"id": "out", "label": "·gate → Linear"}
+        {"id": "x", "label": "x", "kind": "tensor"},
+        {"id": "in", "label": "Linear in_proj", "kind": "linear"},
+        {"id": "split", "label": "split d/2 + d/2", "kind": "split"},
+        {"id": "gla", "label": "GLA(d/2, h/2)", "kind": "attn"},
+        {"id": "dn", "label": "DeltaNet(d/2, h/2)", "kind": "attn"},
+        {"id": "cat", "label": "concat", "kind": "concat"},
+        {"id": "gate", "label": "silu(W·DWConv1d(x))", "kind": "act"},
+        {"id": "out", "label": "·gate → Linear", "kind": "linear"}
       ],
       "edges": [
         {"from": "x", "to": "in"},
@@ -110,14 +110,14 @@
     "formula": "$$y_t=\\text{gate}_t\\!\\left(\\frac{\\phi(q_t)^\\top S_t}{\\phi(q_t)^\\top z_t+\\varepsilon}+\\sigma(\\alpha)\\!\\odot\\text{DWConv4}(x)_t\\right),\\;S_t=\\!\\sum_{s\\le t}\\!\\phi(k_s)v_s^\\top,\\;z_t=\\!\\sum_{s\\le t}\\!\\phi(k_s),\\;\\phi(\\cdot)=\\text{SiLU}(\\cdot)+1$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x"},
-        {"id": "qkv", "label": "Linear Q,K,V"},
-        {"id": "phi", "label": "SiLU+1"},
-        {"id": "cs", "label": "cumsum(K⊗V), cumsum(K)"},
-        {"id": "g", "label": "gate σ(W_g x)"},
-        {"id": "loc", "label": "DWConv1d(x, k=4)"},
-        {"id": "mix", "label": "global + σ(α)·local"},
-        {"id": "out", "label": "Linear + dropout"}
+        {"id": "x", "label": "x", "kind": "tensor"},
+        {"id": "qkv", "label": "Linear Q,K,V", "kind": "linear"},
+        {"id": "phi", "label": "SiLU+1", "kind": "act"},
+        {"id": "cs", "label": "cumsum(K⊗V), cumsum(K)", "kind": "op"},
+        {"id": "g", "label": "gate σ(W_g x)", "kind": "op"},
+        {"id": "loc", "label": "DWConv1d(x, k=4)", "kind": "conv"},
+        {"id": "mix", "label": "global + σ(α)·local", "kind": "add"},
+        {"id": "out", "label": "Linear + dropout", "kind": "linear"}
       ],
       "edges": [
         {"from": "x", "to": "qkv"},
@@ -151,12 +151,12 @@
     "kind": "architecture",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x"},
-        {"id": "short", "label": "DeltaNet conv=4"},
-        {"id": "long", "label": "DeltaNet no conv"},
-        {"id": "gate", "label": "g = σ(W_g x)"},
-        {"id": "mix", "label": "g·short + (1-g)·long"},
-        {"id": "proj", "label": "Linear o_proj"}
+        {"id": "x", "label": "x", "kind": "tensor"},
+        {"id": "short", "label": "DeltaNet conv=4", "kind": "attn"},
+        {"id": "long", "label": "DeltaNet no conv", "kind": "attn"},
+        {"id": "gate", "label": "g = σ(W_g x)", "kind": "op"},
+        {"id": "mix", "label": "g·short + (1-g)·long", "kind": "add"},
+        {"id": "proj", "label": "Linear o_proj", "kind": "linear"}
       ],
       "edges": [
         {"from": "x", "to": "short"},

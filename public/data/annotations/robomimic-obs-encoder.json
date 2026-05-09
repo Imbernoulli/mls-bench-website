@@ -23,14 +23,14 @@
     "formula": "$$f_{\\text{pose}} = \\mathrm{MLP}_p([p, q]),\\ f_{\\text{grip}} = \\mathrm{MLP}_g(g),\\ f_{\\text{obj}} = \\mathrm{MLP}_o(o)$$\n$$\\alpha = \\mathrm{softmax}\\!\\bigl(\\mathrm{MLP}_{\\text{gate}}([p, q, g, o])\\bigr) \\in \\mathbb{R}^{3}$$\n$$z_{\\text{sum}} = \\alpha_1 f_{\\text{pose}} + \\alpha_2 f_{\\text{grip}} + \\alpha_3 f_{\\text{obj}}$$\n$$y = \\mathrm{MLP}_{\\text{out}}\\!\\bigl([z_{\\text{sum}}, f_{\\text{pose}}, f_{\\text{grip}}, f_{\\text{obj}}]\\bigr)$$",
     "diagram": {
       "nodes": [
-        {"id": "p", "label": "eef_pos+quat"},
-        {"id": "g", "label": "gripper_qpos"},
-        {"id": "o", "label": "object"},
-        {"id": "fp", "label": "MLP pose"},
-        {"id": "fg", "label": "MLP grip"},
-        {"id": "fo", "label": "MLP obj"},
-        {"id": "gate", "label": "softmax gate (3)"},
-        {"id": "y", "label": "MLP_out -> 2*D"}
+        {"id": "p", "label": "eef_pos+quat", "kind": "tensor"},
+        {"id": "g", "label": "gripper_qpos", "kind": "tensor"},
+        {"id": "o", "label": "object", "kind": "tensor"},
+        {"id": "fp", "label": "MLP pose", "kind": "ffn"},
+        {"id": "fg", "label": "MLP grip", "kind": "ffn"},
+        {"id": "fo", "label": "MLP obj", "kind": "ffn"},
+        {"id": "gate", "label": "softmax gate (3)", "kind": "softmax"},
+        {"id": "y", "label": "MLP_out -> 2*D", "kind": "ffn"}
       ],
       "edges": [
         {"from": "p", "to": "fp"},
@@ -61,13 +61,13 @@
     "formula": "$$t_k = W_k\\,o_k + e_k,\\ k\\in\\mathcal{K},\\quad t_0 = \\text{[FUSION]}$$\n$$X = [t_0, t_1, \\dots, t_M],\\ Z = \\mathrm{TransformerEnc}_{2,4}(X)$$\n$$y = [\\mathrm{LN}(Z_0),\\, o_{\\text{raw}}]$$",
     "diagram": {
       "nodes": [
-        {"id": "obs", "label": "obs_dict"},
-        {"id": "proj", "label": "per-modality Linear + mod_emb"},
-        {"id": "cls", "label": "[FUSION] token"},
-        {"id": "tx", "label": "PreNorm TFEnc 2 layers, 4 heads"},
-        {"id": "ln", "label": "LN(CLS)"},
-        {"id": "raw", "label": "raw concat"},
-        {"id": "out", "label": "[CLS, raw]"}
+        {"id": "obs", "label": "obs_dict", "kind": "tensor"},
+        {"id": "proj", "label": "per-modality Linear + mod_emb", "kind": "linear"},
+        {"id": "cls", "label": "[FUSION] token", "kind": "param"},
+        {"id": "tx", "label": "PreNorm TFEnc 2 layers, 4 heads", "kind": "attn"},
+        {"id": "ln", "label": "LN(CLS)", "kind": "norm"},
+        {"id": "raw", "label": "raw concat", "kind": "concat"},
+        {"id": "out", "label": "[CLS, raw]", "kind": "concat"}
       ],
       "edges": [
         {"from": "obs", "to": "proj"},

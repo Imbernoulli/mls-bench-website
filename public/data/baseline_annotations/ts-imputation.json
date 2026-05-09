@@ -20,13 +20,13 @@
     "formula": "$$ x \\to \\text{RevIN} \\to \\text{patches } P \\in \\mathbb{R}^{N\\times L_p} \\to \\text{Transformer encoder} \\to \\text{linear head} \\to \\hat{x} $$",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "Multivariate series (channel-independent)"},
-        {"id": "rev", "label": "RevIN per-channel normalize"},
-        {"id": "patch", "label": "Patchify length L_p, stride S"},
-        {"id": "embed", "label": "Linear patch embedding + pos enc"},
-        {"id": "enc", "label": "Transformer encoder"},
-        {"id": "head", "label": "Linear head (flatten patches)"},
-        {"id": "out", "label": "Imputed series (denorm)"}
+        {"id": "in", "kind": "tensor", "label": "Multivariate series (channel-independent)"},
+        {"id": "rev", "kind": "norm", "label": "RevIN per-channel normalize"},
+        {"id": "patch", "kind": "op", "label": "Patchify length L_p, stride S"},
+        {"id": "embed", "kind": "embed", "label": "Linear patch embedding + pos enc"},
+        {"id": "enc", "kind": "attn", "label": "Transformer encoder"},
+        {"id": "head", "kind": "linear", "label": "Linear head (flatten patches)"},
+        {"id": "out", "kind": "tensor", "label": "Imputed series (denorm)"}
       ],
       "edges": [
         {"from": "in", "to": "rev"},
@@ -53,13 +53,13 @@
     "formula": "$$ \\{p_1, \\ldots, p_k\\} = \\arg\\mathrm{topk}\\,|\\mathcal{F}(x)|,\\qquad x_{2D}^{(p)} \\in \\mathbb{R}^{p\\times \\lceil T/p\\rceil},\\quad \\hat{x} = \\sum_p w_p\\,\\mathrm{Inception2D}(x_{2D}^{(p)}) $$",
     "diagram": {
       "nodes": [
-        {"id": "in", "label": "Masked time series"},
-        {"id": "fft", "label": "FFT amplitude $\\to$ top-k periods"},
-        {"id": "reshape", "label": "Reshape to 2D per period $p_i$"},
-        {"id": "inception", "label": "Inception-style 2D conv block"},
-        {"id": "merge", "label": "Period-weighted sum"},
-        {"id": "stack", "label": "Stack of TimesBlocks (residual)"},
-        {"id": "out", "label": "Imputed series"}
+        {"id": "in", "kind": "tensor", "label": "Masked time series"},
+        {"id": "fft", "kind": "op", "label": "FFT amplitude $\\to$ top-k periods"},
+        {"id": "reshape", "kind": "op", "label": "Reshape to 2D per period $p_i$"},
+        {"id": "inception", "kind": "conv", "label": "Inception-style 2D conv block"},
+        {"id": "merge", "kind": "add", "label": "Period-weighted sum"},
+        {"id": "stack", "kind": "op", "label": "Stack of TimesBlocks (residual)"},
+        {"id": "out", "kind": "tensor", "label": "Imputed series"}
       ],
       "edges": [
         {"from": "in", "to": "fft"},

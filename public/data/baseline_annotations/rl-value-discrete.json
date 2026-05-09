@@ -7,12 +7,12 @@
     "formula": "$$\\mathcal{L} = -\\sum_a \\Phi\\!\\left(\\hat{T}\\,Z(s', a^*)\\right)\\log p_a(s, a), \\quad Z(s, a) = \\sum_{i=0}^{50} z_i\\,p_i(s, a)$$",
     "diagram": {
       "nodes": [
-        {"id": "enc", "label": "Fixed MLPEncoder"},
-        {"id": "head", "label": "Linear -> n_actions × 51 atoms"},
-        {"id": "softmax", "label": "Softmax over atoms (per action)"},
-        {"id": "q", "label": "Q(s,a) = sum p · z"},
-        {"id": "proj", "label": "Categorical Bellman projection"},
-        {"id": "loss", "label": "Cross-entropy on projected target"}
+        {"id": "enc", "label": "Fixed MLPEncoder", "kind": "ffn"},
+        {"id": "head", "label": "Linear -> n_actions × 51 atoms", "kind": "linear"},
+        {"id": "softmax", "label": "Softmax over atoms (per action)", "kind": "softmax"},
+        {"id": "q", "label": "Q(s,a) = sum p · z", "kind": "op"},
+        {"id": "proj", "label": "Categorical Bellman projection", "kind": "op"},
+        {"id": "loss", "label": "Cross-entropy on projected target", "kind": "loss"}
       ],
       "edges": [
         {"from": "enc", "to": "head"},
@@ -38,11 +38,11 @@
     "formula": "$$Q(s, a) = V(s) + A(s, a) - \\frac{1}{|\\mathcal{A}|}\\sum_{a'} A(s, a')$$",
     "diagram": {
       "nodes": [
-        {"id": "enc", "label": "Fixed MLPEncoder"},
-        {"id": "v", "label": "Value head: Linear -> 1"},
-        {"id": "a", "label": "Advantage head: Linear -> n_actions"},
-        {"id": "comb", "label": "Q = V + A − mean(A)"},
-        {"id": "loss", "label": "MSE TD loss"}
+        {"id": "enc", "label": "Fixed MLPEncoder", "kind": "ffn"},
+        {"id": "v", "label": "Value head: Linear -> 1", "kind": "linear"},
+        {"id": "a", "label": "Advantage head: Linear -> n_actions", "kind": "linear"},
+        {"id": "comb", "label": "Q = V + A − mean(A)", "kind": "add"},
+        {"id": "loss", "label": "MSE TD loss", "kind": "loss"}
       ],
       "edges": [
         {"from": "enc", "to": "v"},
@@ -68,11 +68,11 @@
     "formula": "$$\\mathcal{L} = \\frac{1}{N} \\sum_{i=1}^{N}\\!\\left[\\big|\\tau_i - \\mathbb{1}[u_{ij} < 0]\\big|\\,\\frac{\\mathcal{L}_\\kappa^H(u_{ij})}{\\kappa}\\right], \\quad u_{ij} = T q_j - q_i,\\; \\tau_i = (2i - 1)/(2N)$$",
     "diagram": {
       "nodes": [
-        {"id": "enc", "label": "Fixed MLPEncoder"},
-        {"id": "head", "label": "Linear -> n_actions × N quantiles"},
-        {"id": "q", "label": "Q(s,a) = mean over quantiles"},
-        {"id": "td", "label": "Pairwise TD: target_q − pred_q"},
-        {"id": "loss", "label": "Quantile-Huber (κ=1)"}
+        {"id": "enc", "label": "Fixed MLPEncoder", "kind": "ffn"},
+        {"id": "head", "label": "Linear -> n_actions × N quantiles", "kind": "linear"},
+        {"id": "q", "label": "Q(s,a) = mean over quantiles", "kind": "op"},
+        {"id": "td", "label": "Pairwise TD: target_q − pred_q", "kind": "op"},
+        {"id": "loss", "label": "Quantile-Huber (κ=1)", "kind": "loss"}
       ],
       "edges": [
         {"from": "enc", "to": "head"},

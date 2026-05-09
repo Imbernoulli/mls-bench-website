@@ -7,25 +7,81 @@
     "formula": "$$\\mathrm{score}(u,v)=\\mathrm{MLP}([\\mathbf{z}_u,\\mathbf{z}_v,\\mathbf{z}_u\\!\\odot\\!\\mathbf{z}_v,|\\mathbf{z}_u-\\mathbf{z}_v|])+\\mathbf{1}_{\\text{eval}}\\!\\left(0.3\\log(1+\\mathrm{CN})+0.4\\log(1+\\mathrm{AA})+0.3\\log(1+\\mathrm{RA})\\right)$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "node feats"},
-        {"id": "gcn", "label": "GCN+BN×L"},
-        {"id": "z", "label": "embeddings"},
-        {"id": "mlp", "label": "MLP decoder"},
-        {"id": "struct", "label": "CN/AA/RA cache"},
-        {"id": "score", "label": "+boost (eval only)"}
+        {
+          "id": "x",
+          "label": "node feats",
+          "kind": "tensor"
+        },
+        {
+          "id": "gcn",
+          "label": "GCN+BN×L",
+          "kind": "op"
+        },
+        {
+          "id": "z",
+          "label": "embeddings",
+          "kind": "tensor"
+        },
+        {
+          "id": "mlp",
+          "label": "MLP decoder",
+          "kind": "ffn"
+        },
+        {
+          "id": "struct",
+          "label": "CN/AA/RA cache",
+          "kind": "op"
+        },
+        {
+          "id": "score",
+          "label": "+boost (eval only)",
+          "kind": "tensor"
+        }
       ],
       "edges": [
-        {"from": "x", "to": "gcn"},
-        {"from": "gcn", "to": "z"},
-        {"from": "z", "to": "mlp", "label": "[z_u,z_v,⊙,|−|]"},
-        {"from": "mlp", "to": "score"},
-        {"from": "struct", "to": "score", "label": "eval only"}
+        {
+          "from": "x",
+          "to": "gcn"
+        },
+        {
+          "from": "gcn",
+          "to": "z"
+        },
+        {
+          "from": "z",
+          "to": "mlp",
+          "label": "[z_u,z_v,⊙,|−|]"
+        },
+        {
+          "from": "mlp",
+          "to": "score"
+        },
+        {
+          "from": "struct",
+          "to": "score",
+          "label": "eval only"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "AA / CN / RA weights", "value": "0.4 / 0.3 / 0.3", "role": "inference-time heuristic mix", "learnable": false},
-      {"name": "decoder hidden", "value": "hidden_channels", "role": "2-layer MLP width", "learnable": false},
-      {"name": "struct chunk", "value": "200000", "role": "candidate-edge batch for sparse CN computation", "learnable": false}
+      {
+        "name": "AA / CN / RA weights",
+        "value": "0.4 / 0.3 / 0.3",
+        "role": "inference-time heuristic mix",
+        "learnable": false
+      },
+      {
+        "name": "decoder hidden",
+        "value": "hidden_channels",
+        "role": "2-layer MLP width",
+        "learnable": false
+      },
+      {
+        "name": "struct chunk",
+        "value": "200000",
+        "role": "candidate-edge batch for sparse CN computation",
+        "learnable": false
+      }
     ],
     "init_recovers": "SEAL baseline if AA/CN/RA boost weights → 0",
     "diff_from_baseline": "Identical training to SEAL baseline, but at eval time adds a non-parametric structural correction $0.3\\log(1+\\mathrm{CN})+0.4\\log(1+\\mathrm{AA})+0.3\\log(1+\\mathrm{RA})$ computed via cached sparse adjacency.",
@@ -39,27 +95,88 @@
     "formula": "$$\\mathrm{score}(u,v)=\\mathbf{z}_u^\\top\\mathbf{z}_v+\\alpha\\,\\mathbf{z}_u^\\top W\\mathbf{z}_v+\\mathbf{1}_{\\text{train}}\\,\\lambda\\,\\big\\|\\hat Z^\\top\\hat Z/N-I\\big\\|_F^2$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "node feats"},
-        {"id": "gin", "label": "GIN×L + BN"},
-        {"id": "res", "label": "+ residual"},
-        {"id": "z", "label": "embeddings"},
-        {"id": "dot", "label": "dot z_u·z_v"},
-        {"id": "bil", "label": "bilinear z_u^T W z_v"},
-        {"id": "cov", "label": "cov reg (train)"}
+        {
+          "id": "x",
+          "label": "node feats",
+          "kind": "tensor"
+        },
+        {
+          "id": "gin",
+          "label": "GIN×L + BN",
+          "kind": "op"
+        },
+        {
+          "id": "res",
+          "label": "+ residual",
+          "kind": "add"
+        },
+        {
+          "id": "z",
+          "label": "embeddings",
+          "kind": "tensor"
+        },
+        {
+          "id": "dot",
+          "label": "dot z_u·z_v",
+          "kind": "op"
+        },
+        {
+          "id": "bil",
+          "label": "bilinear z_u^T W z_v",
+          "kind": "linear"
+        },
+        {
+          "id": "cov",
+          "label": "cov reg (train)",
+          "kind": "loss"
+        }
       ],
       "edges": [
-        {"from": "x", "to": "gin"},
-        {"from": "gin", "to": "res"},
-        {"from": "res", "to": "z"},
-        {"from": "z", "to": "dot"},
-        {"from": "z", "to": "bil"},
-        {"from": "z", "to": "cov"}
+        {
+          "from": "x",
+          "to": "gin"
+        },
+        {
+          "from": "gin",
+          "to": "res"
+        },
+        {
+          "from": "res",
+          "to": "z"
+        },
+        {
+          "from": "z",
+          "to": "dot"
+        },
+        {
+          "from": "z",
+          "to": "bil"
+        },
+        {
+          "from": "z",
+          "to": "cov"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "α", "value": "0.5 (init)", "role": "scalar weight on bilinear vs dot score", "learnable": true},
-      {"name": "W", "value": "H×H Xavier", "role": "bilinear metric matrix", "learnable": true},
-      {"name": "λ_reg", "value": "0.001", "role": "covariance regularization weight", "learnable": false}
+      {
+        "name": "α",
+        "value": "0.5 (init)",
+        "role": "scalar weight on bilinear vs dot score",
+        "learnable": true
+      },
+      {
+        "name": "W",
+        "value": "H×H Xavier",
+        "role": "bilinear metric matrix",
+        "learnable": true
+      },
+      {
+        "name": "λ_reg",
+        "value": "0.001",
+        "role": "covariance regularization weight",
+        "learnable": false
+      }
     ],
     "init_recovers": "Pure GIN dot-product encoder when α=0 and λ_reg=0",
     "diff_from_baseline": "Replaces GCN+dot baseline with a residual GIN encoder + dot+α·bilinear decoder, plus a Frobenius covariance penalty $\\|\\hat Z^\\top\\hat Z/N-I\\|_F^2$ injected into logits during training (à la VGAE KL).",
@@ -73,26 +190,86 @@
     "formula": "$$\\mathbf{z}=\\sum_{l=1}^L \\sigma_l\\,\\mathbf{h}^{(l)},\\;\\sigma=\\mathrm{softmax}(\\mathbf{w}),\\;\\mathrm{score}=\\mathrm{MLP}\\big([\\mathbf{z}_u\\!\\odot\\!\\mathbf{z}_v,|\\mathbf{z}_u-\\mathbf{z}_v|,\\mathrm{CN},\\log\\tfrac{d_u+1}{d_v+1}]\\big)+0.1\\,\\mathbf{z}_u^\\top\\mathbf{z}_v$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "node feats"},
-        {"id": "gcn", "label": "GCN×L+BN"},
-        {"id": "jk", "label": "softmax(w)·layers"},
-        {"id": "z", "label": "embeddings"},
-        {"id": "struct", "label": "CN, log deg-ratio"},
-        {"id": "mlp", "label": "MLP + dot residual"}
+        {
+          "id": "x",
+          "label": "node feats",
+          "kind": "tensor"
+        },
+        {
+          "id": "gcn",
+          "label": "GCN×L+BN",
+          "kind": "op"
+        },
+        {
+          "id": "jk",
+          "label": "softmax(w)·layers",
+          "kind": "op"
+        },
+        {
+          "id": "z",
+          "label": "embeddings",
+          "kind": "tensor"
+        },
+        {
+          "id": "struct",
+          "label": "CN, log deg-ratio",
+          "kind": "op"
+        },
+        {
+          "id": "mlp",
+          "label": "MLP + dot residual",
+          "kind": "ffn"
+        }
       ],
       "edges": [
-        {"from": "x", "to": "gcn"},
-        {"from": "gcn", "to": "jk"},
-        {"from": "jk", "to": "z"},
-        {"from": "z", "to": "mlp", "label": "[⊙,|−|]"},
-        {"from": "struct", "to": "mlp"}
+        {
+          "from": "x",
+          "to": "gcn"
+        },
+        {
+          "from": "gcn",
+          "to": "jk"
+        },
+        {
+          "from": "jk",
+          "to": "z"
+        },
+        {
+          "from": "z",
+          "to": "mlp",
+          "label": "[⊙,|−|]"
+        },
+        {
+          "from": "struct",
+          "to": "mlp"
+        }
       ]
     },
     "key_hyperparams": [
-      {"name": "layer_weights", "value": "ones(L)", "role": "JK softmax-weighted layer mix", "learnable": true},
-      {"name": "dot residual", "value": "0.1", "role": "auxiliary dot-product term added to MLP logit", "learnable": false},
-      {"name": "CN batch", "value": "5000", "role": "candidate-edge batch for dense CN computation", "learnable": false},
-      {"name": "max_num_nodes", "value": "50000", "role": "size guard for dense adjacency CN", "learnable": false}
+      {
+        "name": "layer_weights",
+        "value": "ones(L)",
+        "role": "JK softmax-weighted layer mix",
+        "learnable": true
+      },
+      {
+        "name": "dot residual",
+        "value": "0.1",
+        "role": "auxiliary dot-product term added to MLP logit",
+        "learnable": false
+      },
+      {
+        "name": "CN batch",
+        "value": "5000",
+        "role": "candidate-edge batch for dense CN computation",
+        "learnable": false
+      },
+      {
+        "name": "max_num_nodes",
+        "value": "50000",
+        "role": "size guard for dense adjacency CN",
+        "learnable": false
+      }
     ],
     "init_recovers": "Single-layer GCN+dot when layer_weights collapse and structural MLP weight → 0",
     "diff_from_baseline": "Adds a softmax JK-style layer aggregator on top of the GCN encoder and a hybrid MLP decoder over $[\\mathbf{z}_u\\!\\odot\\!\\mathbf{z}_v,|\\mathbf{z}_u-\\mathbf{z}_v|,\\mathrm{CN},\\log d\\text{-ratio}]$ plus a 0.1·dot residual.",

@@ -22,13 +22,13 @@
     "formula": "$$\\tilde{X} = X + W_{\\!o}\\,\\mathrm{MHA}\\bigl(W_{\\!h}\\mathrm{LN}(X)\\bigr)\\!,\\ X' = \\tilde{X} + \\mathrm{FFN}(\\mathrm{LN}(\\tilde{X}))$$\n$$c = [\\mathrm{mean}_v X' \\,\\Vert\\, \\max_v X'],\\quad q = q_0 + g(c)$$\n$$z = \\mathrm{MHA}(q,\\,X',\\,X')$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "X [B,V,L,D]"},
-        {"id": "sa", "label": "Var SA (D/2 bottleneck)"},
-        {"id": "ffn", "label": "Var FFN"},
-        {"id": "ctx", "label": "mean+max context"},
-        {"id": "q", "label": "q_0 + g(c)"},
-        {"id": "ca", "label": "Cross-Attn"},
-        {"id": "z", "label": "Z [B,L,D]"}
+        {"id": "x", "label": "X [B,V,L,D]", "kind": "tensor"},
+        {"id": "sa", "label": "Var SA (D/2 bottleneck)", "kind": "attn"},
+        {"id": "ffn", "label": "Var FFN", "kind": "ffn"},
+        {"id": "ctx", "label": "mean+max context", "kind": "op"},
+        {"id": "q", "label": "q_0 + g(c)", "kind": "tensor"},
+        {"id": "ca", "label": "Cross-Attn", "kind": "attn"},
+        {"id": "z", "label": "Z [B,L,D]", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "sa"},
@@ -85,11 +85,11 @@
     "formula": "$$g_k = \\tfrac{1}{|S_k|}\\sum_{v\\in S_k} x_v,\\quad k=1,\\dots,8$$\n$$z = \\mathrm{LN}\\!\\bigl(\\mathrm{MHA}(q_0,\\,[g_1,\\dots,g_8],\\,[g_1,\\dots,g_8]) + \\lambda\\,\\bar{x}\\bigr)$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "X [B,V=48,L,D]"},
-        {"id": "g", "label": "8 group means (constants/surface/z/u/v/T/RH/q)"},
-        {"id": "ca", "label": "Cross-Attn over G=8"},
-        {"id": "mean", "label": "global mean"},
-        {"id": "z", "label": "LN(out + lambda*mean)"}
+        {"id": "x", "label": "X [B,V=48,L,D]", "kind": "tensor"},
+        {"id": "g", "label": "8 group means (constants/surface/z/u/v/T/RH/q)", "kind": "op"},
+        {"id": "ca", "label": "Cross-Attn over G=8", "kind": "attn"},
+        {"id": "mean", "label": "global mean", "kind": "op"},
+        {"id": "z", "label": "LN(out + lambda*mean)", "kind": "norm"}
       ],
       "edges": [
         {"from": "x", "to": "g", "label": "group-pool"},

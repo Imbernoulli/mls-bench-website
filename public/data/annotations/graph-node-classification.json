@@ -7,11 +7,11 @@
     "formula": "$$\\alpha_{ij}^{(h)}=\\mathrm{softmax}_j\\!\\bigl(\\mathrm{LeakyReLU}\\bigl(\\mathbf{a}_s^{(h)\\top}\\mathbf{W}^{(h)}x_i+\\mathbf{a}_d^{(h)\\top}\\mathbf{W}^{(h)}x_j\\bigr)\\bigr),\\quad h_i^{(h)}=\\sum_{j\\in\\mathcal{N}(i)\\cup\\{i\\}}\\alpha_{ij}^{(h)}\\mathbf{W}^{(h)}x_j$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "node feats x"},
-        {"id": "L1", "label": "GAT 8-head, concat"},
-        {"id": "elu", "label": "ELU + dropout 0.6"},
-        {"id": "L2", "label": "GAT 8-head, mean"},
-        {"id": "y", "label": "logits"}
+        {"id": "x", "label": "node feats x", "kind": "tensor"},
+        {"id": "L1", "label": "GAT 8-head, concat", "kind": "attn"},
+        {"id": "elu", "label": "ELU + dropout 0.6", "kind": "act"},
+        {"id": "L2", "label": "GAT 8-head, mean", "kind": "attn"},
+        {"id": "y", "label": "logits", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "L1"},
@@ -55,14 +55,14 @@
     "formula": "$$\\alpha_{ij}^{(h)}=\\mathrm{softmax}_j\\!\\Bigl(\\mathbf{a}^{(h)\\top}\\mathrm{LeakyReLU}(\\mathbf{W}_s^{(h)}x_j+\\mathbf{W}_d^{(h)}x_i)+\\beta^{(h)}\\log\\!\\bigl(d_i^{-1/2}d_j^{-1/2}\\bigr)\\Bigr)$$",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "x"},
-        {"id": "ws", "label": "W_src x_j"},
-        {"id": "wd", "label": "W_dst x_i"},
-        {"id": "att", "label": "GATv2 attn"},
-        {"id": "deg", "label": "log(d^{-½}d^{-½})"},
-        {"id": "comb", "label": "+ β log·prior"},
-        {"id": "agg", "label": "weighted sum"},
-        {"id": "y", "label": "h_i"}
+        {"id": "x", "label": "x", "kind": "tensor"},
+        {"id": "ws", "label": "W_src x_j", "kind": "linear"},
+        {"id": "wd", "label": "W_dst x_i", "kind": "linear"},
+        {"id": "att", "label": "GATv2 attn", "kind": "attn"},
+        {"id": "deg", "label": "log(d^{-½}d^{-½})", "kind": "tensor"},
+        {"id": "comb", "label": "+ β log·prior", "kind": "add"},
+        {"id": "agg", "label": "weighted sum", "kind": "op"},
+        {"id": "y", "label": "h_i", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "ws"},

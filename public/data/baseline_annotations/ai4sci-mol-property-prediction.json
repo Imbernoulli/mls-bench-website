@@ -7,14 +7,14 @@
     "formula": "$$h_{vw}^{t+1} = \\sigma\\!\\left(h_{vw}^{0} + W_h \\sum_{k \\in N(v)\\setminus w} h_{kv}^{t}\\right),\\; \\hat{y} = \\mathrm{FFN}\\!\\left(\\sum_v W_o[x_v \\| m_v] \\,\\Big\\|\\, \\mathrm{RDKit2D}(\\mathrm{SMILES})\\right)$$",
     "diagram": {
       "nodes": [
-        {"id": "atoms", "label": "Atom features"},
-        {"id": "bonds", "label": "Bond features"},
-        {"id": "init", "label": "W_i [x_src||e]"},
-        {"id": "mp", "label": "Directed MP x3 (no reverse msg)"},
-        {"id": "agg", "label": "Atom hidden W_o"},
-        {"id": "sum", "label": "Sum readout"},
-        {"id": "rdkit", "label": "RDKit 2D descriptors (17)"},
-        {"id": "ffn", "label": "2-layer FFN head"}
+        {"id": "atoms", "kind": "tensor", "label": "Atom features"},
+        {"id": "bonds", "kind": "tensor", "label": "Bond features"},
+        {"id": "init", "kind": "linear", "label": "W_i [x_src||e]"},
+        {"id": "mp", "kind": "op", "label": "Directed MP x3 (no reverse msg)"},
+        {"id": "agg", "kind": "linear", "label": "Atom hidden W_o"},
+        {"id": "sum", "kind": "op", "label": "Sum readout"},
+        {"id": "rdkit", "kind": "tensor", "label": "RDKit 2D descriptors (17)"},
+        {"id": "ffn", "kind": "ffn", "label": "2-layer FFN head"}
       ],
       "edges": [
         {"from": "atoms", "to": "init"},
@@ -43,11 +43,11 @@
     "formula": "$$h_v^{(k+1)} = \\mathrm{MLP}^{(k)}\\!\\left((1+\\epsilon)\\, h_v^{(k)} + \\sum_{u \\in N(v)} (h_u^{(k)} + W_e\\, e_{uv})\\right)$$",
     "diagram": {
       "nodes": [
-        {"id": "atom", "label": "Atom embed (Linear)"},
-        {"id": "gin", "label": "GINConv x4 + BN + residual"},
-        {"id": "edge", "label": "Edge proj W_e"},
-        {"id": "mean", "label": "Mean pooling"},
-        {"id": "head", "label": "2-layer FFN head"}
+        {"id": "atom", "kind": "linear", "label": "Atom embed (Linear)"},
+        {"id": "gin", "kind": "op", "label": "GINConv x4 + BN + residual"},
+        {"id": "edge", "kind": "linear", "label": "Edge proj W_e"},
+        {"id": "mean", "kind": "op", "label": "Mean pooling"},
+        {"id": "head", "kind": "ffn", "label": "2-layer FFN head"}
       ],
       "edges": [
         {"from": "atom", "to": "gin"},
@@ -73,13 +73,13 @@
     "formula": "$$\\mathrm{attn\\_bias}_{ij} = \\mathrm{NonLinHead}\\!\\big( \\mathrm{Gauss}_{(t_i,t_j)}(d_{ij})\\big),\\quad x' = \\mathrm{Encoder}(x, \\mathrm{attn\\_bias}),\\quad \\hat{y} = \\mathrm{Linear}(\\mathrm{Dropout}(x'_{\\mathrm{[CLS]}}))$$",
     "diagram": {
       "nodes": [
-        {"id": "tok", "label": "Atomic-num tokens [CLS] ... [SEP]"},
-        {"id": "emb", "label": "Embed_tokens (D=512)"},
-        {"id": "gauss", "label": "Edge-type Gaussian (K=128)"},
-        {"id": "proj", "label": "GBF proj -> heads"},
-        {"id": "enc", "label": "Transformer x15 (PreLN, pair track)"},
-        {"id": "cls", "label": "[CLS] dropout + linear"},
-        {"id": "ckpt", "label": "Load pretrained weights"}
+        {"id": "tok", "kind": "tensor", "label": "Atomic-num tokens [CLS] ... [SEP]"},
+        {"id": "emb", "kind": "embed", "label": "Embed_tokens (D=512)"},
+        {"id": "gauss", "kind": "op", "label": "Edge-type Gaussian (K=128)"},
+        {"id": "proj", "kind": "linear", "label": "GBF proj -> heads"},
+        {"id": "enc", "kind": "attn", "label": "Transformer x15 (PreLN, pair track)"},
+        {"id": "cls", "kind": "linear", "label": "[CLS] dropout + linear"},
+        {"id": "ckpt", "kind": "param", "label": "Load pretrained weights"}
       ],
       "edges": [
         {"from": "tok", "to": "emb"},

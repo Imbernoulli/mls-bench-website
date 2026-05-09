@@ -6,13 +6,13 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Input [B, T, N]"},
-        {"id": "ma", "label": "AvgPool1d (k=25)"},
-        {"id": "trend", "label": "Trend (smoothed)"},
-        {"id": "seas", "label": "Seasonal = x - trend"},
-        {"id": "lt", "label": "Linear T → T'"},
-        {"id": "ls", "label": "Linear T → T'"},
-        {"id": "y", "label": "Prediction [B, T', N]"}
+        {"id": "x", "label": "Input [B, T, N]", "kind": "tensor"},
+        {"id": "ma", "label": "AvgPool1d (k=25)", "kind": "op"},
+        {"id": "trend", "label": "Trend (smoothed)", "kind": "tensor"},
+        {"id": "seas", "label": "Seasonal = x - trend", "kind": "tensor"},
+        {"id": "lt", "label": "Linear T → T'", "kind": "linear"},
+        {"id": "ls", "label": "Linear T → T'", "kind": "linear"},
+        {"id": "y", "label": "Prediction [B, T', N]", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "ma"},
@@ -40,13 +40,13 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Input [B, T, N]"},
-        {"id": "rev", "label": "RevIN (per-sample norm)"},
-        {"id": "emb", "label": "Linear T→D (per node)"},
-        {"id": "star", "label": "STAR block × L (aggregate-redistribute)"},
-        {"id": "ffn", "label": "FFN + LN"},
-        {"id": "head", "label": "Linear D → T'"},
-        {"id": "y", "label": "Prediction [B, T', N]"}
+        {"id": "x", "label": "Input [B, T, N]", "kind": "tensor"},
+        {"id": "rev", "label": "RevIN (per-sample norm)", "kind": "norm"},
+        {"id": "emb", "label": "Linear T→D (per node)", "kind": "linear"},
+        {"id": "star", "label": "STAR block × L (aggregate-redistribute)", "kind": "op"},
+        {"id": "ffn", "label": "FFN + LN", "kind": "ffn"},
+        {"id": "head", "label": "Linear D → T'", "kind": "linear"},
+        {"id": "y", "label": "Prediction [B, T', N]", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "rev"},
@@ -73,13 +73,13 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Input [B, T, N]"},
-        {"id": "gru", "label": "GRU(T → N)"},
-        {"id": "attn", "label": "Self-attention → Laplacian"},
-        {"id": "cheb", "label": "Chebyshev (T0..T3)"},
-        {"id": "stock", "label": "StockBlock × L (FFT + GLU + iFFT)"},
-        {"id": "head", "label": "MLP(L → T')"},
-        {"id": "y", "label": "Prediction [B, T', N]"}
+        {"id": "x", "label": "Input [B, T, N]", "kind": "tensor"},
+        {"id": "gru", "label": "GRU(T → N)", "kind": "rnn"},
+        {"id": "attn", "label": "Self-attention → Laplacian", "kind": "attn"},
+        {"id": "cheb", "label": "Chebyshev (T0..T3)", "kind": "op"},
+        {"id": "stock", "label": "StockBlock × L (FFT + GLU + iFFT)", "kind": "op"},
+        {"id": "head", "label": "MLP(L → T')", "kind": "ffn"},
+        {"id": "y", "label": "Prediction [B, T', N]", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "gru"},
@@ -107,14 +107,14 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Input pyramid (avg-pool ×k)"},
-        {"id": "rev", "label": "Per-scale RevIN"},
-        {"id": "embed", "label": "Conv1d 1→D (channel-indep)"},
-        {"id": "decomp", "label": "MovingAvg decomp / scale"},
-        {"id": "smix", "label": "Bottom-up seasonal MLPMix"},
-        {"id": "tmix", "label": "Top-down trend MLPMix"},
-        {"id": "head", "label": "Per-scale Linear(L_i → T')"},
-        {"id": "y", "label": "Sum + RevIN denorm"}
+        {"id": "x", "label": "Input pyramid (avg-pool ×k)", "kind": "tensor"},
+        {"id": "rev", "label": "Per-scale RevIN", "kind": "norm"},
+        {"id": "embed", "label": "Conv1d 1→D (channel-indep)", "kind": "conv"},
+        {"id": "decomp", "label": "MovingAvg decomp / scale", "kind": "op"},
+        {"id": "smix", "label": "Bottom-up seasonal MLPMix", "kind": "ffn"},
+        {"id": "tmix", "label": "Top-down trend MLPMix", "kind": "ffn"},
+        {"id": "head", "label": "Per-scale Linear(L_i → T')", "kind": "linear"},
+        {"id": "y", "label": "Sum + RevIN denorm", "kind": "norm"}
       ],
       "edges": [
         {"from": "x", "to": "rev"},
@@ -144,14 +144,14 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Input [B, T, N]"},
-        {"id": "rev", "label": "RevIN"},
-        {"id": "embed", "label": "Conv1d N → D"},
-        {"id": "predl", "label": "Linear T → T+T'"},
-        {"id": "fft", "label": "rFFT → top-k periods"},
-        {"id": "blk", "label": "TimesBlock × L (2D Inception)"},
-        {"id": "head", "label": "Linear D → N"},
-        {"id": "y", "label": "Prediction [B, T', N]"}
+        {"id": "x", "label": "Input [B, T, N]", "kind": "tensor"},
+        {"id": "rev", "label": "RevIN", "kind": "norm"},
+        {"id": "embed", "label": "Conv1d N → D", "kind": "conv"},
+        {"id": "predl", "label": "Linear T → T+T'", "kind": "linear"},
+        {"id": "fft", "label": "rFFT → top-k periods", "kind": "op"},
+        {"id": "blk", "label": "TimesBlock × L (2D Inception)", "kind": "conv"},
+        {"id": "head", "label": "Linear D → N", "kind": "linear"},
+        {"id": "y", "label": "Prediction [B, T', N]", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "rev"},
@@ -180,13 +180,13 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "x", "label": "Input [B, T, N]"},
-        {"id": "rev", "label": "RevIN"},
-        {"id": "embed", "label": "Linear T → D (per node)"},
-        {"id": "trf", "label": "Transformer × L (over nodes)"},
-        {"id": "norm", "label": "LayerNorm"},
-        {"id": "head", "label": "Linear D → T'"},
-        {"id": "y", "label": "Prediction [B, T', N]"}
+        {"id": "x", "label": "Input [B, T, N]", "kind": "tensor"},
+        {"id": "rev", "label": "RevIN", "kind": "norm"},
+        {"id": "embed", "label": "Linear T → D (per node)", "kind": "linear"},
+        {"id": "trf", "label": "Transformer × L (over nodes)", "kind": "attn"},
+        {"id": "norm", "label": "LayerNorm", "kind": "norm"},
+        {"id": "head", "label": "Linear D → T'", "kind": "linear"},
+        {"id": "y", "label": "Prediction [B, T', N]", "kind": "tensor"}
       ],
       "edges": [
         {"from": "x", "to": "rev"},
@@ -214,14 +214,14 @@
     "kind": "hybrid",
     "diagram": {
       "nodes": [
-        {"id": "ts", "label": "Linear T → h (per node)"},
-        {"id": "sp", "label": "Spatial emb [N, h]"},
-        {"id": "tid", "label": "Time-in-day emb [288, h]"},
-        {"id": "dow", "label": "Day-in-week emb [7, h]"},
-        {"id": "cat", "label": "Concat → 4h"},
-        {"id": "mlp", "label": "ResMLP × L"},
-        {"id": "head", "label": "Linear 4h → T'"},
-        {"id": "y", "label": "Prediction [B, T', N]"}
+        {"id": "ts", "label": "Linear T → h (per node)", "kind": "linear"},
+        {"id": "sp", "label": "Spatial emb [N, h]", "kind": "embed"},
+        {"id": "tid", "label": "Time-in-day emb [288, h]", "kind": "embed"},
+        {"id": "dow", "label": "Day-in-week emb [7, h]", "kind": "embed"},
+        {"id": "cat", "label": "Concat → 4h", "kind": "concat"},
+        {"id": "mlp", "label": "ResMLP × L", "kind": "ffn"},
+        {"id": "head", "label": "Linear 4h → T'", "kind": "linear"},
+        {"id": "y", "label": "Prediction [B, T', N]", "kind": "tensor"}
       ],
       "edges": [
         {"from": "ts", "to": "cat"},
