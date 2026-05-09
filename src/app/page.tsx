@@ -106,7 +106,11 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* ---- Methods band: full-bleed, distinct background ---- */}
+        {/* ---- Methods band + Bitter Lesson quote: one continuous full-bleed
+                muted block. Keeping them on the same background makes the
+                "examples that stood the test of time" visually flow into
+                the Sutton quote, instead of the quote drifting toward the
+                white bridge below. */}
         <div className="relative mt-16 overflow-hidden border-y border-border bg-muted/40 py-14 sm:py-16">
           <div className="mx-auto max-w-6xl px-4">
             <div className="mx-auto max-w-3xl text-center">
@@ -131,24 +135,23 @@ export default function HomePage() {
             <div className="mt-10">
               <MethodGallery />
             </div>
+
+            {/* Bitter Lesson quote — same band, no decorative left rule. */}
+            <figure className="mx-auto mt-12 max-w-2xl text-center sm:mt-14">
+              <blockquote className="text-balance text-[17px] italic leading-relaxed text-foreground/90 sm:text-lg">
+                &ldquo;We want AI agents that can discover like we can, not
+                which contain what we have discovered.&rdquo;
+              </blockquote>
+              <figcaption className="mt-3 text-xs uppercase tracking-[0.18em] text-foreground/60">
+                Richard S. Sutton,{" "}
+                <span className="italic">The Bitter Lesson</span>
+              </figcaption>
+            </figure>
           </div>
         </div>
 
-        {/* ---- Bitter Lesson interlude ---- */}
-        <div className="mx-auto mt-14 max-w-3xl px-4 sm:mt-16">
-          <figure className="mx-auto border-l-2 border-foreground/30 pl-5 text-center">
-            <blockquote className="text-balance text-[17px] italic leading-relaxed text-foreground/90 sm:text-lg">
-              &ldquo;We want AI agents that can discover like we can, not which
-              contain what we have discovered.&rdquo;
-            </blockquote>
-            <figcaption className="mt-3 text-xs uppercase tracking-[0.18em] text-foreground/60">
-              Richard S. Sutton, <span className="italic">The Bitter Lesson</span>
-            </figcaption>
-          </figure>
-        </div>
-
         {/* ---- Bridge to MLS-Bench ---- */}
-        <div className="mx-auto mt-12 max-w-4xl px-4 sm:mt-14">
+        <div className="mx-auto mt-14 max-w-4xl px-4 sm:mt-16">
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="text-balance text-2xl font-semibold tracking-tight text-foreground sm:text-[28px]">
               MLS-Bench tests whether AI agents can invent the next ones.
