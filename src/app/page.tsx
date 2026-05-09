@@ -135,18 +135,6 @@ export default function HomePage() {
             <div className="mt-10">
               <MethodGallery />
             </div>
-
-            {/* Bitter Lesson quote — same band, no decorative left rule. */}
-            <figure className="mx-auto mt-12 max-w-2xl text-center sm:mt-14">
-              <blockquote className="text-balance text-[17px] italic leading-relaxed text-foreground/90 sm:text-lg">
-                &ldquo;We want AI agents that can discover like we can, not
-                which contain what we have discovered.&rdquo;
-              </blockquote>
-              <figcaption className="mt-3 text-xs uppercase tracking-[0.18em] text-foreground/60">
-                Richard S. Sutton,{" "}
-                <span className="italic">The Bitter Lesson</span>
-              </figcaption>
-            </figure>
           </div>
         </div>
 
