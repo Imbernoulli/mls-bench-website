@@ -11,6 +11,7 @@ type LandscapeIcon = (props: IconProps) => ReactNode;
 const C = {
   navy: "#1f5a86",
   violet: "#6244b0",
+  rust: "#a14a2c",
 };
 
 function IconBox({ children }: { children: ReactNode }) {
@@ -504,6 +505,229 @@ const ScientistLoopIcon: LandscapeIcon = ({ color }) => (
   </IconBox>
 );
 
+const CirclePackingIcon: LandscapeIcon = ({ color }) => (
+  <IconBox>
+    <rect
+      x={6}
+      y={6}
+      width={52}
+      height={52}
+      stroke={color}
+      strokeWidth={SW}
+      fill={color}
+      fillOpacity={0.04}
+    />
+    {[
+      [13, 14],
+      [25, 14],
+      [37, 14],
+      [49, 14],
+      [13, 26],
+      [25, 26],
+      [37, 26],
+      [49, 26],
+      [13, 38],
+      [25, 38],
+      [37, 38],
+    ].map(([cx, cy], i) => (
+      <circle
+        key={i}
+        cx={cx}
+        cy={cy}
+        r={6}
+        stroke={color}
+        strokeWidth={1.4}
+        fill={color}
+        fillOpacity={0.22}
+      />
+    ))}
+  </IconBox>
+);
+
+const MatMulSchemeIcon: LandscapeIcon = ({ color }) => (
+  <IconBox>
+    {[
+      [8, 8],
+      [16, 8],
+      [8, 16],
+      [16, 16],
+    ].map(([x, y], i) => (
+      <rect
+        key={`a-${i}`}
+        x={x}
+        y={y}
+        width={7}
+        height={7}
+        stroke={color}
+        strokeWidth={1.4}
+        fill={color}
+        fillOpacity={0.18}
+      />
+    ))}
+    <text
+      x={28}
+      y={20}
+      fontFamily="ui-serif, Georgia, serif"
+      fontSize={11}
+      textAnchor="middle"
+      fill={color}
+      fillOpacity={0.85}
+    >
+      ×
+    </text>
+    {[
+      [33, 8],
+      [41, 8],
+      [33, 16],
+      [41, 16],
+    ].map(([x, y], i) => (
+      <rect
+        key={`b-${i}`}
+        x={x}
+        y={y}
+        width={7}
+        height={7}
+        stroke={color}
+        strokeWidth={1.4}
+        fill={color}
+        fillOpacity={0.18}
+      />
+    ))}
+    <path d="M32 30 v8" stroke={color} strokeWidth={1.4} fill="none" />
+    <path d="M28 35 l4 4 l4 -4" stroke={color} strokeWidth={1.4} fill="none" />
+    <text
+      x={32}
+      y={58}
+      fontFamily="ui-serif, Georgia, serif"
+      fontSize={20}
+      textAnchor="middle"
+      fill={color}
+      fontWeight={700}
+    >
+      7×
+    </text>
+  </IconBox>
+);
+
+const KernelTileIcon: LandscapeIcon = ({ color }) => (
+  <IconBox>
+    {Array.from({ length: 5 }, (_, i) =>
+      Array.from({ length: 5 }, (_, j) => (
+        <rect
+          key={`${i}-${j}`}
+          x={6 + j * 10}
+          y={6 + i * 10}
+          width={9.5}
+          height={9.5}
+          stroke={color}
+          strokeWidth={0.7}
+          strokeOpacity={0.5}
+          fill="none"
+        />
+      )),
+    )}
+    <rect
+      x={6}
+      y={6}
+      width={19.5}
+      height={19.5}
+      stroke={color}
+      strokeWidth={SW}
+      fill={color}
+      fillOpacity={0.28}
+    />
+    <path d="M44 56 h12" stroke={color} strokeWidth={SW} />
+    <path d="M52 53 l4 3 l-4 3" stroke={color} strokeWidth={SW} fill="none" />
+  </IconBox>
+);
+
+const CircuitGateIcon: LandscapeIcon = ({ color }) => (
+  <IconBox>
+    <line x1={3} y1={14} x2={14} y2={14} stroke={color} strokeWidth={SW} />
+    <line x1={3} y1={26} x2={14} y2={26} stroke={color} strokeWidth={SW} />
+    <path
+      d="M14 8 L24 8 A12 12 0 0 1 24 32 L14 32 Z"
+      stroke={color}
+      strokeWidth={SW}
+      fill={color}
+      fillOpacity={0.12}
+    />
+    <line x1={36} y1={20} x2={42} y2={20} stroke={color} strokeWidth={SW} />
+    <line x1={42} y1={20} x2={42} y2={40} stroke={color} strokeWidth={SW} />
+    <line x1={3} y1={52} x2={42} y2={52} stroke={color} strokeWidth={SW} />
+    <path
+      d="M42 36 L50 36 A10 10 0 0 1 50 56 L42 56 Z"
+      stroke={color}
+      strokeWidth={SW}
+      fill={color}
+      fillOpacity={0.18}
+    />
+    <line x1={60} y1={46} x2={63} y2={46} stroke={color} strokeWidth={SW} />
+  </IconBox>
+);
+
+const BinPackingIcon: LandscapeIcon = ({ color }) => (
+  <IconBox>
+    <path
+      d="M8 12 L8 56 L24 56 L24 12"
+      stroke={color}
+      strokeWidth={SW}
+      fill="none"
+    />
+    <rect x={9} y={42} width={14} height={13} fill={color} fillOpacity={0.4} />
+    <rect x={9} y={30} width={14} height={11} fill={color} fillOpacity={0.55} />
+    <rect x={9} y={22} width={14} height={7} fill={color} fillOpacity={0.7} />
+    <path
+      d="M28 12 L28 56 L44 56 L44 12"
+      stroke={color}
+      strokeWidth={SW}
+      fill="none"
+    />
+    <rect x={29} y={36} width={14} height={19} fill={color} fillOpacity={0.4} />
+    <rect x={29} y={26} width={14} height={9} fill={color} fillOpacity={0.6} />
+    <rect
+      x={50}
+      y={20}
+      width={10}
+      height={10}
+      stroke={color}
+      strokeWidth={SW}
+      fill={color}
+      fillOpacity={0.7}
+    />
+    <line x1={48} y1={25} x2={45} y2={25} stroke={color} strokeWidth={SW} />
+    <path d="M45 22 l-3 3 l3 3" stroke={color} strokeWidth={SW} fill="none" />
+  </IconBox>
+);
+
+const CapSetIcon: LandscapeIcon = ({ color }) => (
+  <IconBox>
+    {Array.from({ length: 5 }, (_, i) =>
+      Array.from({ length: 5 }, (_, j) => {
+        const isCap =
+          (i === 0 && j === 1) ||
+          (i === 1 && j === 3) ||
+          (i === 2 && j === 0) ||
+          (i === 3 && j === 2) ||
+          (i === 4 && j === 4);
+        return (
+          <circle
+            key={`${i}-${j}`}
+            cx={10 + j * 11}
+            cy={10 + i * 11}
+            r={isCap ? 3.5 : 1.6}
+            stroke={color}
+            strokeWidth={isCap ? SW : 0.6}
+            strokeOpacity={isCap ? 1 : 0.4}
+            fill={isCap ? color : "none"}
+            fillOpacity={isCap ? 0.85 : 0}
+          />
+        );
+      }),
+    )}
+  </IconBox>
+);
+
 type LandscapeCardData = {
   name: string;
   year: string;
@@ -833,63 +1057,115 @@ const EVOLUTION_CARDS: LandscapeCardData[] = [
   },
 ];
 
+const TASK_CARDS: LandscapeCardData[] = [
+  {
+    name: "Circle Packing",
+    year: "2025",
+    scope: "AlphaEvolve · pack N in a square",
+    description:
+      "Find a tighter packing of N equal circles in the unit square. Headline result: a slightly improved arrangement for n=11.",
+    icon: CirclePackingIcon,
+    color: C.rust,
+  },
+  {
+    name: "2×2 Matmul Scheme",
+    year: "2025",
+    scope: "AlphaEvolve · scalar multiplications",
+    description:
+      "Multiply two 2×2 matrices in fewer than 8 elementary multiplications. Strassen reached 7 in 1969; the agent matched it.",
+    icon: MatMulSchemeIcon,
+    color: C.rust,
+  },
+  {
+    name: "Matmul GPU Kernel",
+    year: "2025",
+    scope: "AlphaEvolve · one tile, one accelerator",
+    description:
+      "Discover a faster low-level kernel for one fixed tile size on one accelerator (e.g. a FlashAttention building block).",
+    icon: KernelTileIcon,
+    color: C.rust,
+  },
+  {
+    name: "TPU Multiplier Circuit",
+    year: "2025",
+    scope: "AlphaEvolve · fixed bit-width",
+    description:
+      "Search for a smaller arithmetic circuit on one chip at a fixed bit-width, scored by gate / transistor count.",
+    icon: CircuitGateIcon,
+    color: C.rust,
+  },
+  {
+    name: "Online Bin Packing",
+    year: "2024",
+    scope: "FunSearch · worst-case ratio",
+    description:
+      "Place arriving items into the fewest bins; tighten a small constant in the worst-case ratio of an online heuristic.",
+    icon: BinPackingIcon,
+    color: C.rust,
+  },
+  {
+    name: "Cap Sets in F₃ⁿ",
+    year: "2024",
+    scope: "FunSearch · combinatorial bound",
+    description:
+      "Find a larger subset of {0,1,2}ⁿ with no 3-term arithmetic progression. New lower bound on a single combinatorial constant.",
+    icon: CapSetIcon,
+    color: C.rust,
+  },
+];
+
 export default function BlogLandscape() {
   return (
     <section
-      className="not-prose mt-10 mb-12 space-y-10"
-      aria-labelledby="background-landscape"
+      className="not-prose mt-12 mb-14 space-y-10"
+      aria-labelledby="landscape-where"
     >
       <div className="space-y-3">
         <h2
-          id="background-landscape"
+          id="landscape-where"
           className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl"
         >
-          Background &amp; Motivation
+          What the Field Is Actually Working On
         </h2>
         <p className="text-[15px] leading-relaxed text-foreground/75">
-          MLS-Bench sits between two crowded landscapes. On one side, agentic
-          ML benchmarks that score engineering execution on a single dataset.
-          On the other, the rapidly-growing self-evolve cluster &mdash; systems
-          that search over executable artifacts at test time. Neither
-          measures what we actually care about: a controlled, transferable ML
-          method.
+          Two crowds flank this question. On one side, a generation of agentic
+          ML benchmarks that grade how well a model can engineer one fixed
+          instance. On the other, a fast-growing cluster of self-evolve
+          systems that search over executable artifacts at test time. Both are
+          exciting. But on close inspection, neither measures what we&apos;d
+          actually call ML science &mdash; a controlled, transferable change
+          to how machine-learning systems are built &mdash; and the
+          self-evolve side, in particular, has spent its biggest demonstrations
+          on a strikingly narrow set of toy targets.
         </p>
       </div>
 
       <HorizontalStrip
-        title="Existing ML Benchmarks"
-        intro="The neighborhood is rich, but most suites evaluate engineering execution, research assistance, end-to-end replication, or data discovery — not the atomic step of inventing a method that survives outside the setting it was tuned in."
+        title="The Existing Benchmark Neighborhood"
+        intro="Most of the surrounding suites evaluate engineering execution, research assistance, end-to-end replication, or data discovery — useful contexts, but not the atomic step of inventing a method that survives outside the setting it was tuned in."
         cards={BENCHMARK_CARDS}
       />
 
       <HorizontalStrip
-        title="The Self-Evolve Wave Is Hot — But Narrow"
-        intro={
-          <>
-            Self-evolve is the hottest agent-research direction this cycle.
-            AlphaEvolve, FunSearch, ShinkaEvolve, OpenEvolve, ThetaEvolve, AVO,
-            AlphaActivation, and Sakana&apos;s AI Scientist all share one
-            shape: search over executable artifacts, score, keep the best,
-            repeat. But the headline demonstrations cluster into a handful of
-            narrow, abstract targets &mdash; GPU/TPU kernel optimization,
-            digital-circuit design, contest-style algorithmic problems, and a
-            small set of math frontier problems (autocorrelation and
-            uncertainty inequalities; packing and minimum / maximum distance
-            problems; Erdős&apos;s minimum-overlap problem; sums and
-            differences of finite sets). Broad ML method discovery &mdash; the
-            kind that ships across datasets, seeds, and model scales &mdash;
-            is conspicuously absent.
-          </>
-        }
+        title="The Self-Evolve Wave Everyone Is Riding"
+        intro="Self-evolve is the hottest agent-research direction this cycle. Every system below uses one shape — search over executable artifacts, score, keep the best, repeat — and most of them cite each other in the same papers. The shape is real and the wins are real. The question is what the wins are actually wins on."
         cards={EVOLUTION_CARDS}
       />
 
+      <HorizontalStrip
+        title="…And What Those Wins Are Actually On"
+        intro="Run down the headline results from this cluster and a pattern jumps out. Pack circles in a square. Save one multiplication on 2×2 matmul. Trim a constant in an online bin-packing heuristic. Find a slightly larger cap set. Nudge a kernel or a multiplier circuit on one specific chip. They are exactly the right shape for an executable verifier — sharp, scalar, low-dimensional — and exactly the wrong shape for a claim about ML science."
+        cards={TASK_CARDS}
+      />
+
       <p className="text-[15px] leading-relaxed text-foreground/75">
-        That gap is the motivation for MLS-Bench. We keep the executable,
-        agentic shape these systems pioneered, but move the target from
-        optimizing one sharp verifier to discovering ML methods that transfer
-        across datasets, seeds, environments, and model scales &mdash; the
-        atomic unit of real ML science progress.
+        That is the gap MLS-Bench is built for. The executable, agentic shape
+        these systems pioneered is genuinely powerful, but applying it to
+        circle packing or 2&times;2 matmul schemes is not the same thing as
+        discovering an ML method. MLS-Bench keeps the harness and moves the
+        target: discover a real ML-science change &mdash; a model component,
+        objective, optimizer, or training procedure &mdash; that survives
+        across datasets, seeds, environments, and model scales.
       </p>
     </section>
   );
