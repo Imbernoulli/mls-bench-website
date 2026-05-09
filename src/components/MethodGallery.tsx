@@ -403,50 +403,45 @@ const TransformerIcon: Icon = ({ color }) => {
   );
 };
 
-/* ---- Mixup: two images blended ------------------------------------------ */
+/* ---- Mixup: two squares overlapping = linear interpolation -------------- */
 const MixupIcon: Icon = ({ color }) => (
   <Box>
-    {/* image A */}
+    {/* λ · A */}
     <rect
-      x={4}
-      y={16}
-      width={20}
-      height={20}
-      rx={2}
+      x={10}
+      y={14}
+      width={28}
+      height={28}
+      rx={3}
       stroke={color}
       strokeWidth={SW}
       fill={color}
       fillOpacity={0.6}
     />
-    {/* + */}
-    <line x1={26} y1={26} x2={32} y2={26} stroke={color} strokeWidth={SW} />
-    <line x1={29} y1={23} x2={29} y2={29} stroke={color} strokeWidth={SW} />
-    {/* image B */}
+    {/* (1-λ) · B (offset to overlap A) */}
     <rect
-      x={34}
-      y={26}
-      width={20}
-      height={20}
-      rx={2}
+      x={26}
+      y={22}
+      width={28}
+      height={28}
+      rx={3}
       stroke={color}
       strokeWidth={SW}
       fill={color}
       fillOpacity={0.25}
     />
-    {/* arrow → blended */}
-    <path d="M14 42 l10 8" stroke={color} strokeWidth={SW} strokeOpacity={0.65} />
-    <path d="M44 50 l-10 -8" stroke={color} strokeWidth={SW} strokeOpacity={0.65} />
-    <rect
-      x={22}
-      y={46}
-      width={18}
-      height={14}
-      rx={2}
-      stroke={color}
-      strokeWidth={SW}
+    {/* λ label, indicating interpolation */}
+    <text
+      x={32}
+      y={60}
+      fontSize={10}
       fill={color}
-      fillOpacity={0.42}
-    />
+      textAnchor="middle"
+      fontFamily="ui-serif, Georgia, serif"
+      fontStyle="italic"
+    >
+      λ A + (1−λ) B
+    </text>
   </Box>
 );
 
@@ -976,6 +971,13 @@ const METHODS: Method[] = [
     description: "Rotary position encoding that scales with context length.",
     icon: RopeIcon,
     color: C.violet,
+  },
+  {
+    name: "LoRA",
+    era: "2021",
+    description: "Low-rank adapters for parameter-efficient finetuning.",
+    icon: LoraIcon,
+    color: C.amber,
   },
   {
     name: "FlashAttention",
