@@ -1,0 +1,361 @@
+{
+  "task_id": "llm-rl-kl-estimator",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "score_mean",
+    "gsm8k_reward_mean",
+    "gsm8k_accuracy",
+    "math500_accuracy",
+    "amc_accuracy",
+    "elapsed_deepmath-3bench-1gpu"
+  ],
+  "metric_columns": [
+    "gsm8k_accuracy",
+    "math500_accuracy",
+    "amc_accuracy"
+  ],
+  "metric_directions": {
+    "gsm8k_accuracy": "higher",
+    "math500_accuracy": "higher",
+    "amc_accuracy": "higher"
+  },
+  "metric_groups": [
+    {
+      "setting": "qwen2.5-0.5b",
+      "metrics": [
+        "gsm8k_accuracy",
+        "math500_accuracy",
+        "amc_accuracy"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-04-24T00:54:26.344613+00:00",
+      "model": "baseline:Absolute Log-Ratio",
+      "is_final": true,
+      "seed": "42",
+      "score_mean": -0.5098,
+      "gsm8k_reward_mean": 0.46,
+      "gsm8k_accuracy": 0.46,
+      "math500_accuracy": 0.3015,
+      "amc_accuracy": 0.1069,
+      "elapsed_deepmath-3bench-1gpu": 30611.0
+    },
+    {
+      "timestamp": "2026-04-24T01:04:24.538116+00:00",
+      "model": "baseline:K1 (Unbiased Log-Ratio)",
+      "is_final": true,
+      "seed": "42",
+      "score_mean": -0.502,
+      "gsm8k_reward_mean": 0.4665,
+      "gsm8k_accuracy": 0.4665,
+      "math500_accuracy": 0.3068,
+      "amc_accuracy": 0.1009,
+      "elapsed_deepmath-3bench-1gpu": 31362.0
+    },
+    {
+      "timestamp": "2026-04-24T01:10:25.148630+00:00",
+      "model": "baseline:K2 (Squared Log-Ratio)",
+      "is_final": true,
+      "seed": "42",
+      "score_mean": -0.5195,
+      "gsm8k_reward_mean": 0.4635,
+      "gsm8k_accuracy": 0.4635,
+      "math500_accuracy": 0.3078,
+      "amc_accuracy": 0.0949,
+      "elapsed_deepmath-3bench-1gpu": 31729.0
+    },
+    {
+      "timestamp": "2026-04-24T01:20:25.251798+00:00",
+      "model": "baseline:K3 (Low-Variance KL)",
+      "is_final": true,
+      "seed": "42",
+      "score_mean": -0.541,
+      "gsm8k_reward_mean": 0.4656,
+      "gsm8k_accuracy": 0.4656,
+      "math500_accuracy": 0.2943,
+      "amc_accuracy": 0.113,
+      "elapsed_deepmath-3bench-1gpu": 32249.0
+    },
+    {
+      "timestamp": "2026-04-24T21:07:01.115466+00:00",
+      "model": "vanilla:claude-opus-4.6",
+      "is_final": true,
+      "seed": "42",
+      "score_mean": -0.5088,
+      "gsm8k_reward_mean": 0.4713,
+      "gsm8k_accuracy": 0.4713,
+      "math500_accuracy": 0.2905,
+      "amc_accuracy": 0.1039,
+      "elapsed_deepmath-3bench-1gpu": 32201.0
+    },
+    {
+      "timestamp": "2026-04-24T19:06:47.235144+00:00",
+      "model": "vanilla:deepseek-reasoner",
+      "is_final": true,
+      "seed": "42",
+      "score_mean": -0.5146,
+      "gsm8k_reward_mean": 0.4538,
+      "gsm8k_accuracy": 0.4538,
+      "math500_accuracy": 0.2993,
+      "amc_accuracy": 0.116,
+      "elapsed_deepmath-3bench-1gpu": 31939.0
+    },
+    {
+      "timestamp": "2026-04-24T21:52:04.435471+00:00",
+      "model": "vanilla:gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "score_mean": -0.5176,
+      "gsm8k_reward_mean": 0.4662,
+      "gsm8k_accuracy": 0.4662,
+      "math500_accuracy": 0.3127,
+      "amc_accuracy": 0.0858,
+      "elapsed_deepmath-3bench-1gpu": 34086.0
+    },
+    {
+      "timestamp": "2026-04-24T18:39:41.923692+00:00",
+      "model": "vanilla:gpt-5.4",
+      "is_final": true,
+      "seed": "42",
+      "score_mean": -0.4912,
+      "gsm8k_reward_mean": 0.4666,
+      "gsm8k_accuracy": 0.4666,
+      "math500_accuracy": 0.3043,
+      "amc_accuracy": 0.1175,
+      "elapsed_deepmath-3bench-1gpu": 31768.0
+    },
+    {
+      "timestamp": "2026-04-24T20:44:00.767854+00:00",
+      "model": "vanilla:qwen3.6-plus",
+      "is_final": true,
+      "seed": "42",
+      "score_mean": -0.5273,
+      "gsm8k_reward_mean": 0.4608,
+      "gsm8k_accuracy": 0.4608,
+      "math500_accuracy": 0.3045,
+      "amc_accuracy": 0.1145,
+      "elapsed_deepmath-3bench-1gpu": 32299.0
+    },
+    {
+      "timestamp": "2026-04-26T08:49:23.435344+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": true,
+      "seed": "42",
+      "score_mean": -0.5029,
+      "gsm8k_reward_mean": 0.4661,
+      "gsm8k_accuracy": 0.4661,
+      "math500_accuracy": 0.3035,
+      "amc_accuracy": 0.1069,
+      "elapsed_deepmath-3bench-1gpu": 32873.0
+    },
+    {
+      "timestamp": "2026-04-25T19:22:39.138374+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": true,
+      "seed": "42",
+      "score_mean": -0.5381,
+      "gsm8k_reward_mean": 0.4641,
+      "gsm8k_accuracy": 0.4641,
+      "math500_accuracy": 0.3123,
+      "amc_accuracy": 0.1205,
+      "elapsed_deepmath-3bench-1gpu": 31459.0
+    },
+    {
+      "timestamp": "2026-04-25T19:11:00.926879+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "score_mean": -0.5176,
+      "gsm8k_reward_mean": 0.467,
+      "gsm8k_accuracy": 0.467,
+      "math500_accuracy": 0.305,
+      "amc_accuracy": 0.1069,
+      "elapsed_deepmath-3bench-1gpu": 31027.0
+    },
+    {
+      "timestamp": "2026-04-25T08:14:43.482839+00:00",
+      "model": "gpt-5.4",
+      "is_final": true,
+      "seed": "42",
+      "score_mean": -0.4912,
+      "gsm8k_reward_mean": 0.4666,
+      "gsm8k_accuracy": 0.4666,
+      "math500_accuracy": 0.3043,
+      "amc_accuracy": 0.1175,
+      "elapsed_deepmath-3bench-1gpu": 31768.0
+    },
+    {
+      "timestamp": "2026-04-25T14:05:41.532087+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": true,
+      "seed": "42",
+      "score_mean": -0.4922,
+      "gsm8k_reward_mean": 0.4683,
+      "gsm8k_accuracy": 0.4683,
+      "math500_accuracy": 0.3095,
+      "amc_accuracy": 0.1039,
+      "elapsed_deepmath-3bench-1gpu": 32165.0
+    },
+    {
+      "timestamp": "2026-04-24T21:07:01.115466+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": false,
+      "seed": "42",
+      "score_mean": -0.5088,
+      "gsm8k_reward_mean": 0.4713,
+      "gsm8k_accuracy": 0.4713,
+      "math500_accuracy": 0.2905,
+      "amc_accuracy": 0.1039,
+      "elapsed_deepmath-3bench-1gpu": 32201.0
+    },
+    {
+      "timestamp": "2026-04-25T20:24:33.937191+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": false,
+      "seed": "42",
+      "score_mean": -0.5039,
+      "gsm8k_reward_mean": 0.472,
+      "gsm8k_accuracy": 0.472,
+      "math500_accuracy": 0.2973,
+      "amc_accuracy": 0.1024,
+      "elapsed_deepmath-3bench-1gpu": 34364.0
+    },
+    {
+      "timestamp": "2026-04-26T08:49:14.888505+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": false,
+      "seed": "42",
+      "score_mean": -0.5029,
+      "gsm8k_reward_mean": 0.4661,
+      "gsm8k_accuracy": 0.4661,
+      "math500_accuracy": 0.3035,
+      "amc_accuracy": 0.1069,
+      "elapsed_deepmath-3bench-1gpu": 32873.0
+    },
+    {
+      "timestamp": "2026-04-24T19:06:47.235144+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": false,
+      "seed": "42",
+      "score_mean": -0.5146,
+      "gsm8k_reward_mean": 0.4538,
+      "gsm8k_accuracy": 0.4538,
+      "math500_accuracy": 0.2993,
+      "amc_accuracy": 0.116,
+      "elapsed_deepmath-3bench-1gpu": 31939.0
+    },
+    {
+      "timestamp": "2026-04-25T08:28:10.392035+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": false,
+      "seed": "42",
+      "score_mean": -0.5381,
+      "gsm8k_reward_mean": 0.4641,
+      "gsm8k_accuracy": 0.4641,
+      "math500_accuracy": 0.3123,
+      "amc_accuracy": 0.1205,
+      "elapsed_deepmath-3bench-1gpu": 31459.0
+    },
+    {
+      "timestamp": "2026-04-25T19:22:30.551259+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": false,
+      "seed": "42",
+      "score_mean": -0.5186,
+      "gsm8k_reward_mean": 0.4687,
+      "gsm8k_accuracy": 0.4687,
+      "math500_accuracy": 0.2918,
+      "amc_accuracy": 0.1175,
+      "elapsed_deepmath-3bench-1gpu": 32810.0
+    },
+    {
+      "timestamp": "2026-04-24T21:52:04.435471+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "score_mean": -0.5176,
+      "gsm8k_reward_mean": 0.4662,
+      "gsm8k_accuracy": 0.4662,
+      "math500_accuracy": 0.3127,
+      "amc_accuracy": 0.0858,
+      "elapsed_deepmath-3bench-1gpu": 34086.0
+    },
+    {
+      "timestamp": "2026-04-25T19:10:29.641306+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "score_mean": -0.5176,
+      "gsm8k_reward_mean": 0.467,
+      "gsm8k_accuracy": 0.467,
+      "math500_accuracy": 0.305,
+      "amc_accuracy": 0.1069,
+      "elapsed_deepmath-3bench-1gpu": 31027.0
+    },
+    {
+      "timestamp": "2026-04-24T18:39:41.923692+00:00",
+      "model": "gpt-5.4",
+      "is_final": false,
+      "seed": "42",
+      "score_mean": -0.4912,
+      "gsm8k_reward_mean": 0.4666,
+      "gsm8k_accuracy": 0.4666,
+      "math500_accuracy": 0.3043,
+      "amc_accuracy": 0.1175,
+      "elapsed_deepmath-3bench-1gpu": 31768.0
+    },
+    {
+      "timestamp": "2026-04-25T08:14:39.267412+00:00",
+      "model": "gpt-5.4",
+      "is_final": false,
+      "seed": "42",
+      "score_mean": -0.5293,
+      "gsm8k_reward_mean": 0.4643,
+      "gsm8k_accuracy": 0.4643,
+      "math500_accuracy": 0.3155,
+      "amc_accuracy": 0.113,
+      "elapsed_deepmath-3bench-1gpu": 31380.0
+    },
+    {
+      "timestamp": "2026-04-24T20:44:00.767854+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": false,
+      "seed": "42",
+      "score_mean": -0.5273,
+      "gsm8k_reward_mean": 0.4608,
+      "gsm8k_accuracy": 0.4608,
+      "math500_accuracy": 0.3045,
+      "amc_accuracy": 0.1145,
+      "elapsed_deepmath-3bench-1gpu": 32299.0
+    },
+    {
+      "timestamp": "2026-04-25T01:15:28.383080+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": false,
+      "seed": "42",
+      "score_mean": null,
+      "gsm8k_reward_mean": null,
+      "gsm8k_accuracy": null,
+      "math500_accuracy": null,
+      "amc_accuracy": null,
+      "elapsed_deepmath-3bench-1gpu": null
+    },
+    {
+      "timestamp": "2026-04-25T14:05:30.486967+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": false,
+      "seed": "42",
+      "score_mean": -0.4922,
+      "gsm8k_reward_mean": 0.4683,
+      "gsm8k_accuracy": 0.4683,
+      "math500_accuracy": 0.3095,
+      "amc_accuracy": 0.1039,
+      "elapsed_deepmath-3bench-1gpu": 32165.0
+    }
+  ]
+}

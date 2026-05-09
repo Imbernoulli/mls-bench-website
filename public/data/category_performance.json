@@ -1,0 +1,213 @@
+{
+  "source": "frozen paper table /home/bohanlyu/2026-NeurIPS-MLS-Bench/tabs/maintab.tex",
+  "generatedAt": "2026-05-09T10:32:44.161083+00:00",
+  "valueScale": "fraction",
+  "series": [
+    {
+      "id": "claude-opus-4.6",
+      "name": "Claude Opus 4.6"
+    },
+    {
+      "id": "gpt-5.4",
+      "name": "GPT-5.4"
+    },
+    {
+      "id": "gemini-3.1-pro-preview",
+      "name": "Gemini 3.1 Pro"
+    },
+    {
+      "id": "deepseek-reasoner",
+      "name": "DeepSeek-V3.2"
+    },
+    {
+      "id": "qwen3.6-plus",
+      "name": "Qwen 3.6 Plus"
+    },
+    {
+      "id": "human-sota",
+      "name": "Human SOTA"
+    }
+  ],
+  "data": [
+    {
+      "category": "LM",
+      "categoryName": "Language Models",
+      "human-sota": 0.419,
+      "claude-opus-4.6": 0.289,
+      "claude-opus-4.6__vanilla": 0.21,
+      "gpt-5.4": 0.251,
+      "gpt-5.4__vanilla": 0.142,
+      "gemini-3.1-pro-preview": 0.355,
+      "gemini-3.1-pro-preview__vanilla": 0.287,
+      "deepseek-reasoner": 0.245,
+      "deepseek-reasoner__vanilla": 0.281,
+      "qwen3.6-plus": 0.252,
+      "qwen3.6-plus__vanilla": 0.112
+    },
+    {
+      "category": "Rob",
+      "categoryName": "Robotics",
+      "human-sota": 0.292,
+      "claude-opus-4.6": 0.441,
+      "claude-opus-4.6__vanilla": 0.25,
+      "gpt-5.4": 0.106,
+      "gpt-5.4__vanilla": 0.036,
+      "gemini-3.1-pro-preview": 0.322,
+      "gemini-3.1-pro-preview__vanilla": 0.108,
+      "deepseek-reasoner": 0.184,
+      "deepseek-reasoner__vanilla": 0.032,
+      "qwen3.6-plus": 0.103,
+      "qwen3.6-plus__vanilla": 0.054
+    },
+    {
+      "category": "V&G",
+      "categoryName": "Vision & Generation",
+      "human-sota": 0.41,
+      "claude-opus-4.6": 0.229,
+      "claude-opus-4.6__vanilla": 0.066,
+      "gpt-5.4": 0.131,
+      "gpt-5.4__vanilla": 0.042,
+      "gemini-3.1-pro-preview": 0.242,
+      "gemini-3.1-pro-preview__vanilla": 0.145,
+      "deepseek-reasoner": 0.087,
+      "deepseek-reasoner__vanilla": 0.025,
+      "qwen3.6-plus": 0.091,
+      "qwen3.6-plus__vanilla": 0.059
+    },
+    {
+      "category": "RL",
+      "categoryName": "Reinforcement Learning",
+      "human-sota": 0.238,
+      "claude-opus-4.6": 0.182,
+      "claude-opus-4.6__vanilla": 0.123,
+      "gpt-5.4": 0.054,
+      "gpt-5.4__vanilla": 0.041,
+      "gemini-3.1-pro-preview": 0.144,
+      "gemini-3.1-pro-preview__vanilla": 0.051,
+      "deepseek-reasoner": 0.06,
+      "deepseek-reasoner__vanilla": 0.029,
+      "qwen3.6-plus": 0.059,
+      "qwen3.6-plus__vanilla": 0.052
+    },
+    {
+      "category": "Sys",
+      "categoryName": "ML Systems & Efficient ML",
+      "human-sota": 0.436,
+      "claude-opus-4.6": 0.345,
+      "claude-opus-4.6__vanilla": 0.213,
+      "gpt-5.4": 0.16,
+      "gpt-5.4__vanilla": 0.098,
+      "gemini-3.1-pro-preview": 0.282,
+      "gemini-3.1-pro-preview__vanilla": 0.115,
+      "deepseek-reasoner": 0.191,
+      "deepseek-reasoner__vanilla": 0.188,
+      "qwen3.6-plus": 0.105,
+      "qwen3.6-plus__vanilla": 0.065
+    },
+    {
+      "category": "Sci",
+      "categoryName": "AI for Science",
+      "human-sota": 0.427,
+      "claude-opus-4.6": 0.159,
+      "claude-opus-4.6__vanilla": 0.117,
+      "gpt-5.4": 0.142,
+      "gpt-5.4__vanilla": 0.045,
+      "gemini-3.1-pro-preview": 0.271,
+      "gemini-3.1-pro-preview__vanilla": 0.256,
+      "deepseek-reasoner": 0.089,
+      "deepseek-reasoner__vanilla": 0.025,
+      "qwen3.6-plus": 0.068,
+      "qwen3.6-plus__vanilla": 0.042
+    },
+    {
+      "category": "Opt",
+      "categoryName": "Optimization & Theory",
+      "human-sota": 0.403,
+      "claude-opus-4.6": 0.465,
+      "claude-opus-4.6__vanilla": 0.15,
+      "gpt-5.4": 0.29,
+      "gpt-5.4__vanilla": 0.154,
+      "gemini-3.1-pro-preview": 0.321,
+      "gemini-3.1-pro-preview__vanilla": 0.257,
+      "deepseek-reasoner": 0.158,
+      "deepseek-reasoner__vanilla": 0.103,
+      "qwen3.6-plus": 0.213,
+      "qwen3.6-plus__vanilla": 0.115
+    },
+    {
+      "category": "CAL",
+      "categoryName": "Classical & Adaptive Learning",
+      "human-sota": 0.412,
+      "claude-opus-4.6": 0.268,
+      "claude-opus-4.6__vanilla": 0.177,
+      "gpt-5.4": 0.192,
+      "gpt-5.4__vanilla": 0.124,
+      "gemini-3.1-pro-preview": 0.15,
+      "gemini-3.1-pro-preview__vanilla": 0.1,
+      "deepseek-reasoner": 0.094,
+      "deepseek-reasoner__vanilla": 0.059,
+      "qwen3.6-plus": 0.099,
+      "qwen3.6-plus__vanilla": 0.07
+    },
+    {
+      "category": "DL",
+      "categoryName": "Deep Learning",
+      "human-sota": 0.377,
+      "claude-opus-4.6": 0.303,
+      "claude-opus-4.6__vanilla": 0.219,
+      "gpt-5.4": 0.132,
+      "gpt-5.4__vanilla": 0.132,
+      "gemini-3.1-pro-preview": 0.369,
+      "gemini-3.1-pro-preview__vanilla": 0.263,
+      "deepseek-reasoner": 0.165,
+      "deepseek-reasoner__vanilla": 0.153,
+      "qwen3.6-plus": 0.128,
+      "qwen3.6-plus__vanilla": 0.125
+    },
+    {
+      "category": "TS",
+      "categoryName": "Time Series & Forecasting",
+      "human-sota": 0.203,
+      "claude-opus-4.6": 0.139,
+      "claude-opus-4.6__vanilla": 0.103,
+      "gpt-5.4": 0.037,
+      "gpt-5.4__vanilla": 0.027,
+      "gemini-3.1-pro-preview": 0.149,
+      "gemini-3.1-pro-preview__vanilla": 0.062,
+      "deepseek-reasoner": 0.119,
+      "deepseek-reasoner__vanilla": 0.049,
+      "qwen3.6-plus": 0.059,
+      "qwen3.6-plus__vanilla": 0.042
+    },
+    {
+      "category": "SCR",
+      "categoryName": "Structured & Causal Reasoning",
+      "human-sota": 0.455,
+      "claude-opus-4.6": 0.274,
+      "claude-opus-4.6__vanilla": 0.172,
+      "gpt-5.4": 0.18,
+      "gpt-5.4__vanilla": 0.073,
+      "gemini-3.1-pro-preview": 0.128,
+      "gemini-3.1-pro-preview__vanilla": 0.036,
+      "deepseek-reasoner": 0.226,
+      "deepseek-reasoner__vanilla": 0.13,
+      "qwen3.6-plus": 0.051,
+      "qwen3.6-plus__vanilla": 0.017
+    },
+    {
+      "category": "TL",
+      "categoryName": "Trustworthy Learning",
+      "human-sota": 0.482,
+      "claude-opus-4.6": 0.241,
+      "claude-opus-4.6__vanilla": 0.176,
+      "gpt-5.4": 0.421,
+      "gpt-5.4__vanilla": 0.346,
+      "gemini-3.1-pro-preview": 0.264,
+      "gemini-3.1-pro-preview__vanilla": 0.237,
+      "deepseek-reasoner": 0.215,
+      "deepseek-reasoner__vanilla": 0.111,
+      "qwen3.6-plus": 0.158,
+      "qwen3.6-plus__vanilla": 0.093
+    }
+  ]
+}

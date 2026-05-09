@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 72" role="img" aria-labelledby="title">
+  <title id="title">Shanghai Jiao Tong University</title>
+  <style>
+    .wordmark { fill: #111827; font-family: Georgia, "Times New Roman", serif; font-weight: 700; letter-spacing: .01em; }
+    .sub { fill: #111827; font-family: Arial, Helvetica, sans-serif; font-weight: 700; letter-spacing: .15em; }
+  </style>
+  <text x="260" y="35" text-anchor="middle" font-size="27" class="wordmark">Shanghai Jiao Tong</text>
+  <text x="260" y="58" text-anchor="middle" font-size="10" class="sub">UNIVERSITY</text>
+</svg>

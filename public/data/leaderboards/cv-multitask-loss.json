@@ -1,0 +1,323 @@
+{
+  "task_id": "cv-multitask-loss",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "test_acc_resnet20-cifar100mt",
+    "test_acc_resnet56-cifar100mt",
+    "test_acc_vgg16bn-cifar100mt",
+    "elapsed_resnet20-cifar100mt",
+    "elapsed_resnet56-cifar100mt",
+    "elapsed_vgg16bn-cifar100mt"
+  ],
+  "metric_columns": [
+    "test_acc_resnet20-cifar100mt",
+    "test_acc_resnet56-cifar100mt",
+    "test_acc_vgg16bn-cifar100mt"
+  ],
+  "metric_directions": {
+    "test_acc_resnet20-cifar100mt": "higher",
+    "test_acc_resnet56-cifar100mt": "higher",
+    "test_acc_vgg16bn-cifar100mt": "higher"
+  },
+  "metric_groups": [
+    {
+      "setting": "ResNet-20 / CIFAR-100-MT",
+      "metrics": [
+        "test_acc_resnet20-cifar100mt"
+      ]
+    },
+    {
+      "setting": "ResNet-56 / CIFAR-100-MT",
+      "metrics": [
+        "test_acc_resnet56-cifar100mt"
+      ]
+    },
+    {
+      "setting": "VGG-16-BN / CIFAR-100-MT",
+      "metrics": [
+        "test_acc_vgg16bn-cifar100mt"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "timestamp": null,
+      "model": "baseline:DWA",
+      "is_final": true,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 67.96,
+      "test_acc_resnet56-cifar100mt": 72.39,
+      "test_acc_vgg16bn-cifar100mt": 73.78,
+      "elapsed_resnet20-cifar100mt": null,
+      "elapsed_resnet56-cifar100mt": null,
+      "elapsed_vgg16bn-cifar100mt": null
+    },
+    {
+      "timestamp": null,
+      "model": "baseline:PCGrad",
+      "is_final": true,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 64.31,
+      "test_acc_resnet56-cifar100mt": 70.2,
+      "test_acc_vgg16bn-cifar100mt": 74.17,
+      "elapsed_resnet20-cifar100mt": null,
+      "elapsed_resnet56-cifar100mt": null,
+      "elapsed_vgg16bn-cifar100mt": null
+    },
+    {
+      "timestamp": null,
+      "model": "baseline:Uncertainty Weighting",
+      "is_final": true,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 66.81,
+      "test_acc_resnet56-cifar100mt": 70.94,
+      "test_acc_vgg16bn-cifar100mt": 72.67,
+      "elapsed_resnet20-cifar100mt": null,
+      "elapsed_resnet56-cifar100mt": null,
+      "elapsed_vgg16bn-cifar100mt": null
+    },
+    {
+      "timestamp": "2026-04-15T07:23:51.478326+00:00",
+      "model": "vanilla:claude-opus-4.6",
+      "is_final": true,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 68.6,
+      "test_acc_resnet56-cifar100mt": 72.66,
+      "test_acc_vgg16bn-cifar100mt": 73.8,
+      "elapsed_resnet20-cifar100mt": 852.0,
+      "elapsed_resnet56-cifar100mt": 1882.0,
+      "elapsed_vgg16bn-cifar100mt": 893.0
+    },
+    {
+      "timestamp": "2026-04-09T20:52:45.971676+00:00",
+      "model": "vanilla:deepseek-reasoner",
+      "is_final": true,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 66.55,
+      "test_acc_resnet56-cifar100mt": 71.76,
+      "test_acc_vgg16bn-cifar100mt": 72.29,
+      "elapsed_resnet20-cifar100mt": 849.0,
+      "elapsed_resnet56-cifar100mt": 1873.0,
+      "elapsed_vgg16bn-cifar100mt": 880.0
+    },
+    {
+      "timestamp": "2026-04-15T07:54:20.515818+00:00",
+      "model": "vanilla:gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 68.48,
+      "test_acc_resnet56-cifar100mt": 71.08,
+      "test_acc_vgg16bn-cifar100mt": 74.08,
+      "elapsed_resnet20-cifar100mt": 834.0,
+      "elapsed_resnet56-cifar100mt": 1867.0,
+      "elapsed_vgg16bn-cifar100mt": 881.0
+    },
+    {
+      "timestamp": "2026-04-14T06:07:48.466421+00:00",
+      "model": "vanilla:gpt-5.4",
+      "is_final": true,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 69.11,
+      "test_acc_resnet56-cifar100mt": 72.12,
+      "test_acc_vgg16bn-cifar100mt": 74.36,
+      "elapsed_resnet20-cifar100mt": 782.0,
+      "elapsed_resnet56-cifar100mt": 1707.0,
+      "elapsed_vgg16bn-cifar100mt": 859.0
+    },
+    {
+      "timestamp": "2026-04-15T08:11:20.678002+00:00",
+      "model": "vanilla:qwen3.6-plus",
+      "is_final": true,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 68.29,
+      "test_acc_resnet56-cifar100mt": 72.38,
+      "test_acc_vgg16bn-cifar100mt": 73.46,
+      "elapsed_resnet20-cifar100mt": 865.0,
+      "elapsed_resnet56-cifar100mt": 1894.0,
+      "elapsed_vgg16bn-cifar100mt": 899.0
+    },
+    {
+      "timestamp": "2026-04-15T07:24:25.822099+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": true,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 68.6,
+      "test_acc_resnet56-cifar100mt": 72.66,
+      "test_acc_vgg16bn-cifar100mt": 73.8,
+      "elapsed_resnet20-cifar100mt": 852.0,
+      "elapsed_resnet56-cifar100mt": 1882.0,
+      "elapsed_vgg16bn-cifar100mt": 893.0
+    },
+    {
+      "timestamp": "2026-04-10T03:23:38.078602+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": true,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 67.1,
+      "test_acc_resnet56-cifar100mt": 71.9,
+      "test_acc_vgg16bn-cifar100mt": 72.75,
+      "elapsed_resnet20-cifar100mt": 867.0,
+      "elapsed_resnet56-cifar100mt": 1890.0,
+      "elapsed_vgg16bn-cifar100mt": 895.0
+    },
+    {
+      "timestamp": "2026-04-15T11:09:15.638563+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 68.87,
+      "test_acc_resnet56-cifar100mt": 72.64,
+      "test_acc_vgg16bn-cifar100mt": 74.55,
+      "elapsed_resnet20-cifar100mt": 838.0,
+      "elapsed_resnet56-cifar100mt": 1855.0,
+      "elapsed_vgg16bn-cifar100mt": 877.0
+    },
+    {
+      "timestamp": "2026-04-14T08:34:37.807166+00:00",
+      "model": "gpt-5.4",
+      "is_final": true,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 68.96,
+      "test_acc_resnet56-cifar100mt": 72.37,
+      "test_acc_vgg16bn-cifar100mt": 74.31,
+      "elapsed_resnet20-cifar100mt": 773.0,
+      "elapsed_resnet56-cifar100mt": 1721.0,
+      "elapsed_vgg16bn-cifar100mt": 855.0
+    },
+    {
+      "timestamp": "2026-04-15T11:33:13.742494+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": true,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 68.71,
+      "test_acc_resnet56-cifar100mt": 72.7,
+      "test_acc_vgg16bn-cifar100mt": 74.01,
+      "elapsed_resnet20-cifar100mt": 824.0,
+      "elapsed_resnet56-cifar100mt": 1844.0,
+      "elapsed_vgg16bn-cifar100mt": 872.0
+    },
+    {
+      "timestamp": "2026-04-15T07:23:51.478326+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": false,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 68.6,
+      "test_acc_resnet56-cifar100mt": 72.66,
+      "test_acc_vgg16bn-cifar100mt": 73.8,
+      "elapsed_resnet20-cifar100mt": 852.0,
+      "elapsed_resnet56-cifar100mt": 1882.0,
+      "elapsed_vgg16bn-cifar100mt": 893.0
+    },
+    {
+      "timestamp": "2026-04-09T20:52:45.971676+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": false,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 66.55,
+      "test_acc_resnet56-cifar100mt": 71.76,
+      "test_acc_vgg16bn-cifar100mt": 72.29,
+      "elapsed_resnet20-cifar100mt": 849.0,
+      "elapsed_resnet56-cifar100mt": 1873.0,
+      "elapsed_vgg16bn-cifar100mt": 880.0
+    },
+    {
+      "timestamp": "2026-04-10T00:49:02.744797+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": false,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 67.1,
+      "test_acc_resnet56-cifar100mt": 71.9,
+      "test_acc_vgg16bn-cifar100mt": 72.75,
+      "elapsed_resnet20-cifar100mt": 867.0,
+      "elapsed_resnet56-cifar100mt": 1890.0,
+      "elapsed_vgg16bn-cifar100mt": 895.0
+    },
+    {
+      "timestamp": "2026-04-10T03:22:36.092445+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": false,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 24.69,
+      "test_acc_resnet56-cifar100mt": 25.58,
+      "test_acc_vgg16bn-cifar100mt": 1.52,
+      "elapsed_resnet20-cifar100mt": 853.0,
+      "elapsed_resnet56-cifar100mt": 1854.0,
+      "elapsed_vgg16bn-cifar100mt": 893.0
+    },
+    {
+      "timestamp": "2026-04-15T07:54:20.515818+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 68.48,
+      "test_acc_resnet56-cifar100mt": 71.08,
+      "test_acc_vgg16bn-cifar100mt": 74.08,
+      "elapsed_resnet20-cifar100mt": 834.0,
+      "elapsed_resnet56-cifar100mt": 1867.0,
+      "elapsed_vgg16bn-cifar100mt": 881.0
+    },
+    {
+      "timestamp": "2026-04-15T11:07:20.519458+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 68.87,
+      "test_acc_resnet56-cifar100mt": 72.64,
+      "test_acc_vgg16bn-cifar100mt": 74.55,
+      "elapsed_resnet20-cifar100mt": 838.0,
+      "elapsed_resnet56-cifar100mt": 1855.0,
+      "elapsed_vgg16bn-cifar100mt": 877.0
+    },
+    {
+      "timestamp": "2026-04-14T06:07:48.466421+00:00",
+      "model": "gpt-5.4",
+      "is_final": false,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 69.11,
+      "test_acc_resnet56-cifar100mt": 72.12,
+      "test_acc_vgg16bn-cifar100mt": 74.36,
+      "elapsed_resnet20-cifar100mt": 782.0,
+      "elapsed_resnet56-cifar100mt": 1707.0,
+      "elapsed_vgg16bn-cifar100mt": 859.0
+    },
+    {
+      "timestamp": "2026-04-14T08:34:01.912757+00:00",
+      "model": "gpt-5.4",
+      "is_final": false,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 68.96,
+      "test_acc_resnet56-cifar100mt": 72.37,
+      "test_acc_vgg16bn-cifar100mt": 74.31,
+      "elapsed_resnet20-cifar100mt": 773.0,
+      "elapsed_resnet56-cifar100mt": 1721.0,
+      "elapsed_vgg16bn-cifar100mt": 855.0
+    },
+    {
+      "timestamp": "2026-04-15T08:11:20.678002+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": false,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 68.29,
+      "test_acc_resnet56-cifar100mt": 72.38,
+      "test_acc_vgg16bn-cifar100mt": 73.46,
+      "elapsed_resnet20-cifar100mt": 865.0,
+      "elapsed_resnet56-cifar100mt": 1894.0,
+      "elapsed_vgg16bn-cifar100mt": 899.0
+    },
+    {
+      "timestamp": "2026-04-15T11:33:04.795370+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": false,
+      "seed": "42",
+      "test_acc_resnet20-cifar100mt": 68.71,
+      "test_acc_resnet56-cifar100mt": 72.7,
+      "test_acc_vgg16bn-cifar100mt": 74.01,
+      "elapsed_resnet20-cifar100mt": 824.0,
+      "elapsed_resnet56-cifar100mt": 1844.0,
+      "elapsed_vgg16bn-cifar100mt": 872.0
+    }
+  ]
+}

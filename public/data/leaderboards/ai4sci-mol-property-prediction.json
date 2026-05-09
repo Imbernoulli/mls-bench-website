@@ -1,0 +1,347 @@
+{
+  "task_id": "ai4sci-mol-property-prediction",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "rocauc_BBBP",
+    "elapsed_BBBP",
+    "rocauc_BACE",
+    "elapsed_BACE",
+    "rocauc_Tox21",
+    "elapsed_Tox21"
+  ],
+  "metric_columns": [
+    "rocauc_BBBP",
+    "rocauc_BACE",
+    "rocauc_Tox21"
+  ],
+  "metric_directions": {
+    "rocauc_BBBP": "higher",
+    "rocauc_BACE": "higher",
+    "rocauc_Tox21": "higher"
+  },
+  "metric_groups": [
+    {
+      "setting": "BBBP",
+      "metrics": [
+        "rocauc_BBBP"
+      ]
+    },
+    {
+      "setting": "BACE",
+      "metrics": [
+        "rocauc_BACE"
+      ]
+    },
+    {
+      "setting": "Tox21",
+      "metrics": [
+        "rocauc_Tox21"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-04-15T23:26:30.000000+00:00",
+      "model": "baseline:D-MPNN",
+      "is_final": true,
+      "seed": "42",
+      "rocauc_BBBP": 0.598573,
+      "elapsed_BBBP": 142.0,
+      "rocauc_BACE": 0.688054,
+      "elapsed_BACE": 173.0,
+      "rocauc_Tox21": 0.713105,
+      "elapsed_Tox21": 801.0
+    },
+    {
+      "timestamp": "2026-04-15T23:26:30.000000+00:00",
+      "model": "baseline:GIN",
+      "is_final": true,
+      "seed": "42",
+      "rocauc_BBBP": 0.509886,
+      "elapsed_BBBP": 139.0,
+      "rocauc_BACE": 0.726135,
+      "elapsed_BACE": 168.0,
+      "rocauc_Tox21": 0.747023,
+      "elapsed_Tox21": 830.0
+    },
+    {
+      "timestamp": "2026-04-16T22:41:42.000000+00:00",
+      "model": "baseline:Uni-Mol",
+      "is_final": true,
+      "seed": "42",
+      "rocauc_BBBP": 0.712867,
+      "elapsed_BBBP": 1572.0,
+      "rocauc_BACE": 0.846635,
+      "elapsed_BACE": 1572.0,
+      "rocauc_Tox21": 0.761314,
+      "elapsed_Tox21": 1523.0
+    },
+    {
+      "timestamp": "2026-05-03T13:39:48.156288+00:00",
+      "model": "vanilla:claude-opus-4.6",
+      "is_final": true,
+      "seed": "42",
+      "rocauc_BBBP": 0.712191,
+      "elapsed_BBBP": 369.0,
+      "rocauc_BACE": 0.82716,
+      "elapsed_BACE": 369.0,
+      "rocauc_Tox21": 0.773072,
+      "elapsed_Tox21": 545.0
+    },
+    {
+      "timestamp": "2026-05-03T13:39:55.174860+00:00",
+      "model": "vanilla:deepseek-reasoner",
+      "is_final": true,
+      "seed": "42",
+      "rocauc_BBBP": null,
+      "elapsed_BBBP": null,
+      "rocauc_BACE": null,
+      "elapsed_BACE": null,
+      "rocauc_Tox21": null,
+      "elapsed_Tox21": null
+    },
+    {
+      "timestamp": "2026-05-03T14:09:01.032991+00:00",
+      "model": "vanilla:gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "rocauc_BBBP": 0.681134,
+      "elapsed_BBBP": 2140.0,
+      "rocauc_BACE": 0.781603,
+      "elapsed_BACE": 2218.0,
+      "rocauc_Tox21": 0.771198,
+      "elapsed_Tox21": 1267.0
+    },
+    {
+      "timestamp": "2026-05-03T13:48:15.105674+00:00",
+      "model": "vanilla:gpt-5.4",
+      "is_final": true,
+      "seed": "42",
+      "rocauc_BBBP": 0.681617,
+      "elapsed_BBBP": 146.0,
+      "rocauc_BACE": 0.815684,
+      "elapsed_BACE": 146.0,
+      "rocauc_Tox21": 0.771993,
+      "elapsed_Tox21": 486.0
+    },
+    {
+      "timestamp": "2026-05-03T13:42:53.017865+00:00",
+      "model": "vanilla:qwen3.6-plus",
+      "is_final": true,
+      "seed": "42",
+      "rocauc_BBBP": null,
+      "elapsed_BBBP": null,
+      "rocauc_BACE": null,
+      "elapsed_BACE": null,
+      "rocauc_Tox21": null,
+      "elapsed_Tox21": null
+    },
+    {
+      "timestamp": "2026-05-03T20:07:45.516438+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": true,
+      "seed": "42",
+      "rocauc_BBBP": 0.715664,
+      "elapsed_BBBP": 303.0,
+      "rocauc_BACE": 0.831334,
+      "elapsed_BACE": 303.0,
+      "rocauc_Tox21": 0.777712,
+      "elapsed_Tox21": 558.0
+    },
+    {
+      "timestamp": "2026-05-03T20:52:02.850083+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": true,
+      "seed": "42",
+      "rocauc_BBBP": 0.70814,
+      "elapsed_BBBP": 141.0,
+      "rocauc_BACE": 0.823161,
+      "elapsed_BACE": 147.0,
+      "rocauc_Tox21": 0.757964,
+      "elapsed_Tox21": 487.0
+    },
+    {
+      "timestamp": "2026-05-03T20:45:31.690498+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "rocauc_BBBP": 0.699605,
+      "elapsed_BBBP": 2193.0,
+      "rocauc_BACE": 0.834985,
+      "elapsed_BACE": 2193.0,
+      "rocauc_Tox21": 0.775301,
+      "elapsed_Tox21": 1219.0
+    },
+    {
+      "timestamp": "2026-05-03T20:03:03.704014+00:00",
+      "model": "gpt-5.4",
+      "is_final": true,
+      "seed": "42",
+      "rocauc_BBBP": 0.681617,
+      "elapsed_BBBP": 146.0,
+      "rocauc_BACE": 0.815684,
+      "elapsed_BACE": 146.0,
+      "rocauc_Tox21": 0.771993,
+      "elapsed_Tox21": 486.0
+    },
+    {
+      "timestamp": "2026-05-03T19:23:14.554920+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": true,
+      "seed": "42",
+      "rocauc_BBBP": null,
+      "elapsed_BBBP": null,
+      "rocauc_BACE": null,
+      "elapsed_BACE": null,
+      "rocauc_Tox21": null,
+      "elapsed_Tox21": null
+    },
+    {
+      "timestamp": "2026-05-03T13:39:48.156288+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": false,
+      "seed": "42",
+      "rocauc_BBBP": 0.712191,
+      "elapsed_BBBP": 369.0,
+      "rocauc_BACE": 0.82716,
+      "elapsed_BACE": 369.0,
+      "rocauc_Tox21": 0.773072,
+      "elapsed_Tox21": 545.0
+    },
+    {
+      "timestamp": "2026-05-03T17:47:07.043353+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": false,
+      "seed": "42",
+      "rocauc_BBBP": 0.715664,
+      "elapsed_BBBP": 303.0,
+      "rocauc_BACE": 0.831334,
+      "elapsed_BACE": 303.0,
+      "rocauc_Tox21": 0.777712,
+      "elapsed_Tox21": 558.0
+    },
+    {
+      "timestamp": "2026-05-03T20:07:41.988239+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": false,
+      "seed": "42",
+      "rocauc_BBBP": null,
+      "elapsed_BBBP": null,
+      "rocauc_BACE": null,
+      "elapsed_BACE": null,
+      "rocauc_Tox21": null,
+      "elapsed_Tox21": null
+    },
+    {
+      "timestamp": "2026-05-03T13:39:55.174860+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": false,
+      "seed": "42",
+      "rocauc_BBBP": null,
+      "elapsed_BBBP": null,
+      "rocauc_BACE": null,
+      "elapsed_BACE": null,
+      "rocauc_Tox21": null,
+      "elapsed_Tox21": null
+    },
+    {
+      "timestamp": "2026-05-03T19:29:41.388203+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": false,
+      "seed": "42",
+      "rocauc_BBBP": 0.70814,
+      "elapsed_BBBP": 141.0,
+      "rocauc_BACE": 0.823161,
+      "elapsed_BACE": 147.0,
+      "rocauc_Tox21": 0.757964,
+      "elapsed_Tox21": 487.0
+    },
+    {
+      "timestamp": "2026-05-03T20:51:20.700350+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": false,
+      "seed": "42",
+      "rocauc_BBBP": null,
+      "elapsed_BBBP": null,
+      "rocauc_BACE": null,
+      "elapsed_BACE": null,
+      "rocauc_Tox21": null,
+      "elapsed_Tox21": null
+    },
+    {
+      "timestamp": "2026-05-03T14:09:01.032991+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "rocauc_BBBP": 0.681134,
+      "elapsed_BBBP": 2140.0,
+      "rocauc_BACE": 0.781603,
+      "elapsed_BACE": 2218.0,
+      "rocauc_Tox21": 0.771198,
+      "elapsed_Tox21": 1267.0
+    },
+    {
+      "timestamp": "2026-05-03T20:45:24.615707+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "rocauc_BBBP": 0.699605,
+      "elapsed_BBBP": 2193.0,
+      "rocauc_BACE": 0.834985,
+      "elapsed_BACE": 2193.0,
+      "rocauc_Tox21": 0.775301,
+      "elapsed_Tox21": 1219.0
+    },
+    {
+      "timestamp": "2026-05-03T13:48:15.105674+00:00",
+      "model": "gpt-5.4",
+      "is_final": false,
+      "seed": "42",
+      "rocauc_BBBP": 0.681617,
+      "elapsed_BBBP": 146.0,
+      "rocauc_BACE": 0.815684,
+      "elapsed_BACE": 146.0,
+      "rocauc_Tox21": 0.771993,
+      "elapsed_Tox21": 486.0
+    },
+    {
+      "timestamp": "2026-05-03T20:02:58.382676+00:00",
+      "model": "gpt-5.4",
+      "is_final": false,
+      "seed": "42",
+      "rocauc_BBBP": 0.677662,
+      "elapsed_BBBP": 186.0,
+      "rocauc_BACE": 0.80386,
+      "elapsed_BACE": 194.0,
+      "rocauc_Tox21": 0.761367,
+      "elapsed_Tox21": 439.0
+    },
+    {
+      "timestamp": "2026-05-03T13:42:53.017865+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": false,
+      "seed": "42",
+      "rocauc_BBBP": null,
+      "elapsed_BBBP": null,
+      "rocauc_BACE": null,
+      "elapsed_BACE": null,
+      "rocauc_Tox21": null,
+      "elapsed_Tox21": null
+    },
+    {
+      "timestamp": "2026-05-03T19:21:36.121264+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": false,
+      "seed": "42",
+      "rocauc_BBBP": null,
+      "elapsed_BBBP": null,
+      "rocauc_BACE": null,
+      "elapsed_BACE": null,
+      "rocauc_Tox21": null,
+      "elapsed_Tox21": null
+    }
+  ]
+}

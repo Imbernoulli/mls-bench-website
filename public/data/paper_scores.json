@@ -1,0 +1,5453 @@
+{
+  "source": "/srv/home/bohanlyu/MLS-Bench/results/innovation_performance/official_task_model_rows.csv",
+  "rows": [
+    {
+      "taskId": "agent-tool-reasoning",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.5248519734,
+      "finalScore": 0.5248519734,
+      "agentScore": 0.5248519734,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "agent-tool-reasoning",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.5703523005,
+      "finalScore": 0.638417571,
+      "agentScore": 0.638417571,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "agent-tool-reasoning",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.6575759853,
+      "finalScore": 0.6575759853,
+      "agentScore": 0.6575759853,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "agent-tool-reasoning",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.09882254855,
+      "finalScore": 0.5168317257,
+      "agentScore": 0.5168317257,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "agent-tool-reasoning",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.4920024467,
+      "agentScore": 0.4920024467,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "ai4bio-mutation-effect-prediction",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.5138319605,
+      "finalScore": 0.5138319605,
+      "agentScore": 0.5138319605,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "ai4bio-mutation-effect-prediction",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.01296370394,
+      "finalScore": 0.3640228662,
+      "agentScore": 0.3640228662,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "ai4bio-mutation-effect-prediction",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4815640383,
+      "finalScore": 0.4935513814,
+      "agentScore": 0.4935513814,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "ai4bio-mutation-effect-prediction",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.4494019078,
+      "finalScore": 0.469102768,
+      "agentScore": 0.469102768,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "ai4bio-mutation-effect-prediction",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.4461217696,
+      "finalScore": 0.5127096312,
+      "agentScore": 0.5127096312,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "ai4bio-protein-inverse-folding",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "ai4bio-protein-inverse-folding",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.4988659038,
+      "agentScore": 0.4988659038,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "ai4bio-protein-inverse-folding",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.5630688367,
+      "finalScore": 0.5630688367,
+      "agentScore": 0.5630688367,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "ai4bio-protein-inverse-folding",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.3383694364,
+      "finalScore": 0.3383694364,
+      "agentScore": 0.3383694364,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "ai4bio-protein-inverse-folding",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.02116390822,
+      "agentScore": 0.02116390822,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "ai4bio-protein-structure-repr",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.09551632868,
+      "finalScore": 0.0,
+      "agentScore": 0.09551632868,
+      "humanSotaScore": 0.3626261371
+    },
+    {
+      "taskId": "ai4bio-protein-structure-repr",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.3626261371
+    },
+    {
+      "taskId": "ai4bio-protein-structure-repr",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.1017396865,
+      "finalScore": 0.3578758516,
+      "agentScore": 0.3578758516,
+      "humanSotaScore": 0.3626261371
+    },
+    {
+      "taskId": "ai4bio-protein-structure-repr",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.03478989524,
+      "agentScore": 0.03478989524,
+      "humanSotaScore": 0.3626261371
+    },
+    {
+      "taskId": "ai4bio-protein-structure-repr",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.3626261371
+    },
+    {
+      "taskId": "ai4sci-climate-emulation",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.5368092645,
+      "finalScore": 0.5462742369,
+      "agentScore": 0.5462742369,
+      "humanSotaScore": 0.4461200328
+    },
+    {
+      "taskId": "ai4sci-climate-emulation",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.2488120709,
+      "finalScore": 0.3681893053,
+      "agentScore": 0.3681893053,
+      "humanSotaScore": 0.4461200328
+    },
+    {
+      "taskId": "ai4sci-climate-emulation",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.5276351887,
+      "finalScore": 0.5256657419,
+      "agentScore": 0.5256657419,
+      "humanSotaScore": 0.4461200328
+    },
+    {
+      "taskId": "ai4sci-climate-emulation",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.4294886428,
+      "finalScore": 0.4294886428,
+      "agentScore": 0.4294886428,
+      "humanSotaScore": 0.4461200328
+    },
+    {
+      "taskId": "ai4sci-climate-emulation",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.3382164703,
+      "finalScore": 0.3382164703,
+      "agentScore": 0.3382164703,
+      "humanSotaScore": 0.4461200328
+    },
+    {
+      "taskId": "ai4sci-inverse-diffusion-algo",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.03416478878,
+      "finalScore": 0.06201197426,
+      "agentScore": 0.06201197426,
+      "humanSotaScore": 0.4867379572
+    },
+    {
+      "taskId": "ai4sci-inverse-diffusion-algo",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.03756633507,
+      "finalScore": 0.1438971414,
+      "agentScore": 0.1438971414,
+      "humanSotaScore": 0.4867379572
+    },
+    {
+      "taskId": "ai4sci-inverse-diffusion-algo",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.05869616771,
+      "finalScore": 0.1415934387,
+      "agentScore": 0.1415934387,
+      "humanSotaScore": 0.4867379572
+    },
+    {
+      "taskId": "ai4sci-inverse-diffusion-algo",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.09751932081,
+      "agentScore": 0.09751932081,
+      "humanSotaScore": 0.4867379572
+    },
+    {
+      "taskId": "ai4sci-inverse-diffusion-algo",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4867379572
+    },
+    {
+      "taskId": "ai4sci-mol-property-prediction",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4914004638,
+      "finalScore": 0.5034436355,
+      "agentScore": 0.5034436355,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "ai4sci-mol-property-prediction",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.4660970775,
+      "agentScore": 0.4660970775,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "ai4sci-mol-property-prediction",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4091050626,
+      "finalScore": 0.4946454474,
+      "agentScore": 0.4946454474,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "ai4sci-mol-property-prediction",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.4560301917,
+      "agentScore": 0.4560301917,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "ai4sci-mol-property-prediction",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "ai4sci-pla-binding-affinity",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4586310051,
+      "finalScore": 0.4586310051,
+      "agentScore": 0.4586310051,
+      "humanSotaScore": 0.4549274617
+    },
+    {
+      "taskId": "ai4sci-pla-binding-affinity",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4549274617
+    },
+    {
+      "taskId": "ai4sci-pla-binding-affinity",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.5285352362,
+      "finalScore": 0.5285352362,
+      "agentScore": 0.5285352362,
+      "humanSotaScore": 0.4549274617
+    },
+    {
+      "taskId": "ai4sci-pla-binding-affinity",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.3961114489,
+      "agentScore": 0.3961114489,
+      "humanSotaScore": 0.4549274617
+    },
+    {
+      "taskId": "ai4sci-pla-binding-affinity",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.4720939225,
+      "agentScore": 0.4720939225,
+      "humanSotaScore": 0.4549274617
+    },
+    {
+      "taskId": "ai4sci-vs-contrastive-scoring",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.0,
+      "finalScore": 0.4970722499,
+      "agentScore": 0.4970722499,
+      "humanSotaScore": 0.3228425653
+    },
+    {
+      "taskId": "ai4sci-vs-contrastive-scoring",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.3228425653
+    },
+    {
+      "taskId": "ai4sci-vs-contrastive-scoring",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.223826275,
+      "finalScore": 0.223826275,
+      "agentScore": 0.223826275,
+      "humanSotaScore": 0.3228425653
+    },
+    {
+      "taskId": "ai4sci-vs-contrastive-scoring",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0151208341,
+      "agentScore": 0.0151208341,
+      "humanSotaScore": 0.3228425653
+    },
+    {
+      "taskId": "ai4sci-vs-contrastive-scoring",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.2693320716,
+      "finalScore": 0.2693320716,
+      "agentScore": 0.2693320716,
+      "humanSotaScore": 0.3228425653
+    },
+    {
+      "taskId": "causal-discovery-discrete",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.3909388258,
+      "finalScore": 0.3909388258,
+      "agentScore": 0.3909388258,
+      "humanSotaScore": 0.3959318893
+    },
+    {
+      "taskId": "causal-discovery-discrete",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.1263664445,
+      "finalScore": 0.2075806118,
+      "agentScore": 0.2075806118,
+      "humanSotaScore": 0.3959318893
+    },
+    {
+      "taskId": "causal-discovery-discrete",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.01820564203,
+      "finalScore": 0.01820564203,
+      "agentScore": 0.01820564203,
+      "humanSotaScore": 0.3959318893
+    },
+    {
+      "taskId": "causal-discovery-discrete",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.3959318893
+    },
+    {
+      "taskId": "causal-discovery-discrete",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.3959318893
+    },
+    {
+      "taskId": "causal-observational-linear-gaussian",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": null,
+      "finalScore": 0.6900412182,
+      "agentScore": 0.6900412182,
+      "humanSotaScore": 0.7534823615
+    },
+    {
+      "taskId": "causal-observational-linear-gaussian",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.03884259375,
+      "finalScore": 0.3981484396,
+      "agentScore": 0.3981484396,
+      "humanSotaScore": 0.7534823615
+    },
+    {
+      "taskId": "causal-observational-linear-gaussian",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": null,
+      "finalScore": 0.4313562366,
+      "agentScore": 0.4313562366,
+      "humanSotaScore": 0.7534823615
+    },
+    {
+      "taskId": "causal-observational-linear-gaussian",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.3625010428,
+      "finalScore": 0.2766164461,
+      "agentScore": 0.2766164461,
+      "humanSotaScore": 0.7534823615
+    },
+    {
+      "taskId": "causal-observational-linear-gaussian",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.7534823615
+    },
+    {
+      "taskId": "causal-observational-linear-non-gaussian",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": null,
+      "finalScore": 0.9108401548,
+      "agentScore": 0.9108401548,
+      "humanSotaScore": 0.542293003
+    },
+    {
+      "taskId": "causal-observational-linear-non-gaussian",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.08549879733,
+      "finalScore": 0.396850263,
+      "agentScore": 0.396850263,
+      "humanSotaScore": 0.542293003
+    },
+    {
+      "taskId": "causal-observational-linear-non-gaussian",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": null,
+      "finalScore": 0.1652767577,
+      "agentScore": 0.1652767577,
+      "humanSotaScore": 0.542293003
+    },
+    {
+      "taskId": "causal-observational-linear-non-gaussian",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.08549879733,
+      "finalScore": 0.4190186523,
+      "agentScore": 0.4190186523,
+      "humanSotaScore": 0.542293003
+    },
+    {
+      "taskId": "causal-observational-linear-non-gaussian",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.08549879733,
+      "finalScore": 0.8475536268,
+      "agentScore": 0.8475536268,
+      "humanSotaScore": 0.542293003
+    },
+    {
+      "taskId": "causal-observational-nonlinear",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": null,
+      "finalScore": 0.1508850588,
+      "agentScore": 0.1508850588,
+      "humanSotaScore": 0.5134886754
+    },
+    {
+      "taskId": "causal-observational-nonlinear",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.2568607875,
+      "finalScore": 0.2568607875,
+      "agentScore": 0.2568607875,
+      "humanSotaScore": 0.5134886754
+    },
+    {
+      "taskId": "causal-observational-nonlinear",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": null,
+      "finalScore": 0.1663057854,
+      "agentScore": 0.1663057854,
+      "humanSotaScore": 0.5134886754
+    },
+    {
+      "taskId": "causal-observational-nonlinear",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.09590089441,
+      "finalScore": 0.1434144503,
+      "agentScore": 0.1434144503,
+      "humanSotaScore": 0.5134886754
+    },
+    {
+      "taskId": "causal-observational-nonlinear",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.1483365349,
+      "finalScore": 0.1483365349,
+      "agentScore": 0.1483365349,
+      "humanSotaScore": 0.5134886754
+    },
+    {
+      "taskId": "causal-treatment-effect",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4933265617
+    },
+    {
+      "taskId": "causal-treatment-effect",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.1255855531,
+      "finalScore": 0.2818041712,
+      "agentScore": 0.2818041712,
+      "humanSotaScore": 0.4933265617
+    },
+    {
+      "taskId": "causal-treatment-effect",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.3923239644,
+      "finalScore": 0.4147394839,
+      "agentScore": 0.4147394839,
+      "humanSotaScore": 0.4933265617
+    },
+    {
+      "taskId": "causal-treatment-effect",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.3819797439,
+      "finalScore": 0.4237017419,
+      "agentScore": 0.4237017419,
+      "humanSotaScore": 0.4933265617
+    },
+    {
+      "taskId": "causal-treatment-effect",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.1476336854,
+      "agentScore": 0.1476336854,
+      "humanSotaScore": 0.4933265617
+    },
+    {
+      "taskId": "cv-3dgs-densification",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.0,
+      "finalScore": 0.4483290971,
+      "agentScore": 0.4483290971,
+      "humanSotaScore": 0.3467382361
+    },
+    {
+      "taskId": "cv-3dgs-densification",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0145781122,
+      "agentScore": 0.0145781122,
+      "humanSotaScore": 0.3467382361
+    },
+    {
+      "taskId": "cv-3dgs-densification",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.2556042206,
+      "finalScore": 0.3279132224,
+      "agentScore": 0.3279132224,
+      "humanSotaScore": 0.3467382361
+    },
+    {
+      "taskId": "cv-3dgs-densification",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.3467382361
+    },
+    {
+      "taskId": "cv-3dgs-densification",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.3467382361
+    },
+    {
+      "taskId": "cv-3dgs-regularizer",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4345336627,
+      "finalScore": 0.3977667186,
+      "agentScore": 0.3977667186,
+      "humanSotaScore": 0.3897828857
+    },
+    {
+      "taskId": "cv-3dgs-regularizer",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.3481384117,
+      "finalScore": 0.239137526,
+      "agentScore": 0.239137526,
+      "humanSotaScore": 0.3897828857
+    },
+    {
+      "taskId": "cv-3dgs-regularizer",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4371871992,
+      "finalScore": 0.3920468274,
+      "agentScore": 0.3920468274,
+      "humanSotaScore": 0.3897828857
+    },
+    {
+      "taskId": "cv-3dgs-regularizer",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.4458656941,
+      "finalScore": 0.4297950997,
+      "agentScore": 0.4297950997,
+      "humanSotaScore": 0.3897828857
+    },
+    {
+      "taskId": "cv-classification-loss",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.5028352639,
+      "finalScore": 0.5039061178,
+      "agentScore": 0.5039061178,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "cv-classification-loss",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.5253487872,
+      "finalScore": 0.5253487872,
+      "agentScore": 0.5253487872,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "cv-classification-loss",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.1341903395,
+      "finalScore": 0.1341903395,
+      "agentScore": 0.1341903395,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "cv-classification-loss",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.5504392807,
+      "finalScore": 0.5504392807,
+      "agentScore": 0.5504392807,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "cv-classification-loss",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "cv-data-augmentation",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.03901895621,
+      "finalScore": 0.1349367138,
+      "agentScore": 0.1349367138,
+      "humanSotaScore": 0.4829903789
+    },
+    {
+      "taskId": "cv-data-augmentation",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.02741510656,
+      "agentScore": 0.02741510656,
+      "humanSotaScore": 0.4829903789
+    },
+    {
+      "taskId": "cv-data-augmentation",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.13178407,
+      "finalScore": 0.13178407,
+      "agentScore": 0.13178407,
+      "humanSotaScore": 0.4829903789
+    },
+    {
+      "taskId": "cv-data-augmentation",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.03805295187,
+      "finalScore": 0.1388313285,
+      "agentScore": 0.1388313285,
+      "humanSotaScore": 0.4829903789
+    },
+    {
+      "taskId": "cv-data-augmentation",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.02985319316,
+      "finalScore": 0.02985319316,
+      "agentScore": 0.02985319316,
+      "humanSotaScore": 0.4829903789
+    },
+    {
+      "taskId": "cv-dbm-sampler",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.0,
+      "finalScore": 0.5142418384,
+      "agentScore": 0.5142418384,
+      "humanSotaScore": 0.4505225178
+    },
+    {
+      "taskId": "cv-dbm-sampler",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.3475602573,
+      "agentScore": 0.3475602573,
+      "humanSotaScore": 0.4505225178
+    },
+    {
+      "taskId": "cv-dbm-sampler",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.01833142076,
+      "finalScore": 0.01833142076,
+      "agentScore": 0.01833142076,
+      "humanSotaScore": 0.4505225178
+    },
+    {
+      "taskId": "cv-dbm-sampler",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.30356395,
+      "finalScore": 0.4422566593,
+      "agentScore": 0.4422566593,
+      "humanSotaScore": 0.4505225178
+    },
+    {
+      "taskId": "cv-dbm-sampler",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4505225178
+    },
+    {
+      "taskId": "cv-dbm-scheduler",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.08047960996,
+      "finalScore": 0.08063720866,
+      "agentScore": 0.08063720866,
+      "humanSotaScore": 0.4451717293
+    },
+    {
+      "taskId": "cv-dbm-scheduler",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.4451717293,
+      "agentScore": 0.4451717293,
+      "humanSotaScore": 0.4451717293
+    },
+    {
+      "taskId": "cv-dbm-scheduler",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4469382797,
+      "finalScore": 0.4228266878,
+      "agentScore": 0.4228266878,
+      "humanSotaScore": 0.4451717293
+    },
+    {
+      "taskId": "cv-dbm-scheduler",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.4476673448,
+      "finalScore": 0.4476673448,
+      "agentScore": 0.4476673448,
+      "humanSotaScore": 0.4451717293
+    },
+    {
+      "taskId": "cv-dbm-scheduler",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.3858355681,
+      "finalScore": 0.3858355681,
+      "agentScore": 0.3858355681,
+      "humanSotaScore": 0.4451717293
+    },
+    {
+      "taskId": "cv-diffusion-architecture",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.1380827348,
+      "finalScore": 0.4236966727,
+      "agentScore": 0.4236966727,
+      "humanSotaScore": 0.4844504887
+    },
+    {
+      "taskId": "cv-diffusion-architecture",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.5101831837,
+      "agentScore": 0.5101831837,
+      "humanSotaScore": 0.4844504887
+    },
+    {
+      "taskId": "cv-diffusion-architecture",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.1278730219,
+      "finalScore": 0.0,
+      "agentScore": 0.1278730219,
+      "humanSotaScore": 0.4844504887
+    },
+    {
+      "taskId": "cv-diffusion-architecture",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.1296786586,
+      "finalScore": 0.1296786586,
+      "agentScore": 0.1296786586,
+      "humanSotaScore": 0.4844504887
+    },
+    {
+      "taskId": "cv-diffusion-architecture",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.1288590906,
+      "agentScore": 0.1288590906,
+      "humanSotaScore": 0.4844504887
+    },
+    {
+      "taskId": "cv-diffusion-cfg",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.02096546308,
+      "finalScore": 0.4564059632,
+      "agentScore": 0.4564059632,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "cv-diffusion-cfg",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.03934573684,
+      "finalScore": 0.0,
+      "agentScore": 0.03934573684,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "cv-diffusion-cfg",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.5269039257,
+      "finalScore": 0.5269039257,
+      "agentScore": 0.5269039257,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "cv-diffusion-cfg",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "cv-diffusion-cfg",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "cv-diffusion-conditioning",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.1261820429,
+      "finalScore": 0.1261820429,
+      "agentScore": 0.1261820429,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "cv-diffusion-conditioning",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.1261820429,
+      "finalScore": 0.1261820429,
+      "agentScore": 0.1261820429,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "cv-diffusion-conditioning",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.1386811212,
+      "finalScore": 0.5418977457,
+      "agentScore": 0.5418977457,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "cv-diffusion-conditioning",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.1233204533,
+      "finalScore": 0.3306509211,
+      "agentScore": 0.3306509211,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "cv-diffusion-conditioning",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.03130647402,
+      "finalScore": 0.0,
+      "agentScore": 0.03130647402,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "cv-diffusion-efficiency",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.04289518741,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5385712329
+    },
+    {
+      "taskId": "cv-diffusion-efficiency",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5385712329
+    },
+    {
+      "taskId": "cv-diffusion-efficiency",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.1183755216,
+      "finalScore": 0.4348301352,
+      "agentScore": 0.4348301352,
+      "humanSotaScore": 0.5385712329
+    },
+    {
+      "taskId": "cv-diffusion-efficiency",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.07895020494,
+      "agentScore": 0.07895020494,
+      "humanSotaScore": 0.5385712329
+    },
+    {
+      "taskId": "cv-diffusion-efficiency",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5385712329
+    },
+    {
+      "taskId": "cv-diffusion-prediction",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.09317568009,
+      "finalScore": 0.4986194047,
+      "agentScore": 0.4986194047,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "cv-diffusion-prediction",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "cv-diffusion-prediction",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.09193659253,
+      "finalScore": 0.3408659602,
+      "agentScore": 0.3408659602,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "cv-diffusion-prediction",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.1055964827,
+      "finalScore": 0.4747931303,
+      "agentScore": 0.4747931303,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "cv-diffusion-prediction",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.485397657,
+      "agentScore": 0.485397657,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "cv-meanflow-perceptual-loss",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.1116936967,
+      "finalScore": 0.4379979973,
+      "agentScore": 0.4379979973,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "cv-meanflow-perceptual-loss",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.09042141591,
+      "agentScore": 0.09042141591,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "cv-meanflow-perceptual-loss",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.08282190371,
+      "finalScore": 0.08282190371,
+      "agentScore": 0.08282190371,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "cv-meanflow-perceptual-loss",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.1198495559,
+      "finalScore": 0.1198495559,
+      "agentScore": 0.1198495559,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "cv-multitask-loss",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.50206079,
+      "finalScore": 0.50206079,
+      "agentScore": 0.50206079,
+      "humanSotaScore": 0.4881580633
+    },
+    {
+      "taskId": "cv-multitask-loss",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.1253492112,
+      "finalScore": 0.3767699029,
+      "agentScore": 0.3767699029,
+      "humanSotaScore": 0.4881580633
+    },
+    {
+      "taskId": "cv-multitask-loss",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4652089373,
+      "finalScore": 0.5256868762,
+      "agentScore": 0.5256868762,
+      "humanSotaScore": 0.4881580633
+    },
+    {
+      "taskId": "cv-multitask-loss",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.5129663194,
+      "finalScore": 0.515653726,
+      "agentScore": 0.515653726,
+      "humanSotaScore": 0.4881580633
+    },
+    {
+      "taskId": "cv-multitask-loss",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.4791114852,
+      "finalScore": 0.5109555882,
+      "agentScore": 0.5109555882,
+      "humanSotaScore": 0.4881580633
+    },
+    {
+      "taskId": "cv-pooling-aggregation",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.02834249436,
+      "finalScore": 0.1209808006,
+      "agentScore": 0.1209808006,
+      "humanSotaScore": 0.4895113814
+    },
+    {
+      "taskId": "cv-pooling-aggregation",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.1260640255,
+      "finalScore": 0.1135211288,
+      "agentScore": 0.1135211288,
+      "humanSotaScore": 0.4895113814
+    },
+    {
+      "taskId": "cv-pooling-aggregation",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4808083029,
+      "finalScore": 0.4808083029,
+      "agentScore": 0.4808083029,
+      "humanSotaScore": 0.4895113814
+    },
+    {
+      "taskId": "cv-pooling-aggregation",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.1152454376,
+      "finalScore": 0.4131312807,
+      "agentScore": 0.4131312807,
+      "humanSotaScore": 0.4895113814
+    },
+    {
+      "taskId": "cv-pooling-aggregation",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.03566984861,
+      "finalScore": 0.03566984861,
+      "agentScore": 0.03566984861,
+      "humanSotaScore": 0.4895113814
+    },
+    {
+      "taskId": "cv-sample-weighting",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4237472604,
+      "finalScore": 0.4237472604,
+      "agentScore": 0.4237472604,
+      "humanSotaScore": 0.4923949332
+    },
+    {
+      "taskId": "cv-sample-weighting",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.4844353089,
+      "finalScore": 0.4937956811,
+      "agentScore": 0.4937956811,
+      "humanSotaScore": 0.4923949332
+    },
+    {
+      "taskId": "cv-sample-weighting",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.1268999866,
+      "finalScore": 0.1268999866,
+      "agentScore": 0.1268999866,
+      "humanSotaScore": 0.4923949332
+    },
+    {
+      "taskId": "cv-sample-weighting",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.4797918571,
+      "finalScore": 0.5152455064,
+      "agentScore": 0.5152455064,
+      "humanSotaScore": 0.4923949332
+    },
+    {
+      "taskId": "cv-sample-weighting",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.4565892706,
+      "finalScore": 0.4565892706,
+      "agentScore": 0.4565892706,
+      "humanSotaScore": 0.4923949332
+    },
+    {
+      "taskId": "cv-vae-loss",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4936709891,
+      "finalScore": 0.4936709891,
+      "agentScore": 0.4936709891,
+      "humanSotaScore": 0.6159109712
+    },
+    {
+      "taskId": "cv-vae-loss",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.5393799554,
+      "agentScore": 0.5393799554,
+      "humanSotaScore": 0.6159109712
+    },
+    {
+      "taskId": "cv-vae-loss",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4538622682,
+      "finalScore": 0.5348299586,
+      "agentScore": 0.5348299586,
+      "humanSotaScore": 0.6159109712
+    },
+    {
+      "taskId": "cv-vae-loss",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.4275566769,
+      "finalScore": 0.3998112499,
+      "agentScore": 0.3998112499,
+      "humanSotaScore": 0.6159109712
+    },
+    {
+      "taskId": "cv-vae-loss",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.4442495514,
+      "finalScore": 0.4685053049,
+      "agentScore": 0.4685053049,
+      "humanSotaScore": 0.6159109712
+    },
+    {
+      "taskId": "dl-activation-function",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4522095619,
+      "finalScore": 0.4522095619,
+      "agentScore": 0.4522095619,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "dl-activation-function",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.5269208448,
+      "finalScore": 0.5269208448,
+      "agentScore": 0.5269208448,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "dl-activation-function",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0,
+      "finalScore": 0.1570989886,
+      "agentScore": 0.1570989886,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "dl-activation-function",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "dl-activation-function",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.5636918122,
+      "finalScore": 0.5636918122,
+      "agentScore": 0.5636918122,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "dl-lr-schedule",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4645178072,
+      "finalScore": 0.4701278961,
+      "agentScore": 0.4701278961,
+      "humanSotaScore": 0.4721360672
+    },
+    {
+      "taskId": "dl-lr-schedule",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.4736357741,
+      "finalScore": 0.4736357741,
+      "agentScore": 0.4736357741,
+      "humanSotaScore": 0.4721360672
+    },
+    {
+      "taskId": "dl-lr-schedule",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.5106342278,
+      "finalScore": 0.5230373786,
+      "agentScore": 0.5230373786,
+      "humanSotaScore": 0.4721360672
+    },
+    {
+      "taskId": "dl-lr-schedule",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.4466254694,
+      "finalScore": 0.500696349,
+      "agentScore": 0.500696349,
+      "humanSotaScore": 0.4721360672
+    },
+    {
+      "taskId": "dl-lr-schedule",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.4154579189,
+      "finalScore": 0.4482776012,
+      "agentScore": 0.4482776012,
+      "humanSotaScore": 0.4721360672
+    },
+    {
+      "taskId": "dl-normalization",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.622385487,
+      "finalScore": 0.5977368179,
+      "agentScore": 0.5977368179,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "dl-normalization",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.03359141911,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "dl-normalization",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.6225658824,
+      "finalScore": 0.6225658824,
+      "agentScore": 0.6225658824,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "dl-normalization",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "dl-normalization",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "dl-regularization",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.03072071051,
+      "finalScore": 0.03646337067,
+      "agentScore": 0.03646337067,
+      "humanSotaScore": 0.4785317777
+    },
+    {
+      "taskId": "dl-regularization",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4785317777
+    },
+    {
+      "taskId": "dl-regularization",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.651701022,
+      "finalScore": 0.651701022,
+      "agentScore": 0.651701022,
+      "humanSotaScore": 0.4785317777
+    },
+    {
+      "taskId": "dl-regularization",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.03529357442,
+      "finalScore": 0.03113729049,
+      "agentScore": 0.03113729049,
+      "humanSotaScore": 0.4785317777
+    },
+    {
+      "taskId": "dl-regularization",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.1136886011,
+      "finalScore": 0.1136886011,
+      "agentScore": 0.1136886011,
+      "humanSotaScore": 0.4785317777
+    },
+    {
+      "taskId": "dl-residual-connection",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.3642718159,
+      "finalScore": 0.3665180944,
+      "agentScore": 0.3665180944,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "dl-residual-connection",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.3755913329,
+      "finalScore": 0.3755913329,
+      "agentScore": 0.3755913329,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "dl-residual-connection",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.2976434791,
+      "finalScore": 0.509318092,
+      "agentScore": 0.509318092,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "dl-residual-connection",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.3305421425,
+      "finalScore": 0.44495726,
+      "agentScore": 0.44495726,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "dl-residual-connection",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.4115169515,
+      "finalScore": 0.4115169515,
+      "agentScore": 0.4115169515,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "dl-weight-initialization",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.543399079,
+      "finalScore": 0.543399079,
+      "agentScore": 0.543399079,
+      "humanSotaScore": 0.49917256
+    },
+    {
+      "taskId": "dl-weight-initialization",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.5211487352,
+      "finalScore": 0.5211487352,
+      "agentScore": 0.5211487352,
+      "humanSotaScore": 0.49917256
+    },
+    {
+      "taskId": "dl-weight-initialization",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.5255869729,
+      "finalScore": 0.5255869729,
+      "agentScore": 0.5255869729,
+      "humanSotaScore": 0.49917256
+    },
+    {
+      "taskId": "dl-weight-initialization",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.5187464952,
+      "finalScore": 0.5267834068,
+      "agentScore": 0.5267834068,
+      "humanSotaScore": 0.49917256
+    },
+    {
+      "taskId": "dl-weight-initialization",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.5333340499,
+      "finalScore": 0.5333340499,
+      "agentScore": 0.5333340499,
+      "humanSotaScore": 0.49917256
+    },
+    {
+      "taskId": "dlm-dkv-policy",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4032753742,
+      "finalScore": 0.3044958601,
+      "agentScore": 0.3044958601,
+      "humanSotaScore": 0.481390957
+    },
+    {
+      "taskId": "dlm-dkv-policy",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.3598277175,
+      "finalScore": 0.3598277175,
+      "agentScore": 0.3598277175,
+      "humanSotaScore": 0.481390957
+    },
+    {
+      "taskId": "dlm-dkv-policy",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.3739619274,
+      "finalScore": 0.2139209337,
+      "agentScore": 0.2139209337,
+      "humanSotaScore": 0.481390957
+    },
+    {
+      "taskId": "dlm-dkv-policy",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.09931542155,
+      "agentScore": 0.09931542155,
+      "humanSotaScore": 0.481390957
+    },
+    {
+      "taskId": "dlm-dkv-policy",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.1640445539,
+      "finalScore": 0.06871919182,
+      "agentScore": 0.06871919182,
+      "humanSotaScore": 0.481390957
+    },
+    {
+      "taskId": "graph-generation",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.1701923583,
+      "finalScore": 0.1701923583,
+      "agentScore": 0.1701923583,
+      "humanSotaScore": 0.3458301805
+    },
+    {
+      "taskId": "graph-generation",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.4170991606,
+      "finalScore": 0.4170991606,
+      "agentScore": 0.4170991606,
+      "humanSotaScore": 0.3458301805
+    },
+    {
+      "taskId": "graph-generation",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.3458301805
+    },
+    {
+      "taskId": "graph-generation",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.3971410839,
+      "finalScore": 0.181033002,
+      "agentScore": 0.181033002,
+      "humanSotaScore": 0.3458301805
+    },
+    {
+      "taskId": "graph-generation",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.3458301805
+    },
+    {
+      "taskId": "graph-graph-classification",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.3019566255,
+      "finalScore": 0.3113362604,
+      "agentScore": 0.3113362604,
+      "humanSotaScore": 0.2999402276
+    },
+    {
+      "taskId": "graph-graph-classification",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.09536520909,
+      "humanSotaScore": 0.2999402276
+    },
+    {
+      "taskId": "graph-graph-classification",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.07558203006,
+      "finalScore": 0.174025182,
+      "agentScore": 0.174025182,
+      "humanSotaScore": 0.2999402276
+    },
+    {
+      "taskId": "graph-graph-classification",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.1130746268,
+      "finalScore": 0.2948795317,
+      "agentScore": 0.2948795317,
+      "humanSotaScore": 0.2999402276
+    },
+    {
+      "taskId": "graph-graph-classification",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.279904166,
+      "agentScore": 0.279904166,
+      "humanSotaScore": 0.2999402276
+    },
+    {
+      "taskId": "graph-link-prediction",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4610658808,
+      "finalScore": 0.4610658808,
+      "agentScore": 0.4610658808,
+      "humanSotaScore": 0.463007309
+    },
+    {
+      "taskId": "graph-link-prediction",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": null,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.463007309
+    },
+    {
+      "taskId": "graph-link-prediction",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0,
+      "finalScore": 0.4874432862,
+      "agentScore": 0.4874432862,
+      "humanSotaScore": 0.463007309
+    },
+    {
+      "taskId": "graph-link-prediction",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.463007309
+    },
+    {
+      "taskId": "graph-link-prediction",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": null,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.463007309
+    },
+    {
+      "taskId": "graph-node-classification",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.1136747768,
+      "finalScore": 0.5073686915,
+      "agentScore": 0.5073686915,
+      "humanSotaScore": 0.4893800359
+    },
+    {
+      "taskId": "graph-node-classification",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.4935836471,
+      "finalScore": 0.4935836471,
+      "agentScore": 0.4935836471,
+      "humanSotaScore": 0.4893800359
+    },
+    {
+      "taskId": "graph-node-classification",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.02325269919,
+      "finalScore": 0.4810636653,
+      "agentScore": 0.4810636653,
+      "humanSotaScore": 0.4893800359
+    },
+    {
+      "taskId": "graph-node-classification",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.1174285495,
+      "agentScore": 0.1174285495,
+      "humanSotaScore": 0.4893800359
+    },
+    {
+      "taskId": "graph-node-classification",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4893800359
+    },
+    {
+      "taskId": "graph-signal-propagation",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4509085422,
+      "finalScore": 0.4509085422,
+      "agentScore": 0.4509085422,
+      "humanSotaScore": 0.4942309715
+    },
+    {
+      "taskId": "graph-signal-propagation",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.1757389054,
+      "finalScore": 0.4814887656,
+      "agentScore": 0.4814887656,
+      "humanSotaScore": 0.4942309715
+    },
+    {
+      "taskId": "graph-signal-propagation",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.06173954576,
+      "finalScore": 0.02620477047,
+      "agentScore": 0.02620477047,
+      "humanSotaScore": 0.4942309715
+    },
+    {
+      "taskId": "graph-signal-propagation",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.06210949076,
+      "finalScore": 0.6061076999,
+      "agentScore": 0.6061076999,
+      "humanSotaScore": 0.4942309715
+    },
+    {
+      "taskId": "graph-signal-propagation",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.2015186541,
+      "agentScore": 0.2015186541,
+      "humanSotaScore": 0.4942309715
+    },
+    {
+      "taskId": "jepa-planning",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4445180282,
+      "finalScore": 0.4445180282,
+      "agentScore": 0.4445180282,
+      "humanSotaScore": null
+    },
+    {
+      "taskId": "jepa-planning",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.3178730613,
+      "agentScore": 0.3178730613,
+      "humanSotaScore": null
+    },
+    {
+      "taskId": "jepa-planning",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0,
+      "finalScore": 0.3228855871,
+      "agentScore": 0.3228855871,
+      "humanSotaScore": null
+    },
+    {
+      "taskId": "jepa-planning",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.3083091933,
+      "finalScore": 0.3083091933,
+      "agentScore": 0.3083091933,
+      "humanSotaScore": null
+    },
+    {
+      "taskId": "jepa-planning",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.02586212805,
+      "finalScore": 0.02586212805,
+      "agentScore": 0.02586212805,
+      "humanSotaScore": null
+    },
+    {
+      "taskId": "jepa-prediction-loss",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4306352225
+    },
+    {
+      "taskId": "jepa-prediction-loss",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4306352225
+    },
+    {
+      "taskId": "jepa-prediction-loss",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4306352225
+    },
+    {
+      "taskId": "jepa-prediction-loss",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4306352225
+    },
+    {
+      "taskId": "jepa-prediction-loss",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4306352225
+    },
+    {
+      "taskId": "jepa-regularizer",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.457800704,
+      "finalScore": 0.457800704,
+      "agentScore": 0.457800704,
+      "humanSotaScore": 0.4971707759
+    },
+    {
+      "taskId": "jepa-regularizer",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.4463778153,
+      "agentScore": 0.4463778153,
+      "humanSotaScore": 0.4971707759
+    },
+    {
+      "taskId": "jepa-regularizer",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.276691132,
+      "finalScore": 0.3505529516,
+      "agentScore": 0.3505529516,
+      "humanSotaScore": 0.4971707759
+    },
+    {
+      "taskId": "jepa-regularizer",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.01,
+      "finalScore": 0.01,
+      "agentScore": 0.01,
+      "humanSotaScore": 0.4971707759
+    },
+    {
+      "taskId": "jepa-regularizer",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.5088621093,
+      "finalScore": 0.5088621093,
+      "agentScore": 0.5088621093,
+      "humanSotaScore": 0.4971707759
+    },
+    {
+      "taskId": "llm-dllm-demask-strategy",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.3897602061,
+      "finalScore": 0.3874342236,
+      "agentScore": 0.3874342236,
+      "humanSotaScore": 0.4513855657
+    },
+    {
+      "taskId": "llm-dllm-demask-strategy",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.2675777029,
+      "finalScore": 0.3849523329,
+      "agentScore": 0.3849523329,
+      "humanSotaScore": 0.4513855657
+    },
+    {
+      "taskId": "llm-dllm-demask-strategy",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4706286527,
+      "finalScore": 0.4706286527,
+      "agentScore": 0.4706286527,
+      "humanSotaScore": 0.4513855657
+    },
+    {
+      "taskId": "llm-dllm-demask-strategy",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.4081882526,
+      "finalScore": 0.4926087511,
+      "agentScore": 0.4926087511,
+      "humanSotaScore": 0.4513855657
+    },
+    {
+      "taskId": "llm-dllm-demask-strategy",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4513855657
+    },
+    {
+      "taskId": "llm-kv-adaptive-quantization",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.2051929001,
+      "finalScore": 0.2254704764,
+      "agentScore": 0.2254704764,
+      "humanSotaScore": 0.46569948
+    },
+    {
+      "taskId": "llm-kv-adaptive-quantization",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.320169104,
+      "finalScore": 0.320169104,
+      "agentScore": 0.320169104,
+      "humanSotaScore": 0.46569948
+    },
+    {
+      "taskId": "llm-kv-adaptive-quantization",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0,
+      "finalScore": 0.3241658145,
+      "agentScore": 0.3241658145,
+      "humanSotaScore": 0.46569948
+    },
+    {
+      "taskId": "llm-kv-adaptive-quantization",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.4720756251,
+      "finalScore": 0.4720756251,
+      "agentScore": 0.4720756251,
+      "humanSotaScore": 0.46569948
+    },
+    {
+      "taskId": "llm-kv-selection-budgeting",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.0,
+      "finalScore": 0.5732660226,
+      "agentScore": 0.5732660226,
+      "humanSotaScore": 0.475966644
+    },
+    {
+      "taskId": "llm-kv-selection-budgeting",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.475966644
+    },
+    {
+      "taskId": "llm-kv-selection-budgeting",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.5794484231,
+      "finalScore": 0.5967605566,
+      "agentScore": 0.5967605566,
+      "humanSotaScore": 0.475966644
+    },
+    {
+      "taskId": "llm-kv-selection-budgeting",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.5373944554,
+      "finalScore": 0.5591756677,
+      "agentScore": 0.5591756677,
+      "humanSotaScore": 0.475966644
+    },
+    {
+      "taskId": "llm-kv-selection-budgeting",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.3665649019,
+      "finalScore": 0.4904061814,
+      "agentScore": 0.4904061814,
+      "humanSotaScore": 0.475966644
+    },
+    {
+      "taskId": "llm-kv-structural-reduction",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4614782808,
+      "finalScore": 0.4303263697,
+      "agentScore": 0.4303263697,
+      "humanSotaScore": 0.3535629289
+    },
+    {
+      "taskId": "llm-kv-structural-reduction",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.3570652582,
+      "finalScore": 0.2563867184,
+      "agentScore": 0.2563867184,
+      "humanSotaScore": 0.3535629289
+    },
+    {
+      "taskId": "llm-kv-structural-reduction",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.3858543389,
+      "finalScore": 0.3858543389,
+      "agentScore": 0.3858543389,
+      "humanSotaScore": 0.3535629289
+    },
+    {
+      "taskId": "llm-kv-structural-reduction",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.1705234457,
+      "finalScore": 0.1705234457,
+      "agentScore": 0.1705234457,
+      "humanSotaScore": 0.3535629289
+    },
+    {
+      "taskId": "llm-kv-structural-reduction",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.4220785395,
+      "agentScore": 0.4220785395,
+      "humanSotaScore": 0.3535629289
+    },
+    {
+      "taskId": "llm-pretrain-attention",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.09689779994,
+      "finalScore": 0.5182721136,
+      "agentScore": 0.5182721136,
+      "humanSotaScore": 0.4931979461
+    },
+    {
+      "taskId": "llm-pretrain-attention",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.5488465317,
+      "finalScore": 0.5488465317,
+      "agentScore": 0.5488465317,
+      "humanSotaScore": 0.4931979461
+    },
+    {
+      "taskId": "llm-pretrain-attention",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4985362924,
+      "finalScore": 0.4414548404,
+      "agentScore": 0.4414548404,
+      "humanSotaScore": 0.4931979461
+    },
+    {
+      "taskId": "llm-pretrain-attention",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.5432552586,
+      "agentScore": 0.5432552586,
+      "humanSotaScore": 0.4931979461
+    },
+    {
+      "taskId": "llm-pretrain-attention",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.4899213721,
+      "finalScore": 0.4446770228,
+      "agentScore": 0.4446770228,
+      "humanSotaScore": 0.4931979461
+    },
+    {
+      "taskId": "llm-pretrain-bitlinear",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.3675623268,
+      "finalScore": 0.3675623268,
+      "agentScore": 0.3675623268,
+      "humanSotaScore": 0.4330127019
+    },
+    {
+      "taskId": "llm-pretrain-bitlinear",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.1512036348,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4330127019
+    },
+    {
+      "taskId": "llm-pretrain-bitlinear",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4374350892,
+      "finalScore": 0.4374350892,
+      "agentScore": 0.4374350892,
+      "humanSotaScore": 0.4330127019
+    },
+    {
+      "taskId": "llm-pretrain-bitlinear",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.2398442917,
+      "finalScore": 0.2398442917,
+      "agentScore": 0.2398442917,
+      "humanSotaScore": 0.4330127019
+    },
+    {
+      "taskId": "llm-pretrain-bitlinear",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.2352430752,
+      "finalScore": 0.2352430752,
+      "agentScore": 0.2352430752,
+      "humanSotaScore": 0.4330127019
+    },
+    {
+      "taskId": "llm-pretrain-embedding",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4559601777,
+      "finalScore": 0.4101960925,
+      "agentScore": 0.4101960925,
+      "humanSotaScore": 0.3974765599
+    },
+    {
+      "taskId": "llm-pretrain-embedding",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.2882060443,
+      "finalScore": 0.2882060443,
+      "agentScore": 0.2882060443,
+      "humanSotaScore": 0.3974765599
+    },
+    {
+      "taskId": "llm-pretrain-embedding",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4496605572,
+      "finalScore": 0.4460223146,
+      "agentScore": 0.4460223146,
+      "humanSotaScore": 0.3974765599
+    },
+    {
+      "taskId": "llm-pretrain-embedding",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.3449635003,
+      "finalScore": 0.3449635003,
+      "agentScore": 0.3449635003,
+      "humanSotaScore": 0.3974765599
+    },
+    {
+      "taskId": "llm-pretrain-embedding",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.3440262805,
+      "finalScore": 0.4539702384,
+      "agentScore": 0.4539702384,
+      "humanSotaScore": 0.3974765599
+    },
+    {
+      "taskId": "llm-pretrain-kernel",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.05888015049,
+      "finalScore": 0.05112934396,
+      "agentScore": 0.05112934396,
+      "humanSotaScore": 0.4922414302
+    },
+    {
+      "taskId": "llm-pretrain-kernel",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.03441060599,
+      "finalScore": 0.03441060599,
+      "agentScore": 0.03441060599,
+      "humanSotaScore": 0.4922414302
+    },
+    {
+      "taskId": "llm-pretrain-kernel",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.05049494381,
+      "finalScore": 0.03188445401,
+      "agentScore": 0.03188445401,
+      "humanSotaScore": 0.4922414302
+    },
+    {
+      "taskId": "llm-pretrain-kernel",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.06097066057,
+      "finalScore": 0.1824693362,
+      "agentScore": 0.1824693362,
+      "humanSotaScore": 0.4922414302
+    },
+    {
+      "taskId": "llm-pretrain-kernel",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.04873764149,
+      "finalScore": 0.04873764149,
+      "agentScore": 0.04873764149,
+      "humanSotaScore": 0.4922414302
+    },
+    {
+      "taskId": "llm-pretrain-linear-attention",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4730126028,
+      "finalScore": 0.4730126028,
+      "agentScore": 0.4730126028,
+      "humanSotaScore": 0.4330127019
+    },
+    {
+      "taskId": "llm-pretrain-linear-attention",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.5150161856,
+      "finalScore": 0.5535798967,
+      "agentScore": 0.5535798967,
+      "humanSotaScore": 0.4330127019
+    },
+    {
+      "taskId": "llm-pretrain-linear-attention",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.605018013,
+      "finalScore": 0.605018013,
+      "agentScore": 0.605018013,
+      "humanSotaScore": 0.4330127019
+    },
+    {
+      "taskId": "llm-pretrain-linear-attention",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.4754181774,
+      "finalScore": 0.4754181774,
+      "agentScore": 0.4754181774,
+      "humanSotaScore": 0.4330127019
+    },
+    {
+      "taskId": "llm-pretrain-linear-attention",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.5712637457,
+      "finalScore": 0.5712637457,
+      "agentScore": 0.5712637457,
+      "humanSotaScore": 0.4330127019
+    },
+    {
+      "taskId": "llm-pretrain-loss",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.05770257204,
+      "finalScore": 0.05770257204,
+      "agentScore": 0.05770257204,
+      "humanSotaScore": 0.3872862361
+    },
+    {
+      "taskId": "llm-pretrain-loss",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.2315551899,
+      "finalScore": 0.06334970113,
+      "agentScore": 0.06334970113,
+      "humanSotaScore": 0.3872862361
+    },
+    {
+      "taskId": "llm-pretrain-loss",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4520111448,
+      "finalScore": 0.4520111448,
+      "agentScore": 0.4520111448,
+      "humanSotaScore": 0.3872862361
+    },
+    {
+      "taskId": "llm-pretrain-loss",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.192956433,
+      "finalScore": 0.4499358647,
+      "agentScore": 0.4499358647,
+      "humanSotaScore": 0.3872862361
+    },
+    {
+      "taskId": "llm-pretrain-loss",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.05814291227,
+      "finalScore": 0.3707946891,
+      "agentScore": 0.3707946891,
+      "humanSotaScore": 0.3872862361
+    },
+    {
+      "taskId": "llm-pretrain-lr-schedule",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.03669545764,
+      "finalScore": 0.1992375344,
+      "agentScore": 0.1992375344,
+      "humanSotaScore": 0.4827246584
+    },
+    {
+      "taskId": "llm-pretrain-lr-schedule",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.4050085561,
+      "finalScore": 0.04000185169,
+      "agentScore": 0.04000185169,
+      "humanSotaScore": 0.4827246584
+    },
+    {
+      "taskId": "llm-pretrain-lr-schedule",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.04505314095,
+      "finalScore": 0.328056668,
+      "agentScore": 0.328056668,
+      "humanSotaScore": 0.4827246584
+    },
+    {
+      "taskId": "llm-pretrain-lr-schedule",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0571466434,
+      "finalScore": 0.1578869792,
+      "agentScore": 0.1578869792,
+      "humanSotaScore": 0.4827246584
+    },
+    {
+      "taskId": "llm-pretrain-lr-schedule",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.1022339048,
+      "finalScore": 0.3331623021,
+      "agentScore": 0.3331623021,
+      "humanSotaScore": 0.4827246584
+    },
+    {
+      "taskId": "llm-pretrain-mlp",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.2266445362,
+      "finalScore": 0.6100930888,
+      "agentScore": 0.6100930888,
+      "humanSotaScore": 0.4330127019
+    },
+    {
+      "taskId": "llm-pretrain-mlp",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.3412178374,
+      "finalScore": 0.4081816429,
+      "agentScore": 0.4081816429,
+      "humanSotaScore": 0.4330127019
+    },
+    {
+      "taskId": "llm-pretrain-mlp",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.4165963602,
+      "finalScore": 0.03795037797,
+      "agentScore": 0.03795037797,
+      "humanSotaScore": 0.4330127019
+    },
+    {
+      "taskId": "llm-pretrain-mlp",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.2766289912,
+      "finalScore": 0.2766289912,
+      "agentScore": 0.2766289912,
+      "humanSotaScore": 0.4330127019
+    },
+    {
+      "taskId": "llm-pretrain-normalization",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.3952751469,
+      "finalScore": 0.4335351473,
+      "agentScore": 0.4335351473,
+      "humanSotaScore": 0.4995452596
+    },
+    {
+      "taskId": "llm-pretrain-normalization",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.5810594235,
+      "finalScore": 0.5810594235,
+      "agentScore": 0.5810594235,
+      "humanSotaScore": 0.4995452596
+    },
+    {
+      "taskId": "llm-pretrain-normalization",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.3309110644,
+      "finalScore": 0.529588148,
+      "agentScore": 0.529588148,
+      "humanSotaScore": 0.4995452596
+    },
+    {
+      "taskId": "llm-pretrain-normalization",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.2110633795,
+      "agentScore": 0.2110633795,
+      "humanSotaScore": 0.4995452596
+    },
+    {
+      "taskId": "llm-pretrain-normalization",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.3862586955,
+      "finalScore": 0.50938186,
+      "agentScore": 0.50938186,
+      "humanSotaScore": 0.4995452596
+    },
+    {
+      "taskId": "llm-pretrain-optimizer",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.492403713,
+      "finalScore": 0.3926566964,
+      "agentScore": 0.3926566964,
+      "humanSotaScore": 0.4760322708
+    },
+    {
+      "taskId": "llm-pretrain-optimizer",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.1107171244,
+      "finalScore": 0.1107171244,
+      "agentScore": 0.1107171244,
+      "humanSotaScore": 0.4760322708
+    },
+    {
+      "taskId": "llm-pretrain-optimizer",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4069000057,
+      "finalScore": 0.4822043626,
+      "agentScore": 0.4822043626,
+      "humanSotaScore": 0.4760322708
+    },
+    {
+      "taskId": "llm-pretrain-optimizer",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.2781665955,
+      "finalScore": 0.3461137388,
+      "agentScore": 0.3461137388,
+      "humanSotaScore": 0.4760322708
+    },
+    {
+      "taskId": "llm-pretrain-optimizer",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.5140010897,
+      "agentScore": 0.5140010897,
+      "humanSotaScore": 0.4760322708
+    },
+    {
+      "taskId": "llm-pretrain-residual",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.04165384524,
+      "finalScore": 0.04165384524,
+      "agentScore": 0.04165384524,
+      "humanSotaScore": 0.4282984359
+    },
+    {
+      "taskId": "llm-pretrain-residual",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.3243203949,
+      "finalScore": 0.2010870126,
+      "agentScore": 0.2010870126,
+      "humanSotaScore": 0.4282984359
+    },
+    {
+      "taskId": "llm-pretrain-residual",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.496539954,
+      "finalScore": 0.3512710621,
+      "agentScore": 0.3512710621,
+      "humanSotaScore": 0.4282984359
+    },
+    {
+      "taskId": "llm-pretrain-residual",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.03094976099,
+      "finalScore": 0.03245781931,
+      "agentScore": 0.03245781931,
+      "humanSotaScore": 0.4282984359
+    },
+    {
+      "taskId": "llm-pretrain-residual",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4282984359
+    },
+    {
+      "taskId": "llm-ptq-algorithm",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.5468587295,
+      "finalScore": 0.5468587295,
+      "agentScore": 0.5468587295,
+      "humanSotaScore": 0.4975908802
+    },
+    {
+      "taskId": "llm-ptq-algorithm",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.4422987642,
+      "finalScore": 0.4422987642,
+      "agentScore": 0.4422987642,
+      "humanSotaScore": 0.4975908802
+    },
+    {
+      "taskId": "llm-ptq-algorithm",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.5934096311,
+      "finalScore": 0.6069774112,
+      "agentScore": 0.6069774112,
+      "humanSotaScore": 0.4975908802
+    },
+    {
+      "taskId": "llm-ptq-algorithm",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4975908802
+    },
+    {
+      "taskId": "llm-ptq-algorithm",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4975908802
+    },
+    {
+      "taskId": "llm-qat-algorithm",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.624352241,
+      "finalScore": 0.624352241,
+      "agentScore": 0.624352241,
+      "humanSotaScore": 0.6249904139
+    },
+    {
+      "taskId": "llm-qat-algorithm",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.6132373147,
+      "finalScore": 0.6132373147,
+      "agentScore": 0.6132373147,
+      "humanSotaScore": 0.6249904139
+    },
+    {
+      "taskId": "llm-qat-algorithm",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0,
+      "finalScore": 0.1601048699,
+      "agentScore": 0.1601048699,
+      "humanSotaScore": 0.6249904139
+    },
+    {
+      "taskId": "llm-qat-algorithm",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.1467544839,
+      "agentScore": 0.1467544839,
+      "humanSotaScore": 0.6249904139
+    },
+    {
+      "taskId": "llm-qat-algorithm",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.04638850348,
+      "agentScore": 0.04638850348,
+      "humanSotaScore": 0.6249904139
+    },
+    {
+      "taskId": "llm-rl-advantage",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.3323293138,
+      "finalScore": 0.5258992508,
+      "agentScore": 0.5258992508,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "llm-rl-advantage",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.4368349322,
+      "finalScore": 0.4442641128,
+      "agentScore": 0.4442641128,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "llm-rl-advantage",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "llm-rl-advantage",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.3572390259,
+      "finalScore": 0.5249036372,
+      "agentScore": 0.5249036372,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "llm-rl-advantage",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.3091097767,
+      "finalScore": 0.5137147953,
+      "agentScore": 0.5137147953,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "llm-rl-importance-sampling",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.3371852095,
+      "finalScore": 0.5104183872,
+      "agentScore": 0.5104183872,
+      "humanSotaScore": 0.4954090047
+    },
+    {
+      "taskId": "llm-rl-importance-sampling",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.4603344223,
+      "finalScore": 0.5384158022,
+      "agentScore": 0.5384158022,
+      "humanSotaScore": 0.4954090047
+    },
+    {
+      "taskId": "llm-rl-importance-sampling",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.3279615764,
+      "finalScore": 0.3279615764,
+      "agentScore": 0.3279615764,
+      "humanSotaScore": 0.4954090047
+    },
+    {
+      "taskId": "llm-rl-importance-sampling",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.1404113253,
+      "finalScore": 0.4950490389,
+      "agentScore": 0.4950490389,
+      "humanSotaScore": 0.4954090047
+    },
+    {
+      "taskId": "llm-rl-importance-sampling",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.3449765276,
+      "finalScore": 0.5327309958,
+      "agentScore": 0.5327309958,
+      "humanSotaScore": 0.4954090047
+    },
+    {
+      "taskId": "llm-rl-kl-estimator",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.3290268995,
+      "finalScore": 0.4758131606,
+      "agentScore": 0.4758131606,
+      "humanSotaScore": 0.4681536617
+    },
+    {
+      "taskId": "llm-rl-kl-estimator",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.3113055964,
+      "finalScore": 0.5075536464,
+      "agentScore": 0.5075536464,
+      "humanSotaScore": 0.4681536617
+    },
+    {
+      "taskId": "llm-rl-kl-estimator",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.3413942346,
+      "finalScore": 0.483592046,
+      "agentScore": 0.483592046,
+      "humanSotaScore": 0.4681536617
+    },
+    {
+      "taskId": "llm-rl-kl-estimator",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.498550674,
+      "finalScore": 0.498550674,
+      "agentScore": 0.498550674,
+      "humanSotaScore": 0.4681536617
+    },
+    {
+      "taskId": "llm-rl-kl-estimator",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.447709075,
+      "finalScore": 0.4906068227,
+      "agentScore": 0.4906068227,
+      "humanSotaScore": 0.4681536617
+    },
+    {
+      "taskId": "llm-rl-reward-normalization",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4631594431,
+      "finalScore": 0.4631594431,
+      "agentScore": 0.4631594431,
+      "humanSotaScore": 0.4588555592
+    },
+    {
+      "taskId": "llm-rl-reward-normalization",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.4993133092,
+      "finalScore": 0.4993133092,
+      "agentScore": 0.4993133092,
+      "humanSotaScore": 0.4588555592
+    },
+    {
+      "taskId": "llm-rl-reward-normalization",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4689118284,
+      "finalScore": 0.4689118284,
+      "agentScore": 0.4689118284,
+      "humanSotaScore": 0.4588555592
+    },
+    {
+      "taskId": "llm-rl-reward-normalization",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.3187703938,
+      "finalScore": 0.4545325157,
+      "agentScore": 0.4545325157,
+      "humanSotaScore": 0.4588555592
+    },
+    {
+      "taskId": "llm-rl-reward-normalization",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.4348650422,
+      "finalScore": 0.488676855,
+      "agentScore": 0.488676855,
+      "humanSotaScore": 0.4588555592
+    },
+    {
+      "taskId": "llm-scaling-law-discovery",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4959204927,
+      "finalScore": 0.5403978613,
+      "agentScore": 0.5403978613,
+      "humanSotaScore": 0.6237829789
+    },
+    {
+      "taskId": "llm-scaling-law-discovery",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.5220583656,
+      "finalScore": 0.5220583656,
+      "agentScore": 0.5220583656,
+      "humanSotaScore": 0.6237829789
+    },
+    {
+      "taskId": "llm-scaling-law-discovery",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.6025617643,
+      "finalScore": 0.6025617643,
+      "agentScore": 0.6025617643,
+      "humanSotaScore": 0.6237829789
+    },
+    {
+      "taskId": "llm-scaling-law-discovery",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.7052026752,
+      "finalScore": 0.7052026752,
+      "agentScore": 0.7052026752,
+      "humanSotaScore": 0.6237829789
+    },
+    {
+      "taskId": "llm-scaling-law-discovery",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.5537450532,
+      "finalScore": null,
+      "agentScore": 0.5537450532,
+      "humanSotaScore": 0.6237829789
+    },
+    {
+      "taskId": "marl-centralized-critic",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.1320169426,
+      "finalScore": 0.1320169426,
+      "agentScore": 0.1320169426,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "marl-centralized-critic",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.5245545196,
+      "finalScore": 0.5245545196,
+      "agentScore": 0.5245545196,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "marl-centralized-critic",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0,
+      "finalScore": 0.6214416477,
+      "agentScore": 0.6214416477,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "marl-centralized-critic",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.6118887277,
+      "finalScore": 0.6118887277,
+      "agentScore": 0.6118887277,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "marl-centralized-critic",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.6024533776,
+      "finalScore": 0.6024533776,
+      "agentScore": 0.6024533776,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "mas-topology",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.145460401,
+      "finalScore": 0.4528016576,
+      "agentScore": 0.4528016576,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "mas-topology",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.1357208808,
+      "finalScore": 0.4643650911,
+      "agentScore": 0.4643650911,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "mas-topology",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.1196462803,
+      "finalScore": 0.441901517,
+      "agentScore": 0.441901517,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "mas-topology",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.03850081207,
+      "finalScore": 0.09866351379,
+      "agentScore": 0.09866351379,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "mas-topology",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0919667938,
+      "finalScore": 0.1535247045,
+      "agentScore": 0.1535247045,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "meta-fewshot-classification",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": null,
+      "finalScore": 0.4408199533,
+      "agentScore": 0.4408199533,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "meta-fewshot-classification",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.109276606,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "meta-fewshot-classification",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": null,
+      "finalScore": 0.5434043317,
+      "agentScore": 0.5434043317,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "meta-fewshot-classification",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": null,
+      "finalScore": 0.02259127373,
+      "agentScore": 0.02259127373,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "meta-inner-loop-optimizer",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": null,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4964452805
+    },
+    {
+      "taskId": "meta-inner-loop-optimizer",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": null,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4964452805
+    },
+    {
+      "taskId": "meta-inner-loop-optimizer",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": null,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4964452805
+    },
+    {
+      "taskId": "meta-inner-loop-optimizer",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": null,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4964452805
+    },
+    {
+      "taskId": "meta-rl",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.2184861273,
+      "finalScore": 0.5179157718,
+      "agentScore": 0.5179157718,
+      "humanSotaScore": 0.388420881
+    },
+    {
+      "taskId": "meta-rl",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": null,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.388420881
+    },
+    {
+      "taskId": "meta-rl",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.01800106756,
+      "finalScore": 0.0311220954,
+      "agentScore": 0.0311220954,
+      "humanSotaScore": 0.388420881
+    },
+    {
+      "taskId": "meta-rl-algorithm",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.03549356828,
+      "finalScore": 0.128606071,
+      "agentScore": 0.128606071,
+      "humanSotaScore": 0.264699751
+    },
+    {
+      "taskId": "meta-rl-algorithm",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.264699751
+    },
+    {
+      "taskId": "meta-rl-algorithm",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.04616916085,
+      "finalScore": null,
+      "agentScore": 0.1572712567,
+      "humanSotaScore": 0.264699751
+    },
+    {
+      "taskId": "meta-rl-algorithm",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0230815208,
+      "finalScore": 0.0230815208,
+      "agentScore": 0.0230815208,
+      "humanSotaScore": 0.264699751
+    },
+    {
+      "taskId": "meta-rl-algorithm",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.2692334874,
+      "finalScore": null,
+      "agentScore": 0.2692334874,
+      "humanSotaScore": 0.264699751
+    },
+    {
+      "taskId": "ml-active-learning",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.60666372,
+      "finalScore": 0.5743435063,
+      "agentScore": 0.5743435063,
+      "humanSotaScore": 0.469308596
+    },
+    {
+      "taskId": "ml-active-learning",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.5858549083,
+      "agentScore": 0.5858549083,
+      "humanSotaScore": 0.469308596
+    },
+    {
+      "taskId": "ml-active-learning",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.06672534726,
+      "finalScore": 0.6045475968,
+      "agentScore": 0.6045475968,
+      "humanSotaScore": 0.469308596
+    },
+    {
+      "taskId": "ml-active-learning",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.5176897043,
+      "agentScore": 0.5176897043,
+      "humanSotaScore": 0.469308596
+    },
+    {
+      "taskId": "ml-active-learning",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.5967286973,
+      "agentScore": 0.5967286973,
+      "humanSotaScore": 0.469308596
+    },
+    {
+      "taskId": "ml-anomaly-detection",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.0,
+      "finalScore": null,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5640608865
+    },
+    {
+      "taskId": "ml-anomaly-detection",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5640608865
+    },
+    {
+      "taskId": "ml-anomaly-detection",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0,
+      "finalScore": 0.2397435351,
+      "agentScore": 0.2397435351,
+      "humanSotaScore": 0.5640608865
+    },
+    {
+      "taskId": "ml-anomaly-detection",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5640608865
+    },
+    {
+      "taskId": "ml-anomaly-detection",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5640608865
+    },
+    {
+      "taskId": "ml-calibration",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.3036958791,
+      "finalScore": 0.3612540953,
+      "agentScore": 0.3612540953,
+      "humanSotaScore": 0.3159073347
+    },
+    {
+      "taskId": "ml-calibration",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.08297632503,
+      "finalScore": 0.1596119209,
+      "agentScore": 0.1596119209,
+      "humanSotaScore": 0.3159073347
+    },
+    {
+      "taskId": "ml-calibration",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.1299156229,
+      "finalScore": 0.2816604695,
+      "agentScore": 0.2816604695,
+      "humanSotaScore": 0.3159073347
+    },
+    {
+      "taskId": "ml-calibration",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.2805440362,
+      "finalScore": 0.3375317669,
+      "agentScore": 0.3375317669,
+      "humanSotaScore": 0.3159073347
+    },
+    {
+      "taskId": "ml-calibration",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.3159073347
+    },
+    {
+      "taskId": "ml-clustering-algorithm",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.6815653285,
+      "finalScore": 0.6902699203,
+      "agentScore": 0.6902699203,
+      "humanSotaScore": 0.4577287806
+    },
+    {
+      "taskId": "ml-clustering-algorithm",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.1784594118,
+      "finalScore": 0.06399217194,
+      "agentScore": 0.06399217194,
+      "humanSotaScore": 0.4577287806
+    },
+    {
+      "taskId": "ml-clustering-algorithm",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.6170610789,
+      "finalScore": 0.6933196276,
+      "agentScore": 0.6933196276,
+      "humanSotaScore": 0.4577287806
+    },
+    {
+      "taskId": "ml-clustering-algorithm",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.6834850082,
+      "finalScore": 0.6834850082,
+      "agentScore": 0.6834850082,
+      "humanSotaScore": 0.4577287806
+    },
+    {
+      "taskId": "ml-clustering-algorithm",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.6892993368,
+      "finalScore": 0.3875450325,
+      "agentScore": 0.3875450325,
+      "humanSotaScore": 0.4577287806
+    },
+    {
+      "taskId": "ml-continual-regularization",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": null,
+      "finalScore": 0.1240175379,
+      "agentScore": 0.1240175379,
+      "humanSotaScore": 0.3765552909
+    },
+    {
+      "taskId": "ml-continual-regularization",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": null,
+      "finalScore": 0.08130297946,
+      "agentScore": 0.08130297946,
+      "humanSotaScore": 0.3765552909
+    },
+    {
+      "taskId": "ml-continual-regularization",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": null,
+      "finalScore": 0.03567424238,
+      "agentScore": 0.03567424238,
+      "humanSotaScore": 0.3765552909
+    },
+    {
+      "taskId": "ml-continual-regularization",
+      "modelId": "gpt-5.4",
+      "vanillaScore": null,
+      "finalScore": 0.06675423278,
+      "agentScore": 0.06675423278,
+      "humanSotaScore": 0.3765552909
+    },
+    {
+      "taskId": "ml-continual-regularization",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": null,
+      "finalScore": 0.03315845387,
+      "agentScore": 0.03315845387,
+      "humanSotaScore": 0.3765552909
+    },
+    {
+      "taskId": "ml-dimensionality-reduction",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.5021557509,
+      "finalScore": 0.502984916,
+      "agentScore": 0.502984916,
+      "humanSotaScore": 0.4993244613
+    },
+    {
+      "taskId": "ml-dimensionality-reduction",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.05213006793,
+      "agentScore": 0.05213006793,
+      "humanSotaScore": 0.4993244613
+    },
+    {
+      "taskId": "ml-dimensionality-reduction",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0160039265,
+      "finalScore": 0.3388030572,
+      "agentScore": 0.3388030572,
+      "humanSotaScore": 0.4993244613
+    },
+    {
+      "taskId": "ml-dimensionality-reduction",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.2316510188,
+      "finalScore": 0.3412066084,
+      "agentScore": 0.3412066084,
+      "humanSotaScore": 0.4993244613
+    },
+    {
+      "taskId": "ml-dimensionality-reduction",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": null,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4993244613
+    },
+    {
+      "taskId": "ml-ensemble-boosting",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.1263387484,
+      "finalScore": 0.143726066,
+      "agentScore": 0.143726066,
+      "humanSotaScore": 0.3857183709
+    },
+    {
+      "taskId": "ml-ensemble-boosting",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.1489481157,
+      "finalScore": 0.1489481157,
+      "agentScore": 0.1489481157,
+      "humanSotaScore": 0.3857183709
+    },
+    {
+      "taskId": "ml-ensemble-boosting",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.1415442709,
+      "finalScore": 0.1509987422,
+      "agentScore": 0.1509987422,
+      "humanSotaScore": 0.3857183709
+    },
+    {
+      "taskId": "ml-ensemble-boosting",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.03991895119,
+      "finalScore": 0.039076189,
+      "agentScore": 0.039076189,
+      "humanSotaScore": 0.3857183709
+    },
+    {
+      "taskId": "ml-ensemble-boosting",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.04088908094,
+      "agentScore": 0.04088908094,
+      "humanSotaScore": 0.3857183709
+    },
+    {
+      "taskId": "ml-federated-aggregation",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.0,
+      "finalScore": 0.3333340737,
+      "agentScore": 0.3333340737,
+      "humanSotaScore": 0.3227007187
+    },
+    {
+      "taskId": "ml-federated-aggregation",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.3227007187
+    },
+    {
+      "taskId": "ml-federated-aggregation",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.3227007187
+    },
+    {
+      "taskId": "ml-federated-aggregation",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.4847213571,
+      "finalScore": 0.4847213571,
+      "agentScore": 0.4847213571,
+      "humanSotaScore": 0.3227007187
+    },
+    {
+      "taskId": "ml-federated-aggregation",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": null,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.3227007187
+    },
+    {
+      "taskId": "ml-missing-data-imputation",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.3813875876,
+      "finalScore": 0.3813875876,
+      "agentScore": 0.3813875876,
+      "humanSotaScore": 0.4201777425
+    },
+    {
+      "taskId": "ml-missing-data-imputation",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.3206343966,
+      "finalScore": 0.2890862079,
+      "agentScore": 0.2890862079,
+      "humanSotaScore": 0.4201777425
+    },
+    {
+      "taskId": "ml-missing-data-imputation",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.2587725381,
+      "finalScore": 0.2629557221,
+      "agentScore": 0.2629557221,
+      "humanSotaScore": 0.4201777425
+    },
+    {
+      "taskId": "ml-missing-data-imputation",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.2611662594,
+      "finalScore": 0.3901671868,
+      "agentScore": 0.3901671868,
+      "humanSotaScore": 0.4201777425
+    },
+    {
+      "taskId": "ml-missing-data-imputation",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.268585146,
+      "finalScore": 0.268585146,
+      "agentScore": 0.268585146,
+      "humanSotaScore": 0.4201777425
+    },
+    {
+      "taskId": "ml-selective-deferral",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.2185178993,
+      "finalScore": 0.1319251633,
+      "agentScore": 0.1319251633,
+      "humanSotaScore": 0.3232947343
+    },
+    {
+      "taskId": "ml-selective-deferral",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.2823104173,
+      "finalScore": 0.2823104173,
+      "agentScore": 0.2823104173,
+      "humanSotaScore": 0.3232947343
+    },
+    {
+      "taskId": "ml-selective-deferral",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.2733138169,
+      "finalScore": 0.2414411894,
+      "agentScore": 0.2414411894,
+      "humanSotaScore": 0.3232947343
+    },
+    {
+      "taskId": "ml-selective-deferral",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.2926142416,
+      "finalScore": 0.3945947658,
+      "agentScore": 0.3945947658,
+      "humanSotaScore": 0.3232947343
+    },
+    {
+      "taskId": "ml-selective-deferral",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.3722561185,
+      "finalScore": 0.3081683881,
+      "agentScore": 0.3081683881,
+      "humanSotaScore": 0.3232947343
+    },
+    {
+      "taskId": "ml-subgroup-calibration-shift",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.2138245452,
+      "finalScore": 0.3902223445,
+      "agentScore": 0.3902223445,
+      "humanSotaScore": 0.4398712624
+    },
+    {
+      "taskId": "ml-subgroup-calibration-shift",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.09567695794,
+      "finalScore": 0.3711775873,
+      "agentScore": 0.3711775873,
+      "humanSotaScore": 0.4398712624
+    },
+    {
+      "taskId": "ml-subgroup-calibration-shift",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.430126087,
+      "finalScore": 0.430126087,
+      "agentScore": 0.430126087,
+      "humanSotaScore": 0.4398712624
+    },
+    {
+      "taskId": "ml-subgroup-calibration-shift",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.1871196873,
+      "finalScore": 0.2936745211,
+      "agentScore": 0.2936745211,
+      "humanSotaScore": 0.4398712624
+    },
+    {
+      "taskId": "ml-subgroup-calibration-shift",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.4295245429,
+      "finalScore": 0.4295245429,
+      "agentScore": 0.4295245429,
+      "humanSotaScore": 0.4398712624
+    },
+    {
+      "taskId": "ml-symbolic-regression",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4220494766,
+      "finalScore": 0.8772300277,
+      "agentScore": 0.8772300277,
+      "humanSotaScore": 0.6082069177
+    },
+    {
+      "taskId": "ml-symbolic-regression",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.05616309582,
+      "finalScore": 0.05616309582,
+      "agentScore": 0.05616309582,
+      "humanSotaScore": 0.6082069177
+    },
+    {
+      "taskId": "ml-symbolic-regression",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.3890441597,
+      "finalScore": 0.6546308525,
+      "agentScore": 0.6546308525,
+      "humanSotaScore": 0.6082069177
+    },
+    {
+      "taskId": "ml-symbolic-regression",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.1856846849,
+      "finalScore": 0.86344903,
+      "agentScore": 0.86344903,
+      "humanSotaScore": 0.6082069177
+    },
+    {
+      "taskId": "mlsys-fused-attention",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4809131412,
+      "finalScore": 0.4809131412,
+      "agentScore": 0.4809131412,
+      "humanSotaScore": 0.471449428
+    },
+    {
+      "taskId": "mlsys-fused-attention",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.4794639484,
+      "finalScore": 0.4794639484,
+      "agentScore": 0.4794639484,
+      "humanSotaScore": 0.471449428
+    },
+    {
+      "taskId": "mlsys-fused-attention",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.470931059,
+      "finalScore": 0.4903673,
+      "agentScore": 0.4903673,
+      "humanSotaScore": 0.471449428
+    },
+    {
+      "taskId": "mlsys-fused-attention",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.457201685,
+      "finalScore": 0.457201685,
+      "agentScore": 0.457201685,
+      "humanSotaScore": 0.471449428
+    },
+    {
+      "taskId": "mlsys-fused-attention",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.436418114,
+      "finalScore": 0.436418114,
+      "agentScore": 0.436418114,
+      "humanSotaScore": 0.471449428
+    },
+    {
+      "taskId": "mlsys-moe-load-balance",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.3733873952,
+      "finalScore": 0.3769389666,
+      "agentScore": 0.3769389666,
+      "humanSotaScore": 0.3820355449
+    },
+    {
+      "taskId": "mlsys-moe-load-balance",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.3780525409,
+      "finalScore": 0.3780525409,
+      "agentScore": 0.3780525409,
+      "humanSotaScore": 0.3820355449
+    },
+    {
+      "taskId": "mlsys-moe-load-balance",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.5065452875,
+      "finalScore": 0.5188794743,
+      "agentScore": 0.5188794743,
+      "humanSotaScore": 0.3820355449
+    },
+    {
+      "taskId": "mlsys-moe-load-balance",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.3744946673,
+      "finalScore": 0.3733688493,
+      "agentScore": 0.3733688493,
+      "humanSotaScore": 0.3820355449
+    },
+    {
+      "taskId": "mlsys-moe-load-balance",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.3749839919,
+      "finalScore": 0.3786052929,
+      "agentScore": 0.3786052929,
+      "humanSotaScore": 0.3820355449
+    },
+    {
+      "taskId": "mlsys-sparse-attention-inference",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.5490612581,
+      "finalScore": 0.5490612581,
+      "agentScore": 0.5490612581,
+      "humanSotaScore": 0.4409723675
+    },
+    {
+      "taskId": "mlsys-sparse-attention-inference",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4409723675
+    },
+    {
+      "taskId": "mlsys-sparse-attention-inference",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.5094433973,
+      "finalScore": 0.5094433973,
+      "agentScore": 0.5094433973,
+      "humanSotaScore": 0.4409723675
+    },
+    {
+      "taskId": "mlsys-sparse-attention-inference",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.1505048801,
+      "agentScore": 0.1505048801,
+      "humanSotaScore": 0.4409723675
+    },
+    {
+      "taskId": "mlsys-sparse-attention-inference",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4409723675
+    },
+    {
+      "taskId": "optimization-bilevel",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.0,
+      "finalScore": 0.4787338283,
+      "agentScore": 0.4787338283,
+      "humanSotaScore": 0.4489626985
+    },
+    {
+      "taskId": "optimization-bilevel",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.4505240394,
+      "finalScore": 0.3385453918,
+      "agentScore": 0.3385453918,
+      "humanSotaScore": 0.4489626985
+    },
+    {
+      "taskId": "optimization-bilevel",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4572540316,
+      "finalScore": 0.0,
+      "agentScore": 0.4572540316,
+      "humanSotaScore": 0.4489626985
+    },
+    {
+      "taskId": "optimization-bilevel",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.4477304762,
+      "finalScore": 0.4546083487,
+      "agentScore": 0.4546083487,
+      "humanSotaScore": 0.4489626985
+    },
+    {
+      "taskId": "optimization-bilevel",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.226177778,
+      "finalScore": 0.4287395441,
+      "agentScore": 0.4287395441,
+      "humanSotaScore": 0.4489626985
+    },
+    {
+      "taskId": "optimization-convex-concave",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4612476688,
+      "finalScore": 0.4612476688,
+      "agentScore": 0.4612476688,
+      "humanSotaScore": 0.4613215634
+    },
+    {
+      "taskId": "optimization-convex-concave",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.2221826216,
+      "finalScore": 0.4646034927,
+      "agentScore": 0.4646034927,
+      "humanSotaScore": 0.4613215634
+    },
+    {
+      "taskId": "optimization-convex-concave",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.5160726539,
+      "finalScore": 0.530553522,
+      "agentScore": 0.530553522,
+      "humanSotaScore": 0.4613215634
+    },
+    {
+      "taskId": "optimization-convex-concave",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.6103830759,
+      "finalScore": 0.617172344,
+      "agentScore": 0.617172344,
+      "humanSotaScore": 0.4613215634
+    },
+    {
+      "taskId": "optimization-convex-concave",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.2184829808,
+      "finalScore": 0.390451712,
+      "agentScore": 0.390451712,
+      "humanSotaScore": 0.4613215634
+    },
+    {
+      "taskId": "optimization-diagonal-net",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.0,
+      "finalScore": 0.4435290202,
+      "agentScore": 0.4435290202,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "optimization-diagonal-net",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "optimization-diagonal-net",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.3932895141,
+      "finalScore": 0.3932895141,
+      "agentScore": 0.3932895141,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "optimization-diagonal-net",
+      "modelId": "gpt-5.4",
+      "vanillaScore": null,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "optimization-diagonal-net",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.2183372823,
+      "finalScore": 0.2183372823,
+      "agentScore": 0.2183372823,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "optimization-dp-sgd",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.3123612128,
+      "finalScore": 0.4646737016,
+      "agentScore": 0.4646737016,
+      "humanSotaScore": 0.4788003423
+    },
+    {
+      "taskId": "optimization-dp-sgd",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.06946760173,
+      "finalScore": 0.2431823837,
+      "agentScore": 0.2431823837,
+      "humanSotaScore": 0.4788003423
+    },
+    {
+      "taskId": "optimization-dp-sgd",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.3043553756,
+      "finalScore": 0.3956651264,
+      "agentScore": 0.3956651264,
+      "humanSotaScore": 0.4788003423
+    },
+    {
+      "taskId": "optimization-dp-sgd",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.5078680678,
+      "finalScore": 0.5078680678,
+      "agentScore": 0.5078680678,
+      "humanSotaScore": 0.4788003423
+    },
+    {
+      "taskId": "optimization-dp-sgd",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.5090174443,
+      "finalScore": 0.0,
+      "agentScore": 0.5090174443,
+      "humanSotaScore": 0.4788003423
+    },
+    {
+      "taskId": "optimization-evolution-strategy",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.294327586,
+      "finalScore": 0.294327586,
+      "agentScore": 0.294327586,
+      "humanSotaScore": 0.7581053364
+    },
+    {
+      "taskId": "optimization-evolution-strategy",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.6214047245,
+      "finalScore": 0.6214047245,
+      "agentScore": 0.6214047245,
+      "humanSotaScore": 0.7581053364
+    },
+    {
+      "taskId": "optimization-evolution-strategy",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.7241526472,
+      "finalScore": 0.0,
+      "agentScore": 0.7241526472,
+      "humanSotaScore": 0.7581053364
+    },
+    {
+      "taskId": "optimization-evolution-strategy",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.7825038645,
+      "finalScore": 0.9623370114,
+      "agentScore": 0.9623370114,
+      "humanSotaScore": 0.7581053364
+    },
+    {
+      "taskId": "optimization-evolution-strategy",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.4161952826,
+      "finalScore": 0.4161952826,
+      "agentScore": 0.4161952826,
+      "humanSotaScore": 0.7581053364
+    },
+    {
+      "taskId": "optimization-gradient-compression",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.0,
+      "finalScore": 0.5254924471,
+      "agentScore": 0.5254924471,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "optimization-gradient-compression",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "optimization-gradient-compression",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "optimization-gradient-compression",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.5123073982,
+      "finalScore": 0.5010596293,
+      "agentScore": 0.5010596293,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "optimization-gradient-compression",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.09577700582,
+      "finalScore": 0.0,
+      "agentScore": 0.09577700582,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "optimization-hyperparameter-search",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4184436347,
+      "finalScore": 0.3764994924,
+      "agentScore": 0.3764994924,
+      "humanSotaScore": 0.3873749951
+    },
+    {
+      "taskId": "optimization-hyperparameter-search",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.3027389306,
+      "finalScore": 0.3935360549,
+      "agentScore": 0.3935360549,
+      "humanSotaScore": 0.3873749951
+    },
+    {
+      "taskId": "optimization-hyperparameter-search",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4280207351,
+      "finalScore": 0.4457385073,
+      "agentScore": 0.4457385073,
+      "humanSotaScore": 0.3873749951
+    },
+    {
+      "taskId": "optimization-hyperparameter-search",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.1177637193,
+      "finalScore": 0.3654043991,
+      "agentScore": 0.3654043991,
+      "humanSotaScore": 0.3873749951
+    },
+    {
+      "taskId": "optimization-hyperparameter-search",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.3734381161,
+      "finalScore": 0.3053098398,
+      "agentScore": 0.3053098398,
+      "humanSotaScore": 0.3873749951
+    },
+    {
+      "taskId": "optimization-multi-objective",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.3450958533,
+      "finalScore": 0.3471315135,
+      "agentScore": 0.3471315135,
+      "humanSotaScore": 0.4986684786
+    },
+    {
+      "taskId": "optimization-multi-objective",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.3667806325,
+      "finalScore": 0.07807094662,
+      "agentScore": 0.07807094662,
+      "humanSotaScore": 0.4986684786
+    },
+    {
+      "taskId": "optimization-multi-objective",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.3607375115,
+      "finalScore": 0.3607375115,
+      "agentScore": 0.3607375115,
+      "humanSotaScore": 0.4986684786
+    },
+    {
+      "taskId": "optimization-multi-objective",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.2131533174,
+      "finalScore": 0.241859539,
+      "agentScore": 0.241859539,
+      "humanSotaScore": 0.4986684786
+    },
+    {
+      "taskId": "optimization-multi-objective",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.3841110707,
+      "agentScore": 0.3841110707,
+      "humanSotaScore": 0.4986684786
+    },
+    {
+      "taskId": "optimization-nas",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.7637825511,
+      "finalScore": 0.6686306698,
+      "agentScore": 0.6686306698,
+      "humanSotaScore": 0.4975555486
+    },
+    {
+      "taskId": "optimization-nas",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.7601461283,
+      "finalScore": 0.6613952631,
+      "agentScore": 0.6613952631,
+      "humanSotaScore": 0.4975555486
+    },
+    {
+      "taskId": "optimization-nas",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.7649776066,
+      "finalScore": 0.4853689765,
+      "agentScore": 0.4853689765,
+      "humanSotaScore": 0.4975555486
+    },
+    {
+      "taskId": "optimization-nas",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.5829140739,
+      "finalScore": 0.7708681354,
+      "agentScore": 0.7708681354,
+      "humanSotaScore": 0.4975555486
+    },
+    {
+      "taskId": "optimization-nas",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.5412479743,
+      "finalScore": 0.140571665,
+      "agentScore": 0.140571665,
+      "humanSotaScore": 0.4975555486
+    },
+    {
+      "taskId": "optimization-online-bandit",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.74935468,
+      "finalScore": 0.74935468,
+      "agentScore": 0.74935468,
+      "humanSotaScore": 0.3269720173
+    },
+    {
+      "taskId": "optimization-online-bandit",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.04388475356,
+      "finalScore": 0.04388475356,
+      "agentScore": 0.04388475356,
+      "humanSotaScore": 0.3269720173
+    },
+    {
+      "taskId": "optimization-online-bandit",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.8386305371,
+      "finalScore": 0.8386305371,
+      "agentScore": 0.8386305371,
+      "humanSotaScore": 0.3269720173
+    },
+    {
+      "taskId": "optimization-online-bandit",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.1724566746,
+      "finalScore": 0.863549455,
+      "agentScore": 0.863549455,
+      "humanSotaScore": 0.3269720173
+    },
+    {
+      "taskId": "optimization-online-bandit",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.1229086025,
+      "finalScore": 0.7541775898,
+      "agentScore": 0.7541775898,
+      "humanSotaScore": 0.3269720173
+    },
+    {
+      "taskId": "optimization-pac-bayes-bound",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.2743274058,
+      "finalScore": 0.2888716614,
+      "agentScore": 0.2888716614,
+      "humanSotaScore": 0.450429311
+    },
+    {
+      "taskId": "optimization-pac-bayes-bound",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": null,
+      "finalScore": 0.2812005061,
+      "agentScore": 0.2812005061,
+      "humanSotaScore": 0.450429311
+    },
+    {
+      "taskId": "optimization-pac-bayes-bound",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.2955114492,
+      "finalScore": 0.2955114492,
+      "agentScore": 0.2955114492,
+      "humanSotaScore": 0.450429311
+    },
+    {
+      "taskId": "optimization-pac-bayes-bound",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.437984217,
+      "agentScore": 0.437984217,
+      "humanSotaScore": 0.450429311
+    },
+    {
+      "taskId": "optimization-pac-bayes-bound",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.02501204846,
+      "finalScore": 0.2767406983,
+      "agentScore": 0.2767406983,
+      "humanSotaScore": 0.450429311
+    },
+    {
+      "taskId": "optimization-parity",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.02789708439,
+      "finalScore": 0.9539952366,
+      "agentScore": 0.9539952366,
+      "humanSotaScore": 0.2738060289
+    },
+    {
+      "taskId": "optimization-parity",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.3061465761,
+      "agentScore": 0.3061465761,
+      "humanSotaScore": 0.2738060289
+    },
+    {
+      "taskId": "optimization-parity",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.9518374279,
+      "finalScore": 0.0,
+      "agentScore": 0.9518374279,
+      "humanSotaScore": 0.2738060289
+    },
+    {
+      "taskId": "optimization-parity",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.745716618,
+      "agentScore": 0.745716618,
+      "humanSotaScore": 0.2738060289
+    },
+    {
+      "taskId": "optimization-parity",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.03357109208,
+      "agentScore": 0.03357109208,
+      "humanSotaScore": 0.2738060289
+    },
+    {
+      "taskId": "optimization-variance-reduction",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.04624537244,
+      "finalScore": 0.4768927227,
+      "agentScore": 0.4768927227,
+      "humanSotaScore": 0.571573605
+    },
+    {
+      "taskId": "optimization-variance-reduction",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": null,
+      "finalScore": 0.3567900025,
+      "agentScore": 0.3567900025,
+      "humanSotaScore": 0.571573605
+    },
+    {
+      "taskId": "optimization-variance-reduction",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0,
+      "finalScore": 0.1493545349,
+      "agentScore": 0.1493545349,
+      "humanSotaScore": 0.571573605
+    },
+    {
+      "taskId": "optimization-variance-reduction",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.03684019762,
+      "finalScore": 0.03684019762,
+      "agentScore": 0.03684019762,
+      "humanSotaScore": 0.571573605
+    },
+    {
+      "taskId": "optimization-variance-reduction",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.03684031368,
+      "finalScore": 0.03684031368,
+      "agentScore": 0.03684031368,
+      "humanSotaScore": 0.571573605
+    },
+    {
+      "taskId": "pde-design-solver",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4607572843,
+      "finalScore": 0.1366563219,
+      "agentScore": 0.1366563219,
+      "humanSotaScore": 0.317364092
+    },
+    {
+      "taskId": "pde-design-solver",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.08206876859,
+      "finalScore": 0.1999041245,
+      "agentScore": 0.1999041245,
+      "humanSotaScore": 0.317364092
+    },
+    {
+      "taskId": "pde-design-solver",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4330062204,
+      "finalScore": 0.1348541034,
+      "agentScore": 0.1348541034,
+      "humanSotaScore": 0.317364092
+    },
+    {
+      "taskId": "pde-design-solver",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.1342044476,
+      "finalScore": 0.1336904122,
+      "agentScore": 0.1336904122,
+      "humanSotaScore": 0.317364092
+    },
+    {
+      "taskId": "pde-design-solver",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.1257775981,
+      "finalScore": 0.1257775981,
+      "agentScore": 0.1257775981,
+      "humanSotaScore": 0.317364092
+    },
+    {
+      "taskId": "quant-concept-drift",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.3820095637,
+      "finalScore": 0.3703910262,
+      "agentScore": 0.3703910262,
+      "humanSotaScore": 0.4043445091
+    },
+    {
+      "taskId": "quant-concept-drift",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.118361767,
+      "finalScore": 0.118361767,
+      "agentScore": 0.118361767,
+      "humanSotaScore": 0.4043445091
+    },
+    {
+      "taskId": "quant-concept-drift",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0964235199,
+      "finalScore": 0.4518175543,
+      "agentScore": 0.4518175543,
+      "humanSotaScore": 0.4043445091
+    },
+    {
+      "taskId": "quant-concept-drift",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.01677187709,
+      "finalScore": 0.4516466543,
+      "agentScore": 0.4516466543,
+      "humanSotaScore": 0.4043445091
+    },
+    {
+      "taskId": "quant-concept-drift",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.107580001,
+      "finalScore": 0.107580001,
+      "agentScore": 0.107580001,
+      "humanSotaScore": 0.4043445091
+    },
+    {
+      "taskId": "quant-graph-stock",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.03034164193,
+      "finalScore": 0.01788066996,
+      "agentScore": 0.01788066996,
+      "humanSotaScore": 0.05975180701
+    },
+    {
+      "taskId": "quant-graph-stock",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.01931906947,
+      "agentScore": 0.01931906947,
+      "humanSotaScore": 0.05975180701
+    },
+    {
+      "taskId": "quant-graph-stock",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.01759673203,
+      "finalScore": 0.02944413061,
+      "agentScore": 0.02944413061,
+      "humanSotaScore": 0.05975180701
+    },
+    {
+      "taskId": "quant-graph-stock",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.01156324352,
+      "agentScore": 0.01156324352,
+      "humanSotaScore": 0.05975180701
+    },
+    {
+      "taskId": "quant-graph-stock",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.01560999368,
+      "agentScore": 0.01560999368,
+      "humanSotaScore": 0.05975180701
+    },
+    {
+      "taskId": "quant-stock-prediction",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.03969721711,
+      "finalScore": 0.03969721711,
+      "agentScore": 0.03969721711,
+      "humanSotaScore": 0.0325578527
+    },
+    {
+      "taskId": "quant-stock-prediction",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.04563233569,
+      "agentScore": 0.04563233569,
+      "humanSotaScore": 0.0325578527
+    },
+    {
+      "taskId": "quant-stock-prediction",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.04006119509,
+      "finalScore": 0.0597154339,
+      "agentScore": 0.0597154339,
+      "humanSotaScore": 0.0325578527
+    },
+    {
+      "taskId": "quant-stock-prediction",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.01295430948,
+      "agentScore": 0.01295430948,
+      "humanSotaScore": 0.0325578527
+    },
+    {
+      "taskId": "quant-stock-prediction",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.01,
+      "agentScore": 0.01,
+      "humanSotaScore": 0.0325578527
+    },
+    {
+      "taskId": "rl-intrinsic-exploration",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.3642969625,
+      "finalScore": 0.4159422217,
+      "agentScore": 0.4159422217,
+      "humanSotaScore": 0.0
+    },
+    {
+      "taskId": "rl-intrinsic-exploration",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.2805131416,
+      "finalScore": 0.2805131416,
+      "agentScore": 0.2805131416,
+      "humanSotaScore": 0.0
+    },
+    {
+      "taskId": "rl-intrinsic-exploration",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.1785257591,
+      "finalScore": 0.1785257591,
+      "agentScore": 0.1785257591,
+      "humanSotaScore": 0.0
+    },
+    {
+      "taskId": "rl-intrinsic-exploration",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.359293096,
+      "finalScore": 0.3683523392,
+      "agentScore": 0.3683523392,
+      "humanSotaScore": 0.0
+    },
+    {
+      "taskId": "rl-intrinsic-exploration",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.3054204505,
+      "finalScore": 0.3054204505,
+      "agentScore": 0.3054204505,
+      "humanSotaScore": 0.0
+    },
+    {
+      "taskId": "rl-offline-adroit",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4080330278,
+      "finalScore": 0.0,
+      "agentScore": 0.4080330278,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "rl-offline-adroit",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.1693959517,
+      "agentScore": 0.1693959517,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "rl-offline-adroit",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0,
+      "finalScore": 0.5689363907,
+      "agentScore": 0.5689363907,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "rl-offline-adroit",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.03202602851,
+      "agentScore": 0.03202602851,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "rl-offline-continuous",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4143193688,
+      "finalScore": 0.4143193688,
+      "agentScore": 0.4143193688,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "rl-offline-continuous",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.04284871254,
+      "agentScore": 0.04284871254,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "rl-offline-continuous",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.3212605851,
+      "finalScore": 0.3212605851,
+      "agentScore": 0.3212605851,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "rl-offline-continuous",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "rl-offline-continuous",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": null,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "rl-offline-off2on",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.110908356,
+      "finalScore": 0.1647192127,
+      "agentScore": 0.1647192127,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "rl-offline-off2on",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": null,
+      "finalScore": 0.036092243,
+      "agentScore": 0.036092243,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "rl-offline-off2on",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.03341653564,
+      "finalScore": 0.03341653564,
+      "agentScore": 0.03341653564,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "rl-offpolicy-continuous",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.51092958,
+      "finalScore": 0.51092958,
+      "agentScore": 0.51092958,
+      "humanSotaScore": 0.4303848402
+    },
+    {
+      "taskId": "rl-offpolicy-continuous",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.1126585991,
+      "agentScore": 0.1126585991,
+      "humanSotaScore": 0.4303848402
+    },
+    {
+      "taskId": "rl-offpolicy-continuous",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0,
+      "finalScore": 0.5326308884,
+      "agentScore": 0.5326308884,
+      "humanSotaScore": 0.4303848402
+    },
+    {
+      "taskId": "rl-offpolicy-continuous",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0599979001,
+      "finalScore": 0.0599979001,
+      "agentScore": 0.0599979001,
+      "humanSotaScore": 0.4303848402
+    },
+    {
+      "taskId": "rl-offpolicy-continuous",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4303848402
+    },
+    {
+      "taskId": "rl-onpolicy-continuous",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.03420526608,
+      "finalScore": 0.03334064719,
+      "agentScore": 0.03334064719,
+      "humanSotaScore": 0.2474309971
+    },
+    {
+      "taskId": "rl-onpolicy-continuous",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.03576479458,
+      "agentScore": 0.03576479458,
+      "humanSotaScore": 0.2474309971
+    },
+    {
+      "taskId": "rl-onpolicy-continuous",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.153710241,
+      "finalScore": 0.153710241,
+      "agentScore": 0.153710241,
+      "humanSotaScore": 0.2474309971
+    },
+    {
+      "taskId": "rl-onpolicy-continuous",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.02515498503,
+      "agentScore": 0.02515498503,
+      "humanSotaScore": 0.2474309971
+    },
+    {
+      "taskId": "rl-onpolicy-continuous",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.1518066814,
+      "finalScore": 0.1392395566,
+      "agentScore": 0.1392395566,
+      "humanSotaScore": 0.2474309971
+    },
+    {
+      "taskId": "rl-reward-learning",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4902131117,
+      "finalScore": 0.4902131117,
+      "agentScore": 0.4902131117,
+      "humanSotaScore": 0.4236719067
+    },
+    {
+      "taskId": "rl-reward-learning",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.2970757217,
+      "finalScore": 0.2970757217,
+      "agentScore": 0.2970757217,
+      "humanSotaScore": 0.4236719067
+    },
+    {
+      "taskId": "rl-reward-learning",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4511568155,
+      "finalScore": 0.523823719,
+      "agentScore": 0.523823719,
+      "humanSotaScore": 0.4236719067
+    },
+    {
+      "taskId": "rl-reward-learning",
+      "modelId": "gpt-5.4",
+      "vanillaScore": null,
+      "finalScore": 0.2745830475,
+      "agentScore": 0.2745830475,
+      "humanSotaScore": 0.4236719067
+    },
+    {
+      "taskId": "rl-reward-learning",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.06619261913,
+      "finalScore": 0.08246299477,
+      "agentScore": 0.08246299477,
+      "humanSotaScore": 0.4236719067
+    },
+    {
+      "taskId": "rl-value-atari",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.03060305722,
+      "finalScore": 0.305590313,
+      "agentScore": 0.305590313,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "rl-value-atari",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.07536902263,
+      "agentScore": 0.07536902263,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "rl-value-atari",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "rl-value-atari",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.1085808319,
+      "finalScore": 0.1085808319,
+      "agentScore": 0.1085808319,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "rl-value-atari",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0543607432,
+      "agentScore": 0.0543607432,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "rl-value-discrete",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.08324060436,
+      "finalScore": 0.09050571366,
+      "agentScore": 0.09050571366,
+      "humanSotaScore": 0.4598867512
+    },
+    {
+      "taskId": "rl-value-discrete",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": null,
+      "finalScore": 0.03684031499,
+      "agentScore": 0.03684031499,
+      "humanSotaScore": 0.4598867512
+    },
+    {
+      "taskId": "rl-value-discrete",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.04079876012,
+      "finalScore": 0.04079876012,
+      "agentScore": 0.04079876012,
+      "humanSotaScore": 0.4598867512
+    },
+    {
+      "taskId": "rl-value-discrete",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.02756560554,
+      "finalScore": 0.02756560554,
+      "agentScore": 0.02756560554,
+      "humanSotaScore": 0.4598867512
+    },
+    {
+      "taskId": "rl-value-discrete",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": null,
+      "finalScore": 0.03155307848,
+      "agentScore": 0.03155307848,
+      "humanSotaScore": 0.4598867512
+    },
+    {
+      "taskId": "robo-diffusion-guidance",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.532463126,
+      "finalScore": 0.532463126,
+      "agentScore": 0.532463126,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "robo-diffusion-guidance",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "robo-diffusion-guidance",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.5458866398,
+      "finalScore": 0.5458866398,
+      "agentScore": 0.5458866398,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "robo-diffusion-guidance",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.04000613585,
+      "agentScore": 0.04000613585,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "robo-diffusion-guidance",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "robo-diffusion-policy",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4766872841,
+      "finalScore": 0.478505271,
+      "agentScore": 0.478505271,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "robo-diffusion-policy",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.5064715872,
+      "agentScore": 0.5064715872,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "robo-diffusion-policy",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0,
+      "finalScore": 0.4295894418,
+      "agentScore": 0.4295894418,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "robo-diffusion-policy",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.4351048823,
+      "finalScore": 0.0,
+      "agentScore": 0.2533425546,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "robo-diffusion-policy",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "robo-diffusion-sampling-method",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.5444003762,
+      "finalScore": 0.5444003762,
+      "agentScore": 0.5444003762,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "robo-diffusion-sampling-method",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.4961593888,
+      "agentScore": 0.4961593888,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "robo-diffusion-sampling-method",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4813909016,
+      "finalScore": 0.4928398816,
+      "agentScore": 0.4928398816,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "robo-diffusion-sampling-method",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.1161058747,
+      "agentScore": 0.1161058747,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "robo-diffusion-sampling-method",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.1475033354,
+      "agentScore": 0.1475033354,
+      "humanSotaScore": 0.5
+    },
+    {
+      "taskId": "robo-humanoid-sim2real-algo",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.5166747364,
+      "finalScore": 0.5166747364,
+      "agentScore": 0.5166747364,
+      "humanSotaScore": 0.8333333333
+    },
+    {
+      "taskId": "robo-humanoid-sim2real-algo",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": null,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.8333333333
+    },
+    {
+      "taskId": "robo-humanoid-sim2real-algo",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.3333333333,
+      "finalScore": 0.0,
+      "agentScore": 0.3333333333,
+      "humanSotaScore": 0.8333333333
+    },
+    {
+      "taskId": "robo-humanoid-sim2real-algo",
+      "modelId": "gpt-5.4",
+      "vanillaScore": null,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.8333333333
+    },
+    {
+      "taskId": "robo-humanoid-sim2real-algo",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.3333333333,
+      "finalScore": 0.3333333333,
+      "agentScore": 0.3333333333,
+      "humanSotaScore": 0.8333333333
+    },
+    {
+      "taskId": "robomimic-bc-loss",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4442149467,
+      "finalScore": 0.4442149467,
+      "agentScore": 0.4442149467,
+      "humanSotaScore": 0.4956894407
+    },
+    {
+      "taskId": "robomimic-bc-loss",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.5216568141,
+      "agentScore": 0.5216568141,
+      "humanSotaScore": 0.4956894407
+    },
+    {
+      "taskId": "robomimic-bc-loss",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.530326725,
+      "finalScore": 0.5980938494,
+      "agentScore": 0.5980938494,
+      "humanSotaScore": 0.4956894407
+    },
+    {
+      "taskId": "robomimic-bc-loss",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.488710678,
+      "agentScore": 0.488710678,
+      "humanSotaScore": 0.4956894407
+    },
+    {
+      "taskId": "robomimic-bc-loss",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.4886148859,
+      "finalScore": 0.4886148859,
+      "agentScore": 0.4886148859,
+      "humanSotaScore": 0.4956894407
+    },
+    {
+      "taskId": "robomimic-iql-vf",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.5563154687,
+      "finalScore": 0.5563154687,
+      "agentScore": 0.5563154687,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "robomimic-iql-vf",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.1374249974,
+      "finalScore": 0.1515047578,
+      "agentScore": 0.1515047578,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "robomimic-iql-vf",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.5379327177,
+      "finalScore": 0.1334160172,
+      "agentScore": 0.1334160172,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "robomimic-iql-vf",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.1340624792,
+      "finalScore": 0.1340624792,
+      "agentScore": 0.1340624792,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "robomimic-iql-vf",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.1457974967,
+      "finalScore": 0.1457974967,
+      "agentScore": 0.1457974967,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "robomimic-obs-encoder",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.03289275979,
+      "finalScore": 0.3631163715,
+      "agentScore": 0.3631163715,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "robomimic-obs-encoder",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.08301613765,
+      "finalScore": 0.03894372601,
+      "agentScore": 0.03894372601,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "robomimic-obs-encoder",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.04597294027,
+      "finalScore": 0.04597294027,
+      "agentScore": 0.04597294027,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "robomimic-obs-encoder",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.03626592143,
+      "agentScore": 0.03626592143,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "robomimic-obs-encoder",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.03626592143,
+      "finalScore": 0.03626592143,
+      "agentScore": 0.03626592143,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "safe-rl",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.01,
+      "finalScore": 0.01,
+      "agentScore": 0.01,
+      "humanSotaScore": 0.01164759742
+    },
+    {
+      "taskId": "safe-rl",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.01164759742
+    },
+    {
+      "taskId": "safe-rl",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.01584167057,
+      "finalScore": 0.01584167057,
+      "agentScore": 0.01584167057,
+      "humanSotaScore": 0.01164759742
+    },
+    {
+      "taskId": "safe-rl",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.01164759742
+    },
+    {
+      "taskId": "safe-rl",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.01066619274,
+      "finalScore": 0.01066619274,
+      "agentScore": 0.01066619274,
+      "humanSotaScore": 0.01164759742
+    },
+    {
+      "taskId": "security-adversarial-attack-black-box-score",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.6561616973,
+      "finalScore": 0.6561616973,
+      "agentScore": 0.6561616973,
+      "humanSotaScore": 0.5686203991
+    },
+    {
+      "taskId": "security-adversarial-attack-black-box-score",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.01,
+      "agentScore": 0.01,
+      "humanSotaScore": 0.5686203991
+    },
+    {
+      "taskId": "security-adversarial-attack-black-box-score",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.630509329,
+      "finalScore": 0.6657745537,
+      "agentScore": 0.6657745537,
+      "humanSotaScore": 0.5686203991
+    },
+    {
+      "taskId": "security-adversarial-attack-black-box-score",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.2438247381,
+      "finalScore": 0.6267162518,
+      "agentScore": 0.6267162518,
+      "humanSotaScore": 0.5686203991
+    },
+    {
+      "taskId": "security-adversarial-attack-black-box-score",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.5686203991
+    },
+    {
+      "taskId": "security-adversarial-attack-sparse-l0",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.9381939323,
+      "finalScore": 0.9435013388,
+      "agentScore": 0.9435013388,
+      "humanSotaScore": 1.0
+    },
+    {
+      "taskId": "security-adversarial-attack-sparse-l0",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.5236278461,
+      "finalScore": 0.5236278461,
+      "agentScore": 0.5236278461,
+      "humanSotaScore": 1.0
+    },
+    {
+      "taskId": "security-adversarial-attack-sparse-l0",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.9638577352,
+      "finalScore": 0.9919840544,
+      "agentScore": 0.9919840544,
+      "humanSotaScore": 1.0
+    },
+    {
+      "taskId": "security-adversarial-attack-sparse-l0",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.9553266784,
+      "finalScore": 0.9803787072,
+      "agentScore": 0.9803787072,
+      "humanSotaScore": 1.0
+    },
+    {
+      "taskId": "security-adversarial-attack-sparse-l0",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 1.0
+    },
+    {
+      "taskId": "security-adversarial-attack-white-box-linf",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.6014543667,
+      "finalScore": 0.6014543667,
+      "agentScore": 0.6014543667,
+      "humanSotaScore": 0.5135632758
+    },
+    {
+      "taskId": "security-adversarial-attack-white-box-linf",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.01,
+      "finalScore": 0.5241769099,
+      "agentScore": 0.5241769099,
+      "humanSotaScore": 0.5135632758
+    },
+    {
+      "taskId": "security-adversarial-attack-white-box-linf",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.5949370572,
+      "finalScore": 0.5949370572,
+      "agentScore": 0.5949370572,
+      "humanSotaScore": 0.5135632758
+    },
+    {
+      "taskId": "security-adversarial-attack-white-box-linf",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.4760053818,
+      "finalScore": 0.5531125043,
+      "agentScore": 0.5531125043,
+      "humanSotaScore": 0.5135632758
+    },
+    {
+      "taskId": "security-adversarial-attack-white-box-linf",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.5634607981,
+      "finalScore": 0.5634607981,
+      "agentScore": 0.5634607981,
+      "humanSotaScore": 0.5135632758
+    },
+    {
+      "taskId": "security-adversarial-training",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.3504641243
+    },
+    {
+      "taskId": "security-adversarial-training",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.3765321799,
+      "finalScore": 0.3765321799,
+      "agentScore": 0.3765321799,
+      "humanSotaScore": 0.3504641243
+    },
+    {
+      "taskId": "security-adversarial-training",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.3504641243
+    },
+    {
+      "taskId": "security-adversarial-training",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.4026934905,
+      "finalScore": 0.4026934905,
+      "agentScore": 0.4026934905,
+      "humanSotaScore": 0.3504641243
+    },
+    {
+      "taskId": "security-adversarial-training",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.04664833419,
+      "finalScore": 0.3435345223,
+      "agentScore": 0.3435345223,
+      "humanSotaScore": 0.3504641243
+    },
+    {
+      "taskId": "security-backdoor-defense",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.2172998703,
+      "finalScore": 0.2416762207,
+      "agentScore": 0.2416762207,
+      "humanSotaScore": 0.378417872
+    },
+    {
+      "taskId": "security-backdoor-defense",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.3915821404,
+      "finalScore": 0.2337123422,
+      "agentScore": 0.2337123422,
+      "humanSotaScore": 0.378417872
+    },
+    {
+      "taskId": "security-backdoor-defense",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.1949068941,
+      "finalScore": 0.4241802283,
+      "agentScore": 0.4241802283,
+      "humanSotaScore": 0.378417872
+    },
+    {
+      "taskId": "security-backdoor-defense",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.07715876672,
+      "finalScore": 0.2986779338,
+      "agentScore": 0.2986779338,
+      "humanSotaScore": 0.378417872
+    },
+    {
+      "taskId": "security-backdoor-defense",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.1888975555,
+      "finalScore": 0.1888975555,
+      "agentScore": 0.1888975555,
+      "humanSotaScore": 0.378417872
+    },
+    {
+      "taskId": "security-machine-unlearning",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4784971181,
+      "finalScore": 0.3863787243,
+      "agentScore": 0.3863787243,
+      "humanSotaScore": 0.6606797362
+    },
+    {
+      "taskId": "security-machine-unlearning",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.3607576748,
+      "finalScore": 0.3607576748,
+      "agentScore": 0.3607576748,
+      "humanSotaScore": 0.6606797362
+    },
+    {
+      "taskId": "security-machine-unlearning",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.6751254883,
+      "finalScore": 0.0,
+      "agentScore": 0.6751254883,
+      "humanSotaScore": 0.6606797362
+    },
+    {
+      "taskId": "security-machine-unlearning",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.6306664059,
+      "finalScore": 0.6732924423,
+      "agentScore": 0.6732924423,
+      "humanSotaScore": 0.6606797362
+    },
+    {
+      "taskId": "security-machine-unlearning",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.6460908614,
+      "finalScore": 0.6251113129,
+      "agentScore": 0.6251113129,
+      "humanSotaScore": 0.6606797362
+    },
+    {
+      "taskId": "security-membership-inference-defense",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.0,
+      "finalScore": 0.1341779096,
+      "agentScore": 0.1341779096,
+      "humanSotaScore": 0.4326037846
+    },
+    {
+      "taskId": "security-membership-inference-defense",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.1216227328,
+      "finalScore": 0.4778043785,
+      "agentScore": 0.4778043785,
+      "humanSotaScore": 0.4326037846
+    },
+    {
+      "taskId": "security-membership-inference-defense",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.122092846,
+      "finalScore": 0.122092846,
+      "agentScore": 0.122092846,
+      "humanSotaScore": 0.4326037846
+    },
+    {
+      "taskId": "security-membership-inference-defense",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.1715616849,
+      "finalScore": 0.1251345461,
+      "agentScore": 0.1251345461,
+      "humanSotaScore": 0.4326037846
+    },
+    {
+      "taskId": "security-membership-inference-defense",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.4793934782,
+      "finalScore": 0.4793934782,
+      "agentScore": 0.4793934782,
+      "humanSotaScore": 0.4326037846
+    },
+    {
+      "taskId": "security-poison-robust-learning",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.3135622846,
+      "finalScore": 0.3087679382,
+      "agentScore": 0.3087679382,
+      "humanSotaScore": 0.3337936772
+    },
+    {
+      "taskId": "security-poison-robust-learning",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.08351085154,
+      "finalScore": 0.08351085154,
+      "agentScore": 0.08351085154,
+      "humanSotaScore": 0.3337936772
+    },
+    {
+      "taskId": "security-poison-robust-learning",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.2761778357,
+      "finalScore": 0.2649679455,
+      "agentScore": 0.2649679455,
+      "humanSotaScore": 0.3337936772
+    },
+    {
+      "taskId": "security-poison-robust-learning",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.5365680562,
+      "finalScore": 0.5365680562,
+      "agentScore": 0.5365680562,
+      "humanSotaScore": 0.3337936772
+    },
+    {
+      "taskId": "security-poison-robust-learning",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.03656214025,
+      "finalScore": 0.2896187404,
+      "agentScore": 0.2896187404,
+      "humanSotaScore": 0.3337936772
+    },
+    {
+      "taskId": "stf-traffic-forecast",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.103418821,
+      "finalScore": 0.2518586843,
+      "agentScore": 0.2518586843,
+      "humanSotaScore": 0.05025054814
+    },
+    {
+      "taskId": "stf-traffic-forecast",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.1419642713,
+      "finalScore": 0.2632563491,
+      "agentScore": 0.2632563491,
+      "humanSotaScore": 0.05025054814
+    },
+    {
+      "taskId": "stf-traffic-forecast",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.0,
+      "finalScore": 0.2238253963,
+      "agentScore": 0.2238253963,
+      "humanSotaScore": 0.05025054814
+    },
+    {
+      "taskId": "stf-traffic-forecast",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.1264467191,
+      "finalScore": 0.1761737802,
+      "agentScore": 0.1761737802,
+      "humanSotaScore": 0.05025054814
+    },
+    {
+      "taskId": "stf-traffic-forecast",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": null,
+      "finalScore": 0.03599460751,
+      "agentScore": 0.03599460751,
+      "humanSotaScore": 0.05025054814
+    },
+    {
+      "taskId": "tdmpc2-planning",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.5368278795,
+      "finalScore": 0.5343190083,
+      "agentScore": 0.5343190083,
+      "humanSotaScore": 0.4828941729
+    },
+    {
+      "taskId": "tdmpc2-planning",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.03219259301,
+      "finalScore": 0.4135819748,
+      "agentScore": 0.4135819748,
+      "humanSotaScore": 0.4828941729
+    },
+    {
+      "taskId": "tdmpc2-planning",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.1394310283,
+      "finalScore": 0.4859989602,
+      "agentScore": 0.4859989602,
+      "humanSotaScore": 0.4828941729
+    },
+    {
+      "taskId": "tdmpc2-planning",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.4780498245,
+      "finalScore": 0.5451472578,
+      "agentScore": 0.5451472578,
+      "humanSotaScore": 0.4828941729
+    },
+    {
+      "taskId": "tdmpc2-simnorm",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.1451917494,
+      "finalScore": 0.1529212912,
+      "agentScore": 0.1529212912,
+      "humanSotaScore": 0.5721417686
+    },
+    {
+      "taskId": "tdmpc2-simnorm",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.5764523354,
+      "finalScore": 0.5795585624,
+      "agentScore": 0.5795585624,
+      "humanSotaScore": 0.5721417686
+    },
+    {
+      "taskId": "tdmpc2-simnorm",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.1532619944,
+      "finalScore": 0.5684582951,
+      "agentScore": 0.5684582951,
+      "humanSotaScore": 0.5721417686
+    },
+    {
+      "taskId": "tdmpc2-simnorm",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.4839339846,
+      "finalScore": 0.5820749517,
+      "agentScore": 0.5820749517,
+      "humanSotaScore": 0.5721417686
+    },
+    {
+      "taskId": "ts-anomaly-detection",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.01948163431,
+      "finalScore": 0.0592546996,
+      "agentScore": 0.0592546996,
+      "humanSotaScore": 0.4259399398
+    },
+    {
+      "taskId": "ts-anomaly-detection",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.07361691488,
+      "finalScore": 0.2179431791,
+      "agentScore": 0.2179431791,
+      "humanSotaScore": 0.4259399398
+    },
+    {
+      "taskId": "ts-anomaly-detection",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.09096375621,
+      "finalScore": 0.08278284981,
+      "agentScore": 0.08278284981,
+      "humanSotaScore": 0.4259399398
+    },
+    {
+      "taskId": "ts-anomaly-detection",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0239807618,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.4259399398
+    },
+    {
+      "taskId": "ts-anomaly-detection",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.03426697899,
+      "finalScore": 0.0,
+      "agentScore": 0.03426697899,
+      "humanSotaScore": 0.4259399398
+    },
+    {
+      "taskId": "ts-classification",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.1502556827,
+      "finalScore": 0.1502556827,
+      "agentScore": 0.1502556827,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "ts-classification",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.09535909557,
+      "finalScore": 0.04060187772,
+      "agentScore": 0.04060187772,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "ts-classification",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.03264383934,
+      "finalScore": 0.03199299236,
+      "agentScore": 0.03199299236,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "ts-classification",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.0,
+      "finalScore": 0.0,
+      "agentScore": 0.0,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "ts-classification",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.04007412071,
+      "finalScore": 0.04124640948,
+      "agentScore": 0.04124640948,
+      "humanSotaScore": 0.1357208808
+    },
+    {
+      "taskId": "ts-exogenous-forecast",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.1420685202,
+      "finalScore": 0.1420685202,
+      "agentScore": 0.1420685202,
+      "humanSotaScore": 0.4984288792
+    },
+    {
+      "taskId": "ts-exogenous-forecast",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.2591807936,
+      "finalScore": 0.1266877809,
+      "agentScore": 0.1266877809,
+      "humanSotaScore": 0.4984288792
+    },
+    {
+      "taskId": "ts-exogenous-forecast",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.2803297631,
+      "finalScore": 0.4816026665,
+      "agentScore": 0.4816026665,
+      "humanSotaScore": 0.4984288792
+    },
+    {
+      "taskId": "ts-exogenous-forecast",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.02140064383,
+      "finalScore": 0.02140064383,
+      "agentScore": 0.02140064383,
+      "humanSotaScore": 0.4984288792
+    },
+    {
+      "taskId": "ts-exogenous-forecast",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": null,
+      "finalScore": 0.1332964068,
+      "agentScore": 0.1332964068,
+      "humanSotaScore": 0.4984288792
+    },
+    {
+      "taskId": "ts-imputation",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.2795497173,
+      "finalScore": 0.5060871796,
+      "agentScore": 0.5060871796,
+      "humanSotaScore": 0.4479917134
+    },
+    {
+      "taskId": "ts-imputation",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.5187977266,
+      "finalScore": 0.5187977266,
+      "agentScore": 0.5187977266,
+      "humanSotaScore": 0.4479917134
+    },
+    {
+      "taskId": "ts-imputation",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.03882044394,
+      "finalScore": 0.3918113554,
+      "agentScore": 0.3918113554,
+      "humanSotaScore": 0.4479917134
+    },
+    {
+      "taskId": "ts-imputation",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.01674168893,
+      "finalScore": 0.0,
+      "agentScore": 0.01674168893,
+      "humanSotaScore": 0.4479917134
+    },
+    {
+      "taskId": "ts-imputation",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.03904001011,
+      "finalScore": 0.03904001011,
+      "agentScore": 0.03904001011,
+      "humanSotaScore": 0.4479917134
+    },
+    {
+      "taskId": "ts-long-term-forecast",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.05548671282,
+      "finalScore": 0.2070562981,
+      "agentScore": 0.2070562981,
+      "humanSotaScore": 0.4771069053
+    },
+    {
+      "taskId": "ts-long-term-forecast",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.09713916307,
+      "agentScore": 0.09713916307,
+      "humanSotaScore": 0.4771069053
+    },
+    {
+      "taskId": "ts-long-term-forecast",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.07909978602,
+      "finalScore": 0.2598532699,
+      "agentScore": 0.2598532699,
+      "humanSotaScore": 0.4771069053
+    },
+    {
+      "taskId": "ts-long-term-forecast",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.02156216366,
+      "finalScore": 0.02156216366,
+      "agentScore": 0.02156216366,
+      "humanSotaScore": 0.4771069053
+    },
+    {
+      "taskId": "ts-long-term-forecast",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.04441901933,
+      "finalScore": 0.3741390479,
+      "agentScore": 0.3741390479,
+      "humanSotaScore": 0.4771069053
+    },
+    {
+      "taskId": "ts-short-term-forecast",
+      "modelId": "claude-opus-4.6",
+      "vanillaScore": 0.4549532434,
+      "finalScore": 0.4549532434,
+      "agentScore": 0.4549532434,
+      "humanSotaScore": 0.4969007263
+    },
+    {
+      "taskId": "ts-short-term-forecast",
+      "modelId": "deepseek-reasoner",
+      "vanillaScore": 0.0,
+      "finalScore": 0.3832656228,
+      "agentScore": 0.3832656228,
+      "humanSotaScore": 0.4969007263
+    },
+    {
+      "taskId": "ts-short-term-forecast",
+      "modelId": "gemini-3.1-pro-preview",
+      "vanillaScore": 0.4899928417,
+      "finalScore": 0.500465065,
+      "agentScore": 0.500465065,
+      "humanSotaScore": 0.4969007263
+    },
+    {
+      "taskId": "ts-short-term-forecast",
+      "modelId": "gpt-5.4",
+      "vanillaScore": 0.4711422842,
+      "finalScore": 0.4711422842,
+      "agentScore": 0.4711422842,
+      "humanSotaScore": 0.4969007263
+    },
+    {
+      "taskId": "ts-short-term-forecast",
+      "modelId": "qwen3.6-plus",
+      "vanillaScore": 0.4272348655,
+      "finalScore": 0.4272348655,
+      "agentScore": 0.4272348655,
+      "humanSotaScore": 0.4969007263
+    }
+  ]
+}

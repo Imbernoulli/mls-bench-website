@@ -1,0 +1,169 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import type { LeaderboardData, StandardModel } from "@/lib/types";
+import { metricLabel, modelDisplayName } from "@/lib/display";
+
+interface Props {
+  data: LeaderboardData;
+  models: StandardModel[];
+}
+
+export default function LeaderboardTable({ data, models }: Props) {
+  const [showPerSeed, setShowPerSeed] = useState(false);
+
+  const rows = useMemo(() => {
+    // Only show final submissions (is_final=true)
+    const finalRows = data.rows.filter((r) => r.model != null && r.is_final === true);
+    if (showPerSeed) return finalRows;
+    const meanModels = new Set(
+      finalRows.filter((r) => r.seed === "mean").map((r) => r.model as string)
+    );
+    return finalRows.filter(
+      (r) => r.seed === "mean" || !meanModels.has(r.model as string)
+    );
+  }, [data.rows, showPerSeed]);
+
+  const metricCols = data.metric_columns;
+
+  // Determine if there are multi-seed results (i.e., any model has both per-seed and mean rows)
+  const hasMultiSeed = useMemo(() => {
+    const finalRows = data.rows.filter((r) => r.model != null && r.is_final === true);
+    return finalRows.some((r) => r.seed === "mean");
+  }, [data.rows]);
+
+  const directions = useMemo(
+    () => data.metric_directions ?? {},
+    [data.metric_directions]
+  );
+
+  // Find best value per metric column (among mean/aggregate rows)
+  const bestValues = useMemo(() => {
+    const bests: Record<string, number> = {};
+    const aggregateRows = rows.filter(
+      (r) => r.seed === "mean" || !data.rows.some((r2) => r2.model === r.model && r2.seed === "mean")
+    );
+    for (const col of metricCols) {
+      const values = aggregateRows
+        .map((r) => r[col])
+        .filter((v): v is number => typeof v === "number");
+      if (values.length > 0) {
+        const dir = directions[col] ?? "higher";
+        bests[col] = dir === "lower" ? Math.min(...values) : Math.max(...values);
+      }
+    }
+    return bests;
+  }, [rows, metricCols, data.rows, directions]);
+
+  const formatValue = (v: unknown): string => {
+    if (v === null || v === undefined || v === "") return "-";
+    if (typeof v === "number") return v.toFixed(3);
+    return String(v);
+  };
+
+  const formatModel = (model: string): { name: string; type: "baseline" | "first" | "agent" } => {
+    if (model.startsWith("baseline:")) {
+      return { name: model.replace("baseline:", ""), type: "baseline" };
+    }
+    if (model.startsWith("vanilla:")) {
+      return { name: modelDisplayName(model, models), type: "first" };
+    }
+    return { name: modelDisplayName(model, models), type: "agent" };
+  };
+
+  if (rows.length === 0) {
+    return <p className="text-muted-foreground text-sm">No results yet.</p>;
+  }
+
+  return (
+    <div>
+      {hasMultiSeed && (
+        <div className="mb-3 flex items-center gap-4">
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={showPerSeed}
+              onChange={(e) => setShowPerSeed(e.target.checked)}
+              className="rounded"
+            />
+            Show per-seed results
+          </label>
+        </div>
+      )}
+      <div className="overflow-x-auto rounded-xl border border-border">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-muted/50 text-left">
+              <th className="px-4 py-3 font-medium">Model</th>
+              <th className="px-4 py-3 font-medium">Type</th>
+              {showPerSeed && (
+                <th className="px-4 py-3 font-medium">Seed</th>
+              )}
+              {metricCols.map((col) => {
+                const dir = directions[col] ?? "higher";
+                const arrow = dir === "lower" ? "\u2193" : "\u2191";
+                return (
+                  <th key={col} className="px-4 py-3 font-medium text-right">
+                    {metricLabel(col)}{" "}
+                    <span className="text-muted-foreground font-normal">{arrow}</span>
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => {
+              const { name, type } = formatModel(row.model as string);
+              const isMean = row.seed === "mean";
+              const badgeStyles = {
+                baseline: "border border-[#d7d7d7] bg-[#f5f5f5] text-[#555555]",
+                first: "border border-[#0b684f] bg-[#dff4ec] text-[#0b684f]",
+                agent: "border border-[#b9e5d6] bg-[#eaf7f2] text-[#5c7f75]",
+              };
+              return (
+                <tr
+                  key={i}
+                  className={`border-t border-border ${
+                    isMean ? "font-medium" : ""
+                  } ${i % 2 === 0 ? "" : "bg-muted/10"}`}
+                >
+                  <td className="px-4 py-2">{name}</td>
+                  <td className="px-4 py-2">
+                    <span
+                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${badgeStyles[type]}`}
+                    >
+                      {type}
+                    </span>
+                  </td>
+                  {showPerSeed && (
+                    <td className="px-4 py-2 text-muted-foreground">
+                      {String(row.seed)}
+                    </td>
+                  )}
+                  {metricCols.map((col) => {
+                    const val = row[col];
+                    const isAggregate = isMean || !hasMultiSeed;
+                    const isBest =
+                      typeof val === "number" &&
+                      isAggregate &&
+                      Math.abs(val - bestValues[col]) < 0.0001;
+                    return (
+                      <td
+                        key={col}
+                        className={`px-4 py-2 text-right tabular-nums ${
+                          isBest ? "text-accent font-bold" : ""
+                        }`}
+                      >
+                        {formatValue(val)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

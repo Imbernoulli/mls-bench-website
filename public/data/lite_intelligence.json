@@ -1,0 +1,157 @@
+{
+  "source": "frozen from paper figure (figs/lite_intelligence.png @ 2026-05-07)",
+  "tasks": [
+    "ai4bio-mutation-effect-prediction",
+    "ai4sci-inverse-diffusion-algo",
+    "ai4sci-pla-binding-affinity",
+    "causal-discovery-discrete",
+    "cv-3dgs-densification",
+    "cv-dbm-sampler",
+    "cv-pooling-aggregation",
+    "cv-vae-loss",
+    "dl-activation-function",
+    "graph-generation",
+    "jepa-planning",
+    "llm-dllm-demask-strategy",
+    "llm-pretrain-optimizer",
+    "llm-ptq-algorithm",
+    "llm-qat-algorithm",
+    "llm-rl-importance-sampling",
+    "ml-clustering-algorithm",
+    "ml-dimensionality-reduction",
+    "mlsys-sparse-attention-inference",
+    "optimization-multi-objective",
+    "optimization-variance-reduction",
+    "quant-concept-drift",
+    "rl-value-discrete",
+    "robo-diffusion-guidance",
+    "robo-diffusion-policy",
+    "robo-humanoid-sim2real-algo",
+    "robomimic-bc-loss",
+    "security-membership-inference-defense",
+    "ts-exogenous-forecast",
+    "ts-imputation"
+  ],
+  "models": [
+    {
+      "id": "gpt-5.5-pro",
+      "name": "GPT-5.5 Pro",
+      "company": "openai",
+      "color": "#0B7A5E",
+      "score": 36.1,
+      "taskCount": 27
+    },
+    {
+      "id": "claude-opus-4-7",
+      "name": "Claude Opus 4.7",
+      "company": "anthropic",
+      "color": "#BF6347",
+      "score": 36.1,
+      "taskCount": 27
+    },
+    {
+      "id": "claude-opus-4.6",
+      "name": "Claude Opus 4.6",
+      "company": "anthropic",
+      "color": "#D97757",
+      "score": 35.9,
+      "taskCount": 30
+    },
+    {
+      "id": "glm-5.1",
+      "name": "GLM 5.1",
+      "company": "zhipu",
+      "color": "#E0497A",
+      "score": 29.8,
+      "taskCount": 20
+    },
+    {
+      "id": "deepseek-v4-pro",
+      "name": "DeepSeek-V4 Pro",
+      "company": "deepseek",
+      "color": "#2A4ACF",
+      "score": 29.0,
+      "taskCount": 23
+    },
+    {
+      "id": "deepseek-v4-flash",
+      "name": "DeepSeek-V4 Flash",
+      "company": "deepseek",
+      "color": "#7E96FE",
+      "score": 28.5,
+      "taskCount": 18
+    },
+    {
+      "id": "gpt-5.5",
+      "name": "GPT-5.5",
+      "company": "openai",
+      "color": "#10A37F",
+      "score": 27.1,
+      "taskCount": 26
+    },
+    {
+      "id": "gemini-3.1-pro-preview",
+      "name": "Gemini 3.1 Pro",
+      "company": "google",
+      "color": "#4285F4",
+      "score": 26.6,
+      "taskCount": 30
+    },
+    {
+      "id": "gpt-5.4",
+      "name": "GPT-5.4",
+      "company": "openai",
+      "color": "#3FBE9D",
+      "score": 25.8,
+      "taskCount": 29
+    },
+    {
+      "id": "deepseek-reasoner",
+      "name": "DeepSeek-V3.2",
+      "company": "deepseek",
+      "color": "#4D6BFE",
+      "score": 25.7,
+      "taskCount": 26
+    },
+    {
+      "id": "gemini-3.1-flash-lite-preview",
+      "name": "Gemini 3.1 Flash",
+      "company": "google",
+      "color": "#7AAEF7",
+      "score": 23.7,
+      "taskCount": 25
+    },
+    {
+      "id": "qwen3.6-max-preview",
+      "name": "Qwen 3.6 Max",
+      "company": "qwen",
+      "color": "#4A2F9C",
+      "score": 22.6,
+      "taskCount": 23
+    },
+    {
+      "id": "claude-sonnet-4-6",
+      "name": "Claude Sonnet 4.6",
+      "company": "anthropic",
+      "color": "#E8A488",
+      "score": 21.2,
+      "taskCount": 29
+    },
+    {
+      "id": "kimi-k2.6",
+      "name": "Kimi K2.6",
+      "company": "moonshot",
+      "color": "#1F1F4D",
+      "score": 21.2,
+      "taskCount": 19
+    },
+    {
+      "id": "qwen3.6-plus",
+      "name": "Qwen 3.6 Plus",
+      "company": "qwen",
+      "color": "#8E72D8",
+      "score": 19.5,
+      "taskCount": 22
+    }
+  ]
+}

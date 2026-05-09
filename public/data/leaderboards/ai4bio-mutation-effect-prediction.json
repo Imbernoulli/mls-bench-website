@@ -1,0 +1,335 @@
+{
+  "task_id": "ai4bio-mutation-effect-prediction",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "elapsed_BLAT_ECOLX",
+    "elapsed_ESTA_BACSU",
+    "elapsed_RASH_HUMAN",
+    "spearman_BLAT_ECOLX",
+    "spearman_ESTA_BACSU",
+    "spearman_RASH_HUMAN"
+  ],
+  "metric_columns": [
+    "spearman_BLAT_ECOLX",
+    "spearman_ESTA_BACSU",
+    "spearman_RASH_HUMAN"
+  ],
+  "metric_directions": {
+    "spearman_BLAT_ECOLX": "higher",
+    "spearman_ESTA_BACSU": "higher",
+    "spearman_RASH_HUMAN": "higher"
+  },
+  "metric_groups": [
+    {
+      "setting": "BLAT_ECOLX",
+      "metrics": [
+        "spearman_BLAT_ECOLX"
+      ]
+    },
+    {
+      "setting": "ESTA_BACSU",
+      "metrics": [
+        "spearman_ESTA_BACSU"
+      ]
+    },
+    {
+      "setting": "RASH_HUMAN",
+      "metrics": [
+        "spearman_RASH_HUMAN"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-04-27T03:57:47.936632+00:00",
+      "model": "baseline:MLP",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 77.0,
+      "elapsed_ESTA_BACSU": 77.0,
+      "elapsed_RASH_HUMAN": 77.0,
+      "spearman_BLAT_ECOLX": 0.88254,
+      "spearman_ESTA_BACSU": 0.64249,
+      "spearman_RASH_HUMAN": 0.808986
+    },
+    {
+      "timestamp": "2026-04-27T03:58:33.115492+00:00",
+      "model": "baseline:Reshape CNN",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 128.0,
+      "elapsed_ESTA_BACSU": 128.0,
+      "elapsed_RASH_HUMAN": 128.0,
+      "spearman_BLAT_ECOLX": 0.860462,
+      "spearman_ESTA_BACSU": 0.64077,
+      "spearman_RASH_HUMAN": 0.798003
+    },
+    {
+      "timestamp": "2026-04-27T03:56:36.673712+00:00",
+      "model": "baseline:Ridge Regression",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 94.0,
+      "elapsed_ESTA_BACSU": 94.0,
+      "elapsed_RASH_HUMAN": 94.0,
+      "spearman_BLAT_ECOLX": 0.736985,
+      "spearman_ESTA_BACSU": -0.107204,
+      "spearman_RASH_HUMAN": 0.681465
+    },
+    {
+      "timestamp": "2026-05-01T08:35:08.424255+00:00",
+      "model": "vanilla:claude-opus-4.6",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 86.0,
+      "elapsed_ESTA_BACSU": 86.0,
+      "elapsed_RASH_HUMAN": 86.0,
+      "spearman_BLAT_ECOLX": 0.889126,
+      "spearman_ESTA_BACSU": 0.643843,
+      "spearman_RASH_HUMAN": 0.813583
+    },
+    {
+      "timestamp": "2026-05-01T10:08:37.079136+00:00",
+      "model": "vanilla:deepseek-reasoner",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 1601.0,
+      "elapsed_ESTA_BACSU": 1601.0,
+      "elapsed_RASH_HUMAN": 1601.0,
+      "spearman_BLAT_ECOLX": 0.245715,
+      "spearman_ESTA_BACSU": 0.021437,
+      "spearman_RASH_HUMAN": 0.255674
+    },
+    {
+      "timestamp": "2026-05-01T08:36:39.523501+00:00",
+      "model": "vanilla:gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 127.0,
+      "elapsed_ESTA_BACSU": 127.0,
+      "elapsed_RASH_HUMAN": 127.0,
+      "spearman_BLAT_ECOLX": 0.873163,
+      "spearman_ESTA_BACSU": 0.639043,
+      "spearman_RASH_HUMAN": 0.8046
+    },
+    {
+      "timestamp": "2026-05-01T09:25:12.078928+00:00",
+      "model": "vanilla:gpt-5.4",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 63.0,
+      "elapsed_ESTA_BACSU": 63.0,
+      "elapsed_RASH_HUMAN": 63.0,
+      "spearman_BLAT_ECOLX": 0.873419,
+      "spearman_ESTA_BACSU": 0.586791,
+      "spearman_RASH_HUMAN": 0.792177
+    },
+    {
+      "timestamp": "2026-05-01T08:35:39.438087+00:00",
+      "model": "vanilla:qwen3.6-plus",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 102.0,
+      "elapsed_ESTA_BACSU": 102.0,
+      "elapsed_RASH_HUMAN": 102.0,
+      "spearman_BLAT_ECOLX": 0.87342,
+      "spearman_ESTA_BACSU": 0.543011,
+      "spearman_RASH_HUMAN": 0.806786
+    },
+    {
+      "timestamp": "2026-05-01T10:15:05.647248+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 86.0,
+      "elapsed_ESTA_BACSU": 86.0,
+      "elapsed_RASH_HUMAN": 86.0,
+      "spearman_BLAT_ECOLX": 0.889126,
+      "spearman_ESTA_BACSU": 0.643843,
+      "spearman_RASH_HUMAN": 0.813583
+    },
+    {
+      "timestamp": "2026-05-01T12:07:52.094820+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 64.0,
+      "elapsed_ESTA_BACSU": 64.0,
+      "elapsed_RASH_HUMAN": 64.0,
+      "spearman_BLAT_ECOLX": 0.84936,
+      "spearman_ESTA_BACSU": 0.44139,
+      "spearman_RASH_HUMAN": 0.79411
+    },
+    {
+      "timestamp": "2026-05-01T12:05:02.948953+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 112.0,
+      "elapsed_ESTA_BACSU": 112.0,
+      "elapsed_RASH_HUMAN": 112.0,
+      "spearman_BLAT_ECOLX": 0.883806,
+      "spearman_ESTA_BACSU": 0.628352,
+      "spearman_RASH_HUMAN": 0.806444
+    },
+    {
+      "timestamp": "2026-05-01T09:25:15.328981+00:00",
+      "model": "gpt-5.4",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 74.0,
+      "elapsed_ESTA_BACSU": 74.0,
+      "elapsed_RASH_HUMAN": 74.0,
+      "spearman_BLAT_ECOLX": 0.873032,
+      "spearman_ESTA_BACSU": 0.620859,
+      "spearman_RASH_HUMAN": 0.799244
+    },
+    {
+      "timestamp": "2026-05-01T12:02:35.720603+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 135.0,
+      "elapsed_ESTA_BACSU": 135.0,
+      "elapsed_RASH_HUMAN": 135.0,
+      "spearman_BLAT_ECOLX": 0.884943,
+      "spearman_ESTA_BACSU": 0.623194,
+      "spearman_RASH_HUMAN": 0.827467
+    },
+    {
+      "timestamp": "2026-05-01T08:35:08.424255+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 86.0,
+      "elapsed_ESTA_BACSU": 86.0,
+      "elapsed_RASH_HUMAN": 86.0,
+      "spearman_BLAT_ECOLX": 0.889126,
+      "spearman_ESTA_BACSU": 0.643843,
+      "spearman_RASH_HUMAN": 0.813583
+    },
+    {
+      "timestamp": "2026-05-01T10:14:39.247519+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 76.0,
+      "elapsed_ESTA_BACSU": 76.0,
+      "elapsed_RASH_HUMAN": 76.0,
+      "spearman_BLAT_ECOLX": 0.885848,
+      "spearman_ESTA_BACSU": 0.614614,
+      "spearman_RASH_HUMAN": 0.813723
+    },
+    {
+      "timestamp": "2026-05-01T10:08:37.079136+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 1601.0,
+      "elapsed_ESTA_BACSU": 1601.0,
+      "elapsed_RASH_HUMAN": 1601.0,
+      "spearman_BLAT_ECOLX": 0.245715,
+      "spearman_ESTA_BACSU": 0.021437,
+      "spearman_RASH_HUMAN": 0.255674
+    },
+    {
+      "timestamp": "2026-05-01T12:07:27.593642+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 64.0,
+      "elapsed_ESTA_BACSU": 64.0,
+      "elapsed_RASH_HUMAN": 64.0,
+      "spearman_BLAT_ECOLX": 0.84936,
+      "spearman_ESTA_BACSU": 0.44139,
+      "spearman_RASH_HUMAN": 0.79411
+    },
+    {
+      "timestamp": "2026-05-01T08:36:39.523501+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 127.0,
+      "elapsed_ESTA_BACSU": 127.0,
+      "elapsed_RASH_HUMAN": 127.0,
+      "spearman_BLAT_ECOLX": 0.873163,
+      "spearman_ESTA_BACSU": 0.639043,
+      "spearman_RASH_HUMAN": 0.8046
+    },
+    {
+      "timestamp": "2026-05-01T10:18:49.962313+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 219.0,
+      "elapsed_ESTA_BACSU": 219.0,
+      "elapsed_RASH_HUMAN": 219.0,
+      "spearman_BLAT_ECOLX": 0.853088,
+      "spearman_ESTA_BACSU": 0.620362,
+      "spearman_RASH_HUMAN": 0.784909
+    },
+    {
+      "timestamp": "2026-05-01T12:04:56.332080+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 112.0,
+      "elapsed_ESTA_BACSU": 112.0,
+      "elapsed_RASH_HUMAN": 112.0,
+      "spearman_BLAT_ECOLX": 0.883806,
+      "spearman_ESTA_BACSU": 0.628352,
+      "spearman_RASH_HUMAN": 0.806444
+    },
+    {
+      "timestamp": "2026-05-01T09:25:12.078928+00:00",
+      "model": "gpt-5.4",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 63.0,
+      "elapsed_ESTA_BACSU": 63.0,
+      "elapsed_RASH_HUMAN": 63.0,
+      "spearman_BLAT_ECOLX": 0.873419,
+      "spearman_ESTA_BACSU": 0.586791,
+      "spearman_RASH_HUMAN": 0.792177
+    },
+    {
+      "timestamp": "2026-05-01T08:35:39.438087+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 102.0,
+      "elapsed_ESTA_BACSU": 102.0,
+      "elapsed_RASH_HUMAN": 102.0,
+      "spearman_BLAT_ECOLX": 0.87342,
+      "spearman_ESTA_BACSU": 0.543011,
+      "spearman_RASH_HUMAN": 0.806786
+    },
+    {
+      "timestamp": "2026-05-01T10:16:26.462835+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 135.0,
+      "elapsed_ESTA_BACSU": 135.0,
+      "elapsed_RASH_HUMAN": 135.0,
+      "spearman_BLAT_ECOLX": 0.884943,
+      "spearman_ESTA_BACSU": 0.623194,
+      "spearman_RASH_HUMAN": 0.827467
+    },
+    {
+      "timestamp": "2026-05-01T12:02:26.980036+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_BLAT_ECOLX": 207.0,
+      "elapsed_ESTA_BACSU": 207.0,
+      "elapsed_RASH_HUMAN": 207.0,
+      "spearman_BLAT_ECOLX": 0.888228,
+      "spearman_ESTA_BACSU": 0.164259,
+      "spearman_RASH_HUMAN": 0.815257
+    }
+  ]
+}

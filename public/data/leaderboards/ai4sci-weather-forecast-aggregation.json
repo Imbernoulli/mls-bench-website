@@ -1,0 +1,371 @@
+{
+  "task_id": "ai4sci-weather-forecast-aggregation",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "w_rmse_geopotential_500_z500-3day",
+    "w_rmse_temperature_850_t850-5day",
+    "w_rmse_10m_u_component_of_wind_wind10m-7day",
+    "elapsed_z500-3day",
+    "elapsed_t850-5day",
+    "elapsed_wind10m-7day"
+  ],
+  "metric_columns": [
+    "w_rmse_geopotential_500_z500-3day",
+    "w_rmse_temperature_850_t850-5day",
+    "w_rmse_10m_u_component_of_wind_wind10m-7day"
+  ],
+  "metric_directions": {
+    "w_rmse_geopotential_500_z500-3day": "lower",
+    "w_rmse_temperature_850_t850-5day": "lower",
+    "w_rmse_10m_u_component_of_wind_wind10m-7day": "lower"
+  },
+  "metric_groups": [
+    {
+      "setting": "Z500 3-Day",
+      "metrics": [
+        "w_rmse_geopotential_500_z500-3day"
+      ]
+    },
+    {
+      "setting": "T850 5-Day",
+      "metrics": [
+        "w_rmse_temperature_850_t850-5day"
+      ]
+    },
+    {
+      "setting": "10m-Wind 7-Day",
+      "metrics": [
+        "w_rmse_10m_u_component_of_wind_wind10m-7day"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-05-03T22:34:00.315691+00:00",
+      "model": "baseline:Cross-Attention",
+      "is_final": true,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 255.8458,
+      "w_rmse_temperature_850_t850-5day": 2.1214,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 3.1455,
+      "elapsed_z500-3day": 14362.0,
+      "elapsed_t850-5day": 13470.0,
+      "elapsed_wind10m-7day": 12769.0
+    },
+    {
+      "timestamp": "2026-05-03T21:45:59.556248+00:00",
+      "model": "baseline:Learned Weighted Sum",
+      "is_final": true,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 345.7938,
+      "w_rmse_temperature_850_t850-5day": 2.5934,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 3.4245,
+      "elapsed_z500-3day": 18601.0,
+      "elapsed_t850-5day": 13412.0,
+      "elapsed_wind10m-7day": 9709.0
+    },
+    {
+      "timestamp": "2026-05-03T21:19:15.970445+00:00",
+      "model": "baseline:Mean Pooling",
+      "is_final": true,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 353.5033,
+      "w_rmse_temperature_850_t850-5day": 2.6032,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 3.3991,
+      "elapsed_z500-3day": 16094.0,
+      "elapsed_t850-5day": 12748.0,
+      "elapsed_wind10m-7day": 8263.0
+    },
+    {
+      "timestamp": "2026-05-04T13:20:23.425936+00:00",
+      "model": "vanilla:claude-opus-4.6",
+      "is_final": true,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 255.4719,
+      "w_rmse_temperature_850_t850-5day": 3.4759,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 4.0944,
+      "elapsed_z500-3day": 7370.0,
+      "elapsed_t850-5day": 6985.0,
+      "elapsed_wind10m-7day": 6757.0
+    },
+    {
+      "timestamp": "2026-05-04T14:03:09.267403+00:00",
+      "model": "vanilla:deepseek-reasoner",
+      "is_final": true,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 268.1112,
+      "w_rmse_temperature_850_t850-5day": 3.8974,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 4.4051,
+      "elapsed_z500-3day": 8860.0,
+      "elapsed_t850-5day": 8740.0,
+      "elapsed_wind10m-7day": 7653.0
+    },
+    {
+      "timestamp": "2026-05-04T15:42:50.852298+00:00",
+      "model": "vanilla:gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 506.0094,
+      "w_rmse_temperature_850_t850-5day": 3.6939,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 3.149,
+      "elapsed_z500-3day": 11194.0,
+      "elapsed_t850-5day": 10570.0,
+      "elapsed_wind10m-7day": 10001.0
+    },
+    {
+      "timestamp": "2026-05-04T14:52:29.613006+00:00",
+      "model": "vanilla:gpt-5.4",
+      "is_final": true,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 275.2973,
+      "w_rmse_temperature_850_t850-5day": 4.3432,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 4.6257,
+      "elapsed_z500-3day": 14130.0,
+      "elapsed_t850-5day": 11234.0,
+      "elapsed_wind10m-7day": 10183.0
+    },
+    {
+      "timestamp": "2026-05-04T16:15:57.636551+00:00",
+      "model": "vanilla:qwen3.6-plus",
+      "is_final": true,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 262.6466,
+      "w_rmse_temperature_850_t850-5day": 3.9237,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 4.4312,
+      "elapsed_z500-3day": 17046.0,
+      "elapsed_t850-5day": 15639.0,
+      "elapsed_wind10m-7day": 14214.0
+    },
+    {
+      "timestamp": "2026-05-04T18:55:48.271300+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": true,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 255.4719,
+      "w_rmse_temperature_850_t850-5day": 3.4759,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 4.0944,
+      "elapsed_z500-3day": 7370.0,
+      "elapsed_t850-5day": 6985.0,
+      "elapsed_wind10m-7day": 6757.0
+    },
+    {
+      "timestamp": "2026-05-04T22:04:59.348901+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": true,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 268.1112,
+      "w_rmse_temperature_850_t850-5day": 3.8974,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 4.4051,
+      "elapsed_z500-3day": 8860.0,
+      "elapsed_t850-5day": 8740.0,
+      "elapsed_wind10m-7day": 7653.0
+    },
+    {
+      "timestamp": "2026-05-05T00:58:08.327513+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 506.0094,
+      "w_rmse_temperature_850_t850-5day": 3.6939,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 3.149,
+      "elapsed_z500-3day": 11194.0,
+      "elapsed_t850-5day": 10570.0,
+      "elapsed_wind10m-7day": 10001.0
+    },
+    {
+      "timestamp": "2026-05-04T18:34:50.220960+00:00",
+      "model": "gpt-5.4",
+      "is_final": true,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 275.2973,
+      "w_rmse_temperature_850_t850-5day": 4.3432,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 4.6257,
+      "elapsed_z500-3day": 14130.0,
+      "elapsed_t850-5day": 11234.0,
+      "elapsed_wind10m-7day": 10183.0
+    },
+    {
+      "timestamp": "2026-05-05T05:10:50.711496+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": true,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 262.6466,
+      "w_rmse_temperature_850_t850-5day": 3.9237,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 4.4312,
+      "elapsed_z500-3day": 17046.0,
+      "elapsed_t850-5day": 15639.0,
+      "elapsed_wind10m-7day": 14214.0
+    },
+    {
+      "timestamp": "2026-05-04T13:20:23.425936+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": false,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 255.4719,
+      "w_rmse_temperature_850_t850-5day": 3.4759,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 4.0944,
+      "elapsed_z500-3day": 7370.0,
+      "elapsed_t850-5day": 6985.0,
+      "elapsed_wind10m-7day": 6757.0
+    },
+    {
+      "timestamp": "2026-05-04T16:23:09.311627+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": false,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 256.9303,
+      "w_rmse_temperature_850_t850-5day": 3.524,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 4.1377,
+      "elapsed_z500-3day": 8487.0,
+      "elapsed_t850-5day": 7983.0,
+      "elapsed_wind10m-7day": 7582.0
+    },
+    {
+      "timestamp": "2026-05-04T18:55:42.568082+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": false,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 255.4719,
+      "w_rmse_temperature_850_t850-5day": 3.4759,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 4.0944,
+      "elapsed_z500-3day": 7370.0,
+      "elapsed_t850-5day": 7069.0,
+      "elapsed_wind10m-7day": 6713.0
+    },
+    {
+      "timestamp": "2026-05-04T14:03:09.267403+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": false,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 268.1112,
+      "w_rmse_temperature_850_t850-5day": 3.8974,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 4.4051,
+      "elapsed_z500-3day": 8860.0,
+      "elapsed_t850-5day": 8740.0,
+      "elapsed_wind10m-7day": 7653.0
+    },
+    {
+      "timestamp": "2026-05-04T17:08:42.296891+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": false,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 800.4833,
+      "w_rmse_temperature_850_t850-5day": 2.2135,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 4.0321,
+      "elapsed_z500-3day": 9220.0,
+      "elapsed_t850-5day": 9061.0,
+      "elapsed_wind10m-7day": 7927.0
+    },
+    {
+      "timestamp": "2026-05-04T22:04:21.886783+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": false,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 287.2144,
+      "w_rmse_temperature_850_t850-5day": 4.3214,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 4.6099,
+      "elapsed_z500-3day": 11869.0,
+      "elapsed_t850-5day": 10211.0,
+      "elapsed_wind10m-7day": 8963.0
+    },
+    {
+      "timestamp": "2026-05-04T15:42:50.852298+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 506.0094,
+      "w_rmse_temperature_850_t850-5day": 3.6939,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 3.149,
+      "elapsed_z500-3day": 11194.0,
+      "elapsed_t850-5day": 10570.0,
+      "elapsed_wind10m-7day": 10001.0
+    },
+    {
+      "timestamp": "2026-05-04T19:06:49.805040+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 587.0104,
+      "w_rmse_temperature_850_t850-5day": 3.7557,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 3.1364,
+      "elapsed_z500-3day": 11499.0,
+      "elapsed_t850-5day": 11324.0,
+      "elapsed_wind10m-7day": 11202.0
+    },
+    {
+      "timestamp": "2026-05-05T00:58:00.646837+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 572.9498,
+      "w_rmse_temperature_850_t850-5day": 3.7221,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 3.1341,
+      "elapsed_z500-3day": 12400.0,
+      "elapsed_t850-5day": 11714.0,
+      "elapsed_wind10m-7day": 11636.0
+    },
+    {
+      "timestamp": "2026-05-04T14:52:29.613006+00:00",
+      "model": "gpt-5.4",
+      "is_final": false,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 275.2973,
+      "w_rmse_temperature_850_t850-5day": 4.3432,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 4.6257,
+      "elapsed_z500-3day": 14130.0,
+      "elapsed_t850-5day": 11234.0,
+      "elapsed_wind10m-7day": 10183.0
+    },
+    {
+      "timestamp": "2026-05-04T18:34:48.702533+00:00",
+      "model": "gpt-5.4",
+      "is_final": false,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 738.9828,
+      "w_rmse_temperature_850_t850-5day": 2.2422,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 3.9553,
+      "elapsed_z500-3day": 11654.0,
+      "elapsed_t850-5day": 10652.0,
+      "elapsed_wind10m-7day": 9704.0
+    },
+    {
+      "timestamp": "2026-05-04T16:15:57.636551+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": false,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 262.6466,
+      "w_rmse_temperature_850_t850-5day": 3.9237,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 4.4312,
+      "elapsed_z500-3day": 17046.0,
+      "elapsed_t850-5day": 15639.0,
+      "elapsed_wind10m-7day": 14214.0
+    },
+    {
+      "timestamp": "2026-05-04T19:51:24.533668+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": false,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 265.9795,
+      "w_rmse_temperature_850_t850-5day": 4.2365,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 4.549,
+      "elapsed_z500-3day": 11657.0,
+      "elapsed_t850-5day": 9029.0,
+      "elapsed_wind10m-7day": 8174.0
+    },
+    {
+      "timestamp": "2026-05-05T05:10:27.613403+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": false,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 701.8122,
+      "w_rmse_temperature_850_t850-5day": 2.2082,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 3.8625,
+      "elapsed_z500-3day": 15848.0,
+      "elapsed_t850-5day": 14311.0,
+      "elapsed_wind10m-7day": 13099.0
+    }
+  ]
+}

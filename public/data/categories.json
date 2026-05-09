@@ -1,0 +1,226 @@
+{
+  "language-models": {
+    "id": "language-models",
+    "label": "Language Models",
+    "abbr": "LM",
+    "tasks": [
+      "agent-tool-reasoning",
+      "llm-dllm-demask-strategy",
+      "llm-pretrain-attention",
+      "llm-pretrain-bitlinear",
+      "llm-pretrain-embedding",
+      "llm-pretrain-linear-attention",
+      "llm-pretrain-loss",
+      "llm-pretrain-lr-schedule",
+      "llm-pretrain-mlp",
+      "llm-pretrain-normalization",
+      "llm-pretrain-optimizer",
+      "llm-pretrain-residual",
+      "llm-rl-advantage",
+      "llm-rl-importance-sampling",
+      "llm-rl-kl-estimator",
+      "llm-rl-reward-normalization",
+      "llm-scaling-law-discovery",
+      "mas-topology"
+    ]
+  },
+  "robotics": {
+    "id": "robotics",
+    "label": "Robotics",
+    "abbr": "Rob",
+    "tasks": [
+      "jepa-planning",
+      "jepa-prediction-loss",
+      "jepa-regularizer",
+      "robo-diffusion-guidance",
+      "robo-diffusion-policy",
+      "robo-diffusion-sampling-method",
+      "robo-humanoid-sim2real-algo",
+      "robomimic-bc-loss",
+      "robomimic-iql-vf",
+      "robomimic-obs-encoder",
+      "tdmpc2-planning",
+      "tdmpc2-simnorm"
+    ]
+  },
+  "vision-and-generation": {
+    "id": "vision-and-generation",
+    "label": "Vision & Generation",
+    "abbr": "V\\&G",
+    "tasks": [
+      "cv-3dgs-densification",
+      "cv-3dgs-regularizer",
+      "cv-dbm-sampler",
+      "cv-dbm-scheduler",
+      "cv-diffusion-architecture",
+      "cv-diffusion-cfg",
+      "cv-diffusion-conditioning",
+      "cv-diffusion-efficiency",
+      "cv-diffusion-prediction",
+      "cv-meanflow-perceptual-loss",
+      "cv-vae-loss"
+    ]
+  },
+  "reinforcement-learning": {
+    "id": "reinforcement-learning",
+    "label": "Reinforcement Learning",
+    "abbr": "RL",
+    "tasks": [
+      "marl-centralized-critic",
+      "meta-rl",
+      "meta-rl-algorithm",
+      "rl-intrinsic-exploration",
+      "rl-offline-adroit",
+      "rl-offline-continuous",
+      "rl-offline-off2on",
+      "rl-offpolicy-continuous",
+      "rl-onpolicy-continuous",
+      "rl-reward-learning",
+      "rl-value-atari",
+      "rl-value-discrete",
+      "safe-rl"
+    ]
+  },
+  "ml-systems-and-efficient-ml": {
+    "id": "ml-systems-and-efficient-ml",
+    "label": "ML Systems & Efficient ML",
+    "abbr": "Sys",
+    "tasks": [
+      "dlm-dkv-policy",
+      "llm-kv-adaptive-quantization",
+      "llm-kv-selection-budgeting",
+      "llm-kv-structural-reduction",
+      "llm-pretrain-kernel",
+      "llm-ptq-algorithm",
+      "llm-qat-algorithm",
+      "mlsys-fused-attention",
+      "mlsys-moe-load-balance",
+      "mlsys-sparse-attention-inference"
+    ]
+  },
+  "ai-for-science": {
+    "id": "ai-for-science",
+    "label": "AI for Science",
+    "abbr": "Sci",
+    "tasks": [
+      "ai4bio-mutation-effect-prediction",
+      "ai4bio-protein-inverse-folding",
+      "ai4bio-protein-structure-repr",
+      "ai4sci-climate-emulation",
+      "ai4sci-inverse-diffusion-algo",
+      "ai4sci-mol-property-prediction",
+      "ai4sci-pla-binding-affinity",
+      "ai4sci-vs-contrastive-scoring",
+      "ai4sci-weather-forecast-aggregation",
+      "pde-design-solver"
+    ]
+  },
+  "optimization-and-theory": {
+    "id": "optimization-and-theory",
+    "label": "Optimization & Theory",
+    "abbr": "Opt",
+    "tasks": [
+      "optimization-bilevel",
+      "optimization-convex-concave",
+      "optimization-diagonal-net",
+      "optimization-dp-sgd",
+      "optimization-evolution-strategy",
+      "optimization-gradient-compression",
+      "optimization-hyperparameter-search",
+      "optimization-multi-objective",
+      "optimization-nas",
+      "optimization-online-bandit",
+      "optimization-pac-bayes-bound",
+      "optimization-parity",
+      "optimization-variance-reduction"
+    ]
+  },
+  "classical-and-adaptive-learning": {
+    "id": "classical-and-adaptive-learning",
+    "label": "Classical & Adaptive Learning",
+    "abbr": "CAL",
+    "tasks": [
+      "meta-fewshot-classification",
+      "meta-inner-loop-optimizer",
+      "ml-active-learning",
+      "ml-anomaly-detection",
+      "ml-calibration",
+      "ml-clustering-algorithm",
+      "ml-continual-regularization",
+      "ml-dimensionality-reduction",
+      "ml-ensemble-boosting",
+      "ml-federated-aggregation",
+      "ml-missing-data-imputation",
+      "ml-selective-deferral",
+      "ml-subgroup-calibration-shift",
+      "ml-symbolic-regression"
+    ]
+  },
+  "deep-learning": {
+    "id": "deep-learning",
+    "label": "Deep Learning",
+    "abbr": "DL",
+    "tasks": [
+      "cv-classification-loss",
+      "cv-data-augmentation",
+      "cv-multitask-loss",
+      "cv-pooling-aggregation",
+      "cv-sample-weighting",
+      "dl-activation-function",
+      "dl-lr-schedule",
+      "dl-normalization",
+      "dl-regularization",
+      "dl-residual-connection",
+      "dl-weight-initialization"
+    ]
+  },
+  "time-series-and-forecasting": {
+    "id": "time-series-and-forecasting",
+    "label": "Time Series & Forecasting",
+    "abbr": "TS",
+    "tasks": [
+      "quant-concept-drift",
+      "quant-graph-stock",
+      "quant-stock-prediction",
+      "stf-traffic-forecast",
+      "ts-anomaly-detection",
+      "ts-classification",
+      "ts-exogenous-forecast",
+      "ts-imputation",
+      "ts-long-term-forecast",
+      "ts-short-term-forecast"
+    ]
+  },
+  "structured-and-causal-reasoning": {
+    "id": "structured-and-causal-reasoning",
+    "label": "Structured & Causal Reasoning",
+    "abbr": "SCR",
+    "tasks": [
+      "causal-discovery-discrete",
+      "causal-observational-linear-gaussian",
+      "causal-observational-linear-non-gaussian",
+      "causal-observational-nonlinear",
+      "causal-treatment-effect",
+      "graph-generation",
+      "graph-graph-classification",
+      "graph-link-prediction",
+      "graph-node-classification",
+      "graph-signal-propagation"
+    ]
+  },
+  "trustworthy-learning": {
+    "id": "trustworthy-learning",
+    "label": "Trustworthy Learning",
+    "abbr": "TL",
+    "tasks": [
+      "security-adversarial-attack-black-box-score",
+      "security-adversarial-attack-sparse-l0",
+      "security-adversarial-attack-white-box-linf",
+      "security-adversarial-training",
+      "security-backdoor-defense",
+      "security-machine-unlearning",
+      "security-membership-inference-defense",
+      "security-poison-robust-learning"
+    ]
+  }
+}

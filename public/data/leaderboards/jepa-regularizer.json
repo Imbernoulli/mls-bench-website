@@ -1,0 +1,275 @@
+{
+  "task_id": "jepa-regularizer",
+  "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "val_acc_resnet18",
+    "val_acc_resnet34",
+    "val_acc_resnet50",
+    "elapsed_resnet18",
+    "elapsed_resnet34",
+    "elapsed_resnet50"
+  ],
+  "metric_columns": [
+    "val_acc_resnet18",
+    "val_acc_resnet34",
+    "val_acc_resnet50"
+  ],
+  "metric_directions": {
+    "val_acc_resnet18": "higher",
+    "val_acc_resnet34": "higher",
+    "val_acc_resnet50": "higher"
+  },
+  "metric_groups": [
+    {
+      "setting": "ResNet-18 Probe",
+      "metrics": [
+        "val_acc_resnet18"
+      ]
+    },
+    {
+      "setting": "ResNet-34 Probe",
+      "metrics": [
+        "val_acc_resnet34"
+      ]
+    },
+    {
+      "setting": "ResNet-50 Probe",
+      "metrics": [
+        "val_acc_resnet50"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "timestamp": "2026-04-28T13:46:52.743627+00:00",
+      "model": "baseline:Barlow Twins",
+      "is_final": true,
+      "seed": "42",
+      "val_acc_resnet18": 89.12,
+      "val_acc_resnet34": 90.28,
+      "val_acc_resnet50": 90.62,
+      "elapsed_resnet18": 13548.0,
+      "elapsed_resnet34": 19654.0,
+      "elapsed_resnet50": 12070.0
+    },
+    {
+      "timestamp": "2026-04-28T13:42:52.720348+00:00",
+      "model": "baseline:Naive",
+      "is_final": true,
+      "seed": "42",
+      "val_acc_resnet18": 14.56,
+      "val_acc_resnet34": 13.77,
+      "val_acc_resnet50": 17.28,
+      "elapsed_resnet18": 12390.0,
+      "elapsed_resnet34": 18579.0,
+      "elapsed_resnet50": 11857.0
+    },
+    {
+      "timestamp": "2026-04-28T13:47:51.853662+00:00",
+      "model": "baseline:SigReg",
+      "is_final": true,
+      "seed": "42",
+      "val_acc_resnet18": 90.54,
+      "val_acc_resnet34": 91.03,
+      "val_acc_resnet50": 91.18,
+      "elapsed_resnet18": 13548.0,
+      "elapsed_resnet34": 19632.0,
+      "elapsed_resnet50": 12121.0
+    },
+    {
+      "timestamp": "2026-04-28T13:43:51.824738+00:00",
+      "model": "baseline:VICReg",
+      "is_final": true,
+      "seed": "42",
+      "val_acc_resnet18": 89.85,
+      "val_acc_resnet34": 89.5,
+      "val_acc_resnet50": 91.38,
+      "elapsed_resnet18": 13616.0,
+      "elapsed_resnet34": 19723.0,
+      "elapsed_resnet50": 12109.0
+    },
+    {
+      "timestamp": "2026-05-04T20:00:00+00:00",
+      "model": "vanilla:claude-opus-4.6",
+      "is_final": true,
+      "seed": "42",
+      "val_acc_resnet18": 89.45,
+      "val_acc_resnet34": 89.51,
+      "val_acc_resnet50": 90.75,
+      "elapsed_resnet18": 5951.0,
+      "elapsed_resnet34": 6286.0,
+      "elapsed_resnet50": 12368.0
+    },
+    {
+      "timestamp": "2026-05-04T20:00:00+00:00",
+      "model": "vanilla:deepseek-reasoner",
+      "is_final": true,
+      "seed": "42",
+      "val_acc_resnet18": 89.67,
+      "val_acc_resnet34": 88.37,
+      "val_acc_resnet50": 90.78,
+      "elapsed_resnet18": 7.0,
+      "elapsed_resnet34": 7.0,
+      "elapsed_resnet50": 8.0
+    },
+    {
+      "timestamp": "2026-05-04T20:00:00+00:00",
+      "model": "vanilla:gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "val_acc_resnet18": 84.58,
+      "val_acc_resnet34": 83.68,
+      "val_acc_resnet50": 83.99,
+      "elapsed_resnet18": 5944.0,
+      "elapsed_resnet34": 6070.0,
+      "elapsed_resnet50": 12203.0
+    },
+    {
+      "timestamp": "2026-05-04T20:00:00+00:00",
+      "model": "vanilla:gpt-5.4",
+      "is_final": true,
+      "seed": "42",
+      "val_acc_resnet18": 18.64,
+      "val_acc_resnet34": 11.16,
+      "val_acc_resnet50": 20.24,
+      "elapsed_resnet18": 5919.0,
+      "elapsed_resnet34": 6326.0,
+      "elapsed_resnet50": 12459.0
+    },
+    {
+      "timestamp": "2026-05-04T19:00:00+00:00",
+      "model": "vanilla:qwen3.6-plus",
+      "is_final": true,
+      "seed": "42",
+      "val_acc_resnet18": 90.78,
+      "val_acc_resnet34": 90.97,
+      "val_acc_resnet50": 91.84,
+      "elapsed_resnet18": 5915.0,
+      "elapsed_resnet34": 6112.0,
+      "elapsed_resnet50": 12242.0
+    },
+    {
+      "timestamp": "2026-05-04T21:00:00+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": true,
+      "seed": "42",
+      "val_acc_resnet18": 89.45,
+      "val_acc_resnet34": 89.51,
+      "val_acc_resnet50": 90.75,
+      "elapsed_resnet18": 5951.0,
+      "elapsed_resnet34": 6286.0,
+      "elapsed_resnet50": 12368.0
+    },
+    {
+      "timestamp": "2026-05-04T21:00:00+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": true,
+      "seed": "42",
+      "val_acc_resnet18": 89.67,
+      "val_acc_resnet34": 88.37,
+      "val_acc_resnet50": 90.78,
+      "elapsed_resnet18": 5959.0,
+      "elapsed_resnet34": 6224.0,
+      "elapsed_resnet50": 12337.0
+    },
+    {
+      "timestamp": "2026-05-04T21:00:00+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "val_acc_resnet18": 86.67,
+      "val_acc_resnet34": 87.4,
+      "val_acc_resnet50": 86.24,
+      "elapsed_resnet18": 5927.0,
+      "elapsed_resnet34": 6114.0,
+      "elapsed_resnet50": 12241.0
+    },
+    {
+      "timestamp": "2026-05-04T21:00:00+00:00",
+      "model": "gpt-5.4",
+      "is_final": true,
+      "seed": "42",
+      "val_acc_resnet18": 18.64,
+      "val_acc_resnet34": 11.16,
+      "val_acc_resnet50": 20.24,
+      "elapsed_resnet18": 5919.0,
+      "elapsed_resnet34": 6326.0,
+      "elapsed_resnet50": 12459.0
+    },
+    {
+      "timestamp": "2026-05-04T20:00:00+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": true,
+      "seed": "42",
+      "val_acc_resnet18": 90.78,
+      "val_acc_resnet34": 90.97,
+      "val_acc_resnet50": 91.84,
+      "elapsed_resnet18": 5915.0,
+      "elapsed_resnet34": 6112.0,
+      "elapsed_resnet50": 12242.0
+    },
+    {
+      "timestamp": "2026-05-04T20:00:00+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": false,
+      "seed": "42",
+      "val_acc_resnet18": 89.45,
+      "val_acc_resnet34": 89.51,
+      "val_acc_resnet50": 90.75,
+      "elapsed_resnet18": 5951.0,
+      "elapsed_resnet34": 6286.0,
+      "elapsed_resnet50": 12368.0
+    },
+    {
+      "timestamp": "2026-05-04T20:00:00+00:00",
+      "model": "deepseek-reasoner",
+      "is_final": false,
+      "seed": "42",
+      "val_acc_resnet18": 89.67,
+      "val_acc_resnet34": 88.37,
+      "val_acc_resnet50": 90.78,
+      "elapsed_resnet18": 7.0,
+      "elapsed_resnet34": 7.0,
+      "elapsed_resnet50": 8.0
+    },
+    {
+      "timestamp": "2026-05-04T20:00:00+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "val_acc_resnet18": 84.58,
+      "val_acc_resnet34": 83.68,
+      "val_acc_resnet50": 83.99,
+      "elapsed_resnet18": 5944.0,
+      "elapsed_resnet34": 6070.0,
+      "elapsed_resnet50": 12203.0
+    },
+    {
+      "timestamp": "2026-05-04T20:00:00+00:00",
+      "model": "gpt-5.4",
+      "is_final": false,
+      "seed": "42",
+      "val_acc_resnet18": 18.64,
+      "val_acc_resnet34": 11.16,
+      "val_acc_resnet50": 20.24,
+      "elapsed_resnet18": 5919.0,
+      "elapsed_resnet34": 6326.0,
+      "elapsed_resnet50": 12459.0
+    },
+    {
+      "timestamp": "2026-05-04T19:00:00+00:00",
+      "model": "qwen3.6-plus",
+      "is_final": false,
+      "seed": "42",
+      "val_acc_resnet18": 90.78,
+      "val_acc_resnet34": 90.97,
+      "val_acc_resnet50": 91.84,
+      "elapsed_resnet18": 5915.0,
+      "elapsed_resnet34": 6112.0,
+      "elapsed_resnet50": 12242.0
+    }
+  ]
+}
