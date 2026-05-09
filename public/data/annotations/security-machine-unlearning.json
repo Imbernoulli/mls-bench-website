@@ -1,0 +1,76 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Confidence-Adaptive KL + Logit-L2 + BN Freeze",
+    "tagline": "Retain CE + per-sample memorization-weighted KL(uniform || model) on forget + small ||logits||² penalty; BN running stats frozen.",
+    "kind": "formula",
+    "formula": "$$ w_i = 1 + 2\\,\\mathrm{sg}(p_\\theta(y_f | x_i^f)),\\;\\; \\mathcal{L}_{\\text{KL}} = \\overline{w_i \\cdot \\mathrm{KL}\\big(\\tfrac{1}{C}\\mathbf{1}\\,\\|\\,p_\\theta(\\cdot|x_i^f)\\big)} $$\n$$ \\mathcal{L} = \\mathrm{CE}(p_\\theta, y^r) + \\lambda_{KL}\\,\\mathcal{L}_{\\text{KL}} + \\lambda_{L^2}\\,\\overline{\\|z(x^f)\\|_2^2} $$\n$$ \\text{During unlearning: BN.eval()  // freeze running mean/var, keep affine learnable} $$",
+    "key_hyperparams": [
+      {"name": "kl_weight", "value": "0.2", "role": "weight on KL(uniform || model) over forget batch", "learnable": false},
+      {"name": "logit_reg_weight", "value": "0.03", "role": "weight on mean(forget_logits²)", "learnable": false},
+      {"name": "memo_weight_min", "value": "1.0", "role": "lower clamp of adaptive weight", "learnable": false},
+      {"name": "memo_weight_slope", "value": "2.0", "role": "scale on detached p(y_f|x) in adaptive weight", "learnable": false},
+      {"name": "grad_clip", "value": "5.0", "role": "global grad-norm clip", "learnable": false},
+      {"name": "bn_running_stats", "value": "frozen via .eval() on BN modules", "role": "prevents forget-batch stats from corrupting BN", "learnable": false}
+    ],
+    "init_recovers": "retain_finetune baseline at kl_weight = logit_reg_weight = 0",
+    "diff_from_baseline": "Combines retain-finetuning with two forget terms — a KL(uniform||model) re-weighted per sample by detached confidence on the forget class, and a small mean-squared-logit penalty — and switches all BatchNorm modules to eval() so running statistics are not polluted by forget-set batches.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Importance-Masked Negative-Grad + Entropy",
+    "tagline": "Three-way gradient combination: retain CE, sigmoid-importance-masked −forget CE, and entropy-max on forget logits, with EMA-adaptive forget weight.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. retain forward → g_r = grad(CE(retain), $\\theta$)\n// 2. forget forward → g_f = grad(CE(forget), $\\theta$)\n// 3. entropy_max → g_h = grad(-H(p_forget), $\\theta$)\n// 4. importance score per param: $i_p = \\|g_r^p\\| / \\max_p\\|g_r^p\\|$\n// 5. mask_p = $1 - \\sigma(10 \\cdot i_p)$        // small for high-importance params\n// 6. EMA(retain_loss) ← 0.1*loss + 0.9*EMA;\n//    if EMA > 2 → $\\alpha$ = 0.5*0.3; elif EMA > 1 → $\\alpha$ = 0.8*0.3; else $\\alpha$ = 0.3\n// 7. param.grad ← g_r - $\\alpha$ * (mask $\\odot$ g_f) + 0.1 * g_h\n// 8. clip grad-norm to 5.0; optimizer.step()",
+    "key_hyperparams": [
+      {"name": "forget_weight (base)", "value": "0.3", "role": "α on the importance-masked negative-CE forget gradient", "learnable": false},
+      {"name": "entropy_weight", "value": "0.1", "role": "weight on entropy-maximisation gradient over forget batch", "learnable": false},
+      {"name": "importance_scale", "value": "10.0", "role": "sigmoid sharpness on per-parameter importance mask", "learnable": false},
+      {"name": "ema_alpha", "value": "0.1", "role": "EMA coefficient on retain loss (used to throttle α)", "learnable": false},
+      {"name": "ema_thresholds", "value": "[1.0, 2.0]", "role": "retain-loss bands that scale α down to 0.8x / 0.5x", "learnable": false},
+      {"name": "grad_clip", "value": "5.0", "role": "per-parameter L2 clip on combined gradient", "learnable": false}
+    ],
+    "diff_from_baseline": "Generalises the negative_gradient baseline: explicitly forms three separate gradients (retain CE, forget CE, forget entropy), masks the forget gradient by a per-parameter sigmoid of normalized retain-gradient norms, throttles the forget weight by an EMA of retain loss, and adds a fixed entropy-maximisation term.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "MSE Distillation + Forget-Class Logit Zeroing",
+    "tagline": "Match the original model's logits via MSE on both retain and forget batches, but with the forget-class logit replaced by 0 in the targets.",
+    "kind": "formula",
+    "formula": "$$ z^*(x) = z_{\\bar\\theta}(x), \\quad z^*(x)_{\\,c_f} = 0\\quad(\\text{forget class}) $$\n$$ \\mathcal{L} = 5\\cdot\\mathrm{MSE}\\big(z_\\theta(x^r),\\, z^*(x^r)\\big) + 1\\cdot\\mathrm{MSE}\\big(z_\\theta(x^f),\\, z^*(x^f)\\big) $$",
+    "key_hyperparams": [
+      {"name": "retain_weight", "value": "5.0", "role": "MSE-on-retain coefficient (heavy)", "learnable": false},
+      {"name": "forget_weight", "value": "1.0", "role": "MSE-on-forget coefficient", "learnable": false},
+      {"name": "target_function", "value": "ref_logits with logit[forget_class] := 0", "role": "modified teacher target", "learnable": false},
+      {"name": "ref_model", "value": "frozen copy of pre-unlearning model", "role": "captured at first call", "learnable": false},
+      {"name": "loss", "value": "MSE on logits (no temperature)", "role": "no softmax distillation", "learnable": false}
+    ],
+    "init_recovers": "exact teacher mimicry at retain_weight ≫ forget_weight if forget_class logit also kept",
+    "diff_from_baseline": "Replaces SCRUB / bad_teacher KD with a simpler logit-MSE distillation against a frozen original model whose forget-class logit is overwritten with 0; weights heavily favour retention (5x vs 1x) and the forget batch is also distilled (with the zeroed target).",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Masked-KD Forget + Fisher Damp + PCGrad",
+    "tagline": "Retain CE+KD, forget KD against teacher target with the forget class masked out (and class-prob suppressed); forget grad damped by Fisher-EMA and projected away from retain.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. retain: $\\mathcal{L}_r = \\mathrm{CE}(z_\\theta, y) + \\lambda_{KD} \\cdot T^2 \\mathrm{KL}(p_\\theta/T \\| p_{\\bar\\theta}/T)$\n// 2. forget target: mix = $\\alpha \\cdot \\mathrm{teacher\\_softmax}_{\\setminus c_f} + (1-\\alpha) \\cdot \\mathrm{Uniform}_{\\setminus c_f}$\n// 3. forget loss: $\\mathcal{L}_f = T^2 \\mathrm{KL}(\\mathrm{softmax}(z_\\theta \\text{ with } z_{c_f}{=}{-}\\infty)/T \\| \\text{mix}) + \\overline{p_\\theta(c_f|x^f)}$\n// 4. compute g_r, g_f via autograd\n// 5. update Fisher-EMA: $I \\leftarrow 0.9 I + 0.1 g_r^2$;  damp_p = $1/(1 + 40\\sqrt{I_p})$\n// 6. g_f $\\leftarrow$ damp $\\odot$ g_f       // protect retain-important weights\n// 7. if $\\langle g_r, g_f \\rangle < 0$:  g_f $\\leftarrow$ g_f - $\\frac{\\langle g_r, g_f\\rangle}{\\|g_r\\|^2} g_r$  // PCGrad-style projection\n// 8. ramp = min(1, (epoch+1)/4); scale = $\\lambda_f \\cdot$ ramp $\\cdot$ min(1, $\\|g_r\\|/\\|g_f\\|$)\n// 9. param.grad $\\leftarrow$ g_r + scale $\\cdot$ g_f;  optimizer.step()",
+    "key_hyperparams": [
+      {"name": "kd_temperature", "value": "2.0", "role": "T on retain KD", "learnable": false},
+      {"name": "retain_kd_weight", "value": "1.0", "role": "λ on retain KD", "learnable": false},
+      {"name": "forget_temperature", "value": "2.0", "role": "T on forget KD", "learnable": false},
+      {"name": "teacher_mix", "value": "0.25", "role": "α blending teacher non-target softmax with uniform", "learnable": false},
+      {"name": "forget_weight", "value": "1.0", "role": "base λ_f for combined forget step", "learnable": false},
+      {"name": "true_suppress_weight", "value": "1.0", "role": "linear penalty on mean(p(c_f|x^f))", "learnable": false},
+      {"name": "forget_ramp_epochs", "value": "4", "role": "linear ramp of forget scale", "learnable": false},
+      {"name": "importance_momentum", "value": "0.9", "role": "Fisher EMA decay on g_r²", "learnable": false},
+      {"name": "importance_scale", "value": "40.0", "role": "sigmoid-style damping strength on important params", "learnable": false},
+      {"name": "norm_balance", "value": "min(1, ||g_r||/||g_f||)", "role": "auto rescaling of forget gradient", "learnable": false}
+    ],
+    "init_recovers": "retain_finetune (CE + KD) when forget_weight=0",
+    "diff_from_baseline": "Goes well beyond SCRUB: retain side is CE+KD@T=2; forget side is KD against a (1-α) uniform + α teacher target with the forget class masked, plus a linear suppressor on p(c_f|x^f). The forget gradient is damped per-parameter by an EMA Fisher-style estimate of retain importance, projected to be non-conflicting with the retain gradient (PCGrad), normalised to ||g_r||/||g_f||, and linearly ramped over the first 4 epochs.",
+    "confidence": "high"
+  }
+]

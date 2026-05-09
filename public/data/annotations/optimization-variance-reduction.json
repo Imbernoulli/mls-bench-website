@@ -1,0 +1,85 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "STORM with SVRG epoch anchor",
+    "tagline": "STORM-style recursive estimator initialised at every epoch by the full gradient anchor, with adaptive step size and gradient clipping.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. At epoch start: $\\mu \\leftarrow$ compute_full_gradient(); reset $d_0 \\leftarrow \\mu$; take a step $\\eta\\,\\mu$\n// 2. For each minibatch i with current $x_t$, previous $x_{t-1}$:\n// 3.   $a_t = \\min\\!\\left(1 - 1/\\sqrt{t+1},\\, 0.999\\right)$\n// 4.   $g_t = \\nabla f_i(x_t)$,  $g_{t-1}' = \\nabla f_i(x_{t-1})$\n// 5.   $d_t = (1-a_t)\\,g_t + a_t\\,(d_{t-1} + g_t - g_{t-1}')$\n// 6.   if $\\|d_t\\| > 3\\,\\|g_t\\|$: rescale $d_t$ to that ratio\n// 7.   $\\eta_t = \\min(\\mathrm{lr},\\, 0.01\\,\\|x_t\\|/\\|d_t\\|)$\n// 8.   $x_{t+1} = x_t - \\eta_t\\,d_t$;  $x_{t-1} \\leftarrow x_t$",
+    "key_hyperparams": [
+      {"name": "a_max", "value": "0.999", "role": "STORM momentum cap", "learnable": false},
+      {"name": "adaptive_c", "value": "0.01", "role": "step-size trust ratio", "learnable": false},
+      {"name": "clip_ratio", "value": "3.0", "role": "‖d‖/‖g‖ ceiling", "learnable": false},
+      {"name": "epoch_anchor", "value": "true", "role": "reset d to full gradient each epoch", "learnable": false}
+    ],
+    "init_recovers": "STORM at a_max→1; SVRG-anchor when no recursive update happens",
+    "diff_from_baseline": "Hybrid of the SVRG and STORM baselines: keeps STORM's recursive d update inside the epoch, but at every epoch boundary resets d to a freshly-computed full gradient (SVRG anchor); also adds a clip+adaptive-step layer on top.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "SVRG with loss-type momentum + clipping",
+    "tagline": "Standard SVRG control-variate estimator, but momentum=0.9 only for cross-entropy (off for MSE) plus aggressive grad clipping for regression.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. At epoch start: snapshot $\\tilde x \\leftarrow x$;  $\\mu \\leftarrow$ compute_full_gradient($\\tilde x$)\n// 2. For each minibatch i:\n// 3.   $g_t = \\nabla f_i(x)$;  evaluate $g_{\\text{snap}} = \\nabla f_i(\\tilde x)$ via param swap\n// 4.   $v_t = g_t - g_{\\text{snap}} + \\mu$\n// 5.   if loss = mse: clip $v_t$ to $\\|v_t\\| \\le 5$\n// 6.   if loss = cross_entropy: $m \\leftarrow 0.9 m + 0.1 v_t$;  update = $m$;  every $n/B$ steps refresh trust scale = clip$(0.01\\,\\|x\\|/\\|m\\|, 0.1, 5)$\n// 7.   else: update = $v_t$, scale = 1\n// 8.   $x \\leftarrow x - \\mathrm{lr}\\cdot\\text{scale}\\cdot$update",
+    "key_hyperparams": [
+      {"name": "momentum (CE)", "value": "0.9", "role": "EMA on v_t for classification", "learnable": false},
+      {"name": "momentum (MSE)", "value": "0.0", "role": "no momentum for regression", "learnable": false},
+      {"name": "max_norm (MSE)", "value": "5.0", "role": "L2 grad clip for regression", "learnable": false},
+      {"name": "trust_c", "value": "0.01", "role": "‖x‖/‖m‖ trust ratio (CE only)", "learnable": false},
+      {"name": "step_scale_clip", "value": "[0.1, 5]", "role": "trust-scale bounds", "learnable": false},
+      {"name": "scale_refresh_period", "value": "n//B steps", "role": "trust-scale recomputation cadence", "learnable": false}
+    ],
+    "init_recovers": "SVRG at momentum=0",
+    "diff_from_baseline": "Adds a loss-type-conditional Polyak momentum and a periodically-refreshed LARS-style trust scale on top of SVRG (matches the SVRG baseline exactly when loss=mse and momentum=0); MSE branch additionally hard-clips v.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "SVRG estimator + Adam/LAMB step",
+    "tagline": "Replaces SVRG's plain SGD step with an Adam-style m,v update on the SVRG-corrected gradient and a LAMB trust-ratio cap on the global step.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. At epoch start: snapshot $\\tilde x \\leftarrow x$, $\\mu \\leftarrow$ compute_full_gradient\n// 2. For each minibatch i:\n// 3.   $g_t = \\nabla f_i(x)$,  $g_{\\text{snap}} = \\nabla f_i(\\tilde x)$\n// 4.   $v_t = g_t - g_{\\text{snap}} + \\mu$  (SVRG control variate)\n// 5.   $m_i \\leftarrow \\beta_1 m_i + (1-\\beta_1)v_t$,  $v_i \\leftarrow \\beta_2 v_i + (1-\\beta_2) v_t^2$\n// 6.   bias-correct $\\hat m, \\hat v$;  $u_i = \\hat m_i/(\\sqrt{\\hat v_i}+\\varepsilon)$\n// 7.   global LAMB trust: $\\eta_t = \\min(\\mathrm{lr},\\, \\|x\\| / (\\|u\\|+\\varepsilon))$\n// 8.   $x \\leftarrow x - \\eta_t\\,u$",
+    "key_hyperparams": [
+      {"name": "beta1", "value": "0.9", "role": "Adam first moment", "learnable": false},
+      {"name": "beta2", "value": "0.999", "role": "Adam second moment", "learnable": false},
+      {"name": "eps", "value": "1e-8", "role": "denominator floor", "learnable": false},
+      {"name": "lamb_trust", "value": "min(lr, ‖x‖/‖u‖)", "role": "LAMB-style global step cap", "learnable": false}
+    ],
+    "init_recovers": "SVRG when β₁=β₂=0",
+    "diff_from_baseline": "Keeps the SVRG estimator but feeds it through an Adam moment update (rather than vanilla SGD) and tops the global step with a LAMB-style trust ratio — neither component appears in svrg/storm/storm_plus baselines.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Dual control-variate (SARAH + SVRG anchor)",
+    "tagline": "Maintains a SARAH/STORM recursive estimator and an SVRG anchor estimator simultaneously, blends them by a confidence score from their disagreement.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. At epoch start: anchor $x^\\sim \\leftarrow x$,  $\\mu \\leftarrow$ compute_full_gradient($x^\\sim$);  $d \\leftarrow \\mu$ if uninitialised\n// 2. $\\beta = 1 - 1/\\sqrt{n/B + 1}$\n// 3. For each minibatch i with $x_t, x_{t-1}, x^\\sim$:\n// 4.   $g_t, g_{t-1}', g_a$ = grads at three points on the same batch\n// 5.   $d_{\\text{rec}} = \\beta\\,d + (1-\\beta)\\,g_t + \\beta(g_t - g_{t-1}')$\n// 6.   $d_{\\text{anc}} = g_t - g_a + \\mu$\n// 7.   $\\mathrm{mix} = \\mathrm{clip}\\!\\left(\\|d_{\\text{anc}}\\| / (\\|d_{\\text{anc}}\\| + \\|d_{\\text{rec}} - d_{\\text{anc}}\\|),\\, 0.15, 0.85\\right)$\n// 8.   $d_{\\mathrm{blend}} = \\mathrm{mix}\\,d_{\\text{rec}} + (1-\\mathrm{mix})\\,d_{\\text{anc}}$\n// 9.   if loss=mse: $\\eta_t = \\min(\\mathrm{lr}, 0.05/\\|d\\|)$  else $\\eta_t = $ lr (with a similar fallback)\n// 10. $x \\leftarrow x - \\eta_t\\,d_{\\mathrm{blend}}$;  $x_{t-1} \\leftarrow x_t$",
+    "key_hyperparams": [
+      {"name": "beta", "value": "1 - 1/√(steps_per_epoch + 1)", "role": "STORM/SARAH momentum", "learnable": false},
+      {"name": "mix_clip", "value": "[0.15, 0.85]", "role": "blend-ratio bounds", "learnable": false},
+      {"name": "mse_step_cap", "value": "0.05/‖d‖", "role": "MSE-specific step ceiling", "learnable": false},
+      {"name": "anchor_period", "value": "1 epoch", "role": "full-gradient anchor refresh", "learnable": false}
+    ],
+    "init_recovers": "SVRG when mix=0; SARAH/STORM when mix=1",
+    "diff_from_baseline": "Combines the SVRG and STORM baselines by computing both estimators every step and convex-blending them by an agreement-based confidence — a dual control-variate construction that none of svrg/storm/storm_plus baselines do.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "STORM with cosine-quality momentum",
+    "tagline": "Single full-gradient init, then STORM updates whose momentum is gated by the cosine alignment between the previous estimator and the new stochastic gradient.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. First epoch only: $d_0 \\leftarrow$ compute_full_gradient(); take one step\n// 2. For each minibatch i with $x_t, x_{t-1}$:\n// 3.   $g_t, g_{t-1}'$ = grads at $x_t$ and $x_{t-1}$ on the same batch\n// 4.   $a_{\\text{base}} = \\min(1 - 1/\\sqrt{t+1},\\, 0.999)$  (STORM momentum)\n// 5.   $q = |\\cos(d_{t-1}, g_t)|$  (alignment quality)\n// 6.   $a_t = a_{\\text{base}} \\cdot (0.8 + 0.2\\,q)$  (momentum floor 80 %)\n// 7.   $d_t = (1-a_t)\\,g_t + a_t\\,(d_{t-1} + g_t - g_{t-1}')$\n// 8.   if $\\|d_t\\| > 3\\,\\|g_t\\|$: rescale $d_t$\n// 9.   $\\eta_t = \\min(\\mathrm{lr},\\, 0.01\\,\\|x\\|/\\|d_t\\|)$;  $x \\leftarrow x - \\eta_t d_t$",
+    "key_hyperparams": [
+      {"name": "a_max", "value": "0.999", "role": "STORM momentum cap", "learnable": false},
+      {"name": "momentum_floor", "value": "0.8", "role": "min fraction of base momentum", "learnable": false},
+      {"name": "clip_ratio", "value": "3.0", "role": "‖d‖/‖g‖ ceiling", "learnable": false},
+      {"name": "adaptive_c", "value": "0.01", "role": "step trust ratio", "learnable": false},
+      {"name": "init_full_grad", "value": "epoch 1 only", "role": "single full-gradient warm-up", "learnable": false}
+    ],
+    "init_recovers": "STORM at q≡1",
+    "diff_from_baseline": "Builds on STORM by multiplicatively modulating the momentum coefficient by the absolute cosine alignment between $d_{t-1}$ and $g_t$ (floored at 80 %), and computes the full gradient only once at training start (vs SVRG which does it every epoch).",
+    "confidence": "high"
+  }
+]

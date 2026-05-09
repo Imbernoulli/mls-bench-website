@@ -1,0 +1,76 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Mish-GOE: Mish + Gaussian origin boost",
+    "tagline": "Standard Mish gating plus a Gaussian bump centred at zero that boosts gradient where post-BatchNorm features concentrate.",
+    "kind": "formula",
+    "formula": "$$f(x) = x \\bigl(\\tanh(\\mathrm{softplus}(x)) + c\\,e^{-\\beta x^2}\\bigr), \\quad c = 0.4,\\ \\beta = 2$$",
+    "key_hyperparams": [
+      {"name": "c", "value": "0.4", "role": "Gaussian bump amplitude", "learnable": false},
+      {"name": "beta", "value": "2.0", "role": "Gaussian bump width", "learnable": false}
+    ],
+    "init_recovers": "Mish at c=0",
+    "diff_from_baseline": "Builds on the Mish baseline by adding a localized x·exp(-βx²) term that vanishes for large |x| but lifts the slope near zero; not derivable from GELU or SiLU and contains no learnable parameters.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Smooth Leaky ReLU mixture",
+    "tagline": "Learnable convex combination of linear and Swish-with-sharpness controls, parameterised through softplus and sigmoid for stability.",
+    "kind": "formula",
+    "formula": "$$f(x) = x\\bigl(\\beta + (1-\\beta)\\,\\sigma(\\alpha x)\\bigr), \\quad \\alpha = \\mathrm{softplus}(\\theta),\\ \\beta = \\sigma(\\phi)$$",
+    "key_hyperparams": [
+      {"name": "theta", "value": "0.0", "role": "raw param for α (init α≈0.69)", "learnable": true},
+      {"name": "phi", "value": "-inf", "role": "raw param for β (init β=0, pure Swish)", "learnable": true}
+    ],
+    "init_recovers": "Swish at β=0",
+    "diff_from_baseline": "Generalizes the SiLU baseline by interpolating with the identity function via a learnable β, and lets each module learn its own swish sharpness α; unlike GELU/Mish/SiLU baselines it has per-module Parameters.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Omni-Swish: contextual Swish",
+    "tagline": "Self-gated Swish whose gate is a learnable affine combination of pointwise input, 3×3 max/avg neighbourhood and per-channel global mean.",
+    "kind": "formula",
+    "formula": "$$g(x) = \\alpha x + \\beta_{\\max}\\mathrm{MaxPool}_3(x) + \\beta_{\\mathrm{avg}}\\mathrm{AvgPool}_3(x) + \\gamma\\,\\overline{x}_c + b$$\n$$f(x) = x \\cdot \\sigma(g(x))$$",
+    "key_hyperparams": [
+      {"name": "alpha", "value": "1.0", "role": "pointwise gate coefficient", "learnable": true},
+      {"name": "beta_max", "value": "0.0", "role": "3x3 max-pool gate weight", "learnable": true},
+      {"name": "beta_avg", "value": "0.0", "role": "3x3 avg-pool gate weight", "learnable": true},
+      {"name": "gamma", "value": "0.0", "role": "per-channel mean (SE-style) weight", "learnable": true},
+      {"name": "bias", "value": "0.0", "role": "gate bias", "learnable": true}
+    ],
+    "init_recovers": "SiLU at init",
+    "diff_from_baseline": "Unlike pointwise SiLU/GELU/Mish baselines, the gate sees a 3×3 spatial neighbourhood plus a per-channel SE-like statistic, making the activation explicitly non-pointwise; degenerates to SiLU at init.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "VCDG: SiLU + Gaussian bump + neg rescue",
+    "tagline": "SiLU plus a learnable x·exp(-x²) bump near zero and a soft half-wave term that preserves gradient on negative inputs.",
+    "kind": "formula",
+    "formula": "$$f(x) = x\\,\\sigma(x) + a\\,x\\,e^{-x^2} + b\\cdot\\frac{\\sqrt{x^2+\\varepsilon}-x}{2}$$",
+    "key_hyperparams": [
+      {"name": "bump_scale (a)", "value": "0.12", "role": "Gaussian bump amplitude", "learnable": true},
+      {"name": "neg_scale (b)", "value": "0.08", "role": "soft negative half-wave amplitude", "learnable": true},
+      {"name": "eps", "value": "1e-4", "role": "smoothing for sqrt", "learnable": false}
+    ],
+    "init_recovers": "SiLU at a=b=0",
+    "diff_from_baseline": "Adds a centred bump and a smooth |x|-style negative term to the SiLU baseline so the activation has nontrivial behaviour both near zero (sharper) and on negatives (gradient-preserving), with two learnable scales rather than the parameter-free SiLU/GELU/Mish references.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Adaptive Mish with shift and slope",
+    "tagline": "Learnable per-module shift α inside softplus and a sharpness β outside, retaining Mish's tanh∘softplus structure.",
+    "kind": "formula",
+    "formula": "$$f(x) = x\\,\\tanh\\!\\bigl(\\beta\\,\\mathrm{softplus}(x+\\alpha)\\bigr)$$",
+    "key_hyperparams": [
+      {"name": "alpha", "value": "0.0", "role": "horizontal shift inside softplus", "learnable": true},
+      {"name": "beta", "value": "1.15", "role": "tanh-input slope", "learnable": true}
+    ],
+    "init_recovers": "Mish near β=1, α=0",
+    "diff_from_baseline": "Adds two learnable scalars to the Mish baseline; β>1 init sharpens the soft region, α gives a horizontal shift — a minimal extension that GELU/SiLU/Mish baselines do not parameterize.",
+    "confidence": "high"
+  }
+]

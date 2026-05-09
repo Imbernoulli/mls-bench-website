@@ -1,0 +1,85 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Gated residual + embedding highway",
+    "tagline": "Per-sublayer learnable gates plus a per-layer x0 highway and progressive residual warmup over the first T*(i+1) training steps.",
+    "kind": "formula",
+    "formula": "$$x_i = x_{i-1} + \\alpha_i\\,\\big(B_i(x_{i-1}) - x_{i-1}\\big) + \\lambda_i\\,x_0,\\quad B_i(x) = x + g_i^{a}\\,\\mathrm{Attn}(\\mathrm{LN}_1 x) + g_i^{m}\\,\\mathrm{MLP}(\\mathrm{LN}_2 x),\\quad \\alpha_i = \\min\\!\\big(\\mathrm{step}/(T(i+1)),1\\big)$$",
+    "key_hyperparams": [
+      {"name": "attn_gate", "value": "1.0", "role": "per-block scalar on attention residual", "learnable": true},
+      {"name": "mlp_gate", "value": "1.0", "role": "per-block scalar on MLP residual", "learnable": true},
+      {"name": "x0_lambdas", "value": "0 (init)", "role": "per-layer embedding-highway weight", "learnable": true},
+      {"name": "warmup_T", "value": "300", "role": "per-layer warmup step count", "learnable": false},
+      {"name": "extra_param_lr", "value": "0.5 * base_lr", "role": "lr for gates and x0 lambdas", "learnable": false},
+      {"name": "extra_param_wd", "value": "0", "role": "no weight decay on gates / x0 lambdas", "learnable": false}
+    ],
+    "init_recovers": "vanilla Pre-LN at gates=1, lambdas=0, warmup complete",
+    "diff_from_baseline": "Combines learned_scaling's x0 highway with prores's progressive warmup AND adds per-sublayer scalar gates inside each block; gates and lambdas form a separate optimizer group with lr=base_lr/2 and no weight decay.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Input-dependent sigmoid sublayer gates",
+    "tagline": "Each block computes per-token sigmoid gate scalars from its pre-norm activations and uses them to scale the attention and MLP residual contributions.",
+    "kind": "formula",
+    "formula": "$$x \\leftarrow x + \\sigma\\!\\big(W_2^{a}\\,\\mathrm{GELU}(W_1^{a}\\,\\mathrm{LN}_1 x) + b\\big)\\odot \\mathrm{Attn}(\\mathrm{LN}_1 x),\\quad x \\leftarrow x + \\sigma\\!\\big(W_2^{m}\\,\\mathrm{GELU}(W_1^{m}\\,\\mathrm{LN}_2 x) + b\\big)\\odot \\mathrm{MLP}(\\mathrm{LN}_2 x),\\quad b = 3.0$$",
+    "key_hyperparams": [
+      {"name": "gate_dim", "value": "max(n_embd//16, 64)", "role": "hidden dim of gate MLP", "learnable": false},
+      {"name": "gate_init_bias", "value": "3.0", "role": "init sigmoid output ≈ 0.95", "learnable": true},
+      {"name": "gate_arch", "value": "Linear(d, gate_dim) - GELU - Linear(gate_dim, 1) - sigmoid", "role": "per-sublayer gate network", "learnable": true},
+      {"name": "outer_loop", "value": "unchanged", "role": "GPT.forward residual stream is vanilla", "learnable": false}
+    ],
+    "init_recovers": "vanilla Pre-LN when gates saturate at 1.0 (bias=3.0 init makes them ~0.95)",
+    "diff_from_baseline": "Replaces vanilla per-sublayer scalar 1.0 with a per-token sigmoid gate produced by a small MLP over the pre-norm input; no x0 highway and no warmup, all changes confined to the Block.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Channel-wise dense residual",
+    "tagline": "Every block consumes a learned channel-wise mix of all earlier hidden states and writes a learned channel-wise mix of all earlier states back into the residual stream.",
+    "kind": "formula",
+    "formula": "$$x_i^{\\mathrm{in}} = h_{i-1} + \\sum_{j=0}^{i} h_j \\odot W^{\\mathrm{in}}_{i,j},\\;\\; h_i = h_{i-1} + (B_i(x_i^{\\mathrm{in}}) - x_i^{\\mathrm{in}}) + \\sum_{j=0}^{i} h_j \\odot W^{\\mathrm{out}}_{i,j}$$",
+    "key_hyperparams": [
+      {"name": "dense_in_w", "value": "0 (init), shape (n_layer, n_layer, n_embd)", "role": "per-channel mix of earlier states into block input", "learnable": true},
+      {"name": "dense_out_w", "value": "0 (init), shape (n_layer, n_layer, n_embd)", "role": "per-channel mix of earlier states added back to residual", "learnable": true},
+      {"name": "block_internals", "value": "unchanged", "role": "Block.forward stays vanilla Pre-LN", "learnable": false},
+      {"name": "extra_param_wd", "value": "0", "role": "no weight decay on dense weights", "learnable": false}
+    ],
+    "init_recovers": "vanilla Pre-LN at dense_in_w = dense_out_w = 0",
+    "diff_from_baseline": "Generalises learned_scaling/full_attnres into a fully-dense per-channel routing: each layer i has two learned (i+1)-by-n_embd weight tensors that mix all stored hidden states h_0..h_i into both the block input and the post-block update.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "DARC: depth-adaptive routing softmax",
+    "tagline": "At each layer a softmax over {carry x, local delta, anchor x0} chooses how to compose the residual; gate logits combine a tiny shared MLP over RMS stats with per-depth bias.",
+    "kind": "formula",
+    "formula": "$$x_i = m_0\\,x_{i-1} + m_1\\,(B_i(x_{i-1})-x_{i-1}) + m_2\\,x_0,\\quad m = \\mathrm{softmax}\\!\\big(W\\,\\mathrm{mean}([\\|x\\|_{\\mathrm{rms}},\\|\\delta\\|_{\\mathrm{rms}}]) + b + d_i\\big)$$",
+    "key_hyperparams": [
+      {"name": "darc_controller", "value": "Linear(2, 3, bias)", "role": "shared MLP from (x_rms, delta_rms) to 3-way logits", "learnable": true},
+      {"name": "darc_depth_bias", "value": "0 (init), shape (n_layer, 3)", "role": "per-layer bias on routing logits", "learnable": true},
+      {"name": "input_features", "value": "(x.rms, delta.rms) per batch", "role": "controller features (token-independent)", "learnable": false},
+      {"name": "extra_param_wd", "value": "0", "role": "no weight decay on DARC params", "learnable": false}
+    ],
+    "init_recovers": "near-uniform 1/3 mixing at init; not exactly vanilla",
+    "diff_from_baseline": "Replaces the simple x + delta residual with a content-aware 3-way softmax routing over carry, delta, and the embedding x0; the gate is driven by a 2D RMS summary of x and delta plus a per-depth bias.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Adaptive dual-gate + x0 lambda",
+    "tagline": "Per-layer learned scalars on attention and MLP deltas plus an x0 highway, all warmed up linearly over the first 2000 training steps.",
+    "kind": "formula",
+    "formula": "$$x \\leftarrow x + (\\phi\\,\\alpha_i)\\,\\mathrm{Attn}(\\mathrm{LN}_1 x),\\quad x \\leftarrow x + (\\phi\\,\\beta_i)\\,\\mathrm{MLP}(\\mathrm{LN}_2 x) + (\\phi\\,\\lambda_i)\\,x_0,\\quad \\phi = \\min(\\mathrm{step}/T, 1)$$",
+    "key_hyperparams": [
+      {"name": "attn_alphas", "value": "0.9 (init), n_layer-vector", "role": "per-layer attn delta scaler", "learnable": true},
+      {"name": "mlp_betas", "value": "0.9 (init), n_layer-vector", "role": "per-layer MLP delta scaler", "learnable": true},
+      {"name": "x0_lambdas", "value": "0 (init), n_layer-vector", "role": "per-layer x0 injection weight", "learnable": true},
+      {"name": "adgres_warmup_T", "value": "2000", "role": "linear warmup steps for $\\phi$", "learnable": false},
+      {"name": "extra_param_wd", "value": "0", "role": "no weight decay on alphas/betas/lambdas", "learnable": false}
+    ],
+    "init_recovers": "learned_scaling-like (lambda=0, alpha,beta=0.9) once warmup completes",
+    "diff_from_baseline": "Combines learned_scaling's x0 highway with prores's warmup AND adds separate per-layer multipliers on the attention and MLP residuals; warmup is a single global linear schedule over 2000 steps, not per-layer.",
+    "confidence": "high"
+  }
+]

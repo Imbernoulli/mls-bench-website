@@ -1,0 +1,85 @@
+[
+  {
+    "model": "claude-opus-4-6",
+    "name": "Focal Activity-Graded CL (FAGCL)",
+    "tagline": "Focal-weighted contrastive with activity-aware reweighting and pairwise activity-margin ranking, fused at inference with weighted pocket/protein scores.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\sum_{\\text{pathways}}\\Big[\\underbrace{\\sum_i \\frac{1}{\\sqrt{L_i}} (1-p_{i,k}^{\\text{tgt}})^{\\gamma}\\,w^{\\text{act}}_{i,k}\\, \\mathrm{NLL}(p_{i,k})}_{\\text{focal+activity ligand-to-pocket}} + \\underbrace{\\sum_{i,k:a_{i,k}\\geq 5}\\!\\!-\\frac{\\log p^{\\text{p2l}}_{i,k}}{\\sqrt{L_i}}}_{\\text{filtered pocket-to-ligand}} + \\lambda_r \\sum_{j>k}\\,[\\,\\beta(a_j-a_k)\\!-\\!(s_j-s_k)\\,]_+ \\Big]$$",
+    "key_hyperparams": [
+      {"name": "γ", "value": "1.5", "role": "focal weighting exponent on hard positives", "learnable": false},
+      {"name": "act_weight_scale", "value": "0.10", "role": "linear activity-weight slope around pIC50=7", "learnable": false},
+      {"name": "act_weight_clip", "value": "[0.3, 2.0]", "role": "activity-weight bounds", "learnable": false},
+      {"name": "rank_margin_scale (β)", "value": "0.05", "role": "pairwise margin per unit activity gap", "learnable": false},
+      {"name": "λ_r", "value": "0.3", "role": "weight on pairwise ranking term", "learnable": false},
+      {"name": "score_poc_weight", "value": "0.55", "role": "pocket vs protein fusion weight at inference", "learnable": false},
+      {"name": "logit_scale", "value": "log(13)", "role": "temperature initialization", "learnable": true}
+    ],
+    "init_recovers": "Vanilla CLIP when γ=0, scales=0, λ_r=0",
+    "diff_from_baseline": "Replaces HCC's uniform NLL + log-rank weighting with focal-weighted (1-p)^γ NLL plus a multiplicative activity-linear weight, swaps the log-margin ranking term for a hinge on pairwise (s_j-s_k) with margin proportional to (a_j-a_k), and at inference uses a fixed convex pocket+protein fusion instead of summed scores.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Tri-View HCC + GELU/LN Heads",
+    "tagline": "Adds LayerNorm+GELU projection heads, a positive-margin penalty, and a third 'joint' similarity view averaging pocket and protein logits.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\sum_{V\\in\\{\\text{poc},\\text{prot},\\frac{\\text{poc}+\\text{prot}}{2}\\}}\\!\\!\\Big[\\mathcal{L}^{m\\to p}_V + \\mathcal{L}^{p\\to m}_V + \\mathcal{L}^{\\text{rank}}_V\\Big],\\quad \\tilde s_{i,j}=s^V_{i,j}-\\mathbb{1}[j\\in\\text{pos}_i]\\cdot m$$",
+    "key_hyperparams": [
+      {"name": "margin (m)", "value": "0.1", "role": "positive-side margin subtracted before softmax", "learnable": false},
+      {"name": "logit_scale_max", "value": "100.0", "role": "temperature clamp upper bound", "learnable": false},
+      {"name": "projection head", "value": "Linear→LN→GELU→Linear, then L2", "role": "projection topology", "learnable": true},
+      {"name": "logit_scale", "value": "log(13)", "role": "temperature initialization", "learnable": true}
+    ],
+    "init_recovers": "HCC when m=0 and joint view is dropped",
+    "diff_from_baseline": "Vs HCC: replaces the ReLU NonLinearHead with a LayerNorm+GELU MLP, subtracts a constant margin m from positive-pair logits before softmax, and computes the full HCC loss on a third 'joint' similarity matrix that averages pocket-mol and protein-mol similarities.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Activity-Calibrated Tri-View (ACTS)",
+    "tagline": "Soft activity-weighted multi-positive contrastive over pocket, protein, and a learnable mix view, plus pairwise rank softplus, KL view-consistency, and pocket-protein alignment.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\tfrac{1}{3}\\!\\!\\!\\sum_{V\\in\\{p,t,\\text{mix}\\}}\\!\\!(\\mathcal{L}^{q\\text{-soft}}_V + \\mathcal{L}^{m}_V) + \\lambda_r \\mathcal{L}^{\\text{rank}}_{\\text{mix}} + \\lambda_c \\mathcal{D}_{KL}(p\\|t) + \\lambda_a (1\\!-\\!\\langle z^p,z^t\\rangle)$$ where $\\mathcal{L}^{q\\text{-soft}}_V = -\\sum_j \\mathrm{softmax}(a_j/\\tau_s)\\,\\log \\mathrm{softmax}(s^V_{i,j})$ and $\\mathcal{L}^{\\text{rank}} = \\mathrm{softplus}\\!\\big(-((s_j\\!-\\!s_k)\\!-\\!\\beta(a_j\\!-\\!a_k))\\big)$",
+    "key_hyperparams": [
+      {"name": "τ_s (soft_label_temp)", "value": "0.8", "role": "softmax temperature on per-pocket activities", "learnable": false},
+      {"name": "β (rank_margin_scale)", "value": "0.30", "role": "softplus rank margin per activity unit", "learnable": false},
+      {"name": "λ_r (rank_weight)", "value": "0.25", "role": "weight on pairwise rank loss", "learnable": false},
+      {"name": "λ_c (consistency_weight)", "value": "0.05", "role": "symmetric KL between p/t views", "learnable": false},
+      {"name": "λ_a (align_weight)", "value": "0.02", "role": "pocket-protein cosine alignment", "learnable": false},
+      {"name": "logit_scale_p,t", "value": "log(13), clamp exp≤100", "role": "separate temperatures per view", "learnable": true},
+      {"name": "mix_logit", "value": "0 init", "role": "sigmoid gate for poc/prot fusion view", "learnable": true},
+      {"name": "projection head", "value": "Linear→GELU→Linear→LN, then L2", "role": "projector topology", "learnable": true}
+    ],
+    "init_recovers": "Reduces toward CLIP-style symmetric contrastive when τ_s is large and λ_r=λ_c=λ_a=0",
+    "diff_from_baseline": "Vs HCC: hard positive mass is replaced by softmax-over-activities multi-positive targets per pocket, a learnable sigmoid 'mix' view fuses pocket and protein logits in a third pathway, and HCC's log-margin ranking is replaced by a softplus-hinge on pairwise score gaps with margin β·Δa, augmented by symmetric KL view-consistency and a mean cosine pocket-protein alignment term.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Activity-Enhanced HCC (AE-HCC)",
+    "tagline": "HCC variant that runs the rank loss across all L positions and downweights it by λ_rank.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\sum_{V\\in\\{\\text{poc},\\text{prot}\\}} \\Big( \\mathcal{L}^{p\\to l}_V + \\mathcal{L}^{l\\to p,\\,a\\geq 5}_V + \\lambda_{\\text{rank}}\\!\\sum_{k=0}^{L_i-1}\\frac{-\\log\\,\\mathrm{softmax}_{j:a_j<a_k-\\log_{10}3}(s_{i,j})\\big|_{j=k}}{\\log(k+2)\\sqrt{L_i}} \\Big)$$",
+    "key_hyperparams": [
+      {"name": "λ_rank", "value": "0.1", "role": "weight on within-pocket activity ranking term", "learnable": false},
+      {"name": "logit_scale", "value": "log(13)", "role": "temperature initialization", "learnable": true}
+    ],
+    "init_recovers": "HCC at λ_rank=1 and rank loop on first L-1 positions only",
+    "diff_from_baseline": "Vs HCC: keeps the same activity-filtered symmetric contrastive but iterates the within-pocket ranking term over all L_i positions (rather than L_i-1) and multiplies it by an explicit λ_rank=0.1 gate.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "Activity-Reweighted CLIP",
+    "tagline": "Vanilla CLIP loss with a learnable sigmoid-gated multiplicative reweighting that boosts higher-activity ligands.",
+    "kind": "formula",
+    "formula": "$$w_k = 1 + \\sigma(\\alpha)\\cdot\\frac{a_k - \\min a}{\\max a - \\min a},\\qquad \\mathcal{L} = \\sum_i \\frac{1}{\\sqrt{L_i}}\\Big(\\sum_{k\\in i} w_k \\cdot \\mathrm{NLL}(p^{p\\to l}_{i,k}) + \\sum_{k\\in i} -w_k \\log p^{l\\to p}_{i,k}\\Big)$$",
+    "key_hyperparams": [
+      {"name": "α (activity_weight)", "value": "0.5 init", "role": "sigmoid-gated activity-weight scale", "learnable": true},
+      {"name": "logit_scale", "value": "log(13)", "role": "temperature initialization", "learnable": true}
+    ],
+    "init_recovers": "Vanilla CLIP when σ(α)→0",
+    "diff_from_baseline": "Vs vanilla CLIP: the per-sample symmetric NLL is multiplied by a learnable activity weight w_k = 1+σ(α)·â_k computed from min-max-normalized pIC50 across the batch; no ranking, hyperbolic, or HCC components are introduced.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,161 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Munchausen + Online/Target Ensemble",
+    "tagline": "Standard linear Q head trained with Munchausen-augmented rewards (target net log-policy bonus) and 0.5/0.5 online+target Q for action selection.",
+    "kind": "hybrid",
+    "formula": "$$ \\pi_{\\bar\\theta}(a|s) = \\mathrm{softmax}\\!\\big(Q_{\\bar\\theta}(s,\\cdot)/\\tau\\big), \\quad r' = r + \\alpha \\tau\\,\\mathrm{clip}\\!\\big(\\log\\pi_{\\bar\\theta}(a|s),\\,-1,\\,0\\big) $$\n$$ y = r' + \\gamma(1-d)\\max_{a'} Q_{\\bar\\theta}(s', a'),\\;\\; \\mathcal{L} = \\mathrm{MSE}(Q_\\theta(s,a), y) $$\n$$ a_{\\text{select}} = \\arg\\max_a 0.5\\,Q_\\theta(s,a) + 0.5\\,Q_{\\bar\\theta}(s,a) $$",
+    "diagram": {
+      "nodes": [
+        {"id": "obs", "label": "obs"},
+        {"id": "enc", "label": "MLPEncoder (frozen 120,84)"},
+        {"id": "head", "label": "Linear → Q(s,·)"},
+        {"id": "munch", "label": "Munchausen log-policy"},
+        {"id": "tgt", "label": "max_a Q_target(s',a')"},
+        {"id": "loss", "label": "MSE TD loss"}
+      ],
+      "edges": [
+        {"from": "obs", "to": "enc"},
+        {"from": "enc", "to": "head"},
+        {"from": "head", "to": "munch", "label": "via target net"},
+        {"from": "head", "to": "tgt"},
+        {"from": "munch", "to": "loss"},
+        {"from": "tgt", "to": "loss"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "α (Munchausen)", "value": "0.9", "role": "scaling of log-policy reward bonus", "learnable": false},
+      {"name": "τ (entropy)", "value": "0.03", "role": "softmax temperature for log-policy", "learnable": false},
+      {"name": "log_pi_clip", "value": "[-1, 0]", "role": "clip range on log π_target(a|s)", "learnable": false},
+      {"name": "ensemble_mix", "value": "[0.5, 0.5]", "role": "online vs target weights at action selection", "learnable": false},
+      {"name": "loss", "value": "MSE", "role": "TD regression loss", "learnable": false},
+      {"name": "grad_clip", "value": "10.0", "role": "Adam grad-norm clip", "learnable": false}
+    ],
+    "init_recovers": "vanilla DQN at α=0 and ensemble mix={1,0}",
+    "diff_from_baseline": "Replaces the placeholder algorithm with Munchausen-DQN: augments rewards by α·τ·clip(log π_target(a|s)) using the target network's softmax policy, keeps the same linear Q head, uses 50/50 online+target ensemble for action selection, and trains with MSE TD loss + grad-norm clip 10.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "5-head Ensemble + UCB Action + Pessimistic Target",
+    "tagline": "Five linear Q heads on shared encoder; UCB action selection (mean+β·std), pessimistic max target (mean-β·std), variance-weighted Huber TD loss.",
+    "kind": "hybrid",
+    "formula": "$$ Q_k(s,a),\\,k=1..5;\\;\\; \\bar Q = \\tfrac{1}{5}\\sum_k Q_k,\\;\\; s_Q = \\sqrt{\\mathrm{Var}_k Q_k} $$\n$$ a_{\\text{select}} = \\arg\\max_a \\bar Q(s,a) + \\beta s_Q(s,a) $$\n$$ y = \\mathrm{clip}\\big(r + \\gamma(1-d)\\,\\max_{a'} (\\bar Q_{\\bar\\theta} - \\beta s_{Q,\\bar\\theta})(s',a'),\\,-1000,\\,1000\\big) $$\n$$ w_i = \\tfrac{1}{1+\\sqrt{\\mathrm{Var}_k Q_k(s_i,a_i)+\\varepsilon}}, \\quad \\mathcal{L} = \\overline{w_i \\cdot \\mathrm{Huber}_{10}(Q_k(s_i,a_i) - y_i)} $$",
+    "diagram": {
+      "nodes": [
+        {"id": "obs", "label": "obs"},
+        {"id": "enc", "label": "MLPEncoder (84-d)"},
+        {"id": "k", "label": "5 linear heads Q_k"},
+        {"id": "stats", "label": "mean +/- beta * std"},
+        {"id": "act", "label": "UCB action"},
+        {"id": "tgt", "label": "pessimistic target max"},
+        {"id": "loss", "label": "weighted Huber per head"}
+      ],
+      "edges": [
+        {"from": "obs", "to": "enc"},
+        {"from": "enc", "to": "k"},
+        {"from": "k", "to": "stats"},
+        {"from": "stats", "to": "act"},
+        {"from": "stats", "to": "tgt"},
+        {"from": "k", "to": "loss"},
+        {"from": "tgt", "to": "loss"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "ensemble_size", "value": "5", "role": "number of independent linear heads", "learnable": false},
+      {"name": "β", "value": "1.0", "role": "UCB / pessimism coefficient on σ", "learnable": false},
+      {"name": "head_init", "value": "N(0, 0.01), bias=0.1", "role": "small random heads to break symmetry", "learnable": false},
+      {"name": "weight_decay", "value": "1e-5", "role": "Adam weight_decay", "learnable": false},
+      {"name": "huber_delta", "value": "10.0", "role": "Huber loss transition", "learnable": false},
+      {"name": "td_target_clip", "value": "[-1000, 1000]", "role": "stability clamp on TD target", "learnable": false},
+      {"name": "weighting", "value": "1/(1+sqrt(Var+eps)), normalised", "role": "downweight high-uncertainty samples", "learnable": false}
+    ],
+    "init_recovers": "single-head DQN when ensemble_size=1 and β=0",
+    "diff_from_baseline": "Compared to the dueling/QR/C51 baselines, builds a 5-head ensemble on the shared encoder, uses UCB (mean+β·std) for action selection and pessimism (mean-β·std) for the bootstrap target, and trains every head with a per-sample inverse-uncertainty-weighted Huber-10 TD loss.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Dueling + Munchausen Soft-Q Target",
+    "tagline": "Dueling Q head trained with Munchausen entropy-regularized soft-Q targets and a smooth-L1 TD loss.",
+    "kind": "hybrid",
+    "formula": "$$ Q(s,a) = V(s) + A(s,a) - \\overline{A(s,\\cdot)}, \\quad \\pi_\\theta(a|s) = \\mathrm{softmax}(Q/\\tau),\\;\\; \\log\\pi_\\theta(a|s) $$\n$$ V_{soft}(s') = \\sum_{a'} \\pi_{\\bar\\theta}(a'|s')\\big(Q_{\\bar\\theta}(s',a') - \\tau \\log\\pi_{\\bar\\theta}(a'|s')\\big) $$\n$$ y = r + \\alpha\\tau\\,\\mathrm{clip}(\\log\\pi_\\theta(a|s),-1,0) + \\gamma(1-d)V_{soft}(s'),\\;\\; \\mathcal{L} = \\mathrm{SL1}(Q(s,a), y) $$",
+    "diagram": {
+      "nodes": [
+        {"id": "obs", "label": "obs"},
+        {"id": "enc", "label": "MLPEncoder"},
+        {"id": "vh", "label": "V head"},
+        {"id": "ah", "label": "A head"},
+        {"id": "q", "label": "Q = V + A - mean(A)"},
+        {"id": "munch", "label": "Munchausen log-pi term"},
+        {"id": "vsoft", "label": "V_soft target"},
+        {"id": "loss", "label": "Smooth-L1 TD"}
+      ],
+      "edges": [
+        {"from": "obs", "to": "enc"},
+        {"from": "enc", "to": "vh"},
+        {"from": "enc", "to": "ah"},
+        {"from": "vh", "to": "q"},
+        {"from": "ah", "to": "q"},
+        {"from": "q", "to": "munch"},
+        {"from": "q", "to": "vsoft", "label": "via target"},
+        {"from": "munch", "to": "loss"},
+        {"from": "vsoft", "to": "loss"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "τ", "value": "0.03", "role": "softmax temperature in Munchausen / soft-V", "learnable": false},
+      {"name": "α", "value": "0.9", "role": "Munchausen log-policy coefficient", "learnable": false},
+      {"name": "log_pi_clip", "value": "[-1, 0]", "role": "clamp on log π in reward bonus", "learnable": false},
+      {"name": "loss", "value": "Smooth-L1", "role": "robust TD loss", "learnable": false},
+      {"name": "head", "value": "dueling V + A − mean(A)", "role": "Q decomposition", "learnable": false}
+    ],
+    "init_recovers": "dueling_dqn baseline when α=0 and τ→∞ (V_soft → max)",
+    "diff_from_baseline": "Combines the dueling_dqn architecture with a Munchausen-DQN soft target: bootstrap uses V_soft(s') = E_π[Q − τ log π] from the target net's softmax policy, and the reward is augmented by α·τ·clip(log π_θ(a|s), -1, 0); TD loss is Smooth-L1.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Dueling + Double + Advantage-Variance Reg",
+    "tagline": "Dueling Double-DQN with a per-action 'uncertainty' = centered-advantage^2, scheduled penalty applied only to the chosen action, plus target consistency.",
+    "kind": "hybrid",
+    "formula": "$$ Q(s,a) = V(s) + (A(s,a) - \\overline{A(s,\\cdot)}),\\;\\; U(s,a) = (A(s,a) - \\overline{A(s,\\cdot)})^2 $$\n$$ \\beta(t) = 0.08 + \\min(t/250{,}000, 1)\\cdot(0.01 - 0.08) $$\n$$ a^\\* = \\arg\\max_{a'} \\big(Q_\\theta - \\beta U_\\theta\\big)(s',a'),\\;\\; y = r + \\gamma(1-d)\\,Q_{\\bar\\theta}(s', a^\\*) $$\n$$ \\mathcal{L} = \\mathrm{SL1}(Q_\\theta(s,a), y) + \\beta\\,\\overline{\\sigma(Q_\\theta - y)\\,U_\\theta(s,a)} + 0.05\\,\\mathrm{SL1}(Q_\\theta(s,a), Q_{\\bar\\theta}(s,a)) $$",
+    "diagram": {
+      "nodes": [
+        {"id": "obs", "label": "obs"},
+        {"id": "enc", "label": "MLPEncoder"},
+        {"id": "vh", "label": "V head"},
+        {"id": "ah", "label": "A head"},
+        {"id": "q", "label": "Q = V + A_centered"},
+        {"id": "u", "label": "U = A_centered^2"},
+        {"id": "act", "label": "argmax (Q - beta_end * U)"},
+        {"id": "loss", "label": "SL1 + beta*sigmoid(opt)*U + 0.05*SL1(target)"}
+      ],
+      "edges": [
+        {"from": "obs", "to": "enc"},
+        {"from": "enc", "to": "vh"},
+        {"from": "enc", "to": "ah"},
+        {"from": "vh", "to": "q"},
+        {"from": "ah", "to": "q"},
+        {"from": "ah", "to": "u"},
+        {"from": "q", "to": "act"},
+        {"from": "u", "to": "act"},
+        {"from": "q", "to": "loss"},
+        {"from": "u", "to": "loss"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "β_start", "value": "0.08", "role": "initial advantage-variance penalty / pessimism", "learnable": false},
+      {"name": "β_end", "value": "0.01", "role": "decayed value (used in select_action)", "learnable": false},
+      {"name": "β_anneal_steps", "value": "250000", "role": "linear schedule length", "learnable": false},
+      {"name": "consistency_coef", "value": "0.05", "role": "weight on SL1(Q_θ(s,a), Q_target(s,a))", "learnable": false},
+      {"name": "uncertainty_form", "value": "(A − mean A)^2 per action", "role": "no Bayesian dropout/ensemble required", "learnable": false},
+      {"name": "double_q", "value": "online argmax + target evaluate", "role": "Double-DQN bootstrap", "learnable": false},
+      {"name": "loss", "value": "Smooth-L1", "role": "TD + consistency", "learnable": false},
+      {"name": "grad_clip", "value": "10.0", "role": "Adam grad-norm clip", "learnable": false}
+    ],
+    "init_recovers": "Dueling Double-DQN when β=0 and consistency_coef=0",
+    "diff_from_baseline": "Compared to dueling_dqn it (a) adds Double-DQN bootstrapping with the online net's argmax computed under (Q − βU), (b) defines an action-wise 'uncertainty' U from squared centered advantages, (c) adds an adaptive sigmoid(optimism)·U penalty on the chosen action with annealed β, and (d) adds a 0.05·SL1 consistency term against the target network's Q for (s,a).",
+    "confidence": "high"
+  }
+]

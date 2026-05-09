@@ -1,0 +1,145 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Transductive Centered Prototype Refinement",
+    "tagline": "Cosine ProtoNet at training; at test, centers features by support+query mean and refines prototypes for 15 transductive iterations using soft query assignments.",
+    "kind": "pseudocode",
+    "pseudocode": "// Train: cosine ProtoNet with learnable temperature τ\n// 1. q_n ← normalize(q); p_n ← normalize(prototypes)\n// 2. logits ← τ·(q_n · p_n^T)\n// Test: transductive refinement\n// 3. center ← mean(support ∪ query); subtract from both, then L2-normalize\n// 4. proto_c ← class-mean of centered support\n// 5. for 15 iterations:\n// 6.   soft ← softmax(15·(qf · proto_c^T))\n// 7.   q_proto_c ← Σ_i soft[i,c]·qf_i / Σ_i soft[i,c]\n// 8.   proto_c ← 0.7·support_mean_c + 0.3·q_proto_c\n// 9. return 15·(qf · normalize(proto_c)^T)",
+    "key_hyperparams": [
+      {"name": "temperature τ", "value": "10.0 (init)", "role": "training cosine logit scale", "learnable": true},
+      {"name": "test temperature", "value": "15.0", "role": "soft assignment + return scale", "learnable": false},
+      {"name": "n_refine_iters", "value": "15", "role": "transductive refinement steps", "learnable": false},
+      {"name": "support_weight", "value": "0.7", "role": "fraction of support mean kept each step", "learnable": false},
+      {"name": "query_weight", "value": "0.3", "role": "fraction of soft query mean added", "learnable": false}
+    ],
+    "init_recovers": "Cosine ProtoNet at training; standard ProtoNet if refinement disabled",
+    "diff_from_baseline": "Versus ProtoNet, switches to cosine logits with learned temperature, adds task-adaptive centering using both support and query means, then refines each prototype for 15 steps via a 0.7-0.3 mixture of support mean and soft-query-weighted mean.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Diagonal-Mahalanobis Prototypes",
+    "tagline": "ProtoNet with per-class diagonal-Mahalanobis distance, where the variance is a learnable mixture of class-specific and global support variance.",
+    "kind": "formula",
+    "formula": "$$d^2(x, \\mu_c) = \\sum_d \\frac{(x_d - \\mu_{c,d})^2}{\\sigma^2_{c,d} + \\varepsilon},\\quad \\sigma^2_{c} = \\sigma(\\alpha)\\,\\widehat{\\mathrm{Var}}_c + (1-\\sigma(\\alpha))\\,\\widehat{\\mathrm{Var}}_{\\text{global}},$$ $$\\mathrm{score}(x, c) = -\\tau\\,d^2(x, \\mu_c).$$",
+    "key_hyperparams": [
+      {"name": "temperature τ", "value": "1.0 (init)", "role": "scale on Mahalanobis distance", "learnable": true},
+      {"name": "alpha", "value": "0.5 (init logit)", "role": "sigmoid mixing of class vs global variance", "learnable": true},
+      {"name": "epsilon", "value": "1e-8", "role": "variance numerical floor", "learnable": false}
+    ],
+    "init_recovers": "ProtoNet (squared Euclidean) when variance ≈ 1 everywhere",
+    "diff_from_baseline": "Versus ProtoNet's negative-Euclidean scoring, replaces it with a diagonal squared-Mahalanobis distance using per-class variance interpolated with global variance via a sigmoid gate, scaled by a learnable temperature.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Self-Attended Prototypes + Cross-Attended Queries",
+    "tagline": "ProtoNet with a 1-layer Transformer over the N prototypes, then a query→prototype cross-attention block; scoring is scaled cosine plus a prototype-orthogonality regularizer.",
+    "kind": "hybrid",
+    "formula": "$$P = \\mathrm{TransformerEnc}(\\mu_1,\\dots,\\mu_N),\\quad q' = \\mathrm{LN}(q + \\mathrm{MHA}(q, P, P)),\\quad q'' = \\mathrm{LN}(q' + \\mathrm{FFN}(q')),$$ $$\\mathrm{score}(q, c) = \\tau\\,\\frac{q''}{\\|q''\\|}\\cdot\\frac{P_c}{\\|P_c\\|},\\qquad \\mathcal{L} = \\mathrm{CE} + 0.1\\cdot\\overline{\\mathrm{ReLU}\\!\\big(\\hat P\\hat P^\\top - I\\big)}.$$",
+    "diagram": {
+      "nodes": [
+        {"id": "sf", "label": "support feats"},
+        {"id": "p0", "label": "class means"},
+        {"id": "tr", "label": "Transformer (8 head)"},
+        {"id": "p1", "label": "task-aware prototypes"},
+        {"id": "q", "label": "query feats"},
+        {"id": "ca", "label": "Cross-Attn + FFN"},
+        {"id": "scr", "label": "τ·cosine"}
+      ],
+      "edges": [
+        {"from": "sf", "to": "p0"},
+        {"from": "p0", "to": "tr"},
+        {"from": "tr", "to": "p1"},
+        {"from": "q", "to": "ca"},
+        {"from": "p1", "to": "ca"},
+        {"from": "ca", "to": "scr"},
+        {"from": "p1", "to": "scr"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "n_heads", "value": "8", "role": "MHA heads in self- and cross-attention", "learnable": false},
+      {"name": "ffn_expansion", "value": "2", "role": "Transformer FFN multiplier", "learnable": false},
+      {"name": "dropout", "value": "0.1", "role": "Transformer / FFN dropout", "learnable": false},
+      {"name": "tau", "value": "10.0 (init)", "role": "cosine logit scale", "learnable": true},
+      {"name": "proto_loss weight", "value": "0.1", "role": "off-diagonal hinge regularizer", "learnable": false}
+    ],
+    "init_recovers": "ProtoNet (cosine) when both attention modules are zero-output",
+    "diff_from_baseline": "Versus ProtoNet, runs 1 Transformer-encoder layer over the N class prototypes (so prototypes adapt to one another) and a cross-attention residual on each query against those task-aware prototypes; auxiliary loss penalizes positive cosine off-diagonals between prototypes.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Episodic Residual Mahalanobis Prototypes (ERMP)",
+    "tagline": "Gated prototypes plus FiLM-modulated queries scored by a learnable softmax mixture of cosine + diagonal-Mahalanobis + L2; loss is CE + margin + entropy regularizer.",
+    "kind": "hybrid",
+    "formula": "$$g_c = \\sigma(\\mathrm{MLP}(\\mu_c)),\\quad \\hat\\mu_c = g_c\\odot\\mu_c,\\quad \\sigma^2_c = g_c^2\\odot\\widehat{\\mathrm{Var}}_c + 5{\\cdot}10^{-4},$$ $$(\\gamma, \\beta) = \\mathrm{MLP}([q;\\bar{\\hat\\mu}]),\\quad \\hat q = q\\odot(1 + 0.1\\tanh\\gamma) + 0.1\\beta,$$ $$w = \\mathrm{softmax}(\\mathrm{MLP}([\\bar{\\hat\\mu}; \\bar{\\sigma^2}])),\\ \\mathrm{score}(\\hat q, c) = |s|\\!\\cdot\\!\\big(w_0\\cos + w_1(-\\overline{(\\hat q-\\hat\\mu_c)^2/\\sigma^2_c}) + w_2(-\\overline{(\\hat q-\\hat\\mu_c)^2})\\big).$$",
+    "diagram": {
+      "nodes": [
+        {"id": "sf", "label": "support feats"},
+        {"id": "p", "label": "gated proto + var"},
+        {"id": "ctx", "label": "episode context μ̄,σ²̄"},
+        {"id": "mw", "label": "metric mixer w"},
+        {"id": "q", "label": "query"},
+        {"id": "film", "label": "FiLM γ,β"},
+        {"id": "scr", "label": "|s|·(w₀cos+w₁mahal+w₂L2)"}
+      ],
+      "edges": [
+        {"from": "sf", "to": "p"},
+        {"from": "p", "to": "ctx"},
+        {"from": "ctx", "to": "mw"},
+        {"from": "ctx", "to": "film"},
+        {"from": "q", "to": "film"},
+        {"from": "film", "to": "scr"},
+        {"from": "p", "to": "scr"},
+        {"from": "mw", "to": "scr"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "logit_scale s", "value": "10.0 (init)", "role": "global score scale (abs)", "learnable": true},
+      {"name": "var_offset", "value": "5e-4", "role": "per-class variance floor", "learnable": false},
+      {"name": "FiLM mod scale", "value": "0.1", "role": "max ±10% gamma; ≤0.1 beta", "learnable": false},
+      {"name": "entropy_weight", "value": "0.01", "role": "auxiliary entropy regularizer", "learnable": false},
+      {"name": "margin_weight", "value": "0.05", "role": "hardest-negative margin coeff (margin=0.2)", "learnable": false},
+      {"name": "LR_OVERRIDE", "value": "5e-3", "role": "training LR (vs framework default)", "learnable": false}
+    ],
+    "init_recovers": "Cosine ProtoNet when w → [1,0,0] and gates → 1, FiLM modulation → 0",
+    "diff_from_baseline": "Versus ProtoNet, gates each prototype by a learned sigmoid, runs a query FiLM modulator conditioned on episode context, scores via a softmax mixture of cosine, diagonal-Mahalanobis, and L2 with task-conditioned weights, and adds margin + entropy regularizers to CE.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Cross-Attn ProtoNet + Adaptive FiLM (CAPT)",
+    "tagline": "ProtoNet with 4-head cross-attention where queries attend to prototypes, then queries are FiLM-shifted using prototype mean+std and scored as a learnable cosine/L2 blend.",
+    "kind": "hybrid",
+    "formula": "$$\\hat q = \\mathrm{LN}\\!\\big(q + W_o\\,\\mathrm{MHA}_4(W_q q,\\,W_k\\mu,\\,W_v\\mu)\\big),\\qquad q' = \\frac{\\hat q - \\bar{\\hat q}}{s_{\\hat q}},$$ $$(\\gamma, \\beta) = \\mathrm{MLP}([\\bar\\mu; s_\\mu]),\\quad q'' = \\gamma\\odot q' + \\beta,$$ $$\\mathrm{score} = \\mathrm{softmax}\\,\\big(\\sigma(f)\\,\\cos(q''\\tau_c, \\mu) + (1-\\sigma(f))\\,(-\\|q''\\tau_l - \\mu\\|^2/10)\\big).$$",
+    "diagram": {
+      "nodes": [
+        {"id": "q", "label": "query"},
+        {"id": "p", "label": "prototypes μ"},
+        {"id": "ca", "label": "4-head Cross-Attn"},
+        {"id": "ln", "label": "LayerNorm + standardize"},
+        {"id": "film", "label": "FiLM (μ̄, σ_μ)"},
+        {"id": "scr", "label": "σ(f)·cos + (1-σ(f))·(-L2/10)"}
+      ],
+      "edges": [
+        {"from": "q", "to": "ca"},
+        {"from": "p", "to": "ca"},
+        {"from": "ca", "to": "ln"},
+        {"from": "ln", "to": "film"},
+        {"from": "p", "to": "film"},
+        {"from": "film", "to": "scr"},
+        {"from": "p", "to": "scr"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "n_heads", "value": "4", "role": "cross-attention heads", "learnable": false},
+      {"name": "fw (mix logit)", "value": "0.5 (init)", "role": "sigmoid blend cosine vs L2", "learnable": true},
+      {"name": "tau_cos", "value": "10.0 (init)", "role": "scale before cosine_distance", "learnable": true},
+      {"name": "tau_L2", "value": "10.0 (init)", "role": "scale before L2; output divided by 10", "learnable": true}
+    ],
+    "init_recovers": "ProtoNet-like (50/50 cos+L2) when attention is zero and FiLM is identity",
+    "diff_from_baseline": "Versus ProtoNet, adds 4-head query→prototype cross-attention with residual+LayerNorm, then standardizes the queries and applies an MLP-FiLM (γ,β) computed from prototype mean+std, finally scoring as a learnable convex combination of cosine and L2.",
+    "confidence": "high"
+  }
+]

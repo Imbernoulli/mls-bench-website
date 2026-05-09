@@ -1,0 +1,75 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "DSNR: GCE warmup + conf-weighted truncated CE",
+    "tagline": "GCE warmup, smooth GCE -> CE transition, confidence-ratio per-sample weighting and progressive top-loss truncation up to the assumed poison rate.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}(\\epsilon) = \\frac{1}{|\\mathcal{K}|}\\sum_{i \\in \\mathcal{K}} w_i\\,\\big[(1-t)\\,\\mathrm{GCE}_q(p_i) + t\\,\\mathrm{CE}(p_i, y_i)\\big],\\;\\; t = \\min\\!\\big(1, \\tfrac{\\epsilon - W}{T_{\\rm tr}}\\big),\\;\\; w_i = \\mathrm{clamp}\\!\\big(p_{i,y_i}/\\max_c p_{i,c},\\; \\max(0.1, 1{-}0.9\\rho),\\; 1\\big)$$",
+    "key_hyperparams": [
+      {"name": "warmup", "value": "10 epochs", "role": "GCE-only phase", "learnable": false},
+      {"name": "gce_q", "value": "0.7", "role": "GCE exponent", "learnable": false},
+      {"name": "transition_epochs", "value": "20", "role": "linear blend GCE -> CE after warmup", "learnable": false},
+      {"name": "max_truncation", "value": "0.15", "role": "fraction of highest-CE samples dropped at full ramp", "learnable": false},
+      {"name": "truncation_ramp", "value": "15 epochs", "role": "epochs to reach max_truncation and full reweighting", "learnable": false},
+      {"name": "min_weight_floor", "value": "max(0.1, 1 - 0.9 * progress)", "role": "lower bound on confidence-ratio weight", "learnable": false},
+      {"name": "selection_signal", "value": "raw CE rank (lowest k kept)", "role": "post-weighting truncation by CE", "learnable": false}
+    ],
+    "init_recovers": "GCE during warmup; CE when t=1, weights=1 and truncation=0",
+    "diff_from_baseline": "Combines the generalized_ce baseline (warmup), a smooth blend into the cross_entropy baseline, then adds a confidence-ratio reweighting and a progressive top-loss-truncation step keyed to the assumed poison rate.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Bootstrap + confident-mistake penalty",
+    "tagline": "Soft-bootstrapped CE with a linearly decayed mixing coefficient, plus a quadratic penalty on confidently wrong predictions exceeding a threshold.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = -\\overline{\\sum_c \\big(\\beta(\\epsilon)\\,y_c + (1-\\beta(\\epsilon))\\,p_c^{\\rm sg}\\big)\\,\\log p_c} + \\lambda\\,\\overline{\\mathbf{1}[\\hat p > \\tau \\wedge \\hat y \\ne y]\\,(\\hat p - \\tau)^2},\\quad \\beta(\\epsilon) = \\max(\\beta_{end},\\; \\beta_0 - (\\beta_0 - \\beta_{end})\\,\\epsilon/E)$$",
+    "key_hyperparams": [
+      {"name": "beta_start", "value": "1.0", "role": "initial bootstrap mixing (pure hard targets)", "learnable": false},
+      {"name": "beta_end", "value": "0.2", "role": "final bootstrap mixing", "learnable": false},
+      {"name": "total_epochs", "value": "100", "role": "schedule denominator", "learnable": false},
+      {"name": "lambda_penalty", "value": "0.5", "role": "weight on confident-mistake penalty", "learnable": false},
+      {"name": "conf_thresh", "value": "0.7", "role": "threshold above which a wrong prediction is penalized", "learnable": false}
+    ],
+    "init_recovers": "bootstrap baseline at beta=1 with lambda=0",
+    "diff_from_baseline": "Generalises the bootstrap baseline by linearly decaying beta from 1.0 to 0.2 over training, and adds a (max-prob - tau)^2 penalty applied only when the argmax disagrees with the given label and the model is confident.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "ARCP: relative-conf weighted bootstrap",
+    "tagline": "Bootstrapped CE with linearly decayed mixing, weighted per-sample by clamp(p_y / (0.8 * mean p_y), 1) so very-low-confidence samples cap their gradient.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\overline{\\min\\!\\Big(\\frac{p_{y_i}}{0.8\\,\\overline{p_y}}, 1\\Big)\\,\\Big[-\\sum_c \\big(\\beta\\,\\mathbf{1}[c{=}y_i] + (1-\\beta)\\,p_{i,c}^{\\rm sg}\\big)\\,\\log p_{i,c}\\Big]},\\quad \\beta = \\max\\!\\Big(0.5,\\; 1 - 0.5\\,\\frac{\\epsilon - W}{100 - W}\\Big)$$",
+    "key_hyperparams": [
+      {"name": "warmup", "value": "10 epochs", "role": "beta=1 (pure hard) before this", "learnable": false},
+      {"name": "beta_min", "value": "0.5", "role": "lower bound on bootstrap mixing", "learnable": false},
+      {"name": "weight_threshold", "value": "0.8 * mean(p_y)", "role": "tau for ARCP gradient cap", "learnable": false},
+      {"name": "weight_form", "value": "clamp(p_y / tau, max=1)", "role": "anti-focal weight", "learnable": false},
+      {"name": "total_epochs_assumed", "value": "100", "role": "denominator for beta schedule", "learnable": false}
+    ],
+    "init_recovers": "bootstrap baseline at beta=1.0 (equivalent to CE) and weights=1",
+    "diff_from_baseline": "Combines bootstrap with a relative-confidence weight (anti-focal): each sample's CE is multiplied by min(p_y / (0.8 * batch-mean p_y), 1), capping the gradient on samples that fall below 80% of the batch-average confidence.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Inverse-flip target correction",
+    "tagline": "GCE warmup, then targets are softly mixed with the inverse-flip class (y-1) mod C using sigmoid evidence on detached probs, plus self-bootstrap and confidence-x-decisiveness sample weights.",
+    "kind": "formula",
+    "formula": "$$\\tilde y = (1 - r\\,c\\,s)\\,e_y + r\\,c\\,s\\,e_{(y-1)\\bmod C},\\;\\; s = \\sigma\\!\\big(\\tfrac{(p_{prev}-p_y)/(p_{prev}+p_y) - \\delta}{T}\\big)\\cdot\\tfrac{p_{prev}}{p_{\\max}},\\;\\;\\mathcal{L} = (1{-}\\mu r)\\,\\overline{w\\,(-\\sum \\tilde y \\log p)}/\\overline{w} + \\mu r\\,\\mathrm{GCE}_q$$",
+    "key_hyperparams": [
+      {"name": "warmup_epochs", "value": "10", "role": "pure GCE before correction starts", "learnable": false},
+      {"name": "ramp_epochs", "value": "35", "role": "denominator of correction ramp r", "learnable": false},
+      {"name": "q (GCE)", "value": "0.7", "role": "GCE exponent during warmup and tail", "learnable": false},
+      {"name": "evidence_margin (delta)", "value": "0.05", "role": "sigmoid offset for normalized (p_prev - p_y)", "learnable": false},
+      {"name": "temperature (T)", "value": "0.20", "role": "sigmoid sharpness", "learnable": false},
+      {"name": "bootstrap_mix", "value": "0.10", "role": "self-bootstrap weight on detached probs", "learnable": false},
+      {"name": "min_weight", "value": "0.25", "role": "floor on per-sample weight", "learnable": false},
+      {"name": "gce_mix", "value": "0.15", "role": "ramped GCE residual on observed label", "learnable": false}
+    ],
+    "init_recovers": "generalized_ce baseline during warmup; CE-style on observed label when correction strength s = 0",
+    "diff_from_baseline": "Beyond cross_entropy / generalized_ce / bootstrap baselines, exploits the deterministic label-flip y -> (y+1) mod C: softly redirects targets to (y-1) mod C using an explicit sigmoid evidence score on detached probabilities, combines with light self-bootstrap and a confidence x decisiveness weight, and blends in a small GCE residual.",
+    "confidence": "high"
+  }
+]

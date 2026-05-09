@@ -1,0 +1,57 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Chain + 0→last residual",
+    "tagline": "Standard sequential chain plus a single skip edge from the first to the last node so the sink sees both raw and refined solutions.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for $i=0,\\dots,N-2$: add edge $i\\to i+1$.\n// 2. if $N\\ge 3$: add residual edge $0\\to N-1$.\n// 3. for $N=4$: edges = $\\{0\\to 1, 1\\to 2, 2\\to 3, 0\\to 3\\}$.\n// 4. depth $= N-1$, in-degree of sink $= 2$.",
+    "key_hyperparams": [],
+    "init_recovers": "Chain baseline at $N\\le 2$",
+    "diff_from_baseline": "Same as the chain baseline but with an extra single residual edge $0\\to N-1$, giving the sink an unmodified copy of the source draft alongside the deepest refinement; not star (no hub) and not layered.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Twin-writer + reviewer + integrator",
+    "tagline": "For N=4: two parallel writers feed a reviewer who hands off to a single integrator; for $N>4$ falls back to chain plus distance-2 skip edges.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. if $N=4$: return $\\{0\\to 2, 1\\to 2, 2\\to 3\\}$ — two parallel writers, one reviewer, one integrator.\n// 2. else: build chain $i\\to i+1$ for $i=0..N-2$.\n// 3. add distance-2 skip edges $i\\to i+2$ for $i=0..N-3$.\n// 4. final DAG depth $\\approx N$ but every node has $\\le 2$ predecessors.",
+    "key_hyperparams": [],
+    "init_recovers": "Chain baseline at $N\\le 3$",
+    "diff_from_baseline": "Custom-tunes the $N=4$ case to a layered fan-in-then-chain (different from chain, star, or fully-layered baselines), and only at larger $N$ falls back to chain-plus-skip; never uses a global hub or full bipartite layers.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Anchor chain (rooted chain)",
+    "tagline": "Sequential chain with an additional anchor edge $0\\to i$ for every $i\\ge 1$, bounding in-degree to 2 while preserving full chain depth.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for $i=1..N-1$: add anchor edge $0\\to i$.\n// 2. for $i=2..N-1$: add chain edge $i-1\\to i$.\n// 3. dedupe & sort edges; result has $|E| = 2N-3$ for $N\\ge 2$.\n// 4. every non-source node sees the original prompt (via 0) and its predecessor's refinement.",
+    "key_hyperparams": [],
+    "init_recovers": "Chain baseline degenerates when star anchors are removed",
+    "diff_from_baseline": "Strict superset of the chain baseline (keeps chain edges) and complementary to the star baseline (adds chain edges on top of the hub), bounding sink in-degree at 2 — neither chain nor star alone, and not the fully-bipartite layered baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Single-sink review diamond",
+    "tagline": "$N=4$ uses a diamond: nodes 0,1 explore; node 2 merges; node 3 sees the merge plus the still-unaggregated branch from 1. Larger N adds 2-step skip funnel.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. base case $N\\le 3$: return $\\{(0,1)\\}$, $\\{(0,2),(1,2)\\}$ etc.\n// 2. for $N=4$: edges $= \\{0\\to 2, 1\\to 2, 1\\to 3, 2\\to 3\\}$ — a single review diamond with a clean alternative path $1\\to 3$.\n// 3. for $i\\ge 4$: append $(i-1,i)$ and $(i-2,i)$ — light funnel of distance-1 and distance-2 edges.\n// 4. only one multi-input merge per stage.",
+    "key_hyperparams": [],
+    "init_recovers": "Reduces to chain when all skip edges are dropped",
+    "diff_from_baseline": "Replaces chain's strict sequence and layered's full bipartite merges with a small diamond pattern at the sink and 2-step skips for deeper graphs; differs from star by not centralizing on a single hub.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Chain + early/mid → sink bypasses",
+    "tagline": "Primary refinement chain $0\\to 1\\to\\dots\\to N-1$ plus bypass edges from every intermediate node to the final sink.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. base cases for $N\\le 3$ are explicit (chain).\n// 2. add chain edges $(i, i+1)$ for $i=0..N-2$.\n// 3. add bypass edges $(i, N-1)$ for $i=1..N-3$ — every middle node feeds the final aggregator.\n// 4. only one aggregation point (sink); other nodes have in-degree 1 except sink which sees full evolution.",
+    "key_hyperparams": [],
+    "init_recovers": "Chain baseline at $N\\le 3$",
+    "diff_from_baseline": "Differs from chain by adding bypass edges from each interior node to the sink (final agent sees solution evolution), differs from star by also keeping chain edges, and differs from layered by routing all extra edges into a single sink rather than bipartite layers.",
+    "confidence": "high"
+  }
+]

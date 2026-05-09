@@ -1,0 +1,60 @@
+[
+  {
+    "model": "deepseek-reasoner",
+    "name": "Adaptive-BIC order search",
+    "tagline": "PC skeleton plus correlation-ranked initial order, refined by BOSS-style insertion using a sample-size-adaptive BIC penalty.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Run stable PC at $\\alpha=0.1$ to get a liberal skeleton; build adjacency matrix\n// 2. Set $\\lambda \\leftarrow 1.0 + 0.4\\,\\min(1, n/(30p))$ for the BIC score\n// 3. Init order by sorting variables by $\\sum_j |\\rho_{ij}| + 0.5\\cdot\\deg_{\\text{skel}}(i)$, descending\n// 4. for up to 40 sweeps do\n// 5.   for each variable $v$ (random order): try every insertion position, accept best $\\Delta\\text{score} > 10^{-8}$\n// 6.   stop when no insertion improves the order\n// 7. Build DAG: for each $v$ at position $i$, set parents via GST trace over $\\text{order}[:i]$\n// 8. Return $\\text{dag2cpdag}(G)$",
+    "key_hyperparams": [
+      {"name": "alpha (PC)", "value": "0.1", "role": "skeleton independence-test threshold", "learnable": false},
+      {"name": "lambda (BIC)", "value": "1.0 + 0.4*min(1, n/(30p))", "role": "adaptive BIC sparsity penalty", "learnable": false},
+      {"name": "order init weights", "value": "(1.0, 0.5)", "role": "correlation vs skeleton-degree blend", "learnable": false},
+      {"name": "max refinement sweeps", "value": "40", "role": "outer iterations for order improvement", "learnable": false}
+    ],
+    "init_recovers": "BOSS at fixed lambda when n/p large",
+    "diff_from_baseline": "Versus the BOSS baseline this swaps the random initial permutation for a PC-skeleton + correlation-degree heuristic and replaces the constant lambda_value=2 BIC penalty with a sample-density-dependent value in [1.0, 1.4]. Refinement uses an exhaustive insertion sweep instead of BOSS's better_mutation rule.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Diagnostic stub (no algorithm)",
+    "tagline": "Submitted code only prints the available local score functions and raises RuntimeError, returning an empty graph.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. import causallearn.score.LocalScoreFunction as lsf\n// 2. print(dir(lsf))\n// 3. raise RuntimeError(\"Just checking\")\n// 4. (unreachable) return empty GeneralGraph over $X_1,\\dots,X_p$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Not a causal discovery algorithm at all: the function prints diagnostic info and immediately raises, so no edges are returned. Effectively a no-op submission that never reaches PC/GRaSP/BOSS-style search.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "BOSS+PC ensemble with greedy parent prune",
+    "tagline": "Two BOSS runs and PC are voted into a support score; per-target parents are then chosen by penalized forward-backward selection along the BOSS order.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Standardize $X$; compute |corr| and pick alpha by signal level (0.05 or 0.08)\n// 2. Run PC skeleton (Fisher-Z); if $p\\le 12$, $n\\ge 30p$, signal strong: return PC + UC-sepset + Meek immediately\n// 3. Run BOSS twice with seeds 0,1 (BIC, $\\lambda{=}2$); keep the higher-score order and the union of parent sets\n// 4. Build edge support $s_{xy} = w_{\\text{pc}}\\,A_{xy}^{\\text{PC}} + 0.25[\\text{freq}{>}1] + w_{\\text{any}}[\\text{freq}{>}0]$\n// 5. Define penalized local score $\\ell(y, P) = -\\text{BIC}(y\\mid P) + \\eta \\sum_{x\\in P} s_{xy}$ with $\\eta = 0.35\\log n$\n// 6. for each target $y$ (in order): forward-add then backward-drop parents from $\\{x \\prec y : s_{xy}>0\\}$ to maximize $\\ell$\n// 7. Build DAG from chosen parents; return $\\text{dag2cpdag}(G)$",
+    "key_hyperparams": [
+      {"name": "BOSS lambda_value", "value": "2", "role": "BIC penalty in BOSS score", "learnable": false},
+      {"name": "alpha (PC)", "value": "0.05 / 0.08", "role": "Fisher-Z threshold (looser when signal weak)", "learnable": false},
+      {"name": "support weights", "value": "PC=0.60-0.65, freq>1=0.25, freq>0=0.10-0.15", "role": "edge prior aggregation", "learnable": false},
+      {"name": "eta", "value": "0.35*log(n)", "role": "support reward in penalized BIC", "learnable": false},
+      {"name": "BOSS seeds", "value": "[0, 1]", "role": "ensemble diversification", "learnable": false}
+    ],
+    "init_recovers": "PC + UC-sepset + Meek when p≤ 12 and n≥30p",
+    "diff_from_baseline": "Ensembles two BOSS runs with PC into an edge-support prior, then runs a greedy forward-backward parent search with a support-augmented BIC objective. This adds a constraint-test layer and an explicit aggregation/pruning stage that pure BOSS does not have.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "PC + BIC v-structure scoring",
+    "tagline": "Standard PC skeleton, but unshielded triples are oriented as colliders by an OLS-BIC test plus partial-correlation evidence instead of UC-sepset.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Run stable PC skeleton with Fisher-Z at $\\alpha=0.05$\n// 2. Precompute correlation $C$ and precision $\\Theta = (C+10^{-10}I)^{-1}$\n// 3. for each unshielded triple $(i, j, k)$ with $i \\sim j \\sim k$, $i \\not\\sim k$ do\n// 4.   $\\text{RSS}_{\\text{coll}} \\leftarrow$ residual of OLS $X_j \\sim X_i + X_k$\n// 5.   $\\text{RSS}_{\\text{nc}} \\leftarrow \\min(\\text{RSS}(X_j\\sim X_i),\\, \\text{RSS}(X_j\\sim X_k))$\n// 6.   $\\Delta\\mathrm{BIC} \\leftarrow \\log(\\text{RSS}_{\\text{coll}}/n) - \\log(\\text{RSS}_{\\text{nc}}/n) + \\log(n)/n$\n// 7.   if $\\Delta\\mathrm{BIC} < -0.5\\log(n)/n$ or ($\\Delta\\mathrm{BIC} < 0$ and $|\\rho_{ik\\mid j}| > 0.1$): orient $i\\to j \\leftarrow k$\n// 8. Apply Meek rules to close orientations",
+    "key_hyperparams": [
+      {"name": "alpha (PC)", "value": "0.05", "role": "Fisher-Z significance for skeleton", "learnable": false},
+      {"name": "BIC margin", "value": "0.5*log(n)/n", "role": "strong-collider acceptance threshold", "learnable": false},
+      {"name": "partial-corr threshold", "value": "0.1", "role": "soft-collider supportive evidence", "learnable": false}
+    ],
+    "init_recovers": "PC baseline if BIC test always rejects collider",
+    "diff_from_baseline": "Same skeleton stage as the PC baseline, but replaces UC-sepset collider orientation with a BIC comparison of {X_i → X_j ← X_k} versus the best single-parent fit, with partial-correlation acting as a tie-breaker. Meek closure unchanged.",
+    "confidence": "high"
+  }
+]

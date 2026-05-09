@@ -1,0 +1,51 @@
+[
+  {
+    "model": "deepseek-reasoner",
+    "name": "KACD: HSIC + variance ANM ordering",
+    "tagline": "Greedy source-finding with a dual HSIC + normalized residual-variance score, GBR parent selection, and partial-HSIC pruning.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Standardize $X$; pick GBR depth/n_estimators by sample regime.\n// 2. Build ordering by iterative source finding:\n//    a. first node = argmax residual variance after regressing on all others.\n//    b. next node = argmin residual variance after regressing on current ordering.\n// 3. For every pair $(i,j)$ compute $s_{i\\to j}=\\mathrm{HSIC}(r_{j|i},x_i)\\cdot(0.3+0.7\\,\\tilde\\sigma^2_{j|i})$ and swap adjacent pairs in the ordering when $s_{i\\to j}-s_{j\\to i}<-0.005$.\n// 4. For each $j$ at position $>0$, fit GBR on earlier vars and keep parents with importance $>\\max(\\text{base},2/|\\text{cand}|)$.\n// 5. Prune parent $p$ of $j$ if partial HSIC$(r_{j|\\text{others}},r_{p|\\text{others}})<\\tau$.\n// 6. Enforce DAG by deleting any edge that violates the ordering rank.",
+    "key_hyperparams": [
+      {"name": "n_est_light", "value": "25 / 50", "role": "GBR trees in ordering & pruning (low / high sample)", "learnable": false},
+      {"name": "n_est_full", "value": "50 / 100", "role": "GBR trees in parent-importance fit", "learnable": false},
+      {"name": "max_depth", "value": "2 / 3", "role": "GBR depth (low / high sample)", "learnable": false},
+      {"name": "swap_thresh", "value": "-0.005", "role": "ordering swap threshold on direction score", "learnable": false},
+      {"name": "imp_threshold", "value": "max(base,2/|cand|)", "role": "GBR feature-importance cutoff for parent inclusion", "learnable": false},
+      {"name": "base_thresh", "value": "0.04 / 0.06", "role": "min importance for parent (high / low sample)", "learnable": false},
+      {"name": "prune_thresh", "value": "0.02 / 0.04", "role": "partial-HSIC pruning cutoff", "learnable": false},
+      {"name": "max_pts", "value": "500", "role": "subsample cap for HSIC kernel", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces CAM's pure residual-variance ordering with an HSIC-weighted combined score, and replaces NOTEARS' acyclicity loss entirely; pruning step swaps NOTEARS' linear-correlation residual test for partial-residual HSIC and adds an explicit pairwise-direction reordering pass on top of CAM-style GBR parent selection.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Basis-feature ANM with sink peeling",
+    "tagline": "Closed-form rank-basis dependence score drives pairwise asymmetry, sink-peeling order, ExtraTrees screening, and forward-backward parent selection.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Standardize $X$ and build basis features $\\Phi(z)=[z, z^2-1, z^3, \\tanh z, \\sin z]$ over rank-uniformized vars.\n// 2. Define $\\mathrm{dep}(\\Phi_x, y)=\\sqrt{\\overline{(\\Phi_x^\\top\\Phi(y)/n)^2}}$ as a cheap basis-HSIC surrogate.\n// 3. Pairwise score $s_{ij}=\\mathrm{dep}_{j\\to i}-\\mathrm{dep}_{i\\to j}+0.35\\Delta\\mathrm{var\\_gain}$ with cross-fit GBR residuals.\n// 4. Build ordering by iterative residualized exogenous extraction: pick var minimizing average $\\mathrm{dep}(x_i, r_{j|i})-0.20\\,v_{j|i}-0.05\\max(s_{ij},0)$, then residualize the rest.\n// 5. For each child along the order, screen $k$ candidate parents by pair_score + linear corr, then forward-select with score $\\nu(P)=\\sigma^2_{r}/\\sigma^2_y+0.8\\,\\overline{\\mathrm{dep}(\\Phi_p,r)}$.\n// 6. Add union with GBR-importance support set; backward-prune any parent whose removal raises score by $<0.4\\tau$ and basis-dep $<\\theta$.",
+    "key_hyperparams": [
+      {"name": "GBR n_estimators", "value": "40-100", "role": "scaled by parent count and sample size", "learnable": false},
+      {"name": "max_depth", "value": "2 or 3", "role": "GBR depth (≤2 parents vs more)", "learnable": false},
+      {"name": "lr", "value": "0.05-0.06", "role": "GBR learning rate", "learnable": false},
+      {"name": "improve_tol", "value": "0.005-0.012 + 0.18-0.22/√n", "role": "forward-selection minimum gain", "learnable": false},
+      {"name": "screen_k", "value": "8 or 12", "role": "max candidate parents after pairwise screen", "learnable": false},
+      {"name": "max_pa", "value": "4 or 6", "role": "max parents per node (small-n vs large-n)", "learnable": false},
+      {"name": "dep_thr", "value": "0.08-0.10 + 0.35-0.45/√n", "role": "basis-dep threshold for backward pruning", "learnable": false},
+      {"name": "imp_thresh", "value": "max(0.04-0.06, μ+0.25-0.5σ)", "role": "GBR importance keep threshold", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces both CAM's residual-variance ordering and NOTEARS' continuous DAG constraint with a basis-feature dependence surrogate plus iterative residualized sink peeling; uses cross-fit GBR residuals and rank-uniformized polynomial+trig features instead of HSIC, and combines forward-backward search with a GBR-importance union step.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Empty-graph stub",
+    "tagline": "Returns the all-zeros adjacency before any analysis; the elaborate ANM/HSIC/CAM pipeline below it is dead code.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Read $X\\in\\mathbb{R}^{n\\times d}$.\n// 2. return $\\mathbf{0}_{d\\times d}$.\n// 3. (Unreachable) intended pipeline: HSIC + variance pairwise scores, residualized source ordering, forward-backward CAM selection, DAG enforcement.",
+    "key_hyperparams": [],
+    "init_recovers": "Empty graph (no edges)",
+    "diff_from_baseline": "Effectively predicts no edges, so it underperforms every baseline (CAM, NOTEARS-MLP, DirectLiNGAM, GraN-DAG) on F1/recall and posts SHD equal to the number of true edges; the rich algorithmic body following the early `return` is never executed.",
+    "confidence": "high"
+  }
+]

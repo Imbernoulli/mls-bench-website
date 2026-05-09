@@ -1,0 +1,79 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Uncertainty + cosine-decayed coarse",
+    "tagline": "Kendall uncertainty weights for fine and coarse, with a piecewise warmup-then-cosine decay that fades the coarse loss to a 0.1 floor.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}=e^{-\\sigma_f}\\,\\mathcal{L}_f+\\sigma_f+c(t)\\bigl(e^{-\\sigma_c}\\,\\mathcal{L}_c+\\sigma_c\\bigr),\\quad c(t)=\\begin{cases}1, & t<0.15\\\\ 0.1+0.45\\bigl(1+\\cos(\\pi\\,\\tfrac{t-0.15}{0.85})\\bigr), & t\\ge 0.15\\end{cases}$$",
+    "key_hyperparams": [
+      {"name": "log_vars", "value": "[0, 0]", "role": "per-task uncertainty (Kendall) parameters", "learnable": true},
+      {"name": "warmup_frac", "value": "0.15", "role": "fraction of epochs with full coarse weight", "learnable": false},
+      {"name": "floor", "value": "0.1", "role": "asymptotic coarse weight after cosine decay", "learnable": false}
+    ],
+    "init_recovers": "Equal-weight uncertainty weighting at $t<0.15$ with $\\sigma=0$",
+    "diff_from_baseline": "Adds a deterministic warmup-plus-cosine curriculum on the coarse term to Kendall uncertainty weighting; coarse-loss precision still learnable but is multiplied by a schedule that decays from 1 to 0.1, unlike vanilla uncertainty (constant) and DWA (relative-rate weighting).",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Uncertainty + polynomial coarse decay",
+    "tagline": "Kendall uncertainty weighting with $(1-t)^{\\beta}$ decay applied only to the coarse precision and an L2 penalty on the log-variances.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}=e^{-\\sigma_f}\\mathcal{L}_f+(1-t)^{\\beta}\\,e^{-\\sigma_c}\\mathcal{L}_c+\\sigma_f+\\sigma_c+\\lambda(\\sigma_f^{2}+\\sigma_c^{2}),\\;t=\\tfrac{\\text{epoch}}{T}$$",
+    "key_hyperparams": [
+      {"name": "log_vars", "value": "[0, 0]", "role": "Kendall per-task log-variances", "learnable": true},
+      {"name": "β", "value": "2.0", "role": "polynomial decay exponent on coarse weight", "learnable": false},
+      {"name": "λ_reg", "value": "0.01", "role": "L2 penalty on log-variances", "learnable": false}
+    ],
+    "init_recovers": "Uncertainty weighting at $t=0$ (with extra L2 reg)",
+    "diff_from_baseline": "Augments Kendall uncertainty with a fixed polynomial decay on the coarse precision (vs. constant) and a quadratic regularizer on log-variances; never re-balances on gradient conflict like PCGrad and ignores DWA's relative-rate signal.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "EMA-gated coarse valve (RAMTV)",
+    "tagline": "Detects per-batch task interference via EMA loss ratios, exponentially shuts the coarse 'valve' and re-allocates the freed weight to fine; cosine fade overall.",
+    "kind": "formula",
+    "formula": "$$w_c=\\exp\\bigl(-\\gamma\\,\\max(\\mathrm{ReLU}(\\rho_f-1),\\mathrm{ReLU}(\\rho_c-1))\\bigr)\\cdot\\tfrac{1}{2}(1+\\cos\\pi t),\\quad w_f=2-w_c,\\quad \\rho_k=\\frac{\\mathcal{L}_k}{\\mathrm{EMA}_k+\\epsilon}$$",
+    "key_hyperparams": [
+      {"name": "momentum", "value": "0.95", "role": "EMA decay for per-task loss tracking", "learnable": false},
+      {"name": "γ", "value": "3.0", "role": "exponential gate sharpness", "learnable": false},
+      {"name": "weight sum", "value": "2.0", "role": "conserved total weight reallocated to fine", "learnable": false}
+    ],
+    "init_recovers": "Equal weights $w_f=w_c=1$ at first batch and $t=0$ with no interference",
+    "diff_from_baseline": "Replaces uncertainty/DWA's loss-rate or learnable-precision schemes with a per-step EMA-conditioned valve plus a fixed cosine global fade, and conserves total loss mass by routing closed-coarse capacity into the fine task; PCGrad-style gradient surgery is replaced by scalar reweighting only.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Coupled coarse with EMA guidance",
+    "tagline": "Multiplicatively couples the auxiliary coarse term to the fine residual; EMA-normalized residual and curriculum gates an aux weight tied to fine difficulty.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}=\\mathcal{L}_f+w_c(t)\\Bigl(1+\\alpha\\,\\tfrac{\\mathcal{L}_f}{\\mathcal{L}_{f,0}}\\Bigr)\\mathcal{L}_c,\\quad w_c(t)=0.9\\bigl(0.1+0.9(1-t)^{2}\\bigr)\\,g(t),$$ $$g(t)=\\tfrac{1}{2}\\Bigl(\\bar r_f+\\sqrt{\\bar r_f\\bar r_c+\\epsilon}\\Bigr),\\;\\bar r_k=\\mathrm{clip}\\bigl(\\tfrac{\\mathrm{EMA}_k}{\\mathcal{L}_{k,0}},0,2\\bigr)$$",
+    "key_hyperparams": [
+      {"name": "β", "value": "0.9", "role": "EMA decay for per-task losses", "learnable": false},
+      {"name": "base_aux", "value": "0.9", "role": "base coarse weight before curriculum", "learnable": false},
+      {"name": "couple_alpha", "value": "0.25", "role": "fine→coarse coupling strength", "learnable": false},
+      {"name": "curriculum exponent", "value": "2", "role": "polynomial decay $(1-t)^2$ for curriculum", "learnable": false}
+    ],
+    "init_recovers": "Fine-only at $t=1$ (curriculum→0); near-base aux at $t=0$ when EMA matches init",
+    "diff_from_baseline": "Unlike Kendall uncertainty (per-task log-variance) and DWA (rate-of-loss-change), this gates the coarse term through a guidance signal $g$ built from EMA-normalized residual losses and explicitly couples it to the current fine loss, so an easy fine batch reduces aux pressure and a hard one raises it.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Calibrated coarse + exponential decay",
+    "tagline": "Rescales coarse loss by the early-training fine/coarse ratio, then applies a fixed exponential schedule decaying coarse weight from 0.7 to 0.08.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}=\\mathcal{L}_f+w_c(t)\\,r\\,\\mathcal{L}_c,\\quad w_c(t)=0.08+0.62\\,e^{-3t},\\quad r=\\overline{\\mathcal{L}_f/\\mathcal{L}_c}\\big|_{\\text{first 50 batches}}\\;(\\ge 1)$$",
+    "key_hyperparams": [
+      {"name": "decay rate", "value": "3.0", "role": "exponent in $e^{-3t}$ schedule on coarse", "learnable": false},
+      {"name": "w_max", "value": "0.70", "role": "initial coarse weight", "learnable": false},
+      {"name": "w_floor", "value": "0.08", "role": "asymptotic coarse weight", "learnable": false},
+      {"name": "calib_batches", "value": "50", "role": "running-mean window for ratio calibration", "learnable": false}
+    ],
+    "init_recovers": "Pure fine CE as $t\\to\\infty$ (coarse weight $\\to 0.08$); near 1.0+0.7r at $t=0$",
+    "diff_from_baseline": "Drops Kendall uncertainty altogether; uses a fixed exponential schedule plus one-shot loss-magnitude calibration instead of learnable precisions or DWA-style rate weighting, and never inspects gradient conflict (no PCGrad).",
+    "confidence": "high"
+  }
+]

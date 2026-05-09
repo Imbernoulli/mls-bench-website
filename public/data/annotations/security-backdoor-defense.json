@@ -1,0 +1,87 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Signed Dual-Space Spectral Defense",
+    "tagline": "Per-class signed spectral score on features and logits, fused by Cohen's d, applied only to over-sized (target) classes.",
+    "kind": "pseudocode",
+    "pseudocode": "// fit(features, labels, p):\n// 1. for each class c with |c| > N/C · (1 + max(2p, 0.08)):\n// 2.   $\\mu_c$ = mean; $v_c$ = top right SV of (X_c − $\\mu_c$); proj = (X_c − $\\mu_c$) v_c\n// 3.   poison-side ← side with larger |mean(proj)|; tiebreak by global-mean side, then smaller-group, then lower-variance\n// 4.   store sep_c = Cohen's d(pos, neg) on proj\n// score(features, logits):\n// 5. for each cached target class c:\n// 6.   feat_score = proj_f² on poison-side (else 0)\n// 7.   recompute logits-PCA on the fly → logit_score similarly\n// 8.   $w_f$ = sep_f/(sep_f+sep_l), $w_l$ = sep_l/(sep_f+sep_l)\n// 9.   score = $w_f$·feat/maxfeat + $w_l$·logit/maxlogit (zero on non-target classes)",
+    "key_hyperparams": [
+      {"name": "target-class size threshold", "value": "N/C · (1 + max(2p, 0.08))", "role": "skip clean classes entirely", "learnable": false},
+      {"name": "poison-side ratio", "value": "1.1× margin on |mean|", "role": "primary poison-side rule", "learnable": false},
+      {"name": "tiebreak group ratio", "value": "0.9", "role": "smaller-group rule", "learnable": false},
+      {"name": "fusion weights", "value": "w ∝ Cohen's d", "role": "adaptive feature/logit blend", "learnable": false},
+      {"name": "poison-side rule", "value": "|mean|, global-mean, size, var", "role": "4-step disambiguation", "learnable": false}
+    ],
+    "init_recovers": "Spectral Signatures only on the over-sized class when w_f=1, w_l=0, signed→absolute.",
+    "diff_from_baseline": "Three changes vs. spectral_signature: (i) restricts scoring to the inflated/target class only, (ii) keeps only the poison-side projections (signed proj² rather than full proj²), (iii) fuses an on-the-fly logit-PCA score with the feature score by Cohen's d separation — also adds an adaptive poison-side identification with 3 tiebreakers.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "IPSOD: Iterative Purified Spectral",
+    "tagline": "Two-pass median-centred spectral signature (purify by removing top 30% then re-fit) plus a per-class MAD confidence z-score.",
+    "kind": "pseudocode",
+    "pseudocode": "// fit(features, labels, p):\n// 1. for each class c (|c| ≥ 4):\n// 2.   pass-1: $\\mu_1$ = median; $v_1$ = top SV of X_c − $\\mu_1$; proj₁ = |(X_c−$\\mu_1$) v_1|\n// 3.   drop top 30% by proj₁ to obtain a clean subset\n// 4.   pass-2: $\\mu_2$ = median(clean), $v_2$ = top SV of clean − $\\mu_2$\n// 5.   store ($\\mu_2$, $v_2$)\n// score(features, logits):\n// 6. spectral_i = ((x_i − $\\mu_2$)·$v_2$)²  (per cached training label)\n// 7. conf_i = (max-prob_i − median(class)) / MAD(class)  using predicted class\n// 8. per-class min-max normalise both; final = norm(spectral) + norm(conf)",
+    "key_hyperparams": [
+      {"name": "pass-1 trim", "value": "top 30% by |projection|", "role": "purify before re-fit", "learnable": false},
+      {"name": "centring", "value": "median (robust)", "role": "instead of mean (Tran et al.)", "learnable": false},
+      {"name": "iterations", "value": "2 passes", "role": "purify-then-refit", "learnable": false},
+      {"name": "confidence robust z", "value": "(max_conf − median) / MAD", "role": "per predicted class", "learnable": false},
+      {"name": "fusion", "value": "min-max norm + sum", "role": "per cached training class", "learnable": false}
+    ],
+    "init_recovers": "Spectral Signatures (Tran 2018) when pass-2 returns the same direction as pass-1 and conf weight = 0.",
+    "diff_from_baseline": "Adds two pieces on top of the spectral_signature baseline: (i) median-centred SVD performed twice with a 30% trim between passes, and (ii) a robust confidence z-score (median + MAD) that is min-max normalised and additively combined per class — neither baseline iterates the SVD or fuses with confidence.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Loss-Signed Spectral with Size Amp",
+    "tagline": "Per-class 1-D k-means on the top spectral projection, sign chosen by per-cluster median NLL, then amplified by (n_c/n_max)¹⁰.",
+    "kind": "pseudocode",
+    "pseudocode": "// score(features, logits):\n// 1. for each class c with |c| ≥ 4:\n// 2.   $\\mu_c$ = mean; $v_c$ = top SV of (X_c − $\\mu_c$); proj = (X_c − $\\mu_c$) v_c\n// 3.   1-D k-means(proj, k=2) initialised at min/max → 2 clusters {A, B}\n// 4.   loss_A = median(NLL_A), loss_B = median(NLL_B)\n// 5.   if loss_B < loss_A: signed = proj  (B is loss-poor → poison side)\n// 6.   elif loss_A < loss_B: signed = −proj\n// 7.   else: signed = ±proj by smaller side\n// 8.   amp = (|c| / max_c |c|)¹⁰  (zeros out clean classes)\n// 9.   score(c) = signed · |signed| · amp\n// (no fit work; cached labels used to pick samples per class)",
+    "key_hyperparams": [
+      {"name": "k-means iters", "value": "20 (1-D init at min/max)", "role": "split projection into 2 clusters", "learnable": false},
+      {"name": "sign rule", "value": "lower median NLL = poison side", "role": "loss-guided polarisation", "learnable": false},
+      {"name": "size amplifier", "value": "(n_c / max_c n)¹⁰", "role": "concentrate score on largest class", "learnable": false},
+      {"name": "scale", "value": "proj · |proj| · amp", "role": "preserves sign while sharpening", "learnable": false}
+    ],
+    "init_recovers": "Spectral Signatures up to a sign when amp=1 (only one class).",
+    "diff_from_baseline": "Compared to spectral_signature, the magnitude (proj²) is replaced by a *signed* score (proj·|proj|) whose sign comes from per-cluster median NLL rather than absolute projection, and the entire score is multiplied by a 10th-power class-size amplifier so non-target classes get ~0 — neither spectral_signature nor activation_clustering sign by loss or amplify by class size.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Count-Gated Bi-Prototype Defense",
+    "tagline": "Spectral-init 2-means per class yielding clean/suspect prototypes; score = gated rank-fusion of affinity, axis projection, distance, label confidence.",
+    "kind": "pseudocode",
+    "pseudocode": "// fit:\n// 1. standardise features (global μ, σ)\n// 2. for each class c:\n// 3.   $v_c$ = top right SV of (X_c − $\\bar X_c$);  init1d = 1-D k-means on (X_c − $\\bar X_c$)·$v_c$\n// 4.   labels_c = full 2-means(X_c, init1d);  major→clean, minor→suspect prototypes\n// 5.   anomaly_c = (|c|−median|·|)/median + 0.15·gap + 0.05·anisotropy + 0.10·|pos_mass − 0.5|\n// 6. gates = 0.02 everywhere except largest-anomaly class → 1.0\n// score:\n// 7. for each class c with cached label = c:\n// 8.   d_clean, d_suspect → affinity = d_clean − d_suspect (rank-normalised)\n// 9.   axis = ((x − clean)·sep_dir) / √proj_var (rank);  far_rank = rank(d_clean);  conf_rank = rank(p[label])\n// 10.   fused = 0.50·affinity + 0.25·axis + 0.15·far + 0.10·conf\n// 11.   score = 0.60·gate + gate·fused + 0.02·axis + 0.01·far",
+    "key_hyperparams": [
+      {"name": "standardisation", "value": "global μ, σ", "role": "feature pre-processing", "learnable": false},
+      {"name": "k-means init", "value": "1-D k-means on top SV of class", "role": "spectral-init then full 2-means", "learnable": false},
+      {"name": "anomaly score", "value": "excess + 0.15·split_gap + 0.05·anisotropy + 0.10·|pos_mass − 0.5|", "role": "ranks classes for gating", "learnable": false},
+      {"name": "gate", "value": "1.0 on top-anomaly class, else 0.02", "role": "concentrate budget", "learnable": false},
+      {"name": "fusion weights", "value": "0.50/0.25/0.15/0.10  (affinity/axis/far/conf)", "role": "rank-blended suspicion", "learnable": false},
+      {"name": "outer mix", "value": "0.60·gate + gate·fused + 0.02·axis + 0.01·far", "role": "adds within-class ranking", "learnable": false}
+    ],
+    "init_recovers": "Activation-clustering-style scoring in the gated class (gate=1) with no rank fusion (fused=0).",
+    "diff_from_baseline": "Generalises activation_clustering: spectral-initialised 2-means, scores by a *4-component rank fusion* (affinity, projection, distance, label confidence) and multiplies by a class gate that is ≈1 only for the most anomalous class identified by a hand-crafted score — neither the spectral_signature nor activation_clustering baseline gates by class anomaly or rank-fuses confidence.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Median-Spectral × Confidence Coupling",
+    "tagline": "Spectral signature with geometric-median centring and MAD-normalised projections, coupled multiplicatively with per-sample confidence.",
+    "kind": "pseudocode",
+    "pseudocode": "// fit:\n// 1. for each class c (|c| ≥ 5):\n// 2.   $\\mu_c$ = geometric-median (Weiszfeld, 40 iters);  $v_c$ = top SV of X_c − $\\mu_c$\n// 3.   proj = (X_c − $\\mu_c$) v_c;  scale_c = MAD(proj)\n// 4. global SV: $v_g$ = top SV of (X − mean(X))\n// score(features, logits):\n// 5. spectral_i = ((x_i − $\\mu_{c(i)}$)·$v_{c(i)}$ / scale_{c(i)})²  (per training label)\n// 6. global_i = ((x_i − mean)·$v_g$ / max|·|)²\n// 7. conf_i = max softmax;  normalise spectral, global, conf to [0, 1]\n// 8. coupled = norm(spectral_n × conf_n)\n// 9. final = 0.7·max(coupled, spectral_n) + 0.3·global_n",
+    "key_hyperparams": [
+      {"name": "centring", "value": "Weiszfeld geometric median, 40 iters, tol 1e-5", "role": "robust to ≤50% contamination", "learnable": false},
+      {"name": "normalisation", "value": "MAD on projections", "role": "scale-invariant per class", "learnable": false},
+      {"name": "global PCA", "value": "top SV of standardised features", "role": "secondary cross-class signal", "learnable": false},
+      {"name": "conf coupling", "value": "norm(spec) × norm(max-prob)", "role": "amplify confident anomalies", "learnable": false},
+      {"name": "blend", "value": "0.7·max(coupled, spec) + 0.3·global", "role": "combine local + global views", "learnable": false}
+    ],
+    "init_recovers": "Spectral Signatures (Tran 2018) on the geometric-median centre.",
+    "diff_from_baseline": "Replaces the mean-centred per-class spectral signature with a Weiszfeld geometric-median centre and MAD-scaled projections, multiplies by per-sample max-softmax confidence (high spectral ∧ high confidence ⇒ poison), and 0.3-weights an additional global-PCA score — none of the baselines use geometric median, MAD scaling, or confidence-modulated spectral coupling.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,77 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "k3 Forward + Soft-Clipped Asymmetric Backward",
+    "tagline": "Straight-through estimator: forward returns clamped k3, backward sees a saturating quadratic with a 1.15x boost when the policy under-weights the reference.",
+    "kind": "formula",
+    "formula": "$$r = \\log\\pi - \\log\\pi_{\\text{ref}},\\quad \\text{forward: } k_3 = \\mathrm{clip}(\\,e^{-r}-(-r)-1,\\,0,\\,10\\,)$$\n$$g(r) = \\frac{0.5\\,r^{2}}{1 + r^{2}/8} \\cdot \\bigl(1.15\\,\\mathbb{1}[r<0] + \\mathbb{1}[r\\ge 0]\\bigr)$$\n$$\\widehat{\\mathrm{KL}} = g(r) + (k_3 - g(r)).\\mathrm{detach}()$$",
+    "key_hyperparams": [
+      {"name": "saturation 2c^2", "value": "8 (c=2)", "role": "controls where backward saturates", "learnable": false},
+      {"name": "asym factor", "value": "1.15", "role": "extra gradient when policy < ref", "learnable": false},
+      {"name": "k3 forward clip", "value": "[-20,20] log; [0,10] kld", "role": "numerical safety", "learnable": false}
+    ],
+    "init_recovers": "k3 baseline in the forward direction (logged value)",
+    "diff_from_baseline": "Hybrid of k3 (forward value) and a saturating-quadratic surrogate (backward gradient). Unlike k3 which would otherwise drive both directions identically, the backward term gets +15% gain when r<0 and saturates at ~c=2 instead of growing like e^{-r}.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Sigmoid-Sharp k2/k3 Asymmetric Blend",
+    "tagline": "Per-token convex combination alpha*k3 + (1-alpha)*k2 with alpha = sigmoid(-3*(logp - logp_ref)) so positive deviations use k2 (mode-seeking brake) and negative use k3.",
+    "kind": "formula",
+    "formula": "$$d = \\log\\pi - \\log\\pi_{\\text{ref}},\\ \\alpha = \\sigma(-\\beta d),\\ \\beta = 3$$\n$$k_2 = \\tfrac{1}{2}d^{2},\\ k_3 = \\mathrm{clip}(e^{-d} + d - 1,\\,-10,\\,10)$$\n$$\\widehat{\\mathrm{KL}} = \\alpha\\,k_3 + (1-\\alpha)\\,k_2$$",
+    "key_hyperparams": [
+      {"name": "beta", "value": "3.0", "role": "sharpness of asymmetric switch", "learnable": false},
+      {"name": "k3 log clamp", "value": "[-20, 20]", "role": "exp safety", "learnable": false},
+      {"name": "k3 value clamp", "value": "[-10, 10]", "role": "k3 saturation", "learnable": false}
+    ],
+    "init_recovers": "k2 baseline at d=+inf; k3 baseline at d=-inf; (k2+k3)/2 at d=0",
+    "diff_from_baseline": "Combines the k2 and k3 baselines with a sigmoid switch alpha=sigma(-3 d). For d>0 alpha->0 (k2 dominates, larger penalty), for d<0 alpha->1 (k3 dominates, milder).",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Piecewise k3 (mode-collapse) / k2 (over-opt)",
+    "tagline": "Hard switch: k2 when log p > log q (over-optimization), k3 when log p <= log q (mode collapse), clamped to [-10, 10].",
+    "kind": "formula",
+    "formula": "$$\\kappa = \\mathrm{clip}(\\log\\pi_{\\text{ref}} - \\log\\pi,\\,-20,\\,20)$$\n$$\\widehat{\\mathrm{KL}} = \\mathrm{clip}\\!\\left(\\begin{cases} \\tfrac{1}{2}\\kappa^{2} & \\kappa<0\\ \\ (\\log\\pi>\\log\\pi_{\\text{ref}}) \\\\ e^{\\kappa}-\\kappa-1 & \\kappa\\ge 0 \\end{cases},\\,-10,\\,10\\right)$$",
+    "key_hyperparams": [
+      {"name": "log clamp", "value": "[-20, 20]", "role": "exp safety", "learnable": false},
+      {"name": "value clamp", "value": "[-10, 10]", "role": "k3 magnitude cap", "learnable": false}
+    ],
+    "init_recovers": "Exactly k2 when log p > log q; exactly k3 when log p <= log q",
+    "diff_from_baseline": "Hard piecewise mix of the k2 and k3 baselines selected by sign(log p - log q): forward-KL surrogate (k2) for over-optimization side, reverse-KL surrogate (k3) for mode-collapse side. C^2 at zero because both share the same second derivative.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "STE Cubic-Quadratic / Bounded Log-Cosh",
+    "tagline": "Forward is a smooth blend of (0.5 d^2 + 0.05 d^3) on the positive side and 0.35*k3 on the negative; backward uses a 3-clipped k2 plus log-cosh surrogate.",
+    "kind": "formula",
+    "formula": "$$d = \\log\\pi - \\log\\pi_{\\text{ref}},\\ b = \\sigma(4d)$$\n$$f^+ = 0.5\\,d_+^{2} + 0.05\\,d_+^{3},\\ f^- = 0.35\\,(e^{-d_-} + d - 1)$$\n$$\\text{forward} = b f^+ + (1-b) f^-$$\n$$\\text{surrogate} = \\tfrac{1}{2}(\\min(d_+,3))^{2} + 3\\,(d_+ - 3)_+ + 0.30\\,\\tau^{2}\\log\\cosh(d_-/\\tau),\\ \\tau=2.5$$\n$$\\widehat{\\mathrm{KL}} = \\mathrm{clip}\\bigl(\\text{forward.detach()} + \\text{surrogate} - \\text{surrogate.detach()},\\,0,\\,10\\bigr)$$",
+    "key_hyperparams": [
+      {"name": "blend sharpness", "value": "4", "role": "sigmoid steepness around 0", "learnable": false},
+      {"name": "cubic gain", "value": "0.05", "role": "extra positive-side curvature", "learnable": false},
+      {"name": "k3 down-weight", "value": "0.35", "role": "reduce negative-side magnitude", "learnable": false},
+      {"name": "positive grad clip", "value": "3", "role": "k2-clip threshold in backward", "learnable": false},
+      {"name": "tau", "value": "2.5", "role": "log-cosh scale on negative side", "learnable": false},
+      {"name": "log-cosh gain", "value": "0.30", "role": "negative surrogate weight", "learnable": false}
+    ],
+    "init_recovers": "Approximately k2 near d=0 (matches second derivative)",
+    "diff_from_baseline": "Hybrid asymmetric estimator: forward-value path is a (k2+cubic) on d>0 and down-weighted k3 on d<0, blended by a sigmoid; backward-gradient path is a separately defined k2-clipped + log-cosh surrogate via a straight-through trick. Distinct from any of k1/k2/k3/abs.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "C1-Truncated k3 (Linear Tails)",
+    "tagline": "k3 inside |r|<=2 and a C^1 linear extrapolation outside, so the gradient saturates at +/- (e^2 - 1) and +/- (e^{-2} - 1).",
+    "kind": "formula",
+    "formula": "$$r = \\log\\pi_{\\text{ref}} - \\log\\pi,\\ \\delta = 2$$\n$$k_3(r) = e^{r} - r - 1$$\n$$\\widehat{\\mathrm{KL}}(r) = \\begin{cases} (e^{\\delta}-1)(r-\\delta) + e^{\\delta}-3 & r>\\delta\\\\ (e^{-\\delta}-1)(r+\\delta) + e^{-\\delta}+1 & r<-\\delta\\\\ k_3(r) & |r|\\le\\delta \\end{cases}$$",
+    "key_hyperparams": [
+      {"name": "delta", "value": "2.0", "role": "C^1 truncation point", "learnable": false}
+    ],
+    "init_recovers": "k3 baseline exactly when |r|<=2",
+    "diff_from_baseline": "Modifies the k3 baseline by replacing its tails with a C^1 linear continuation outside |r|<=2; values and gradients match k3 at the boundary, gradients are bounded outside.",
+    "confidence": "high"
+  }
+]

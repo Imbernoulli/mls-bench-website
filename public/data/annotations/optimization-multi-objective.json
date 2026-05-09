@@ -1,0 +1,69 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Geometry-adaptive Lp + NSGA-III",
+    "tagline": "For 2 objectives, iteratively eliminate the most crowded individual under an Lp distance whose exponent p tracks the front geometry; for 3+ objectives fall back to NSGA-III reference points; maintain an extreme-point archive.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. If $n_{\\text{obj}}\\ge 3$: select via random shuffle, survive via $\\mathrm{selNSGA3}$ on (P+Q) with $p=12$ uniform reference points.\n// 2. Else (2-obj): select via NSGA-II crowded tournament.\n// 3. Vary: SBX (p=0.9, η=cx_eta) + polynomial mutation (η=mut_eta, indpb=1/n_var).\n// 4. Survive (2-obj): combine P+Q+archive, non-dominated sort, on the splitting front run iterative Lp-NN elimination — repeatedly drop the alive point with smallest nearest-neighbor Lp distance, protecting per-objective extremes.\n// 5. on_generation (2-obj): every 10 gens estimate $p$ from non-dominated front by per-point binary search of $\\sum F_n^p=1$, EMA $p\\leftarrow 0.9p+0.1\\hat p$. Update archive with current per-objective extremes.",
+    "key_hyperparams": [
+      {"name": "p_geo", "value": "init 2.0, EMA 0.9·old + 0.1·new every 10 gens", "role": "Lp distance exponent adapted to front shape", "learnable": false},
+      {"name": "ref_points", "value": "uniform_reference_points(n_obj, p=12)", "role": "NSGA-III reference set for 3+ obj", "learnable": false},
+      {"name": "archive size", "value": "n_obj (one per extreme)", "role": "extreme non-dominated solutions kept across generations", "learnable": false},
+      {"name": "SBX / mutation", "value": "p_cx=0.9, η_cx=20, η_mut=20, indpb=1/n_var", "role": "variation operators", "learnable": false}
+    ],
+    "init_recovers": "NSGA-II survival when p=2 and archive is empty",
+    "diff_from_baseline": "Replaces NSGA-II crowding in 2-obj problems with iterative Lp-NN elimination using a front-geometry-estimated exponent p plus an extreme-point archive; switches to selNSGA3 for 3+ objectives.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Adaptive APD + DE/SBX hybrid",
+    "tagline": "RVEA-style angle-penalised distance survival with adaptive reference vectors and ideal/nadir tracking for ≥3 objectives, NSGA-II crowding for 2, plus a one-third DE / two-thirds SBX variation step and a periodic archive injection.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Track ideal $z^*$ and nadir $z^{nad}$ across generations; normalise objectives.\n// 2. Select via tournament: lower rank wins; tie broken by APD (3+ obj) or -crowding (2 obj). APD: $r_i(1+\\alpha(\\text{gen}/G_{\\max})^2\\,\\theta_{i,r})$ with $\\alpha=2$.\n// 3. Vary: 1/3 of parents → DE/rand/1 ($F=0.5$, $CR=0.9$) followed by polynomial mutation w.p. 0.5; remaining 2/3 → SBX($p=0.9,\\eta_{cx}$) + polynomial mutation.\n// 4. Survive: non-dominated sort; for 3+ obj, on splitting front pick one individual per reference vector with lowest APD then fill by APD; for 2 obj use NSGA-II crowding. Refresh archive of size pop/2 with non-dominated set.\n// 5. on_generation: every 10 gens replace ≤10% worst (by APD or crowding) with archive elites; every $0.1\\,G_{\\max}$ gens rescale reference vectors by current front extent and renormalise.",
+    "key_hyperparams": [
+      {"name": "α (APD)", "value": "2.0", "role": "RVEA angle penalty growth", "learnable": false},
+      {"name": "F / CR (DE)", "value": "0.5 / 0.9", "role": "differential evolution scale and crossover", "learnable": false},
+      {"name": "DE fraction", "value": "1/3", "role": "share of offspring from DE/rand/1", "learnable": false},
+      {"name": "p (refs)", "value": "12", "role": "uniform reference-point divisions", "learnable": false},
+      {"name": "archive size", "value": "pop_size/2", "role": "external elite buffer", "learnable": false},
+      {"name": "injection interval", "value": "every 10 gens", "role": "archive replaces worst ≤10% of population", "learnable": false}
+    ],
+    "init_recovers": "NSGA-II for 2-obj when DE fraction → 0",
+    "diff_from_baseline": "Adds RVEA-style adaptive APD survival, DE/SBX hybrid variation, ideal/nadir-normalised reference vectors that rescale with front extent, and an archive that periodically reinjects elites.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "SDE truncation + DE/SBX hybrid",
+    "tagline": "NSGA-II for 2 objectives, but for 3+ replace crowding with shift-based density (SDE) computed from clipped pairwise differences; vary by random DE/rand/1 vs SBX flip per child plus polynomial mutation.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. select: non-dominated sort; if 2-obj use NSGA-II crowded tournament; else compute SDE density on each front — normalise $F$, $d_{ij}=\\|\\max(0,F_i-F_j)\\|_2$, $\\rho_i=\\min_{j\\ne i}d_{ij}$, tournament prefers lower rank then larger $\\rho$.\n// 2. vary: per child, with prob 0.5 DE/rand/1 ($F\\sim U(0.4,0.9)$, $CR\\sim U(0.1,0.9)$, mandatory crossover at random index $j_r$) else SBX with random parent; always polynomial mutation.\n// 3. survive: non-dominated sort on $P\\cup Q$; truncate splitting front by iteratively dropping the alive point with smallest SDE density, but mark per-objective min/max as $\\infty$ to protect extremes.",
+    "key_hyperparams": [
+      {"name": "DE/SBX prob", "value": "0.5", "role": "per-child split between DE/rand/1 and SBX", "learnable": false},
+      {"name": "DE F / CR", "value": "U(0.4,0.9) / U(0.1,0.9)", "role": "stochastic DE parameters", "learnable": false},
+      {"name": "SDE distance", "value": "‖max(0,F_i−F_j)‖₂ on normalised F", "role": "shift-based density estimate", "learnable": false},
+      {"name": "extremes guard", "value": "per-axis min and max kept", "role": "boundary preservation in truncation", "learnable": false}
+    ],
+    "init_recovers": "NSGA-II for 2-obj with SBX-only variation",
+    "diff_from_baseline": "Replaces NSGA-II crowding with shift-based density estimation for 3+ objectives and adds a stochastic DE/rand/1 variation branch that fires with probability 0.5 per child.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "ARC-MOEA (rarity + crowding + niching)",
+    "tagline": "Reference-direction-niched MOEA with tournament keys (rank, rarity, crowding, angle), centroid-pull recombination toward sparse niche leaders, and adaptive splitting-front truncation balancing rarity, diversity, convergence and angle.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Annotate population: non-dominated rank + crowding; normalise $F$; associate each individual to nearest unit reference direction; rarity $=1/(1+\\text{niche count})$.\n// 2. Select: binary tournament on key $(-\\text{rank}, \\text{rarity}, \\text{crowding}, -\\text{angle})$.\n// 3. Vary: SBX ($p=0.9$); with prob $0.25+0.35\\cdot\\text{progress}$, pull each child toward the lowest-rank/-radial leader of its reference niche by $\\lambda\\sim U(0.15,0.5)$; polynomial mutation with indpb scaled $\\times 1.5$ early gens, $\\times 0.8$ later.\n// 4. Survive: non-dominated sort; on splitting front, first keep per-axis extremes; then iteratively pick the candidate maximising $\\alpha\\cdot\\text{rarity}+\\beta\\cdot\\text{div}-\\gamma\\cdot\\text{conv}-0.05\\cdot\\text{angle}$ with $\\alpha=0.55+0.25\\,\\text{progress}$, $\\beta=0.25$, $\\gamma=0.20-0.10\\,\\text{progress}$.",
+    "key_hyperparams": [
+      {"name": "ref divisions p", "value": "n_obj=2: pop-1, else 12", "role": "uniform reference set size", "learnable": false},
+      {"name": "directional pull λ", "value": "U(0.15, 0.5)", "role": "centroid-to-leader interpolation", "learnable": false},
+      {"name": "dir_prob", "value": "0.25 + 0.35·progress", "role": "probability of leader-pull recombination", "learnable": false},
+      {"name": "α / β / γ", "value": "0.55+0.25·prog / 0.25 / 0.20-0.10·prog", "role": "splitting-front score weights", "learnable": false},
+      {"name": "mut indpb scale", "value": "×1.5 (gen<80), ×0.8 (later)", "role": "stage-aware mutation rate", "learnable": false}
+    ],
+    "init_recovers": "NSGA-II tournament + crowding when rarity weights → 0 and dir_prob → 0",
+    "diff_from_baseline": "Adds reference-vector niching (rarity), centroid-pull directional recombination toward niche leaders, and an adaptive splitting-front truncation score that interpolates between convergence and diversity over generations.",
+    "confidence": "high"
+  }
+]

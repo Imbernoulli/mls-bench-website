@@ -1,0 +1,82 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Cosine-Warmup → Stable → Cosine-Decay (WSC)",
+    "tagline": "Three-phase schedule with cosine warmup (5% min), constant peak for ~67%, and cosine cooldown over the final 28%.",
+    "kind": "formula",
+    "formula": "$$\\eta(t) = \\begin{cases} \\eta_{\\min} + (\\eta_{\\max}-\\eta_{\\min})\\cdot \\tfrac{1}{2}\\big(1-\\cos(\\pi\\,\\tfrac{t+1}{W+1})\\big) & t < W,\\\\[2pt] \\eta_{\\max} & W \\le t < 0.72\\,T,\\\\[2pt] \\eta_{\\min} + (\\eta_{\\max}-\\eta_{\\min})\\cdot \\tfrac{1}{2}\\big(1+\\cos(\\pi\\,\\tfrac{t-0.72T}{0.28T})\\big) & 0.72T \\le t \\le T,\\\\[2pt] \\eta_{\\min} & t > T,\\end{cases}\\quad W = \\max(W_0, 0.05\\,T).$$",
+    "key_hyperparams": [
+      {"name": "stable_end_fraction", "value": "0.72", "role": "fraction of training before cooldown begins", "learnable": false},
+      {"name": "warmup_floor", "value": "0.05·max_iters", "role": "minimum warmup length", "learnable": false},
+      {"name": "warmup shape", "value": "cosine (1−cos)/2", "role": "smoother than linear", "learnable": false},
+      {"name": "decay shape", "value": "cosine (1+cos)/2", "role": "smooth taper to min_lr", "learnable": false},
+      {"name": "CONFIG_OVERRIDES.warmup_iters", "value": "0.05·max_iters", "role": "overrides default 4% warmup", "learnable": false}
+    ],
+    "init_recovers": "Standard cosine when stable phase length → 0",
+    "diff_from_baseline": "Versus cosine baseline, replaces linear warmup with a half-cosine ramp and inserts an explicit constant plateau at peak LR (until 72%); cooldown is also half-cosine instead of full cosine over the entire run.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Exponential Warmup + Hold + Cosine",
+    "tagline": "Saturating exponential warmup, 30% hold at peak, then cosine decay (paired with a longer 8% warmup override).",
+    "kind": "formula",
+    "formula": "$$\\eta(t) = \\begin{cases} \\eta_{\\max}\\,(1 - e^{-5\\,t/W}) & t < W,\\\\[2pt] \\eta_{\\max} & W \\le t < W + 0.3(T-W),\\\\[2pt] \\eta_{\\min} + \\tfrac{\\eta_{\\max}-\\eta_{\\min}}{2}\\big(1+\\cos(\\pi\\tfrac{t - h}{T - h})\\big) & t \\ge h = W + 0.3(T-W),\\end{cases}$$",
+    "key_hyperparams": [
+      {"name": "warmup decay constant k", "value": "5", "role": "controls saturating exponential ramp", "learnable": false},
+      {"name": "hold_frac", "value": "0.3", "role": "fraction of post-warmup steps held at peak", "learnable": false},
+      {"name": "CONFIG_OVERRIDES.warmup_iters", "value": "0.08·max_iters", "role": "doubles default 4% warmup", "learnable": false}
+    ],
+    "init_recovers": "Cosine baseline when hold_frac=0 and warmup uses 1-exp(-5t/W) ≈ linear",
+    "diff_from_baseline": "Versus cosine, swaps linear warmup for a saturating 1-e^{-5t/W} ramp, inserts a 30% hold at peak, then cosine-decays over the rest, with warmup length doubled to 8%.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Two-Stage Cosine Decay (TSCD)",
+    "tagline": "After linear warmup, slow-cosine-decay to 80% of peak LR, then a fast cosine cooldown over the final 20%.",
+    "kind": "formula",
+    "formula": "$$\\eta(t) = \\begin{cases} \\eta_{\\max}\\,\\tfrac{t+1}{W+1} & t < W,\\\\[3pt] \\eta_{\\mathrm{mid}} + \\tfrac{\\eta_{\\max} - \\eta_{\\mathrm{mid}}}{2}\\big(1 + \\cos(\\pi \\tfrac{t-W}{0.8T-W})\\big) & W \\le t < 0.8T,\\\\[3pt] \\eta_{\\min} + \\tfrac{\\eta_{\\mathrm{mid}} - \\eta_{\\min}}{2}\\big(1 + \\cos(\\pi \\tfrac{t-0.8T}{0.2T})\\big) & 0.8T \\le t \\le T,\\end{cases}\\ \\eta_{\\mathrm{mid}} = 0.8\\,\\eta_{\\max}.$$",
+    "key_hyperparams": [
+      {"name": "cooldown_start", "value": "0.8·max_iters", "role": "split between slow and fast decay", "learnable": false},
+      {"name": "mid_lr", "value": "0.8·learning_rate", "role": "intermediate LR floor for first cosine stage", "learnable": false},
+      {"name": "CONFIG_OVERRIDES", "value": "{}", "role": "no override of warmup or min_lr", "learnable": false}
+    ],
+    "init_recovers": "Single-stage cosine when mid_lr → min_lr",
+    "diff_from_baseline": "Versus cosine, splits the decay into two cosines: a gentle decay from peak to 0.8·peak over the first ~76% of post-warmup, then a steeper cosine cooldown to min_lr over the final 20%.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Sqrt Warmup + 65% Hold + Long Cosine Tail",
+    "tagline": "Concave sqrt warmup, hold at peak until 65%, then cosine decay over the final 35% — but to a floor of 10% above min_lr (and overall min_lr is set to lr/25).",
+    "kind": "formula",
+    "formula": "$$\\eta(t) = \\begin{cases} \\eta_{\\max}\\,\\sqrt{(t+1)/(W+1)} & t < W,\\\\[2pt] \\eta_{\\max} & W \\le t < 0.65\\,T,\\\\[2pt] \\eta_{f} + \\tfrac{\\eta_{\\max} - \\eta_{f}}{2}\\big(1 + \\cos(\\pi \\tfrac{t - 0.65T}{0.35T})\\big) & 0.65T \\le t \\le T,\\\\[2pt] \\eta_{\\min} & t > T,\\end{cases}\\quad \\eta_f = \\eta_{\\min} + 0.10(\\eta_{\\max} - \\eta_{\\min}).$$",
+    "key_hyperparams": [
+      {"name": "warmup shape", "value": "sqrt", "role": "concave fast-rising warmup", "learnable": false},
+      {"name": "hold_end_frac", "value": "0.65", "role": "fraction at peak before cooldown", "learnable": false},
+      {"name": "cosine floor offset", "value": "0.10·(lr − min_lr)", "role": "decay never quite reaches min_lr during cosine", "learnable": false},
+      {"name": "CONFIG_OVERRIDES.warmup_iters", "value": "0.03·max_iters", "role": "shorter than default 4%", "learnable": false},
+      {"name": "CONFIG_OVERRIDES.min_lr", "value": "learning_rate / 25", "role": "lower min_lr than default lr/10", "learnable": false}
+    ],
+    "init_recovers": "Trapezoidal-style WSD when warmup→linear and cosine→linear",
+    "diff_from_baseline": "Versus cosine, uses a sqrt warmup that ramps faster, a 65% peak hold (vs no hold), then a half-cosine decay over the final 35% to a floor 10% above min_lr; min_lr is also pushed down to lr/25.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Sin² Warmup + 70% Hold + Warped Cosine Decay",
+    "tagline": "Sin² warmup (zero initial gradient), 70% peak hold, then a power-warped (γ=0.6) cosine decay over the final 30%.",
+    "kind": "formula",
+    "formula": "$$\\eta(t) = \\begin{cases} \\eta_{\\max}\\,\\sin^2\\!\\big(\\tfrac{\\pi}{2}\\cdot\\tfrac{t+1}{W+1}\\big) & t < W,\\\\[3pt] \\eta_{\\max} & W \\le t < 0.7\\,T,\\\\[3pt] \\eta_{\\min} + \\tfrac{\\eta_{\\max}-\\eta_{\\min}}{2}\\big(1 + \\cos(\\pi\\,t'^{\\gamma})\\big) & 0.7T \\le t \\le T,\\end{cases}\\ t' = \\tfrac{t - 0.7T}{0.3T},\\ \\gamma = 0.6.$$",
+    "key_hyperparams": [
+      {"name": "warmup shape", "value": "sin² (zero-gradient at t=0)", "role": "smooth warmup that protects Adam moments", "learnable": false},
+      {"name": "stable_fraction", "value": "0.70", "role": "fraction at peak", "learnable": false},
+      {"name": "warp γ", "value": "0.6", "role": "exponent on cosine argument; <1 → faster early decay", "learnable": false},
+      {"name": "CONFIG_OVERRIDES", "value": "{}", "role": "no hyperparameter overrides", "learnable": false}
+    ],
+    "init_recovers": "Standard half-cosine decay when γ = 1 and stable_fraction = 0",
+    "diff_from_baseline": "Versus cosine, replaces linear warmup with sin² (0 grad at start), inserts a 70% peak hold, and reshapes the cooldown by exponentiating the cosine argument with γ = 0.6 so initial decay is steeper and the tail is gentler.",
+    "confidence": "high"
+  }
+]

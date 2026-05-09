@@ -1,0 +1,125 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Geometric Aug + Residual Refinement",
+    "tagline": "Concatenates raw obs with explicit relative-pose features (rel_pos, distance, log-distance, unit direction, quat-position outer-product, gripper*distance) plus a zero-init residual MLP refinement.",
+    "kind": "formula",
+    "formula": "$$\\Delta = o[:3] - p,\\ d = \\Vert\\Delta\\Vert,\\ \\hat{u} = \\Delta/d$$\n$$z_{\\text{geo}} = [\\Delta, d, \\log d, \\hat{u}, W_{12\\to 8}\\tanh(q\\otimes\\Delta), g\\odot d]$$\n$$x = [o_{\\text{raw}}, z_{\\text{geo}}],\\ y = x + \\mathrm{MLP}_{\\text{0-init}}(\\mathrm{LN}(x))$$",
+    "key_hyperparams": [
+      {"name": "geo feature dim", "value": "18", "role": "rel_pos(3)+d(1)+log d(1)+dir(3)+quat-rel(8)+gripper*d(2)", "learnable": false},
+      {"name": "quat-rel compress", "value": "Linear(12->8) + Tanh, no bias", "role": "compresses quaternion x rel_pos outer product", "learnable": true},
+      {"name": "refine MLP last layer", "value": "zero-init weights and bias", "role": "starts at identity", "learnable": true},
+      {"name": "norm", "value": "LayerNorm(combined_dim)", "role": "pre-refinement normalization", "learnable": true}
+    ],
+    "init_recovers": "Default raw-concat encoder at init (refinement is zero)",
+    "diff_from_baseline": "Beyond default concat baseline: appends 18 hand-crafted relative-geometry features (relative position, distance, log distance, unit direction, quaternion-position outer-product compressed via 12->8 linear+tanh, gripper*distance), then a zero-init residual MLP refinement.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Modality-Group Soft Gating",
+    "tagline": "Encodes pose (eef_pos+quat), gripper, and object as 3 group features, computes softmax gate over the three groups from a context MLP, fuses weighted-sum + per-group features through an output MLP.",
+    "kind": "hybrid",
+    "formula": "$$f_{\\text{pose}} = \\mathrm{MLP}_p([p, q]),\\ f_{\\text{grip}} = \\mathrm{MLP}_g(g),\\ f_{\\text{obj}} = \\mathrm{MLP}_o(o)$$\n$$\\alpha = \\mathrm{softmax}\\!\\bigl(\\mathrm{MLP}_{\\text{gate}}([p, q, g, o])\\bigr) \\in \\mathbb{R}^{3}$$\n$$z_{\\text{sum}} = \\alpha_1 f_{\\text{pose}} + \\alpha_2 f_{\\text{grip}} + \\alpha_3 f_{\\text{obj}}$$\n$$y = \\mathrm{MLP}_{\\text{out}}\\!\\bigl([z_{\\text{sum}}, f_{\\text{pose}}, f_{\\text{grip}}, f_{\\text{obj}}]\\bigr)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "p", "label": "eef_pos+quat"},
+        {"id": "g", "label": "gripper_qpos"},
+        {"id": "o", "label": "object"},
+        {"id": "fp", "label": "MLP pose"},
+        {"id": "fg", "label": "MLP grip"},
+        {"id": "fo", "label": "MLP obj"},
+        {"id": "gate", "label": "softmax gate (3)"},
+        {"id": "y", "label": "MLP_out -> 2*D"}
+      ],
+      "edges": [
+        {"from": "p", "to": "fp"},
+        {"from": "g", "to": "fg"},
+        {"from": "o", "to": "fo"},
+        {"from": "p", "to": "gate"},
+        {"from": "g", "to": "gate"},
+        {"from": "o", "to": "gate"},
+        {"from": "fp", "to": "y", "label": "weighted + raw"},
+        {"from": "fg", "to": "y"},
+        {"from": "fo", "to": "y"},
+        {"from": "gate", "to": "y", "label": "alpha"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "embed_dim", "value": "64", "role": "per-group feature dim", "learnable": false},
+      {"name": "groups", "value": "3 (pose, gripper, object)", "role": "modality grouping", "learnable": false},
+      {"name": "output_dim", "value": "2 * embed_dim = 128", "role": "encoder output", "learnable": false}
+    ],
+    "diff_from_baseline": "Compared to gated_fusion baseline: groups eef_pos+quat into one 'pose' modality (3 groups, not 4), uses a softmax-over-groups gate driven by a context MLP on all raw obs (rather than per-modality sigmoid on its own input), and concatenates both the gated-sum AND each group feature into an output MLP.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "ViT Fusion Token over Modalities",
+    "tagline": "Per-modality linear projection plus learned modality embeddings, prepended with a [FUSION] CLS token and run through a 2-layer pre-norm Transformer; CLS output concatenated with raw features.",
+    "kind": "hybrid",
+    "formula": "$$t_k = W_k\\,o_k + e_k,\\ k\\in\\mathcal{K},\\quad t_0 = \\text{[FUSION]}$$\n$$X = [t_0, t_1, \\dots, t_M],\\ Z = \\mathrm{TransformerEnc}_{2,4}(X)$$\n$$y = [\\mathrm{LN}(Z_0),\\, o_{\\text{raw}}]$$",
+    "diagram": {
+      "nodes": [
+        {"id": "obs", "label": "obs_dict"},
+        {"id": "proj", "label": "per-modality Linear + mod_emb"},
+        {"id": "cls", "label": "[FUSION] token"},
+        {"id": "tx", "label": "PreNorm TFEnc 2 layers, 4 heads"},
+        {"id": "ln", "label": "LN(CLS)"},
+        {"id": "raw", "label": "raw concat"},
+        {"id": "out", "label": "[CLS, raw]"}
+      ],
+      "edges": [
+        {"from": "obs", "to": "proj"},
+        {"from": "proj", "to": "tx", "label": "M tokens"},
+        {"from": "cls", "to": "tx"},
+        {"from": "tx", "to": "ln", "label": "CLS"},
+        {"from": "obs", "to": "raw"},
+        {"from": "ln", "to": "out"},
+        {"from": "raw", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "embed_dim", "value": "128", "role": "Transformer width", "learnable": false},
+      {"name": "num_heads", "value": "4", "role": "MHSA heads", "learnable": false},
+      {"name": "num_layers", "value": "2", "role": "Transformer depth", "learnable": false},
+      {"name": "dim_feedforward", "value": "4 * embed_dim", "role": "FFN width", "learnable": false},
+      {"name": "norm", "value": "norm_first=True (pre-LN)", "role": "stable training", "learnable": false},
+      {"name": "modality embeddings", "value": "per-key Parameter, init N(0, 0.02^2)", "learnable": true},
+      {"name": "CLS token", "value": "Parameter, init N(0, 0.02^2)", "learnable": true}
+    ],
+    "diff_from_baseline": "Generalizes attention_fusion baseline: adds a learnable [FUSION] CLS token and per-modality learnable embeddings, runs a 2-layer pre-norm Transformer encoder (rather than a single MHA), then concatenates the LN-ed CLS feature with the raw concat skip connection.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Bilinear Robot-Object + Rel Geometry",
+    "tagline": "Encodes robot, object, and 4-D relative-pose features, then forms a sigmoid-gated multiplicative robot*object interaction in latent space; concatenates fused + raw features.",
+    "kind": "formula",
+    "formula": "$$z_r = \\mathrm{BlockMLP}(o_{\\text{robot}}),\\ z_o = \\mathrm{BlockMLP}(o_{\\text{object}})$$\n$$r = [p - o[:3],\\ \\Vert p-o[:3]\\Vert],\\ z_{\\text{rel}} = \\mathrm{MLP}_{\\text{rel}}(r)$$\n$$g = \\sigma(W_g z_{\\text{rel}}),\\ I = g \\odot W_r z_r \\odot W_o z_o$$\n$$y = \\bigl[\\mathrm{Fuse}([z_r + I,\\, z_o + g\\odot I,\\, z_{\\text{rel}},\\, I]),\\ o_{\\text{robot}},\\ o_{\\text{object}}\\bigr]$$",
+    "key_hyperparams": [
+      {"name": "embed_dim", "value": "32", "role": "latent width", "learnable": false},
+      {"name": "rel_dim", "value": "4", "role": "rel_pos(3) + dist(1)", "learnable": false},
+      {"name": "rel_encoder", "value": "Linear-Tanh-Linear-LN-ReLU", "role": "relative-pose featurizer", "learnable": true},
+      {"name": "rel_gate", "value": "Linear -> Sigmoid (D)", "role": "data-dependent gate on multiplicative interaction", "learnable": true},
+      {"name": "output_dim", "value": "2*embed_dim + robot_dim + object_dim", "role": "fused + raw skip", "learnable": false}
+    ],
+    "diff_from_baseline": "Distinct from attention_fusion / gated_fusion baselines: builds an explicit relative-geometry token, a sigmoid-gated bilinear robot*object multiplicative interaction in a 32-D latent, and combines with both raw modalities; no attention used.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Relative-Product Fusion (RPF)",
+    "tagline": "Three per-modality MLPs (pose, grip, obj), two product interactions (pose*obj, grip*obj), an explicit rel-pose feature, all fused with raw concat through a Linear+ReLU+LN+Linear stack.",
+    "kind": "formula",
+    "formula": "$$f_p = \\mathrm{MLP}([p, q]),\\ f_g = \\mathrm{MLP}(g),\\ f_o = \\mathrm{MLP}(o)$$\n$$h_{po} = \\mathrm{MLP}(f_p \\odot f_o),\\ h_{go} = \\mathrm{MLP}(f_g \\odot f_o)$$\n$$z_{\\text{rel}} = \\mathrm{MLP}([p - o[:3],\\ q\\odot o[3:7]])$$\n$$y = \\mathrm{Fuse}\\bigl([o_{\\text{raw}},\\ h_{po},\\ h_{go},\\ z_{\\text{rel}}]\\bigr)$$",
+    "key_hyperparams": [
+      {"name": "embed_dim", "value": "64", "role": "per-modality feature width", "learnable": false},
+      {"name": "rel_dim", "value": "7", "role": "rel_pos(3) + elementwise quat product(4)", "learnable": false},
+      {"name": "fusion stack", "value": "Linear -> ReLU -> LN -> Linear", "role": "output projection (4*embed_dim)", "learnable": true},
+      {"name": "output_dim", "value": "4 * embed_dim = 256", "role": "encoder output", "learnable": false}
+    ],
+    "diff_from_baseline": "Goes beyond gated_fusion / attention_fusion baselines by adding two latent elementwise product interactions (pose*obj, grip*obj) and an explicit relative-pose featurizer (eef-pos minus object position, eef-quat element-wise object-quat), all combined with a raw-concat residual through a 4*embed_dim fusion MLP.",
+    "confidence": "high"
+  }
+]

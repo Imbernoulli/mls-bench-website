@@ -1,0 +1,80 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "DPM++3M-SDE with cosine eta anneal",
+    "tagline": "DPM-Solver++(3M) SDE on Karras sigmas, but eta cosine-anneals from 1.5 down to 0.5 across the 20 steps to balance early diversity and late detail.",
+    "kind": "formula",
+    "formula": "$$\\eta_i = \\eta_{\\min} + \\tfrac{1}{2}(\\eta_{\\max}-\\eta_{\\min})\\!\\left(1 + \\cos\\!\\left(\\pi\\,\\tfrac{i}{N-1}\\right)\\right),\\quad h_\\eta = h(\\eta+1)$$",
+    "key_hyperparams": [
+      {"name": "eta_max", "value": "1.5", "role": "early-trajectory SDE noise level", "learnable": false},
+      {"name": "eta_min", "value": "0.5", "role": "late-trajectory SDE noise level", "learnable": false},
+      {"name": "rho", "value": "7.0", "role": "Karras schedule shape parameter", "learnable": false},
+      {"name": "order", "value": "3", "role": "multistep order (history depth)", "learnable": false}
+    ],
+    "init_recovers": "DPM++3M SDE (eta=1.2) at the trajectory midpoint",
+    "diff_from_baseline": "Same DPM++3M SDE multistep update as the dpm3m_sde baseline, but replaces the constant eta=1.2 with a cosine schedule running from 1.5 to 0.5 over the steps, applied to both SD and SDXL.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "DPM++3M-SDE with adaptive eta",
+    "tagline": "DPM-Solver++(3M) SDE that scales eta by the relative change in consecutive denoised estimates so noise injection grows when the trajectory is changing rapidly.",
+    "kind": "formula",
+    "formula": "$$\\Delta_i = \\tfrac{\\lVert \\hat x_{0,i}-\\hat x_{0,i-1}\\rVert}{\\lVert \\hat x_{0,i-1}\\rVert + \\varepsilon},\\quad \\eta_i = \\eta_{\\text{base}}(1+\\alpha\\,\\Delta_i)$$",
+    "key_hyperparams": [
+      {"name": "eta_base", "value": "1.2", "role": "base SDE noise level", "learnable": false},
+      {"name": "alpha", "value": "2.0", "role": "sensitivity of eta to denoised change", "learnable": false},
+      {"name": "rho", "value": "7.0", "role": "Karras schedule shape", "learnable": false}
+    ],
+    "init_recovers": "DPM++3M SDE baseline at i=0 (no history)",
+    "diff_from_baseline": "Wraps the DPM++3M SDE baseline with a per-step adaptive eta proportional to the relative L2 change in successive denoised predictions, instead of the fixed eta=1.2.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini/gemini-3.1-pro-preview",
+    "name": "Noise-First DPM++3M (NF-3M)",
+    "tagline": "Pre-injects the SDE Langevin noise into the latent before each denoiser call, then runs a deterministic third-order multistep update with closed-form phi-functions.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for $i = 0..N-1$:\n// 2.   if $i>0$: $V \\leftarrow \\sigma_{i+1}^2(1-\\exp(-2h\\eta));\\;\\hat\\sigma \\leftarrow \\sqrt{\\sigma_i^2+V};\\;\\hat x \\leftarrow x + \\sqrt{V}\\,\\epsilon$\n// 3.   else $\\hat\\sigma\\leftarrow\\sigma_i,\\,\\hat x\\leftarrow x$\n// 4.   $D_i \\leftarrow \\mathrm{denoise}(\\hat x,\\hat\\sigma)$\n// 5.   $h \\leftarrow t(\\sigma_{i+1}) - t(\\hat\\sigma)$;\\; $x \\leftarrow e^{-h}\\hat x + (1-e^{-h})D_i$\n// 6.   if history available, add Newton-form 2nd/3rd-order corrections weighted by $\\Phi_1,\\Phi_2$ (Taylor for small $h$)\n// 7.   shift history $(D_{i-1},D_{i-2},t_{i-1},t_{i-2})$",
+    "key_hyperparams": [
+      {"name": "eta", "value": "1.2", "role": "SDE Langevin noise level (pre-step)", "learnable": false},
+      {"name": "rho", "value": "7.0", "role": "Karras schedule shape", "learnable": false},
+      {"name": "taylor_eps", "value": "1e-4", "role": "switch threshold for closed-form vs. Taylor expansion of phi", "learnable": false}
+    ],
+    "init_recovers": "Deterministic DPM++3M when eta=0",
+    "diff_from_baseline": "Restructures the dpm3m_sde baseline so noise is injected before denoising (predictor pre-noised at sigma_hat) and the multistep update uses cleanly separated $\\Phi_1,\\Phi_2$ functions with stable Taylor fallback for small steps.",
+    "confidence": "medium"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Deterministic DPM++3M (no churn)",
+    "tagline": "DPM-Solver++(3M) multistep on Karras sigmas with eta=0; pure ODE solver, three orders of multistep correction, decodes the final denoised estimate.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. build Karras $\\sigma$-schedule (rho=7) and init $x \\sim p(\\sigma_0)$\n// 2. for $i = 0..N-1$:\n// 3.   $D \\leftarrow \\mathrm{denoise}(x,\\sigma_i)$\n// 4.   if $\\sigma_{i+1}=0$: $x \\leftarrow D$ and break\n// 5.   $h \\leftarrow t(\\sigma_{i+1})-t(\\sigma_i)$;\\;$x \\leftarrow e^{-h}x + (1-e^{-h})D$\n// 6.   if $D_{-1}$: $r_0 = h_{-1}/h,\\; d^{(1)}=(D-D_{-1})/r_0,\\; \\phi_2=(e^{-h}-1)/h+1$;\\;$x \\mathrel{+}= \\phi_2 d^{(1)}$\n// 7.   if $D_{-2}$: add 3rd-order term $\\phi_3 d^{(2)}$ with $\\phi_3=\\phi_2/h-1/2$\n// 8.   shift history\n// 9. return $\\mathrm{decode}(D)$",
+    "key_hyperparams": [
+      {"name": "eta", "value": "0", "role": "deterministic ODE (no SDE churn)", "learnable": false},
+      {"name": "rho", "value": "7.0", "role": "Karras schedule shape", "learnable": false},
+      {"name": "order", "value": "3", "role": "multistep history depth", "learnable": false}
+    ],
+    "init_recovers": "DPM++3M SDE baseline at eta=0",
+    "diff_from_baseline": "Strips the Langevin noise from the dpm3m_sde baseline (eta=0), giving a deterministic third-order ODE solver instead of the SDE; otherwise identical multistep recurrence and Karras sigmas.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "DPM++3M SDE + 4th-order Newton",
+    "tagline": "DPM++3M SDE with Karras rho=9, sigmoid-ramped eta, and a 4th-order Newton-divided-difference correction using three history denoised values.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Karras $\\sigma$-schedule with $\\rho=9$ for finer low-noise resolution\n// 2. for $i = 0..N-1$:\n// 3.   $D \\leftarrow \\mathrm{denoise}(x,\\sigma_i)$\n// 4.   $\\hat\\sigma \\leftarrow \\sigma_i/(\\sigma_i+0.1);\\; \\eta \\leftarrow \\eta_b\\hat\\sigma + (\\eta_b/4)(1-\\hat\\sigma)$\n// 5.   $h_\\eta \\leftarrow h(\\eta+1);\\; x \\leftarrow e^{-h_\\eta}x + (1-e^{-h_\\eta})D$\n// 6.   compute Newton divided differences $f^{(1)},f^{(2)},f^{(3)}$ from up to 3 prior $D$'s\n// 7.   add corrections $\\phi_2 d^{(1)}+\\phi_3 d^{(2)}+\\phi_4 d^{(3)}$ with $\\phi_{k+1}=\\phi_k/h_\\eta - 1/k!$\n// 8.   inject Langevin noise $\\sigma_{i+1}\\sqrt{1-e^{-2h\\eta}}\\,\\epsilon$\n// 9. return $\\mathrm{decode}(x)$",
+    "key_hyperparams": [
+      {"name": "eta_base", "value": "1.2", "role": "high-noise eta", "learnable": false},
+      {"name": "eta_low", "value": "eta_base / 4 = 0.3", "role": "low-noise eta floor", "learnable": false},
+      {"name": "rho", "value": "9.0", "role": "Karras schedule shape (sharper low-noise sampling)", "learnable": false},
+      {"name": "order", "value": "4", "role": "multistep history depth", "learnable": false},
+      {"name": "ramp_eps", "value": "0.1", "role": "sigmoid normalisation constant for sigma_norm", "learnable": false}
+    ],
+    "init_recovers": "DPM++3M SDE baseline at order ≤ 3 and eta=1.2",
+    "diff_from_baseline": "Extends the dpm3m_sde baseline with a 4th-order Newton-form correction, a sigma-dependent eta that drops by 4x near the end of sampling, and a finer rho=9 Karras schedule.",
+    "confidence": "high"
+  }
+]

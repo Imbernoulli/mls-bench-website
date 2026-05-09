@@ -1,0 +1,90 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "GBM meta-score + fair-threshold blend",
+    "tagline": "Gradient-boosted correctness predictor on enriched confidence/group/X features, then per-group thresholds blended with global by α∈[0,1] minimizing a joint coverage-bounded fairness objective.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Build features: max prob, margin, entropy, $p^2$, $\\text{margin}^2$, $\\text{entropy}\\cdot\\text{conf}$, $p(1-p)$, group one-hots, first 10 cols of X.\n// 2. Train GBM (n_est=150, depth=3, lr=0.1) to predict correctness; raw_scores = predict_proba.\n// 3. global_thr = quantile$_{1-c}$(raw_scores); per_group_thr$_g$ = quantile$_{1-c}$(raw_scores$|$group=g).\n// 4. Sweep $\\alpha\\in\\{0,0.02,\\dots,1\\}$, set thr$_g=\\alpha\\cdot$per_group$_g+(1-\\alpha)\\cdot$global; keep candidate if coverage $\\in[c-0.025, c+0.025]$.\n// 5. Score candidates by $0.4\\cdot\\text{sel\\_risk}+0.3\\cdot\\text{worst\\_group\\_risk}+0.6\\cdot\\text{def\\_gap}+2\\cdot|\\text{cov}-c|$, take min.\n// 6. Local search: ±0.03 offsets per group around the best blend, re-evaluate same objective.\n// 7. accept = scores ≥ per-group thr.",
+    "key_hyperparams": [
+      {"name": "GBM n_estimators", "value": "150", "role": "boosting trees in correctness predictor", "learnable": false},
+      {"name": "GBM depth", "value": "3", "role": "tree depth", "learnable": false},
+      {"name": "GBM lr", "value": "0.1", "role": "learning rate", "learnable": false},
+      {"name": "α grid", "value": "linspace(0,1,51)", "role": "blend weight global vs per-group", "learnable": false},
+      {"name": "coverage tol", "value": "±0.025", "role": "hard coverage band around target", "learnable": false},
+      {"name": "objective coeffs", "value": "0.4/0.3/0.6/2.0", "role": "selrisk / worst-group / def-gap / coverage-dev weights", "learnable": false},
+      {"name": "offset grid", "value": "linspace(-0.03,0.03,13)", "role": "per-group fine-tune", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces learned-deferral baseline's logistic gate with a GBM meta-model on richer nonlinear features, and replaces groupwise-thresholding's plain per-group quantiles with a global↔per-group blend selected by a fairness-regularized joint objective subject to a hard coverage band.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Logistic gate + iterative fair thresholds",
+    "tagline": "Same logistic correctness predictor as learned-deferral, then a greedy iterative scheme that shifts the most/least-deferring groups' thresholds to shrink the deferral-rate gap under a coverage tolerance.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Train balanced logistic regression on confidence+group+X features → meta scores.\n// 2. Initial per-group thresholds = quantile$_{1-c}$(scores$|$g).\n// 3. Loop ≤15 times with step $\\Delta=0.005$:\n//    - compute per-group deferral; if cov drift $>0.04$ or gap $<0.01$ stop.\n//    - identify high-deferral group $g_+$ and low-deferral $g_-$.\n//    - lower thr$_{g_+}$ by Δ (clip 0.01), raise thr$_{g_-}$ by Δ (clip 0.99).\n//    - keep update if cov within ±tol; else single-side adjustment.\n//    - track best seen by deferral-gap.\n// 4. accept if meta_score ≥ thr$_{g(x)}$.",
+    "key_hyperparams": [
+      {"name": "step Δ", "value": "0.005", "role": "threshold shift per iteration", "learnable": false},
+      {"name": "max_iter", "value": "15", "role": "fairness loop iterations", "learnable": false},
+      {"name": "coverage tol", "value": "0.04", "role": "max allowed cov drift", "learnable": false},
+      {"name": "gap stop", "value": "0.01", "role": "early stop when def-gap below", "learnable": false}
+    ],
+    "init_recovers": "Learned-deferral baseline at iteration 0 (per-group quantiles only)",
+    "diff_from_baseline": "Layers on top of learned-deferral baseline a fairness post-processing loop that explicitly shrinks deferral-rate gap (where groupwise-thresholding baseline only sets per-group quantiles without any gap-aware adjustment) while keeping coverage within tolerance.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "DRO-weighted GBM + Pareto threshold mix",
+    "tagline": "Group-DRO inverse-frequency reweighted gradient-boosting meta-classifier with cross-val OOF scores; per-group thresholds set by mixing target coverage with each group's coverage at the global threshold (λ-sweep optimizes worst-group risk).",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Build features (confidence stats + group one-hots up to 10 + raw X) and inverse-frequency sample weights.\n// 2. Fit GBC (n_est=100, depth=3, lr=0.05) with sample_weight; get OOF correctness probs via 5-fold cross_val_predict.\n// 3. global_thr = quantile$_{1-c}$(OOF scores); per-group cov_g = mean(OOF$|$g ≥ global_thr).\n// 4. Sweep $\\lambda\\in[0,1]$ in 51 steps: target cov$_g$ = $\\lambda c + (1-\\lambda)\\,\\text{cov}_g$; thr$_g$ = quantile$_{1-\\text{target}}$(OOF$|$g).\n// 5. Compute accept; objective = $\\text{worst\\_group\\_risk}+5\\,\\text{def\\_gap}+0.5\\,\\text{overall\\_risk}$; pick min.\n// 6. accept = OOF score ≥ thr$_{g(x)}$.",
+    "key_hyperparams": [
+      {"name": "GBM n_estimators / depth / lr", "value": "100 / 3 / 0.05", "role": "meta-model capacity", "learnable": false},
+      {"name": "min_samples_leaf", "value": "10", "role": "GBM regularizer", "learnable": false},
+      {"name": "CV folds", "value": "5", "role": "OOF predictions to avoid score leakage", "learnable": false},
+      {"name": "DRO weights", "value": "1/n_g", "role": "inverse-frequency sample weights", "learnable": false},
+      {"name": "λ grid", "value": "linspace(0,1,51)", "role": "target-coverage interpolation per group", "learnable": false},
+      {"name": "objective weights", "value": "1.0 / 5.0 / 0.5", "role": "worst-group-risk / def-gap / overall-risk weights", "learnable": false}
+    ],
+    "init_recovers": "Groupwise-thresholding baseline at $\\lambda=0$; confidence-thresholding at $\\lambda=1$",
+    "diff_from_baseline": "Differs from learned-deferral by using a DRO-weighted GBM (with cross-val OOF scoring to remove leakage), and from groupwise-thresholding by parametrizing per-group target coverages along a single $\\lambda$ axis chosen to minimize a worst-group-risk + 5×def-gap + overall-risk objective.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Mixed score + Bayesian group offset",
+    "tagline": "Convex blend of base max-prob and a logistic correctness gate, modulated by margin/entropy, with empirical-Bayes per-group additive offsets and a 0.65/0.35 blend of global vs per-group quantile thresholds.",
+    "kind": "formula",
+    "formula": "$$s = (1-w)\\max p+w\\,\\hat{p}_{\\text{corr}}-0.05\\,H+0.03\\,\\Delta+\\Delta_g,\\quad \\Delta_g=\\frac{n_g}{n_g+30}\\,\\overline{(c-s_{\\text{base}})}_g$$ $$\\tau_g=0.65\\,\\tau_{\\text{global}}+0.35\\,\\tau_g^{\\text{quant}}$$",
+    "key_hyperparams": [
+      {"name": "mix_weight w", "value": "0.2 (>4 groups) / 0.3", "role": "convex weight on logistic meta-score vs max-prob", "learnable": false},
+      {"name": "entropy coef", "value": "-0.05", "role": "score adjustment from confidence entropy", "learnable": false},
+      {"name": "margin coef", "value": "+0.03", "role": "score adjustment from class margin", "learnable": false},
+      {"name": "EB shrink prior", "value": "30", "role": "pseudo-count in $n_g/(n_g+30)$ shrinkage", "learnable": false},
+      {"name": "λ (thr blend)", "value": "0.35", "role": "per-group threshold weight (vs global)", "learnable": false},
+      {"name": "coverage adjust step", "value": "0.6×Δ", "role": "second-pass quantile correction", "learnable": false}
+    ],
+    "init_recovers": "Confidence-thresholding when $w=0,\\Delta_g=0,\\lambda=0$",
+    "diff_from_baseline": "Unlike learned-deferral (pure logistic) and groupwise-thresholding (pure per-group quantile), it blends both at the score level (max-prob ⊕ logistic) AND threshold level (global ⊕ per-group), and adds a Bayesian-shrunk per-group score offset based on calibration residuals.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "LR+GB ensemble + density-aware fair tweak",
+    "tagline": "Average of LR and GBM correctness scores as the meta gate; per-group quantile thresholds shrunk toward global, then iteratively nudged using local density to meet per-group acceptance ≈ target.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Train LR (balanced) and GB (n_est=100, depth=2, lr=0.1) on confidence features → cal_scores = $\\tfrac{1}{2}(\\hat p_{LR}+\\hat p_{GB})$.\n// 2. global_thr = quantile$_{1-c}$(cal_scores).\n// 3. For each group g: per_group_thr$_g$ = quantile$_{1-c}$(cal_scores$|$g); $\\lambda_g=\\min(n_g/n,0.5)$; thr$_g=\\lambda_g$ per_group$_g+(1-\\lambda_g)$ global.\n// 4. Loop $\\le 5$ iters: stop if max gap of per-group acceptance < 0.03. Else for each g, $\\Delta\\tau=\\tfrac{rate_g-c}{2\\rho_g}$ where $\\rho_g$ is local density of cal_scores around current thr; clip to $[Q_{\\alpha-0.1},Q_{\\alpha+0.1}]$.\n// 5. accept = cal_score ≥ thr$_{g(x)}$.",
+    "key_hyperparams": [
+      {"name": "ensemble mix", "value": "0.5/0.5", "role": "weight of LR vs GBM scores", "learnable": false},
+      {"name": "GBM n_estimators / depth / lr", "value": "100 / 2 / 0.1", "role": "meta-GBM hyperparams", "learnable": false},
+      {"name": "shrinkage cap", "value": "0.5", "role": "max λ for per-group threshold shrinkage", "learnable": false},
+      {"name": "n_iters", "value": "5", "role": "fairness refinement iterations", "learnable": false},
+      {"name": "early stop gap", "value": "0.03", "role": "max acceptance-rate gap to stop", "learnable": false},
+      {"name": "density window ε", "value": "0.005", "role": "neighborhood for density estimate ρ", "learnable": false},
+      {"name": "thr clip α±", "value": "0.1", "role": "max quantile shift around base", "learnable": false}
+    ],
+    "diff_from_baseline": "Differs from learned-deferral (single logistic) by stacking LR and GBM correctness predictors, and from groupwise-thresholding by adding empirical-Bayes shrinkage of per-group thresholds plus an iterative density-aware Newton-like nudge to align per-group acceptance with the target coverage.",
+    "confidence": "high"
+  }
+]

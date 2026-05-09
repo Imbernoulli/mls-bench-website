@@ -1,0 +1,75 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "MuonGC: row-centred Newton-Schulz Muon",
+    "tagline": "Muon (Nesterov + Newton-Schulz orthogonalisation) on 2D matrices, with row-wise gradient centralisation applied before orthogonalisation; AdamW for embeddings.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Split params: 2D non-embedding → MuonGC; embeddings/biases/norms → AdamW\n// 2. for each step:\n// 3.   buf ← lerp(buf, g, 1−β),  $\\tilde g ← \\mathrm{lerp}(g, \\mathrm{buf}, \\beta)$  (Nesterov)\n// 4.   if $\\tilde g$ is 2D: $\\tilde g ← \\tilde g − \\mathrm{rowmean}(\\tilde g)$  (gradient centralisation)\n// 5.   $U ← \\mathrm{NewtonSchulz}_5(\\tilde g)$  (a,b,c = 3.4445, −4.7750, 2.0315)\n// 6.   apply scale $\\sqrt{\\max(1, m/n)}$ for fan-out, split fused QKV into 3\n// 7.   $p ← (1 − \\eta\\,\\mathrm{wd})\\,p − \\eta\\cdot\\text{scale}\\cdot U$\n// 8. AdamW path runs in parallel for wte/wpe/lm_head and 1D params",
+    "key_hyperparams": [
+      {"name": "lr (Muon)", "value": "0.02", "role": "Muon base LR (scaled by 0.02/AdamW_lr)", "learnable": false},
+      {"name": "lr (AdamW)", "value": "3e-4", "role": "via CONFIG_OVERRIDES", "learnable": false},
+      {"name": "momentum", "value": "0.95", "role": "Muon EMA / Nesterov", "learnable": false},
+      {"name": "ns_steps", "value": "5", "role": "Newton-Schulz iterations", "learnable": false},
+      {"name": "weight_decay", "value": "0.1", "role": "decoupled, MuonGC and AdamW", "learnable": false},
+      {"name": "GC dimension", "value": "row (dim=1)", "role": "centralisation axis", "learnable": false}
+    ],
+    "init_recovers": "Muon when row-mean is zero",
+    "diff_from_baseline": "Adds Yong et al.-style gradient centralisation (subtract per-row mean) right before the Newton-Schulz orthogonalisation in the Muon baseline; same parameter routing and Newton-Schulz coefficients as the muon edit, but with a regularised gradient.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "AdamW with per-tensor grad clipping",
+    "tagline": "Single-tensor AdamW with explicit per-parameter gradient clipping inside step; uses β₂=0.98 and a manually-set warmup/min-LR schedule.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Override hp: $\\eta = 6\\times 10^{-4}$, wd = 0.1, β = (0.9, 0.98)\n// 2. Group params: dim ≥ 2 with wd, dim < 2 without wd\n// 3. for each step:\n// 4.   for each tensor p with grad g:\n// 5.     if $\\|g\\|_2 > 1$: $g ← g \\cdot 1/\\|g\\|_2$  (per-tensor clip)\n// 6.     decoupled wd: $p ← (1 − \\eta\\,\\mathrm{wd})\\,p$\n// 7.     $m ← \\beta_1 m + (1−\\beta_1)g$,  $v ← \\beta_2 v + (1−\\beta_2)g^2$\n// 8.     $\\hat m = m/(1−\\beta_1^t)$, $\\hat v = v/(1−\\beta_2^t)$\n// 9.     $p ← p − \\eta\\,\\hat m / (\\sqrt{\\hat v}+\\varepsilon)$\n// 10. CONFIG_OVERRIDES: warmup_iters=400, min_lr=4e-5",
+    "key_hyperparams": [
+      {"name": "lr", "value": "8e-4 (override)", "role": "peak learning rate", "learnable": false},
+      {"name": "betas", "value": "(0.9, 0.98)", "role": "momentum / second-moment", "learnable": false},
+      {"name": "weight_decay", "value": "0.1", "role": "decoupled", "learnable": false},
+      {"name": "eps", "value": "1e-5", "role": "denominator floor", "learnable": false},
+      {"name": "clip_threshold", "value": "1.0", "role": "per-tensor L2 clip", "learnable": false},
+      {"name": "warmup_iters", "value": "400", "role": "linear warmup", "learnable": false},
+      {"name": "min_lr", "value": "4e-5", "role": "cosine floor", "learnable": false}
+    ],
+    "init_recovers": "AdamW when no clipping fires",
+    "diff_from_baseline": "Doesn't adopt the Lion/Muon/NAdam structural changes from the baselines; instead replaces global grad-clip with per-tensor renormalisation inside the step, raises β₂ to 0.98, and tunes the LR schedule (longer warmup, higher min_lr).",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "TrustAdamW: norm-gated layer-wise AdamW",
+    "tagline": "AdamW with a LARS-style trust ratio (clipped to [0.5, 2.0]) on the projection matrices, gated by an EMA of grad-RMS; embeddings/biases use plain AdamW.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Split params: 2D non-embedding → 'trust' group; rest → 'adam' group\n// 2. for each step, for each p:\n// 3.   $m ← \\beta_1 m + (1−\\beta_1)g$, $v ← \\beta_2 v + (1−\\beta_2)g^2$  (β=(0.9, 0.96))\n// 4.   $u = \\hat m / (\\sqrt{\\hat v}+\\varepsilon)$ with bias correction\n// 5.   decoupled wd: $p ← (1 − \\eta\\,\\mathrm{wd})\\,p$\n// 6.   if mode = 'trust':\n// 7.     $\\rho = \\mathrm{clip}(\\|p\\| / \\|u\\|, 0.5, 2.0)$  (trust ratio)\n// 8.     $r_t = 0.95\\,r_{t-1} + 0.05\\,\\mathrm{rms}(g)$,  gate = clip($r_t/\\mathrm{rms}(g)$, 0.8, 1.2)\n// 9.     scale = $\\rho \\cdot$ gate; else scale = 1\n// 10.  $p ← p − \\eta \\cdot \\text{scale} \\cdot u$",
+    "key_hyperparams": [
+      {"name": "lr", "value": "7e-4 (override)", "role": "peak learning rate", "learnable": false},
+      {"name": "betas", "value": "(0.9, 0.96)", "role": "Adam moments", "learnable": false},
+      {"name": "trust_clip", "value": "[0.5, 2.0]", "role": "LARS-style ratio bounds (matrices)", "learnable": false},
+      {"name": "rms_ema_beta", "value": "0.95", "role": "grad-RMS EMA", "learnable": false},
+      {"name": "rms_gate_clip", "value": "[0.8, 1.2]", "role": "RMS gate bounds", "learnable": false},
+      {"name": "warmup_iters", "value": "0.08·max_iters", "role": "longer warmup", "learnable": false},
+      {"name": "min_lr", "value": "3.5e-5", "role": "cosine floor", "learnable": false}
+    ],
+    "init_recovers": "AdamW when trust ratio = 1 and gate = 1",
+    "diff_from_baseline": "Doesn't take the orthogonalisation/sign route of Lion/Muon; instead per-projection adapts the AdamW step by a clamped layer-wise trust ratio plus a grad-RMS EMA gate, and scales token embeddings/lm_head with vanilla AdamW.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Muon + AdamW (faithful re-impl)",
+    "tagline": "Reproduces the Muon baseline: Newton-Schulz on 2D non-embedding weights with Nesterov momentum, AdamW for embeddings, with longer warmup.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Split: 2D non-embedding → Muon, rest → AdamW\n// 2. for each Muon step on p:\n// 3.   buf ← β·buf + (1−β)·g, $\\tilde g$ ← lerp(g, buf, β)  (Nesterov)\n// 4.   if 2D: $U ← \\mathrm{NewtonSchulz}_5(\\tilde g)$ with (3.4445, −4.7750, 2.0315)\n// 5.   split fused QKV (3n × n) into 3 blocks before NS\n// 6.   scale = $\\sqrt{\\max(1, m/n)}$, $p ← (1−\\eta\\,\\mathrm{wd})\\,p − \\eta\\cdot\\text{scale}\\cdot U$\n// 7. AdamW(lr=$\\eta$, β, wd) for wte/wpe/lm_head and 1D params\n// 8. Combined optimizer steps both, schedule scales LRs together",
+    "key_hyperparams": [
+      {"name": "lr (AdamW)", "value": "1e-3 (override)", "role": "peak rate", "learnable": false},
+      {"name": "lr (Muon base)", "value": "0.02", "role": "scaled by 0.02/AdamW_lr", "learnable": false},
+      {"name": "momentum", "value": "0.95", "role": "Muon", "learnable": false},
+      {"name": "ns_steps", "value": "5", "role": "Newton-Schulz iterations", "learnable": false},
+      {"name": "warmup_iters", "value": "0.10·max_iters", "role": "longer warmup", "learnable": false}
+    ],
+    "init_recovers": "Muon baseline",
+    "diff_from_baseline": "Essentially the Muon baseline with two small tweaks: AdamW peak LR raised to 1e-3 (vs 6e-4) and warmup lengthened from 4 % to 10 % of training; algorithm itself is identical.",
+    "confidence": "high"
+  }
+]

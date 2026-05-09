@@ -1,0 +1,44 @@
+[
+  {
+    "model": "deepseek-reasoner",
+    "name": "BIC-pruned DirectLiNGAM",
+    "tagline": "Run DirectLiNGAM ordering, then iteratively delete each node's parents whenever doing so lowers the per-node BIC.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Estimate causal order $K$ via DirectLiNGAM (mutual-info residual scoring).\n// 2. Fit dense $B$ from OLS along $K$ using the LiNGAM base estimator.\n// 3. For each node $i$ with $\\geq 2$ parents: drop the smallest-coef parent below the largest log-magnitude gap.\n// 4. Repeat up to 3 passes, for each $i$ try removing each parent $j$; commit the removal that minimises $n\\log\\mathrm{MSE}_i + k_i\\log n$.\n// 5. Refit remaining edges via OLS to get final adjacency.",
+    "key_hyperparams": [
+      {"name": "max_iter", "value": "3", "role": "BIC backward-elimination passes", "learnable": false},
+      {"name": "gap margin", "value": "1.1", "role": "safety multiplier on log-gap pre-pruning threshold", "learnable": false}
+    ],
+    "init_recovers": "DirectLiNGAM if no edges are pruned",
+    "diff_from_baseline": "Adds two pruning stages on top of the DirectLiNGAM baseline: a per-node largest-log-gap pre-prune and a multi-pass per-node BIC backward elimination, replacing arbitrary thresholding.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Hybrid LiNGAM + LassoLarsIC + t-test pruning",
+    "tagline": "Combine DirectLiNGAM and pairwise non-Gaussian ordering, then refine each node's parent set with adaptive Lasso BIC and a t-statistic filter.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Standardize $X$.\n// 2. Compute order $K_1$ via DirectLiNGAM (entropy-based mutual-info scoring).\n// 3. Compute order $K_2$ via pairwise non-Gaussian win counts: win$_i$ += dep$(x_j, x_i\\mid x_i)$ - dep$(x_i, x_j\\mid x_j)$.\n// 4. Score each order by total residual non-Gaussian dependence; build $K_3$ as a rank-blended fallback.\n// 5. Select $K = K_1$ if $d\\le 60$, else best of $\\{K_1,K_3\\}$ or $\\{K_1,K_2,K_3\\}$ by score.\n// 6. For each $k\\in K$: fit LassoLarsIC(BIC) on prior nodes, drop coefs failing $|\\beta_j|/\\mathrm{se}_j>\\tau$ (3 passes) and below magnitude floor.",
+    "key_hyperparams": [
+      {"name": "τ", "value": "max(2.5, sqrt(2.5·log(d+1)))", "role": "t-statistic threshold for parent retention", "learnable": false},
+      {"name": "magnitude floor", "value": "0.02 + sqrt(log(d+1)/(4(n+1)))", "role": "minimum |β| to keep an edge", "learnable": false},
+      {"name": "refit passes", "value": "3", "role": "iterations of t-test pruning per node", "learnable": false}
+    ],
+    "init_recovers": "DirectLiNGAM ordering before lasso/t-test stage",
+    "diff_from_baseline": "Replaces the single DirectLiNGAM ordering with a multi-source order selector (DirectLiNGAM + pairwise non-Gaussian + rank-blended) and adds adaptive-Lasso BIC + iterative t-statistic + magnitude pruning per node.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "DirectLiNGAM + per-node BIC pruning",
+    "tagline": "DirectLiNGAM ordering followed by an OLS refit and a single-pass weakest-coefficient BIC backward elimination per node.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Run DirectLiNGAM mutual-info ordering to obtain $K$.\n// 2. Fit dense adjacency $B$ from $X$ along $K$ using the LiNGAM base estimator.\n// 3. For each node $i$ with $\\geq 2$ parents:\n//    a. Refit OLS on all current parents; recompute $\\mathrm{BIC}_{\\text{full}}$.\n//    b. Sort parents by $|\\beta|$ (smallest first).\n//    c. Try removing each parent $j$ except the largest; if $\\mathrm{BIC}_{\\text{red}} < \\mathrm{BIC}_{\\text{full}}-2$ then set $B_{ij}=0$.\n// 4. Return $B$.",
+    "key_hyperparams": [
+      {"name": "Δ-BIC threshold", "value": "2", "role": "minimum positive evidence to drop an edge", "learnable": false}
+    ],
+    "init_recovers": "DirectLiNGAM if no edges drop the BIC by 2",
+    "diff_from_baseline": "Adds a single per-node OLS refit followed by greedy weakest-coefficient BIC pruning on top of DirectLiNGAM, dropping each parent only if Δ-BIC > 2.",
+    "confidence": "high"
+  }
+]

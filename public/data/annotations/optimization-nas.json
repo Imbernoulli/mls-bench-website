@@ -1,0 +1,90 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Exhaustive UCB ensemble surrogate",
+    "tagline": "BANANAS-style 7-MLP path-encoding ensemble (with target z-norm and L2) scores all ~15K NAS-Bench-201 architectures each step under linearly decaying UCB.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Enumerate every valid arch and cache its path encoding once.\n// 2. Warm start: sample 5 distinct random valid archs; query val_acc.\n// 3. for each remaining epoch:\n//    a. z-normalize observed val accs; fit ensemble of 7 _TinyMLP (hidden 64, 300 epochs, lr 1e-2, weight_decay 1e-3).\n//    b. predict $\\mu, \\sigma$ for ALL valid archs; denormalize.\n//    c. $\\beta = (1-p)$ where $p$ is fraction of post-warmup budget used.\n//    d. score = $\\mu + \\beta\\,\\sigma$; mask seen.\n//    e. query argmax score.\n// 4. return best-seen arch.",
+    "key_hyperparams": [
+      {"name": "warm_start", "value": "5", "role": "initial random queries", "learnable": false},
+      {"name": "ensemble_size", "value": "7", "role": "MLPs in surrogate ensemble", "learnable": false},
+      {"name": "MLP epochs / lr / wd", "value": "300 / 1e-2 / 1e-3", "role": "MLP training schedule", "learnable": false},
+      {"name": "UCB β", "value": "1.0 → 0.0", "role": "linear decay during search", "learnable": false},
+      {"name": "candidate set", "value": "all ~15K valid archs", "role": "exhaustive scoring per step", "learnable": false}
+    ],
+    "init_recovers": "Greedy ensemble-mean argmax at $\\beta=0$ (matches BANANAS's posterior mean)",
+    "diff_from_baseline": "Replaces BANANAS' 500-random subsample + greedy mean with exhaustive scoring of every valid architecture under a UCB acquisition whose $\\beta$ linearly decays; also adds 7-member ensemble (vs 5), z-normalized targets, and L2 regularization on MLPs. No evolution like REA.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "EI BANANAS + mutation-biased pool",
+    "tagline": "BANANAS path-MLP ensemble with closed-form Expected Improvement, a candidate pool whose mutation share grows with progress, decaying $\\sigma$ exploration bonus, and a final greedy local refinement around the best arch.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Warm-start: 10 distinct random archs.\n// 2. Per step until last 4: fit ensemble of 5 _TinyMLP (200 epochs, lr 1e-2).\n// 3. Build pool of 500 unseen candidates: each candidate is a mutation of a top-5 arch with prob $0.3+0.5\\,p$, else random.\n// 4. Predict $\\mu, \\sigma$; $\\sigma\\leftarrow\\max(\\sigma, 10^{-8})$; $\\mu_{\\text{best}}=\\max$ observed.\n// 5. $z=(\\mu-\\mu_{\\text{best}})/\\sigma$; $\\mathrm{EI}=\\sigma(z\\Phi(z)+\\phi(z))$; score = $\\mathrm{EI}+0.05(1-p)\\sigma$.\n// 6. Query argmax.\n// 7. Final 4 steps: greedy walk over unseen 1-edit neighbors of current best.\n// 8. Return best-seen.",
+    "key_hyperparams": [
+      {"name": "warm_start", "value": "10", "role": "initial random queries", "learnable": false},
+      {"name": "ensemble_size", "value": "5", "role": "BANANAS-sized ensemble", "learnable": false},
+      {"name": "candidate_pool", "value": "500", "role": "scored per acquisition step", "learnable": false},
+      {"name": "mutation ratio", "value": "0.3 → 0.8", "role": "fraction of pool drawn from top-5 mutations", "learnable": false},
+      {"name": "explore weight", "value": "0.05·(1-progress)", "role": "decaying $\\sigma$ bonus added to EI", "learnable": false},
+      {"name": "local_steps", "value": "4", "role": "neighbor walk in last 4 epochs", "learnable": false}
+    ],
+    "init_recovers": "BANANAS at mutation_ratio=0 and explore weight=0",
+    "diff_from_baseline": "Switches BANANAS' argmax-mean to closed-form EI, hybridizes the random candidate pool with REA-style mutations of the elite, and ends with explicit greedy local search — neither vanilla random search, REA, nor BANANAS does this combination.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Matérn-5/2 GP + EI over full space",
+    "tagline": "Replaces BANANAS' MLP ensemble with a Matérn-5/2 Gaussian process on path encodings (length-scale chosen by marginal-likelihood grid) and uses tanh-approximated Normal-CDF EI over every valid arch.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Pre-enumerate all valid archs and their path encodings.\n// 2. Warm-start: 5 random unseen archs.\n// 3. Per step (epoch ≥ 5):\n//    a. z-normalize $y$.\n//    b. select length scale $\\ell\\in\\{0.5,0.8,1,1.5,2,3,5,8\\}$ maximizing log marginal likelihood of Matérn-5/2 kernel with $10^{-4}$ noise.\n//    c. compute posterior $\\mu(x), \\sigma(x)$ for every arch.\n//    d. EI$(x)= (\\mu-y^*)\\Phi(z)+\\sigma\\phi(z)$ with tanh approximation of $\\Phi$.\n//    e. mask seen; if max EI ≤ $10^{-7}$ fall back to UCB (β=1) over all archs.\n//    f. query argmax.\n// 4. Return best-seen.",
+    "key_hyperparams": [
+      {"name": "warmup_epochs", "value": "5", "role": "random initial queries", "learnable": false},
+      {"name": "kernel", "value": "Matérn-5/2", "role": "GP covariance over path-encoding features", "learnable": false},
+      {"name": "length scales", "value": "{0.5, 0.8, 1, 1.5, 2, 3, 5, 8}", "role": "grid for marginal-likelihood selection", "learnable": false},
+      {"name": "noise", "value": "1e-4", "role": "diagonal jitter / noise variance", "learnable": false},
+      {"name": "EI fallback β", "value": "1.0", "role": "UCB tradeoff when EI saturates at 0", "learnable": false}
+    ],
+    "init_recovers": "Random search during the warm-up phase; UCB(β=1) when EI saturates",
+    "diff_from_baseline": "Drops BANANAS' MLP ensemble entirely for a Matérn-5/2 GP with marginal-likelihood length-scale selection and EI acquisition; differs from REA (no evolutionary population) and from random search (model-based scoring of every architecture).",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Hamming kernel + ridge residual + final-pick",
+    "tagline": "Hybrid surrogate: Hamming-distance kernel smoother as prior plus a 7-member bootstrapped ridge ensemble on path+edge+op-count features fits the residual; UCB+trust+novelty acquisition with local elite bias and a separate conservative final-pick.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Pre-enumerate space and compute hybrid features [path encoding, one-hot edges, op-count fractions, bias].\n// 2. Warm-start (≤7 queries): pick unseen arch maximizing min Hamming distance to seen set.\n// 3. Per step:\n//    a. z-normalize $y$; compute prior $\\hat z_{\\text{prior}}(x)=\\sum_j w_j(x)\\,z_j/\\sum_j w_j(x)$ with $w_j=e^{-d_H(x,x_j)/1.6}$ (leave-self-out on training).\n//    b. fit 7 ridge regressors with feature subsampling (mask drop=0.65) on residual $z-\\hat z_{\\text{prior,train}}$.\n//    c. score = $\\mu+\\beta\\sigma+0.18\\,\\text{trust}+0.05$–$0.20\\,\\text{novelty}$ with $\\beta=0.85-0.45p$ and trust = max over training of $z_j-0.33 d$.\n//    d. boost candidates within 2-edit of top-3 elites every 1-of-3 epochs.\n//    e. query argmax.\n// 4. Final pick: argmax over ALL archs of $\\mu+0.20\\,\\text{trust}-0.12\\,\\sigma$ (may differ from best-seen).",
+    "key_hyperparams": [
+      {"name": "warm_start", "value": "min(7, num_epochs)", "role": "diversity-maximizing initial queries", "learnable": false},
+      {"name": "kernel scale", "value": "1.6", "role": "Hamming kernel bandwidth", "learnable": false},
+      {"name": "ridge ensemble size", "value": "7", "role": "bootstrapped feature-subsampled ridge models", "learnable": false},
+      {"name": "ridge λ", "value": "0.25 + 0.05·d/n", "role": "regularization scaled with feature dim", "learnable": false},
+      {"name": "feature drop p", "value": "0.65", "role": "Bernoulli mask retention rate", "learnable": false},
+      {"name": "UCB β", "value": "0.85 − 0.45·progress", "role": "exploration weight on residual std", "learnable": false},
+      {"name": "trust / novelty / local boost", "value": "0.18 / 0.05–0.10 / 0.05+0.10·progress", "role": "extra acquisition bonuses", "learnable": false},
+      {"name": "final pick weights", "value": "1.0 μ + 0.20 trust − 0.12 σ", "role": "conservative posterior selection", "learnable": false}
+    ],
+    "diff_from_baseline": "Differs from BANANAS by combining a Hamming-kernel prior with a residual ridge ensemble (no MLPs), uses an explicit final architecture chosen by a separate posterior — possibly never queried — and adds REA-flavored local exploitation around top-3 elites, which random search and REA do not have.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "EI BANANAS over full space",
+    "tagline": "Standard 5-member BANANAS MLP ensemble but Expected Improvement (with $\\xi=0.01$) is computed over every valid architecture and blended with mean exploitation as progress grows.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Pre-generate all 15625 valid archs and their path encodings.\n// 2. Warm-start: 8 random unseen archs.\n// 3. Per step:\n//    a. fit 5-member _TinyMLP ensemble on seen (300 epochs, lr 5e-3).\n//    b. predict $\\mu, \\sigma$ on every unseen arch.\n//    c. $z=(\\mu-y^*-\\xi)/\\sigma$; $\\mathrm{EI}=(z\\sigma+\\sigma\\phi(z)/\\Phi(z))$ -- canonical EI form.\n//    d. exploit_weight = min(1, n_seen/num_epochs); combined = $(1-w)\\mathrm{EI}+w\\mu$.\n//    e. argmax → query.\n// 4. Return best-seen.",
+    "key_hyperparams": [
+      {"name": "warm_start", "value": "8", "role": "initial random queries", "learnable": false},
+      {"name": "ensemble_size", "value": "5", "role": "MLP ensemble (BANANAS default)", "learnable": false},
+      {"name": "MLP epochs / lr", "value": "300 / 5e-3", "role": "MLP training", "learnable": false},
+      {"name": "ξ", "value": "0.01", "role": "EI exploration constant", "learnable": false},
+      {"name": "exploit_weight", "value": "min(1, n_seen/T)", "role": "linear blend EI ↔ mean as budget consumes", "learnable": false}
+    ],
+    "init_recovers": "BANANAS-style argmax-mean as exploit_weight→1 (late budget)",
+    "diff_from_baseline": "Differs from BANANAS by replacing the 500-random pool with full-space EI scoring and convex-blending EI with $\\mu$ as budget runs out; not REA (no mutation/population) and not random search.",
+    "confidence": "high"
+  }
+]

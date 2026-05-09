@@ -134,3 +134,27 @@ export function getProposalsStatic(taskId: string): Proposals | null {
   const raw = fs.readFileSync(filePath, "utf-8");
   return JSON.parse(raw);
 }
+
+/** Standardized human-readable annotation produced by the annotation pipeline.
+ *  See SCHEMA.md in MLS-Bench .local-saves/annotations-prod/. */
+export interface ProposalAnnotationDoc {
+  model: string;
+  name: string;
+  tagline: string;
+  kind: "formula" | "architecture" | "pseudocode" | "hybrid";
+  formula?: string;
+  diagram?: { nodes: { id: string; label: string }[]; edges: { from: string; to: string; label?: string }[] };
+  pseudocode?: string;
+  key_hyperparams?: { name: string; value: string; role?: string; learnable?: boolean }[];
+  init_recovers?: string;
+  diff_from_baseline: string;
+  confidence: "high" | "medium" | "low";
+}
+
+export function getAnnotationsStatic(taskId: string): ProposalAnnotationDoc[] {
+  const filePath = path.join(DATA_DIR, "annotations", `${taskId}.json`);
+  if (!fs.existsSync(filePath)) return [];
+  const raw = fs.readFileSync(filePath, "utf-8");
+  const arr = JSON.parse(raw);
+  return Array.isArray(arr) ? arr : [];
+}

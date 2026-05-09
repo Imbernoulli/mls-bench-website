@@ -1,0 +1,91 @@
+[
+  {
+    "model": "claude-opus-4-6",
+    "name": "Sink + window + content top-K",
+    "tagline": "Block-sparse attention combining attention sinks, a local window covering ~45% of the budget, and a per-row content-adaptive top-K of distant blocks via mean-pooled QK scoring.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. if N <= 4 BLOCK: run dense SDPA and report density 1.0\n// 2. pad N to multiple of BLOCK=64; n_b = Npad/BLOCK\n// 3. static = sinks (first sink_blks columns) ∪ recent W_blks past blocks ($W_b \\approx 0.45\\,b\\,(n_b+1)/2$, b = budget)\n// 4. q_mean, k_mean = mean-pool q, k over BLOCK; scores = (q_mean @ k_mean^T) · scale\n// 5. mask static blocks to $-\\infty$; if causal mask future blocks too\n// 6. solve total $K$ from $K(2n_b+1-K) = b\\,n_b(n_b+1)$ and set $K_{adapt} = K - \\overline{static}$\n// 7. block_keep = static ∪ topk(scores, K_adapt) per row\n// 8. expand to token mask, apply token-level causal AND, and run F.scaled_dot_product_attention with the bool mask",
+    "key_hyperparams": [
+      {"name": "BLOCK", "value": "64", "role": "block size", "learnable": false},
+      {"name": "num_sinks", "value": "4", "role": "always-attended initial tokens", "learnable": false},
+      {"name": "window_budget_frac", "value": "0.45", "role": "share of density budget reserved for local window", "learnable": false},
+      {"name": "density_budget", "value": "0.25", "role": "harness-enforced budget", "learnable": false},
+      {"name": "scoring", "value": "mean-pool QK per block, masked SDPA", "role": "adaptive long-range selection", "learnable": false},
+      {"name": "short_seq_dense_threshold", "value": "N <= 4 * BLOCK", "role": "fallback to dense SDPA", "learnable": false}
+    ],
+    "diff_from_baseline": "Combines streaming-llm sinks/window with block_topk-style content scoring: sinks and a budget-fraction local window are guaranteed, then mean-pool QK selects K_adapt extra distant blocks per query row to reach the global budget.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini/gemini-3.1-pro-preview",
+    "name": "Subsampled max-mean block top-K",
+    "tagline": "Score key blocks by per-query max-of-subsampled QK, then mean over query subsamples; sinks and local blocks are forced via score boosts before top-K.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. pad to multiples of BLOCK=64; n_b = Npad/BLOCK; subsample S=16 tokens per block (stride=BLOCK/S)\n// 2. q_sub, k_sub = sliced (B,H,n_b,S,D) tensors\n// 3. scores_sub = einsum('bhmxd,bhnyd->bhmxny', q_sub, k_sub) * scale\n// 4. block_scores = scores_sub.amax(over key subsamples).mean(over query subsamples)  // 'mean of max'\n// 5. mask non-causal block pairs to $-\\infty$\n// 6. add +10000 to first num_sinks key columns and +20000 to local diagonal band of width num_local\n// 7. K_top from causal density formula; pick block_scores.topk(K_top) per (B,H,row)\n// 8. expand to token mask, AND with token-causal, run F.scaled_dot_product_attention",
+    "key_hyperparams": [
+      {"name": "block_size", "value": "64", "role": "block granularity", "learnable": false},
+      {"name": "samples_per_block", "value": "16", "role": "stride=BLOCK/S subsampling", "learnable": false},
+      {"name": "num_sinks", "value": "2 blocks", "role": "always-attended early columns (boosted)", "learnable": false},
+      {"name": "num_local", "value": "4 blocks", "role": "local diagonal band (boosted)", "learnable": false},
+      {"name": "density_budget", "value": "0.25", "role": "budget", "learnable": false},
+      {"name": "score_aggregation", "value": "max over key, mean over query", "role": "block utility statistic", "learnable": false},
+      {"name": "score_boost", "value": "+1e4 (sink) / +2e4 (local)", "role": "force-include before top-K", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces block_topk's mean-pooled scalar QK score with a max-mean reduction over 16 subsampled rays per block; force-includes sinks and 4 local blocks via score boosts inside the same top-K pass.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Sinks + key-energy anchors + window",
+    "tagline": "Token-level mask: sinks plus energy-spread key anchors restricted to early query rows, with a local window sized to consume the remaining budget.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. compute key saliency $sal_j = \\overline{\\|k_j\\|^2}$ across heads/batch; mask $j > 0.875 N$ to $-\\infty$ (causal)\n// 2. partition tokens into stride-16 buckets; pick top-1 per bucket up to anchor_max → anchor_cols\n// 3. choose row gate: only rows with $i < $ row_anchor_frac · N see anchors\n// 4. solve causal local window width $w$ from remaining pair budget after sinks and anchors\n// 5. mask = (local |i-j|<w) ∪ sinks ∪ (row_gate · anchor_cols), AND causal\n// 6. record density and run F.scaled_dot_product_attention with the (1,1,N,N) bool mask",
+    "key_hyperparams": [
+      {"name": "num_sinks", "value": "16", "role": "first-tokens always attended", "learnable": false},
+      {"name": "anchor_frac", "value": "0.04 (cap 128)", "role": "anchor budget = 4% of N", "learnable": false},
+      {"name": "anchor_stride", "value": "16", "role": "bucket size for top-1 anchor selection", "learnable": false},
+      {"name": "row_anchor_frac", "value": "0.45", "role": "share of early rows that see anchors", "learnable": false},
+      {"name": "anchor_horizon", "value": "j <= 0.875 N (causal)", "role": "exclude very recent keys from anchor pool", "learnable": false},
+      {"name": "key_saliency", "value": "$\\overline{\\|k_j\\|^2}$", "role": "anchor scoring", "learnable": false},
+      {"name": "density_budget", "value": "0.25", "role": "budget; window solved residually", "learnable": false}
+    ],
+    "diff_from_baseline": "Generalises StreamingLLM by adding query-position-adaptive global anchors selected from key energy (stride-bucketed top-1) and only granting them to the first 45% of query rows, while solving the local window width from the leftover budget.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Static window + variance-adjusted top-K",
+    "tagline": "Cached static (sinks + 384-token window) mask plus a content-adaptive block top-K combining mean-pooled QK with normalized key variance.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Static mask (cached): sinks (first 8 cols) ∪ {|i-j| < 384} for each (N, is_causal); AND causal\n// 2. Adaptive: pad to BLOCK=64; mean-pool q, k over each block; average across batch and heads\n// 3. sim = $q_{mean} k_{mean}^T \\cdot \\text{scale}$; compute per-block key variance $v_j = \\sum_d \\mathrm{Var}(k_{:,j,d})$\n// 4. normalize $v_j$ to [0,1]; combined = sim + 0.3 · broadcast($v_j$)\n// 5. estimate static density; remaining = max(0.02, budget - static_density)\n// 6. solve $K_{top}$ from causal density formula on remaining; topk(combined, $K_{top} - 1$) per row, force diagonal\n// 7. expand block_keep to token mask, OR with static mask, run F.scaled_dot_product_attention",
+    "key_hyperparams": [
+      {"name": "BLOCK", "value": "64", "role": "block granularity", "learnable": false},
+      {"name": "num_sinks", "value": "8 tokens", "role": "static sinks", "learnable": false},
+      {"name": "window_radius", "value": "384", "role": "static local window", "learnable": false},
+      {"name": "var_weight", "value": "0.3", "role": "key-variance contribution to score", "learnable": false},
+      {"name": "remaining_min", "value": "0.02", "role": "minimum budget reserved for adaptive blocks", "learnable": false},
+      {"name": "density_budget", "value": "0.25", "role": "harness budget", "learnable": false},
+      {"name": "shared_mask", "value": "yes (collapsed across B and H)", "role": "single (N,N) adaptive mask broadcast to heads", "learnable": false}
+    ],
+    "diff_from_baseline": "Hybrid of streaming_llm and block_topk: keeps a cached sinks+window static mask, adds block top-K whose score blends mean-pool QK with a normalized key-variance distinctiveness term, with budget split between static and adaptive components.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "Sink + window + dilated stride",
+    "tagline": "Block-level mask of one sink block, a 2-block window, and dilated past-block taps at multiples of stride=8 until the density budget is exhausted.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. n_blk = ceil(N/BLOCK)\n// 2. base = sinks (first num_sink_blocks cols) ∪ {0 ≤ i-j ≤ window_radius} blocks; AND causal\n// 3. base_density = base.sum() / (causal denom over blocks)\n// 4. greedily add dilated taps: for d=1..n_blk, offset = dilation_stride · d; if offset >= n_blk break\n// 5.    new_pairs = n_blk - offset; if base_density + (added + new_pairs)/denom ≤ budget then accept and update max_d\n// 6. dilated = ⋃_{d=1..max_d} {i - j == dilation_stride · d}; AND causal\n// 7. block_mask = sinks ∪ window ∪ dilated; expand to token mask\n// 8. cache (token_mask, density) by (N, is_causal); call F.scaled_dot_product_attention with bool mask",
+    "key_hyperparams": [
+      {"name": "block_size", "value": "64", "role": "block granularity", "learnable": false},
+      {"name": "num_sink_blocks", "value": "1", "role": "global sink columns", "learnable": false},
+      {"name": "window_radius", "value": "2 blocks", "role": "recent past taps", "learnable": false},
+      {"name": "dilation_stride", "value": "8 blocks", "role": "stride between dilated past anchors", "learnable": false},
+      {"name": "max_d", "value": "auto (greedy under budget)", "role": "deepest dilation depth that still satisfies budget", "learnable": false},
+      {"name": "density_budget", "value": "0.25", "role": "harness budget", "learnable": false},
+      {"name": "static_pattern", "value": "true", "role": "no QK content scoring", "learnable": false}
+    ],
+    "diff_from_baseline": "Generalises StreamingLLM by adding fixed dilated past-block taps (Sparse-Transformer-style strides) on top of sinks and a small window; greedy dilation depth selected to saturate the 25% budget.",
+    "confidence": "high"
+  }
+]

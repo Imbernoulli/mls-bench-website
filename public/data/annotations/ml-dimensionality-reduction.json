@@ -1,0 +1,88 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Multi-Init t-SNE + Multi-Scale NRA",
+    "tagline": "Runs t-SNE from PCA and Spectral inits, picks the higher-overlap embedding, then refines it with a multi-scale neighborhood-rank-alignment gradient using k=7 and k=15 forces.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. build kNN in X for $k=7,15$, RBF affinities $\\mathrm{aff}_7,\\mathrm{aff}_{15}$\n// 2. $Y_a \\leftarrow$ t-SNE(perp=30, init=PCA); $Y_b \\leftarrow$ t-SNE(perp=30, init=SpectralEmbedding)\n// 3. score by k=7 neighbor overlap with high-D, keep best $Y_\\star$\n// 4. for $t = 1\\dots 200$: in $Y$ compute kNN sets $\\mathrm{IL}_7,\\mathrm{IL}_{15}$ and Cauchy kernel $K = 1/(1+D^2)$\n// 5.   $C = (\\mathrm{IS}_7\\setminus\\mathrm{IL}_7)\\,\\mathrm{aff}_7 - (\\mathrm{IL}_7\\setminus\\mathrm{IS}_7)\\,K + 0.2\\,(\\mathrm{IS}_{15}\\setminus\\mathrm{IL}_{15})\\,\\mathrm{aff}_{15}\\,K$\n// 6.   $g = 2((\\sum_j C_{ij})Y - C Y) + 2\\lambda(Y - Y_\\star)$, step-clip and decay, early stop on stale=40\n// 7. return $Y$ with best k=7 overlap",
+    "key_hyperparams": [
+      {"name": "k_eval / k_wide", "value": "7 / 15", "role": "local + larger-scale neighborhood scales", "learnable": false},
+      {"name": "t-SNE perplexity", "value": "30", "role": "for both inits", "learnable": false},
+      {"name": "global force weight", "value": "0.2", "role": "k=15 contribution", "learnable": false},
+      {"name": "step decay", "value": "0.997", "role": "geometric LR decay per iter", "learnable": false},
+      {"name": "regularizer lambda", "value": "0.001", "role": "anchor to selected init", "learnable": false},
+      {"name": "max iters / stale patience", "value": "200 / 40", "role": "refinement budget", "learnable": false}
+    ],
+    "init_recovers": "t-SNE (PCA init) baseline before refinement",
+    "diff_from_baseline": "Beyond the t-SNE baseline, runs a Spectral-initialized t-SNE in parallel, selects by 7-NN overlap with the high-D space, then performs gradient-based neighborhood-rank refinement with combined k=7 attract/repel and k=15 attract forces.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Multi-Scale Spectral + Force Refinement",
+    "tagline": "Sums symmetric-normalized affinities at four bandwidth scales, takes Laplacian eigenvectors as init, then runs an attractive-affinity / repulsive-kNN gradient with Adam.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. compute pairwise sq-dist $D$ on $X$, local bandwidths $\\sigma_i^{2}$ from k=15 distances\n// 2. for each $\\rho \\in \\{0.5,1,2,4\\}$: $W^{(\\rho)}_{ij} = \\exp(-D_{ij}/(\\sigma_i\\sigma_j\\rho^{2}))$, keep top-100 per row\n// 3. $W = \\sum_\\rho \\tfrac{1}{\\rho} W^{(\\rho)}$, symmetrize, build $L_{\\mathrm{sym}} = I - D^{-1/2}WD^{-1/2}$\n// 4. $Y_0 \\leftarrow$ smallest-eigenvector embedding of $L_{\\mathrm{sym}}$\n// 5. for 100 epochs (Adam lr=0.1): attract along $W$, repel via 500 farthest kNN with weight 0.1\n// 6. early-exaggeration 4.0 in first epochs",
+    "key_hyperparams": [
+      {"name": "n_neighbors (bandwidth)", "value": "15", "role": "local sigma estimation", "learnable": false},
+      {"name": "scale_factors", "value": "[0.5, 1.0, 2.0, 4.0]", "role": "multi-scale RBF widths", "learnable": false},
+      {"name": "knn_affinity", "value": "100", "role": "rows kept in W per scale", "learnable": false},
+      {"name": "refine_epochs / lr", "value": "100 / 0.1", "role": "force refinement", "learnable": false},
+      {"name": "attraction / repulsion weight", "value": "1.0 / 0.1", "role": "balance during refinement", "learnable": false},
+      {"name": "repulsion_neighbors", "value": "500", "role": "negative-sample fan-out", "learnable": false},
+      {"name": "early_exaggeration", "value": "4.0", "role": "first-epoch boost", "learnable": false}
+    ],
+    "diff_from_baseline": "Distinct from all baselines: a multi-scale spectral embedding (Laplacian eigenvectors of summed RBF affinities at four bandwidths) followed by t-SNE-style attractive/repulsive gradient refinement; not based on UMAP/TriMap/PaCMAP libraries.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "PaCMAP-Style Triplet Forces (Custom)",
+    "tagline": "From-scratch PaCMAP: continuous local NN affinity, sampled mid-near and far-pair sets, Cauchy/(1+D^2) attraction/repulsion with a 3-phase mid-near schedule, Adam over 500 epochs.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. build kNN, $\\rho_i = $ 1-NN dist, $\\sigma_i$ from k=15\n// 2. $A_{ij} = \\exp(-\\max(0, D^{2}_{ij} - \\rho_i)/\\sigma_i)$, $M_{NN} = A + A^{\\top}$ rescaled to mean degree 15\n// 3. mid-near $M_{MN}$: per-row pick 5 closest of 10 random; far-pair $M_{FP}$: 20 random non-NN per row\n// 4. init $Y \\leftarrow$ PCA(2D), normalize\n// 5. forces use $K_{NN}=10/(10+D^{2})^{2}$, $K_{MN}=10000/(10000+D^{2})^{2}$, $K_{FP}=1/(1+D^{2})^{2}$\n// 6. weight schedule $(w_{NN}, w_{MN}, w_{FP})$: phase A ($t<150$) $w_{MN}$ decays $1000\\to 0$, phase B ($150\\le t<350$) $(3,2,2)$, phase C ($t\\ge 350$) $(4,0,2)$\n// 7. Adam (lr=1.0, $\\beta=(0.9,0.999)$) for 500 epochs",
+    "key_hyperparams": [
+      {"name": "k_NN / n_MN / n_FP", "value": "15 / 5 / 20", "role": "graph fan-outs", "learnable": false},
+      {"name": "Cauchy a (NN/MN/FP)", "value": "10 / 10000 / 1", "role": "per-pair-type kernel scales", "learnable": false},
+      {"name": "epochs", "value": "500", "role": "optimization budget", "learnable": false},
+      {"name": "Adam (lr, betas)", "value": "1.0, (0.9, 0.999)", "role": "optimizer", "learnable": false},
+      {"name": "(w_NN, w_MN, w_FP) phases", "value": "(2, 1000->0, 2) -> (3,2,2) -> (4,0,2)", "role": "PaCMAP-style attraction schedule", "learnable": false}
+    ],
+    "init_recovers": "Approximately PaCMAP without the PaCMAP library",
+    "diff_from_baseline": "Re-implements a PaCMAP-style triplet objective in pure NumPy with custom NN/MN/FP kernels and a three-phase attraction schedule; conceptually close to the pacmap baseline but with hand-tuned weights, kernel scales, and Adam optimization.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Spectral + Anchor-MDS Geodesic Fuse",
+    "tagline": "Mutual-kNN graph -> normalized Laplacian eigenvectors -> anchor-MDS on graph geodesics, fused with the spectral embedding by a confidence-weighted alpha.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. PCA-denoise X to dim min(60, sqrt(n)*..), then build mutual-kNN with k = clip(sqrt(n)/2, 12, 40)\n// 2. RBF weights $w_{ij} = \\exp(-\\Vert x_i-x_j\\Vert^{2}/(\\sigma_i\\sigma_j))$ with $\\sigma_i$ = 7th NN dist\n// 3. spectral embed: top-d eigvecs of $D^{-1/2}WD^{-1/2} + \\epsilon I$\n// 4. pick $a$ farthest-point anchors ($a = \\mathrm{clip}(\\sqrt{n},24,64)$), compute graph geodesics from anchors\n// 5. landmark MDS on anchor x anchor squared geodesic matrix -> embed all points by least-squares projection\n// 6. fuse $Y \\leftarrow (1-\\alpha) Y_{\\text{spec}} + \\alpha Y_{\\text{geo}}$, $\\alpha = 0.35$ if $n>1500$ else $0.45$",
+    "key_hyperparams": [
+      {"name": "PCA denoise dim", "value": "min(60, max(20, d+1))", "role": "preprocessing", "learnable": false},
+      {"name": "k (NN)", "value": "clip(sqrt(n)/2, 12, 40)", "role": "kNN size", "learnable": false},
+      {"name": "sigma index", "value": "min(7, k)-th NN distance", "role": "RBF bandwidth", "learnable": false},
+      {"name": "n_anchors", "value": "clip(sqrt(n), 24, 64)", "role": "FPS anchor count", "learnable": false},
+      {"name": "alpha (fuse)", "value": "0.35 if n>1500 else 0.45", "role": "anchor-MDS contribution", "learnable": false}
+    ],
+    "diff_from_baseline": "Custom hybrid not present in baselines: spectral embedding of a mutual-kNN graph plus a landmark/anchor MDS computed from kNN-graph geodesics, then linearly blended.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Multi-Scale Affinity Embedding",
+    "tagline": "Sums symmetric Gaussian-kNN affinities at k=10/30/100, optimizes a t-SNE-like KL between W and Cauchy Q via Adam from a PCA init for 300 iters.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for $k\\in\\{10,30,100\\}$: build kNN, $W_k = \\exp(-d^{2}/2\\bar{d}^{2})$, sum into $W$\n// 2. symmetrize, zero diag, normalize $W \\leftarrow W/\\sum W$\n// 3. init $Y \\leftarrow$ PCA(2D), centered, scaled to std 0.01\n// 4. for $t=1\\dots 300$: $Q_{ij} = 1/(1+\\Vert y_i-y_j\\Vert^{2})$, normalize\n// 5.   $A = (W-Q)/(1+D^{2})$, $g = 4(Y\\,\\sum_j A_{ij} - A Y)$\n// 6.   clip Frobenius norm at 5; Adam (lr ramps then decays); recenter every 25 iters",
+    "key_hyperparams": [
+      {"name": "k_list", "value": "[10, 30, 100]", "role": "multi-scale neighborhoods", "learnable": false},
+      {"name": "Adam (b1, b2)", "value": "(0.9, 0.999)", "role": "optimizer", "learnable": false},
+      {"name": "lr schedule", "value": "linear ramp first 30 iters, linear decay after", "learnable": false},
+      {"name": "iters", "value": "300", "role": "optimization budget", "learnable": false},
+      {"name": "grad clip", "value": "5.0 Frobenius", "role": "stability", "learnable": false}
+    ],
+    "init_recovers": "Approximately t-SNE/SNE for a single bandwidth (k_list of length 1)",
+    "diff_from_baseline": "From-scratch t-SNE-style optimization with a multi-bandwidth Gaussian-kNN affinity (sum over k=10,30,100), Cauchy low-D kernel, PCA init, and Adam; not the sklearn TSNE baseline and not UMAP/TriMap/PaCMAP.",
+    "confidence": "high"
+  }
+]

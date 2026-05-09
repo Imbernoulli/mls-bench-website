@@ -1,0 +1,95 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Margin-conf fusion + mode-adaptive stability",
+    "tagline": "KLASS-style ready-set decoding with a confidence-times-margin fallback score, swapping KL stability for argmax-consistency in fully parallel mode.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. is_par ← (block_length == gen_length); init mode-specific state (cons counter or kl_hist + p_prev)\n// 2. for each block, compute uniform num_xfer schedule for steps_per_block\n// 3. for step=1..steps_per_block:\n// 4.   p ← softmax(model(x).logits); $x_0 = \\arg\\max_v p$; $\\mathrm{conf}=p_{x_0}$; $\\mathrm{margin}=p_{(1)}-p_{(2)}$; score = conf · margin\n// 5.   if is_par: cons ← cons+1 where x0==prev_pred else 1; stable = cons ≥ history_length\n// 6.   else: kl_hist ← shift+append KL($p$ ∥ $p_{prev}$); stable = all(kl_hist < $\\tau_{kl}$) once history filled\n// 7.   ready = stable ∧ (conf > $\\tau_c$) ∧ mask_idx\n// 8.   if any ready: unmask all ready positions\n// 9.   else: pick top-k masked by score (k from num_xfer)\n// 10. assign $x_0$ at chosen positions",
+    "key_hyperparams": [
+      {"name": "conf_threshold", "value": "0.9", "role": "ready confidence", "learnable": false},
+      {"name": "kl_threshold", "value": "0.01", "role": "KL stability threshold (semi-AR)", "learnable": false},
+      {"name": "history_length", "value": "2", "role": "consecutive stable steps required", "learnable": false},
+      {"name": "fallback_score", "value": "conf * (p1 - p2)", "role": "ranking when no ready positions", "learnable": false},
+      {"name": "stability_mode", "value": "KL (semi-AR) / argmax-cons (parallel)", "role": "switched by block_length==gen_length", "learnable": false}
+    ],
+    "init_recovers": "KLASS baseline in semi-AR mode (block_length < gen_length)",
+    "diff_from_baseline": "Replaces KLASS's confidence-only fallback with a confidence x margin fusion score, and swaps the KL stability test for an argmax-consistency counter when running fully parallel (block_length == gen_length).",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Regime-adaptive ready set (TADS)",
+    "tagline": "KLASS plus margin gating with stricter AND ready-rule for semi-AR and looser OR rule for parallel; ranking weights confidence vs margin shift over time.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. semi_ar = (num_blocks > 1); pick (conf_thresh, margin_thresh, weight schedule, ready_rule) by regime\n// 2. for each block, compute num_xfer; track p_prev and kl_hist[history_length]\n// 3. for step in steps_per_block:\n// 4.   logits = model(x); if temperature>0 add Gumbel; p = softmax\n// 5.   conf = $p_{(1)}$; margin = $p_{(1)}-p_{(2)}$; KL = $\\sum p\\log(p/p_{prev})$; stable = all(kl_hist < $\\tau_{kl}$)\n// 6.   step_ratio = (b·steps_per_block + step)/(num_blocks·steps_per_block)\n// 7.   margin_w, conf_w linearly interpolated and renormalized; score = conf_w·conf + margin_w·margin\n// 8.   ready = stable ∧ mask_idx ∧ ((conf>conf_thresh) AND/OR (margin>margin_thresh)) per ready_rule\n// 9.   if any ready: unmask all ready; else top-k masked by score (k from num_xfer)\n// 10. assign x0 and continue",
+    "key_hyperparams": [
+      {"name": "conf_thresh", "value": "{semi_ar:0.95, parallel:0.7}", "role": "confidence gate", "learnable": false},
+      {"name": "margin_thresh", "value": "{semi_ar:0.5, parallel:0.2}", "role": "margin gate", "learnable": false},
+      {"name": "ready_rule", "value": "{semi_ar:'AND', parallel:'OR'}", "role": "combine conf and margin", "learnable": false},
+      {"name": "margin_weight_start_end", "value": "{semi_ar:(0.3,0.1), parallel:(1.0,0.3)}", "role": "score weight schedule on margin", "learnable": false},
+      {"name": "conf_weight_start_end", "value": "{semi_ar:(0.7,0.9), parallel:(0.0,0.7)}", "role": "score weight schedule on confidence", "learnable": false},
+      {"name": "kl_threshold", "value": "0.01", "role": "stability gate (inherited)", "learnable": false},
+      {"name": "history_length", "value": "2", "role": "stability window", "learnable": false}
+    ],
+    "init_recovers": "KLASS when margin_thresh=0, ready_rule='AND', and weights are fixed to confidence",
+    "diff_from_baseline": "Adds a margin gate alongside KLASS's confidence/KL ready set, requires AND in semi-AR but only OR in fully parallel mode, and linearly interpolates conf-vs-margin score weights across global progress, plus optional Gumbel sampling.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "KLASS + parallel Gumbel margin",
+    "tagline": "Strict KLASS for semi-AR; in fully-parallel mode add Gumbel-perturbed margin top-up and force-unmask remaining masks at the last step.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. is_parallel = (block_length == gen_length)\n// 2. for each block, compute num_xfer; maintain p_prev and kl_hist\n// 3. for step in steps_per_block:\n// 4.   logits = model(x); p = softmax\n// 5.   if temperature>0 OR is_parallel (with τ=0.1): x0 = argmax(log p + τ·Gumbel) else x0 = argmax p\n// 6.   conf = $p_{(1)}$; margin = $p_{(1)}-p_{(2)}$; update KL stability over kl_hist\n// 7.   ready = stable ∧ (conf > $\\tau_c$) ∧ mask_idx\n// 8.   for each row j:\n// 9.     unmask all ready positions\n// 10.    if is_parallel: ranking score = margin + 0.15·Gumbel; top up to (num_xfer - num_ready) more masked positions; else if num_ready==0 fall back to confidence top-k of size num_xfer\n// 11.   if step == steps_per_block - 1: force-unmask all remaining masked positions in this block\n// 12.   commit x ← x0 at xfer; update p_prev",
+    "key_hyperparams": [
+      {"name": "conf_threshold", "value": "0.9", "role": "ready confidence", "learnable": false},
+      {"name": "kl_threshold", "value": "0.01", "role": "KL stability", "learnable": false},
+      {"name": "history_length", "value": "2", "role": "stability window", "learnable": false},
+      {"name": "parallel_gumbel_temp", "value": "0.1", "role": "implicit token sampling temp in parallel mode", "learnable": false},
+      {"name": "parallel_score_noise", "value": "0.15 * Gumbel", "role": "added to margin for ranking", "learnable": false},
+      {"name": "force_complete_at_last_step", "value": "true", "role": "guarantee no leftover masks", "learnable": false}
+    ],
+    "init_recovers": "KLASS in semi-AR mode (semi-AR has no Gumbel injection)",
+    "diff_from_baseline": "Inherits KLASS's stable/confident ready set but in fully parallel decoding switches to Gumbel-perturbed token sampling and Gumbel-perturbed margin ranking for unmasking diversity, and forcibly fills any leftover mask tokens at the final step.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Consensus + adaptive budget",
+    "tagline": "Stability AND argmax-agreement run-counter, progress-relaxed thresholds, score blending conf/margin/agreement, with an adaptive transfer budget that grows when many positions look solved.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for each block, compute num_xfer; reset p_prev, prev_x0, stable_run\n// 2. for step in steps_per_block:\n// 3.   logits = model(x); if temperature>0 logits/=T; p = softmax\n// 4.   top2 → x0, conf, margin = $p_{(1)}-p_{(2)}$; KL($p$ ∥ $p_{prev}$)\n// 5.   stable = KL < $\\tau_{kl}$ ∧ x0 == prev_x0; stable_run += stable else reset\n// 6.   progress = (step+1)/steps_per_block; relax conf/margin thresholds with progress\n// 7.   ready = mask_idx ∧ conf>conf_gate ∧ ((stable_run≥history_length-1 ∧ margin_gate) ∨ very-conf ∨ very-margin)\n// 8.   score = $\\alpha(\\text{progress})\\,\\mathrm{conf} + \\beta(\\text{progress})\\,\\mathrm{margin}$ + agree_bonus·agree + stable_bonus·run_gate (+parallel boost if fully parallel)\n// 9.   adaptive k = max(num_xfer, ready_count, num_xfer + ready_count/2 [·parallel_boost]); top-k masked by score\n// 10.  assign x0 at chosen positions; update prev_x0, p_prev",
+    "key_hyperparams": [
+      {"name": "conf_threshold", "value": "0.9 - 0.15·progress", "role": "progress-relaxed conf gate", "learnable": false},
+      {"name": "margin_threshold", "value": "0.15·(1 - 0.5·progress)", "role": "progress-relaxed margin gate", "learnable": false},
+      {"name": "agree_bonus", "value": "0.20", "role": "added to score for argmax persistence", "learnable": false},
+      {"name": "stable_bonus", "value": "0.15", "role": "added to score when run_gate", "learnable": false},
+      {"name": "parallel_boost", "value": "1.35", "role": "transfer budget multiplier in fully parallel mode", "learnable": false},
+      {"name": "kl_threshold", "value": "0.01", "role": "KL stability", "learnable": false},
+      {"name": "history_length", "value": "2", "role": "consecutive (stable AND agree) steps", "learnable": false},
+      {"name": "score_blend", "value": "conf·(0.55+0.45p) + margin·(0.45-0.20p)", "role": "progress-weighted ranking", "learnable": false}
+    ],
+    "init_recovers": "KLASS-like behavior at progress=0 with no parallel boost and uniform transfer budget",
+    "diff_from_baseline": "Strengthens KLASS by requiring both KL stability and argmax persistence (a run counter), relaxes the conf/margin gates with progress, blends conf/margin in the ranking score with stability/agreement bonuses, and lets the per-step budget grow when many positions are decisively solved.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Entropy + EMA stability",
+    "tagline": "Replaces KL-history with KL to an EMA over distributions, gates on normalized entropy, and uses a weighted entropy/conf/margin/stability score for fallbacks.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for each block, compute num_xfer; init $p_{ema} = 1/V$\n// 2. for step in steps_per_block:\n// 3.   logits = model(x); p = softmax; x0 = argmax p; conf = $p_{x_0}$; margin = $p_{(1)}-p_{(2)}$\n// 4.   entropy $H = -\\sum p \\log p$, $\\bar H = H/\\log V$\n// 5.   $\\mathrm{decay} = \\min(0.3 + 0.7\\cdot \\mathrm{step}/(S-1), 0.9)$; $p_{ema} \\leftarrow \\mathrm{decay}\\,p_{ema} + (1-\\mathrm{decay})\\,p$\n// 6.   $\\mathrm{kl\\_stab} = \\sum p \\log(p / p_{ema})$\n// 7.   adapt $\\tau_{c}^{\\mathrm{eff}} = \\tau_c \\cdot (1 - 0.5\\cdot \\mathrm{step}/(S-1)) \\cdot (1 - 0.3\\cdot \\min(\\mathrm{frac\\_masked}\\,S/\\mathrm{step\\_budget}, 1))$\n// 8.   ready = mask_idx ∧ conf > $\\tau_c^{\\mathrm{eff}}$ ∧ $\\bar H < \\tau_H$ ∧ kl_stab < $\\tau_{kl}$ (no entropy/stability gate at step 0)\n// 9.   if |ready| ≥ k = num_xfer: pick top-k of ready by conf\n// 10.  elif |ready| > 0: take all ready, fill rest by hybrid score $0.4(1-\\bar H) + 0.3\\,\\mathrm{conf} + 0.3\\,\\mathrm{margin} + 0.1\\,(1 - \\mathrm{clip}(kl\\_stab))$\n// 11.  else: top-k by hybrid score; assign x0 at chosen positions",
+    "key_hyperparams": [
+      {"name": "conf_threshold", "value": "0.9 (relaxed by step/urgency)", "role": "base confidence gate", "learnable": false},
+      {"name": "entropy_threshold", "value": "0.5 (normalized)", "role": "$\\bar H < \\tau_H$ ready condition", "learnable": false},
+      {"name": "kl_threshold", "value": "0.01", "role": "KL(p||p_ema) ready condition", "learnable": false},
+      {"name": "ema_decay", "value": "min(0.3 + 0.7·step/(S-1), 0.9)", "role": "EMA mix for $p_{ema}$", "learnable": false},
+      {"name": "margin_weight", "value": "0.3", "role": "margin term in hybrid score", "learnable": false},
+      {"name": "entropy_weight", "value": "0.4", "role": "$1-\\bar H$ term in hybrid score", "learnable": false},
+      {"name": "history_length", "value": "2 (only as step>=1 gate)", "role": "warmup before stability check", "learnable": false}
+    ],
+    "init_recovers": "Confidence-greedy fallback when entropy/stability gates are not satisfied",
+    "diff_from_baseline": "Replaces KLASS's fixed KL window with KL against an exponential moving average of distributions, adds a normalized-entropy ready condition, makes the confidence gate decay with step/urgency, and uses a multi-term entropy/conf/margin/stability score for fallback ranking.",
+    "confidence": "high"
+  }
+]

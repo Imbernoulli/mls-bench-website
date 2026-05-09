@@ -1,0 +1,88 @@
+[
+  {
+    "model": "claude-opus-4-6",
+    "name": "DPS + proximal $x_0$ refinement + EMA",
+    "tagline": "Combine DPS Jacobian guidance with iterative clean-space proximal refinement of $\\hat x_0$, both smoothed by per-step EMA momentum.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for diffusion step $i = 1\\ldots N$ do\n// 2.   $\\hat x_0 \\leftarrow \\mathrm{net}(x_t/s_t, \\sigma_t)$\n// 3.   $g_{dps} \\leftarrow \\nabla_{x_t} \\hat x_0 \\cdot \\nabla_{\\hat x_0}\\|A\\hat x_0 - y\\|^2$\n// 4.   $m_{dps} \\leftarrow \\beta\\, m_{dps} + (1-\\beta)\\,g_{dps}$\n// 5.   $\\tilde x_0 \\leftarrow \\hat x_0$; for $k=1\\ldots K$: $\\tilde x_0 \\leftarrow \\tilde x_0 - \\eta\\, \\nabla_{\\tilde x_0}\\|A\\tilde x_0 - y\\|^2$ (with grad-norm clip)\n// 6.   $m_{prox} \\leftarrow \\beta\\, m_{prox} + (1-\\beta)(\\tilde x_0 - \\hat x_0)$\n// 7.   $w_\\sigma \\leftarrow (1+\\sigma)^{-p}$;   $\\hat x_0' \\leftarrow \\hat x_0 + \\lambda_p\\, w_\\sigma\\, m_{prox}$\n// 8.   apply SDE/ODE step using score $(\\hat x_0' - x_t/s_t)/(\\sigma^2 s_t)$, then $x_{t-1} \\mathrel{-}= \\lambda_{dps}\\, m_{dps}$\n// 9.   if inpaint mask $M$: $x_{t-1} \\leftarrow (1-M)\\,x_{t-1} + M(w\\, y + (1-w)\\,x_{t-1})$",
+    "key_hyperparams": [
+      {"name": "$\\lambda_{dps}$", "value": "{50, 1e-3, 1.0}", "role": "DPS guidance scale per problem", "learnable": false},
+      {"name": "$\\lambda_{prox}$", "value": "{1.0, 0.5, 1.0}", "role": "proximal refinement weight", "learnable": false},
+      {"name": "$\\beta$", "value": "{0.7, 0.5, 0.6}", "role": "EMA momentum for both buffers", "learnable": false},
+      {"name": "$K$", "value": "{3, 2, 3}", "role": "inner proximal steps in $x_0$ space", "learnable": false},
+      {"name": "$\\eta$", "value": "{1e-3, 5e-4, 1e-2}", "role": "proximal learning rate", "learnable": false},
+      {"name": "$p$", "value": "{1.0, 1.0, 0.5}", "role": "$\\sigma$-anneal power for proximal weight", "learnable": false},
+      {"name": "use_data_replacement", "value": "true (inpainting only)", "role": "fill known pixels from $y$", "learnable": false}
+    ],
+    "init_recovers": "DPS when $\\lambda_{prox}=0, \\beta=0$",
+    "diff_from_baseline": "Adds two ingredients on top of DPS: an inner proximal-gradient loop refining $\\hat x_0$ in the clean signal domain, and EMA momentum on both DPS and proximal updates; also injects mask-based pixel replacement for inpainting.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini/gemini-3.1-pro-preview",
+    "name": "Momentum DPS via $x_0$ proxy loss",
+    "tagline": "Run an inner gradient step on $\\hat x_0$ to fit the measurement, then backprop a quadratic proxy loss to $x_t$ with bias-corrected momentum.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for diffusion step $i = 1 \\ldots N$ do\n// 2.   $\\hat x_0 \\leftarrow \\mathrm{net}(x_t/s_t, \\sigma_t)$\n// 3.   $z \\leftarrow \\hat x_0$\n// 4.   for $k = 1 \\ldots K$: compute $g, \\ell = \\mathrm{forward\\_op.gradient}(z, y)$; $z \\leftarrow z - \\eta\\,(0.5 g/\\sqrt{\\ell} + \\lambda_{prox}(z - \\hat x_0))$\n// 5.   $\\mathcal{L}_{proxy} \\leftarrow \\|\\hat x_0 - z\\|^2 / (2 K \\eta)$\n// 6.   $g_t \\leftarrow \\nabla_{x_t} \\mathcal{L}_{proxy}$ (i.e. backprop through $\\mathrm{net}$)\n// 7.   $m \\leftarrow \\mu m + (1-\\mu) g_t$;  $\\hat m \\leftarrow m / (1 - \\mu^{i+1})$\n// 8.   apply standard SDE/ODE step, then $x_{t-1} \\mathrel{-}= \\lambda\\, \\hat m$",
+    "key_hyperparams": [
+      {"name": "$\\lambda$", "value": "{50, 1e-3, 1.0}", "role": "outer guidance scale per problem", "learnable": false},
+      {"name": "$\\eta$", "value": "1.0", "role": "inner $x_0$-space step size", "learnable": false},
+      {"name": "$K$", "value": "1", "role": "inner optimization steps", "learnable": false},
+      {"name": "$\\lambda_{prox}$", "value": "0.0", "role": "trust-region weight to $\\hat x_0$ (disabled)", "learnable": false},
+      {"name": "$\\mu$", "value": "0.5", "role": "Adam-style momentum coefficient", "learnable": false}
+    ],
+    "init_recovers": "DPS at $K=1, \\mu=0$",
+    "diff_from_baseline": "Replaces DPS's direct VJP with $z = \\hat x_0 - \\eta g/\\sqrt{\\ell}$ followed by backprop of the proxy loss $\\|\\hat x_0 - z\\|^2/(2K\\eta)$; adds bias-corrected momentum on the resulting $x_t$-gradient.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Consistency-Gated Posterior Diffusion",
+    "tagline": "Gate measurement guidance by a denoiser-stability score and combine gradients at $\\hat x_0$ and a noisy mix point, with clipping and trust damping.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for diffusion step $i = 1 \\ldots N$ do\n// 2.   $\\hat x_0 \\leftarrow \\mathrm{net}(x_t/s_t, \\sigma_t)$;  $r \\leftarrow \\|x_t/s_t - \\hat x_0\\|/\\|\\hat x_0\\|$\n// 3.   gate $\\leftarrow \\mathrm{clip}\\big(1/(1+r^p) + b, 0, 1\\big)$\n// 4.   $x_{mix} \\leftarrow \\hat x_0 + \\alpha (x_t/s_t - \\hat x_0)$\n// 5.   $g \\leftarrow \\mathrm{gate}\\cdot \\nabla\\|A\\hat x_0 - y\\|^2 + (1-\\mathrm{gate})\\cdot \\nabla\\|A x_{mix} - y\\|^2$\n// 6.   $\\ell \\leftarrow \\mathrm{gate}\\cdot \\ell_{\\hat x} + (1-\\mathrm{gate})\\cdot \\ell_{mix}$\n// 7.   $b_t \\leftarrow \\nabla_{x_t} \\hat x_0 \\cdot g$;  rescale $b_t$ so $\\|b_t\\|/\\|g\\|\\le c_1$, then clip $\\|b_t\\|\\le c_2$\n// 8.   $g_{ll} \\leftarrow 0.5\\, b_t \\cdot \\frac{\\mathrm{gate}}{(1+r)\\sqrt{\\ell}}$\n// 9.   apply SDE step (with optional churn $\\kappa$ on $\\epsilon$) using the prior score, then $x_{t-1} \\mathrel{-}= \\lambda\\, g_{ll}$, clip to $[-1.25, 1.25]$",
+    "key_hyperparams": [
+      {"name": "$\\lambda$", "value": "{18.0, 2e-3, 0.9}", "role": "guidance scale per problem", "learnable": false},
+      {"name": "$\\alpha$", "value": "{0.35, 0.20, 0.55}", "role": "dual-mix between $\\hat x_0$ and $x_t/s_t$", "learnable": false},
+      {"name": "$p$", "value": "{1.0, 0.7, 1.2}", "role": "consistency-gate power", "learnable": false},
+      {"name": "$\\kappa$", "value": "{0.02, 0, 0.01}", "role": "stochastic churn on noise", "learnable": false},
+      {"name": "$b$", "value": "0.15", "role": "gate bias", "learnable": false},
+      {"name": "$c_1, c_2$", "value": "1.5, 10.0", "role": "Jacobian-ratio and grad-norm clips", "learnable": false},
+      {"name": "$x_{clip}$", "value": "1.25", "role": "per-step state clamp", "learnable": false}
+    ],
+    "init_recovers": "DPS when gate$\\to1$, $\\alpha=0$, $\\kappa=0$",
+    "diff_from_baseline": "Replaces DPS's single $\\hat x_0$-gradient with a gate-weighted convex combination of gradients evaluated at $\\hat x_0$ and at a partially-noised mix point, plus relative-residual trust damping and state clipping.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Manifold-projected DPS with momentum",
+    "tagline": "Project the DPS gradient onto the local data-manifold tangent space, weight by denoiser confidence, and accumulate via EMA momentum.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for diffusion step $i = 1 \\ldots N$ do\n// 2.   $\\hat x_0 \\leftarrow \\mathrm{net}(x_t/s_t, \\sigma_t)$;  $r \\leftarrow x_t/s_t - \\hat x_0$;  $\\hat r \\leftarrow r/\\|r\\|$\n// 3.   $g \\leftarrow \\nabla_{x_t} \\hat x_0 \\cdot \\nabla\\|A\\hat x_0 - y\\|^2$\n// 4.   $g_\\parallel \\leftarrow (g\\cdot \\hat r)\\,\\hat r$;  $g \\leftarrow (g - g_\\parallel) + (1-w_m)\\,g_\\parallel$\n// 5.   $c \\leftarrow 1/(1 + \\|r\\|/\\sigma)^q$  // confidence weight\n// 6.   $g \\leftarrow 0.5\\, g\\, c\\, /\\sqrt{\\ell}$\n// 7.   $m \\leftarrow \\mu m + (1-\\mu)\\, g$\n// 8.   apply standard SDE/ODE step, then $x_{t-1} \\mathrel{-}= \\lambda\\, m$",
+    "key_hyperparams": [
+      {"name": "$\\lambda$", "value": "{50, 1e-3, 1.0}", "role": "guidance scale per problem", "learnable": false},
+      {"name": "$w_m$", "value": "{0.3, 0.5, 0.2}", "role": "manifold-projection weight on radial direction", "learnable": false},
+      {"name": "$\\mu$", "value": "{0.9, 0.85, 0.9}", "role": "EMA momentum", "learnable": false},
+      {"name": "$q$", "value": "{1.5, 2.0, 1.0}", "role": "confidence-weight exponent", "learnable": false}
+    ],
+    "init_recovers": "DPS at $w_m=0, \\mu=0, q=0$",
+    "diff_from_baseline": "On top of DPS, decomposes $\\nabla_{x_t}\\hat x_0\\cdot g$ into tangential and radial parts (radial being $x_t/s_t - \\hat x_0$), shrinks the radial component, scales by a $1/(1+\\|r\\|/\\sigma)^q$ confidence factor, and accumulates via EMA momentum.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "DPS with EMA-normalized loss scale",
+    "tagline": "Same DPS step, but normalize the guidance gradient by the EMA of $\\sqrt{\\ell}$ across diffusion steps instead of the per-step value.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. initialize $\\ell_{ref} \\leftarrow 1$\n// 2. for diffusion step $i = 1 \\ldots N$ do\n// 3.   $\\hat x_0 \\leftarrow \\mathrm{net}(x_t/s_t, \\sigma_t)$\n// 4.   $g, \\ell \\leftarrow \\mathrm{forward\\_op.gradient}(\\hat x_0, y)$\n// 5.   if first step: $\\ell_{ref} \\leftarrow \\overline{\\ell}$  else  $\\ell_{ref} \\leftarrow \\beta\\, \\ell_{ref} + (1-\\beta)\\,\\overline{\\ell}$;   $\\ell_{ref} \\leftarrow \\max(\\ell_{ref}, 10^{-6})$\n// 6.   $g_t \\leftarrow \\nabla_{x_t} \\hat x_0 \\cdot g$;  zero out NaN/Inf\n// 7.   $g_t \\leftarrow 0.5\\, g_t / \\sqrt{\\ell_{ref}}$\n// 8.   apply standard SDE/ODE step, then $x_{t-1} \\mathrel{-}= \\lambda\\, g_t$",
+    "key_hyperparams": [
+      {"name": "$\\lambda$", "value": "{50, 1e-3, 1.0}", "role": "guidance scale per problem", "learnable": false},
+      {"name": "$\\beta$", "value": "0.9", "role": "EMA decay for $\\ell_{ref}$", "learnable": false},
+      {"name": "clip_grad", "value": "false", "role": "optional gradient-norm clip", "learnable": false}
+    ],
+    "init_recovers": "DPS at $\\beta=0$ (per-step loss scaling)",
+    "diff_from_baseline": "Single-line change to DPS: replace the per-step $1/\\sqrt{\\ell_{scale}}$ rescaling of the likelihood gradient with $1/\\sqrt{\\ell_{ref}}$, where $\\ell_{ref}$ is an exponential moving average across diffusion steps.",
+    "confidence": "high"
+  }
+]

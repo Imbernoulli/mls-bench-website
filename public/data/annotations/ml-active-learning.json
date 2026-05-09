@@ -1,0 +1,86 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Entropy-weighted gradient k-means++",
+    "tagline": "BADGE k-means++ in gradient-embedding space, with the selection probability multiplied by an entropy weight whose floor adapts to the number of classes.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. embs, probs ← get_embedding(X_U); g_i = vec((onehot(\\hat y_i) - p_i) ⊗ embs_i)\n// 2. ent_i = -∑_c p_{ic} log p_{ic}; floor = 0.2 / log_2(C); w_i = ent_i / max(ent) + floor\n// 3. first center: i* = argmax_i ‖g_i‖^2 · w_i\n// 4. D2_i = ‖g_i - g_{i*}‖^2\n// 5. for k = 2..n:\n// 6.   sample i ~ (D2_i · w_i) / ∑(D2 · w)\n// 7.   D2 ← min(D2, ‖g - g_i‖^2); D2_i = 0\n// 8. return chosen indices",
+    "key_hyperparams": [
+      {"name": "weight_floor", "value": "0.2 / log2(C)", "role": "uncertainty/diversity trade-off, adapts with class count C", "learnable": false},
+      {"name": "uncertainty_signal", "value": "predictive entropy", "role": "computed from softmax probs", "learnable": false},
+      {"name": "embedding", "value": "gradient embedding (BADGE)", "role": "(onehot(yhat) - p) outer h", "learnable": false},
+      {"name": "init", "value": "argmax ||g||^2 * w", "role": "deterministic first center", "learnable": false}
+    ],
+    "init_recovers": "BADGE when entropy weights become uniform (e.g. high floor)",
+    "diff_from_baseline": "Modifies BADGE k-means++ by multiplying both the initial argmax score and the squared-distance sampling weights by an entropy weight ent_i/max(ent) + 0.2/log2(C), automatically biasing toward uncertainty when there are many classes and toward diversity when few.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Entropy-weighted BADGE w/ pre-filter",
+    "tagline": "BADGE k-means++ run on a top-K entropy x grad-norm candidate pool, with each sample's gradient embedding scaled by normalized entropy.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. embs, probs = get_embedding(X_U); ent_i = -∑ p_ic log p_ic; ent̂ = ent / log(C)\n// 2. residual_i = -p_i; residual_i[ŷ_i] += 1; grad_norm_i = ||residual_i|| · ||embs_i||\n// 3. score_i = ent̂_i · (grad_norm_i / max(grad_norm))\n// 4. K = min(max(10n, 1000), |U|); candidates = top-K by score\n// 5. on candidates: weighted_residual_j = ent̂_j · residual_j; weighted gradient embedding = weighted_residual_j ⊗ embs_j\n// 6. BADGE k-means++ in this weighted space (factored Kronecker distance via (X1·X2)·(Y1·Y2)):\n// 7.   first center = argmax_j ent̂_j · sqrt(||embs_j||^2 · ||residual_j||^2)\n// 8.   subsequent centers: D^2 over weighted gradients; sample i ∝ D^2_i / ∑ D^2\n// 9. return idxs_unlabeled[candidate_local[chosen]]",
+    "key_hyperparams": [
+      {"name": "candidate_size", "value": "min(max(10n, 1000), |U|)", "role": "top-K pre-filter", "learnable": false},
+      {"name": "filter_score", "value": "norm_entropy * grad_sensitivity", "role": "two-signal candidate filter", "learnable": false},
+      {"name": "weighted_residual", "value": "ent̂_i * residual_i", "role": "scales BADGE residual by uncertainty", "learnable": false},
+      {"name": "first_center_score", "value": "ent̂ * sqrt(emb_norm^2 * residual_norm^2)", "role": "deterministic seed", "learnable": false}
+    ],
+    "init_recovers": "BADGE when ent̂ is constant",
+    "diff_from_baseline": "Adds a two-signal pre-filter (entropy x BADGE grad-norm top-K) and re-weights BADGE's residual by normalized entropy before running the standard k-means++ selection in the factored gradient-embedding space.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Spherical core-set + least-confidence",
+    "tagline": "L2-normalize penultimate embeddings, initialize min-distances from the labeled set, then greedy farthest-first weighted by least-confidence uncertainty.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. embs_U, probs_U ← get_embedding(X_U); embs_U ← embs_U / ‖embs_U‖\n// 2. U_i = 1 - max_c p_ic + 1e-6\n// 3. if |labeled|>0: embs_L ← normalized labeled embeddings; min_D2_i = min(2 - 2·embs_U·embs_L^T) over batches\n// 4. else: min_D2 = None (use first pick by argmax U)\n// 5. for k=1..n:\n// 6.   if min_D2 is None: i* = argmax U; init min_D2 from i*\n// 7.   else: score_i = U_i · sqrt(min_D2_i) for valid i; i* = argmax score\n// 8.   min_D2 ← min(min_D2, 2 - 2·embs_U·embs_U[i*]); mark i* selected\n// 9. return idxs_unlabeled[chosen]",
+    "key_hyperparams": [
+      {"name": "uncertainty", "value": "1 - max_c p", "role": "least-confidence", "learnable": false},
+      {"name": "distance", "value": "2 - 2·cosine on L2-normalized embeddings", "role": "spherical squared distance", "learnable": false},
+      {"name": "label_init", "value": "min over labeled set", "role": "seeds farthest-first from existing labels", "learnable": false},
+      {"name": "score", "value": "U * sqrt(min_D2)", "role": "uncertainty x distance product", "learnable": false},
+      {"name": "labeled_batch", "value": "1024", "role": "batch for labeled-set scan", "learnable": false}
+    ],
+    "init_recovers": "core-set / k-center when U is constant; least-confidence when min_D2 is constant",
+    "diff_from_baseline": "Replaces BADGE's gradient embedding with L2-normalized penultimate features, seeds the farthest-first loop from the already-labeled set, and weighs each candidate by least-confidence uncertainty (U · sqrt(min_D2)) instead of pure k-center.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Density+BALD greedy farthest-first",
+    "tagline": "Filter on entropy x (1-margin), reweight by light MC-BALD, then greedy farthest-first in concat(emb, 0.5*grad) with density and pseudo-class balancing.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. probs ← predict_prob(X_U); ent̂ = -∑ p log p / log C; margin = p_(1) - p_(2); base_unc = ent̂ · (1 - margin)\n// 2. cand = top-min(|U|, max(6n,256), 768) by base_unc\n// 3. mc = predict_prob_dropout_split(X_cand, n_drop=4); BALD ← (H[mean] - mean[H]) / log C; unc = base_unc · (1 + max(BALD, 0))\n// 4. emb, grad = get_embedding(X_cand), get_grad_embedding(X_cand); L2-normalize both; z = concat(emb, 0.5·grad)\n// 5. d_joint, d_emb = pairwise distances; density_i = 1 / sqrt(mean kNN-distance over k=10) on d_emb\n// 6. pred = argmax probs[cand]; freq = bincount(pred, n_class); balance_pow = 0.5 if C>5 else 0.25\n// 7. prior = unc · density / (freq[pred] + 1e-6)^balance_pow\n// 8. seed min_d from labeled set if any, else median(d_joint)\n// 9. for k = 1..n: score = prior · (0.5 + min_d / mean(min_d)); pick argmax; min_d ← min(min_d, d_joint[picked])",
+    "key_hyperparams": [
+      {"name": "candidate_pool", "value": "min(|U|, max(6n,256), 768)", "role": "uncertainty pre-filter", "learnable": false},
+      {"name": "n_drop", "value": "4", "role": "MC dropout passes for BALD", "learnable": false},
+      {"name": "joint_space", "value": "concat(emb, 0.5*grad)", "role": "diversity space, both L2-normalized", "learnable": false},
+      {"name": "density_k", "value": "10", "role": "kNN distance for density", "learnable": false},
+      {"name": "balance_pow", "value": "{C>5: 0.5, else: 0.25}", "role": "pseudo-class frequency penalty exponent", "learnable": false},
+      {"name": "score_blend", "value": "prior * (0.5 + min_d / mean(min_d))", "role": "greedy ranking", "learnable": false}
+    ],
+    "diff_from_baseline": "Goes well beyond BADGE/BAIT/BALD: combines entropy x margin pre-filter, MC-BALD epistemic correction, density regularization in a joint emb+grad space, pseudo-class frequency balancing, and a labeled-set-aware greedy farthest-first update.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Harmonic dual-signal + farthest-first",
+    "tagline": "Rank-normalize entropy and BADGE grad-norm, take their harmonic mean, top-K filter, then greedy farthest-first on L2-normalized raw features weighted by score.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. probs ← predict_prob(X_U); ent_i = -∑ p log p\n// 2. grad = get_grad_embedding(X_U); g_i = ‖grad_i‖\n// 3. ê_i = rank(ent)/(N-1); ĝ_i = rank(g)/(N-1)\n// 4. h_i = 2 · ê_i · ĝ_i / (ê_i + ĝ_i + 1e-10)\n// 5. if N > 15n: cand = top-15n by h, else cand = all\n// 6. feats_cand = X[cand] / ‖X[cand]‖ (fallback: normalized grad if X fails)\n// 7. ŝ = (h_cand - min) / (max - min)\n// 8. first center = argmax h_cand; init min_dists\n// 9. for k=2..n:\n// 10.   d̂ = min_dists / max(min_dists)\n// 11.   pick i* = argmax(d̂ · ŝ) excluding chosen\n// 12.   min_dists ← min(min_dists, 1 - feats·feats[i*])",
+    "key_hyperparams": [
+      {"name": "uncertainty", "value": "rank-normalized entropy", "role": "first signal", "learnable": false},
+      {"name": "grad_signal", "value": "rank-normalized BADGE grad-norm", "role": "second signal", "learnable": false},
+      {"name": "fusion", "value": "harmonic mean", "role": "joint uncertainty score", "learnable": false},
+      {"name": "candidate_size", "value": "min(15n, |U|)", "role": "top-K pre-filter", "learnable": false},
+      {"name": "diversity_space", "value": "L2-normalized raw features (X)", "role": "cosine-style farthest-first", "learnable": false},
+      {"name": "score_combine", "value": "normalized_dist * normalized_score", "role": "greedy ranking", "learnable": false}
+    ],
+    "init_recovers": "BADGE-norm-ranking when distances are uniform",
+    "diff_from_baseline": "Replaces BADGE's gradient k-means++ with a two-signal harmonic mean of rank-normalized entropy and grad-norm, a 15n top-K candidate filter, and farthest-first selection on L2-normalized raw features (or grad as fallback) weighted by the normalized score.",
+    "confidence": "medium"
+  }
+]

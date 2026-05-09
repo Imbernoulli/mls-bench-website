@@ -1,0 +1,80 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "RLOO + signed log compression + dampened whiten",
+    "tagline": "Leave-one-out group baseline, signed-log soft-rank compression, then partially-centered token whitening.",
+    "kind": "formula",
+    "formula": "$$A_i = R_i - \\tfrac{1}{n-1}\\!\\!\\sum_{j\\neq i}R_j,\\;\\; \\tilde A_i = \\mathrm{sign}(A_i)\\,\\tfrac{\\log(1+\\beta|A_i|)}{\\log(1+\\beta)}$$ $$\\hat A_t = \\frac{\\tilde A - c\\,\\bar{\\tilde A}}{\\sqrt{\\overline{(\\tilde A - c\\,\\bar{\\tilde A})^2}+\\epsilon}}\\cdot m_t,\\;\\;\\bar\\cdot=\\mathrm{maskedMean}_m$$",
+    "key_hyperparams": [
+      {"name": "beta", "value": "3.0", "role": "soft-rank compression strength", "learnable": false},
+      {"name": "center_damp c", "value": "0.7", "role": "fraction of mean subtracted before normalization", "learnable": false},
+      {"name": "epsilon", "value": "1e-6", "role": "variance floor", "learnable": false}
+    ],
+    "init_recovers": "GRPO-like centering at beta=0 and c=1",
+    "diff_from_baseline": "Replaces GRPO's group-mean baseline with the leave-one-out mean (lower variance), passes the result through a signed log1p compression, broadcasts to tokens, and finishes with a partially-centered (c=0.7) variance normalization instead of REINFORCE++-baseline's full masked_whiten.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Two-level KL-scaled group advantage",
+    "tagline": "Dr.GRPO group centering then per-response and per-token soft-trust-region scaling by clipped pi_old/pi_ref KL, finished with token whitening.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{KL}_t = \\mathrm{ReLU}(\\log\\pi_{\\mathrm{old}}(a_t) - \\log\\pi_{\\mathrm{ref}}(a_t)),\\;\\; \\overline{\\mathrm{KL}}_i=\\tfrac{\\sum_t m_{i,t}\\mathrm{KL}_{i,t}}{\\sum_t m_{i,t}+\\epsilon}$$ $$A_{i,t} = \\mathrm{whiten}\\!\\left(\\frac{R_i - \\bar R_g}{1+\\beta\\,\\overline{\\mathrm{KL}}_i}\\cdot\\frac{m_{i,t}}{1+\\alpha\\,\\mathrm{KL}_{i,t}}\\right)$$",
+    "key_hyperparams": [
+      {"name": "alpha", "value": "0.5", "role": "per-token KL trust-region strength", "learnable": false},
+      {"name": "beta", "value": "0.3", "role": "per-response KL trust-region strength", "learnable": false},
+      {"name": "epsilon", "value": "1e-6", "role": "denominator floor", "learnable": false},
+      {"name": "outcome centering", "value": "Dr.GRPO group mean", "role": "no std division", "learnable": false}
+    ],
+    "init_recovers": "REINFORCE++-baseline when alpha=beta=0",
+    "diff_from_baseline": "Dr.GRPO-style group-mean centering, then a multiplicative two-level penalty: (1+beta*KL_seq)^-1 * (1+alpha*KL_token)^-1 where KL is the clipped forward KL between old and ref log-probs; advantages are then masked_whitened across the batch.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "SW-GRPO: surprisal-weighted GRPO",
+    "tagline": "GRPO outcome advantages redistributed across tokens by 1 - exp(log_p) surprisal, normalized so the per-sequence weight averages to 1.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{adv}_i = \\frac{R_i - \\bar R_g}{\\sigma_g + \\epsilon},\\quad s_t = 1-\\exp(\\min(0,\\log\\pi(a_t)))$$ $$w_{i,t} = \\frac{(s_t + b_0)\\,m_{i,t}}{\\tfrac{1}{|m_i|}\\sum_t (s_t+b_0)\\,m_{i,t}+\\epsilon},\\quad A_{i,t}=\\mathrm{adv}_i\\cdot w_{i,t}\\cdot m_{i,t}$$",
+    "key_hyperparams": [
+      {"name": "base_weight b0", "value": "0.1", "role": "minimum per-token weight floor", "learnable": false},
+      {"name": "norm_adv_by_std", "value": "True (config flag)", "role": "GRPO group std normalization", "learnable": false},
+      {"name": "log_p source", "value": "ref_log_probs > old_log_probs > zeros", "role": "fallback chain for surprisal", "learnable": false},
+      {"name": "epsilon", "value": "1e-6", "role": "denominator floor", "learnable": false}
+    ],
+    "init_recovers": "GRPO when surprisal weights are uniform (s_t -> 0 with b0>0)",
+    "diff_from_baseline": "Same GRPO outcome advantage as the grpo baseline, but instead of broadcasting it uniformly across the response, multiplies each token by a surprisal weight w_t derived from ref_log_probs (or old_log_probs), normalized per-sequence to mean 1; tokens predictable under the reference get less, surprising tokens get more.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "RLOO + adaptive std blend + token whiten",
+    "tagline": "Leave-one-out residual rescaled by an interpolation between Dr.GRPO and GRPO normalization (sigmoid in group std), then masked-whitened across tokens.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{res}_i = R_i - \\tfrac{\\sum_j R_j - R_i}{n-1},\\;\\; \\rho = \\tfrac{\\sigma_g}{\\sigma_g + 0.5}$$ $$A_{i,t} = \\mathrm{whiten}\\!\\left(\\Big(\\tfrac{\\mathrm{res}_i}{(1-\\rho) + \\rho\\sigma_g + \\epsilon} - \\overline{\\mathrm{adv}}_g\\Big)\\cdot m_{i,t}\\right)$$",
+    "key_hyperparams": [
+      {"name": "norm_strength rho", "value": "sigma/(sigma + 0.5)", "role": "smooth interpolation Dr.GRPO -> GRPO", "learnable": false},
+      {"name": "epsilon", "value": "1e-6", "role": "denominator floor", "learnable": false},
+      {"name": "returns", "value": "raw scores broadcast on response_mask", "role": "decoupled from advantages (single value head)", "learnable": false}
+    ],
+    "init_recovers": "Dr.GRPO when group std -> 0; GRPO LOO when group std large",
+    "diff_from_baseline": "Adopts the leave-one-out baseline like RLOO, then divides by an adaptive scale (1-rho)+rho*sigma where rho smoothly turns on std normalization only when within-group dispersion is large; per-group recentering removes drift, then REINFORCE++-baseline-style masked_whiten is applied across tokens. Returns the raw outcome (un-normalized) instead of advantages.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "RANK-GRPO: rank + difficulty + sparse blend",
+    "tagline": "Per-group rank advantage (rescaled to [-0.5, 0.5]) blended with z-score deviation, scaled by inverse success rate, then token-whitened.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{rank}_i = \\frac{\\mathrm{argsort}(R)_i}{n-1} - 0.5,\\;\\;d_g = \\mathrm{clip}\\!\\Big(\\frac{1}{p_g+0.1},1,4\\Big)$$ $$A_i = d_g\\Big[\\mathbb{1}[\\sigma_g<0.3]\\,\\mathrm{rank}_i + \\mathbb{1}[\\sigma_g\\ge 0.3]\\,\\tfrac{R_i-\\bar R_g}{\\sigma_g+\\epsilon}\\Big],\\;\\;A_{i,t}=\\mathrm{whiten}(A_i\\,m_{i,t})$$",
+    "key_hyperparams": [
+      {"name": "rank range", "value": "[-0.5, 0.5]", "role": "per-group normalized rank", "learnable": false},
+      {"name": "difficulty_scale", "value": "clip(1/(success_rate+0.1), 1, 4)", "role": "amplifies hard tasks", "learnable": false},
+      {"name": "sparsity threshold", "value": "0.3", "role": "switch between rank vs z-score advantage", "learnable": false},
+      {"name": "epsilon", "value": "1e-6", "role": "denominator floor", "learnable": false}
+    ],
+    "init_recovers": "Token-whitened GRPO when rank branch is off",
+    "diff_from_baseline": "Replaces GRPO's z-scored mean-shifted reward with a per-group rank advantage rescaled to [-0.5, 0.5], hard-switched to the GRPO z-score whenever the group std exceeds 0.3; the chosen advantage is multiplied by an inverse-success-rate difficulty factor in [1, 4] and then masked-whitened across tokens (REINFORCE++-baseline-style).",
+    "confidence": "high"
+  }
+]

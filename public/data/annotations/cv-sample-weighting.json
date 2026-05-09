@@ -1,0 +1,86 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Entropy-Calibrated Effective-Number",
+    "tagline": "Binary-search the power on effective-number weights so the reweighted class distribution hits a target entropy.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. $\\beta \\leftarrow 1 - 1/\\max_c n_c$ (clipped at 0.9999); $E_c = (1-\\beta^{n_c})/(1-\\beta)$\n// 2. $H_0 = -\\sum p_c \\log p_c$ with $p_c = n_c/\\sum n_{c'}$;  $H_{\\max} = \\log C$\n// 3. target $H_t = H_0 + r\\,(H_{\\max} - H_0)$,  $r = 0.55$ if $C\\le 10$ else $0.50$\n// 4. binary-search $\\alpha \\in [0, 2]$ for 64 iters:\n// 5.   $w_c \\leftarrow E_c^{-\\alpha}$;  reweighted $p^\\alpha_c \\propto w_c n_c$\n// 6.   if $H(p^\\alpha) < H_t$ raise lower bound, else raise upper bound\n// 7. weights $\\leftarrow E^{-\\alpha}$ normalised to sum $C$",
+    "key_hyperparams": [
+      {"name": "β", "value": "min(1 − 1/n_max, 0.9999)", "role": "effective-number decay rate", "learnable": false},
+      {"name": "α range", "value": "[0, 2]", "role": "power on effective number searched", "learnable": false},
+      {"name": "binary-search iters", "value": "64", "role": "α-precision", "learnable": false},
+      {"name": "target_frac (C≤10)", "value": "0.55", "role": "fraction of (H_max − H_0) to add", "learnable": false},
+      {"name": "target_frac (C>10)", "value": "0.50", "role": "fraction for CIFAR-100", "learnable": false},
+      {"name": "normalisation", "value": "Σw = C", "role": "post-scale weights", "learnable": false}
+    ],
+    "init_recovers": "Class-Balanced Effective-Number weights when α=1.",
+    "diff_from_baseline": "Replaces the fixed sqrt-dampening on inverse-frequency / effective-number weights with an entropy-calibration loop that picks the power α via binary search so the reweighted distribution achieves a target effective entropy (relative to log C) — none of the baselines tune the power class-wise or by entropy.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Piecewise Effective Weighting (PEW)",
+    "tagline": "Effective-number weights, but only classes below the median count receive a >1 weight; head/median classes are pinned to 1.",
+    "kind": "formula",
+    "formula": "$$w_c = \\begin{cases} 1 & n_c \\ge \\mathrm{median}(n) \\\\ \\frac{(1-\\beta^{n_{\\mathrm{med}}})}{(1-\\beta^{n_c})} & n_c < \\mathrm{median}(n) \\end{cases},\\quad \\beta = 0.9999,\\quad w \\leftarrow \\frac{C\\,w}{\\sum_{c'} w_{c'}}$$",
+    "key_hyperparams": [
+      {"name": "β", "value": "0.9999", "role": "Cui et al. effective-number decay", "learnable": false},
+      {"name": "split point", "value": "median count", "role": "head vs tail threshold", "learnable": false},
+      {"name": "head weight", "value": "1", "role": "no boost for n_c ≥ median", "learnable": false},
+      {"name": "normalisation", "value": "Σw = C", "role": "post-scale weights", "learnable": false}
+    ],
+    "init_recovers": "Effective-Number baseline (Cui) when normalised against median weight, but with head classes flattened to 1.",
+    "diff_from_baseline": "Compared to plain effective-number weighting, only the below-median classes get a >1 weight (relative to the median's effective weight), while head classes stay at 1 — a piecewise variant of class-balanced weighting that avoids amplifying any head-side gradient.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Smooth Cosine Log-Gap Weighting",
+    "tagline": "Raised-cosine S-curve over the log-frequency rank with peak weight √(imbalance_ratio).",
+    "kind": "formula",
+    "formula": "$$x_c = \\frac{\\log n_{\\max} - \\log n_c}{\\log n_{\\max} - \\log n_{\\min}},\\quad s(x) = \\tfrac{1}{2}(1 - \\cos\\pi x),\\quad w_c = 1 + (\\sqrt{\\rho} - 1)\\,s(x_c),\\quad w \\leftarrow \\frac{C\\,w}{\\sum w_{c'}}$$",
+    "key_hyperparams": [
+      {"name": "ρ", "value": "config['imbalance_ratio']", "role": "task imbalance ratio", "learnable": false},
+      {"name": "max weight M", "value": "√ρ", "role": "tail-class amplification cap", "learnable": false},
+      {"name": "S-curve", "value": "raised cosine ½(1−cos πx)", "role": "smooth head→tail interpolation", "learnable": false},
+      {"name": "normalisation", "value": "Σw = C", "role": "post-scale weights", "learnable": false}
+    ],
+    "init_recovers": "Uniform weights when n_max = n_min (degenerate balanced case).",
+    "diff_from_baseline": "Replaces the linear log-gap weighting (Balanced-Softmax baseline) with a raised-cosine S-curve over the normalised log-frequency rank, and sets the max weight to √(imbalance_ratio) instead of a fixed 5×; yields a smoother head→tail interpolation than power/effective-number baselines.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Granularity-Adaptive Reliability Reweighting",
+    "tagline": "Severity- and arch-tuned power on shrunk effective counts, with a mid-tail bump scaled by class granularity.",
+    "kind": "formula",
+    "formula": "$$\\tilde{n}_c = n_c + \\lambda \\sqrt{n_c\\,\\bar{n}},\\quad r_c = \\tfrac{\\log n_{\\max} - \\log n_c}{\\log n_{\\max} - \\log n_{\\min}},\\quad p_c = p_0\\,(1 + g\\cdot 4 r_c(1-r_c))$$$$w_c = (\\bar{n}/\\tilde{n}_c)^{p_c},\\quad w \\leftarrow \\tfrac{C\\,w}{\\sum w_{c'}}$$",
+    "key_hyperparams": [
+      {"name": "p₀ (base power)", "value": "0.42 + 0.08·sev + 0.10·rel  (clipped to [0.35, 0.60])", "role": "global power on inverse effective count", "learnable": false},
+      {"name": "VGG bias", "value": "p₀ −= 0.05", "role": "arch-specific shrink", "learnable": false},
+      {"name": "λ (shrink)", "value": "1 + 0.25·sev (+0.15 for VGG)", "role": "effective-count smoothing", "learnable": false},
+      {"name": "g (mid-tail bump)", "value": "0.40·sev·rel·√(10/C) (×0.6 for VGG)", "role": "extra power for mid-tail classes", "learnable": false},
+      {"name": "severity sev", "value": "log(ρ)/log(100)", "role": "imbalance-ratio scale", "learnable": false},
+      {"name": "reliability rel", "value": "n_min/(n_min + √n̄)", "role": "discount when tail is tiny", "learnable": false},
+      {"name": "normalisation", "value": "Σw = C", "role": "post-scale weights", "learnable": false}
+    ],
+    "diff_from_baseline": "Generalises sqrt-inverse-frequency (power=0.5) and effective-number (power=1) into a per-class power that depends on imbalance severity, tail reliability, granularity (10/C), and whether the architecture is VGG; effective counts are also shrunk towards the mean by λ√(n·n̄) — none of the named baselines vary the power per class or per architecture.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Log-Frequency Linear Interpolation",
+    "tagline": "Linearly interpolate weights from 1 (head) to √(imbalance_ratio) (rarest) along normalised log-frequency.",
+    "kind": "formula",
+    "formula": "$$x_c = \\frac{\\log(n_{\\max}/n_c)}{\\max_{c'}\\log(n_{\\max}/n_{c'})},\\quad w_c = 1 + (\\sqrt{\\rho} - 1)\\,x_c,\\quad w \\leftarrow \\frac{C\\,w}{\\sum_{c'} w_{c'}}$$",
+    "key_hyperparams": [
+      {"name": "ρ", "value": "config['imbalance_ratio']", "role": "imbalance ratio", "learnable": false},
+      {"name": "max weight", "value": "√ρ", "role": "rarest-class weight before normalisation", "learnable": false},
+      {"name": "interpolation", "value": "linear in log-freq", "role": "head→tail mapping", "learnable": false},
+      {"name": "normalisation", "value": "Σw = C", "role": "post-scale weights", "learnable": false}
+    ],
+    "init_recovers": "Uniform weights when n_max = n_min.",
+    "diff_from_baseline": "Replaces the Balanced-Softmax-style 1+α·gap (max gap fixed at 4) with a linear interpolation from 1 to √(imbalance_ratio) over the normalised log-frequency gap, and replaces inverse-frequency / effective-number power-law weights with a strictly linear-in-log-freq ramp.",
+    "confidence": "high"
+  }
+]

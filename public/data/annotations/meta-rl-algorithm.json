@@ -1,0 +1,104 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "PEARL + reward + InfoNCE encoder",
+    "tagline": "PEARL product-of-Gaussians encoder with two extra encoder losses: reward-prediction supervision and split-context InfoNCE for task discrimination.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Encoder φ → (μᵢ, σᵢ²) per transition; posterior via product-of-Gaussians\n// 2. Sample z ~ N(μ_post, σ²_post); SAC heads consume (s, a, z), V uses detach(z)\n// 3. For each meta-batch step:\n// 4.   split context into halves; encode both → z_a, z_b\n// 5.   $L_{\\mathrm{NCE}} = \\tfrac{1}{2}(\\mathrm{CE}(z_a z_b^\\top/\\tau, I) + \\mathrm{CE}(z_b z_a^\\top/\\tau, I))$\n// 6.   reward decoder $\\hat r = f(s, a, z)$,  $L_{\\mathrm{rp}} = \\mathrm{MSE}(\\hat r, r)$  (skipped if sparse)\n// 7.   total encoder loss = $L_Q + \\lambda_{\\mathrm{kl}} \\mathrm{KL}(q\\|\\mathcal N(0,I)) + \\lambda_{\\mathrm{rp}} L_{\\mathrm{rp}} + \\lambda_{\\mathrm{cl}} L_{\\mathrm{NCE}}$\n// 8. Standard SAC V/π updates with detached z; soft target update τ=0.005",
+    "key_hyperparams": [
+      {"name": "latent_dim", "value": "5", "role": "task embedding dim", "learnable": false},
+      {"name": "kl_lambda", "value": "0.1", "role": "KL prior weight", "learnable": false},
+      {"name": "rp_lambda", "value": "reward_scale (=5.0)", "role": "reward-pred weight (=0 if sparse)", "learnable": false},
+      {"name": "cl_lambda", "value": "1.0", "role": "InfoNCE weight", "learnable": false},
+      {"name": "cl_temp", "value": "0.5", "role": "InfoNCE temperature", "learnable": false},
+      {"name": "soft_target_tau", "value": "0.005", "role": "Polyak average coefficient", "learnable": false},
+      {"name": "num_train_steps_per_itr", "value": "600", "role": "halved vs PEARL baseline", "learnable": false}
+    ],
+    "init_recovers": "PEARL when λ_rp=λ_cl=0",
+    "diff_from_baseline": "Keeps PEARL's product-of-Gaussians + SAC core, but adds (i) a reward decoder loss for direct task-id supervision and (ii) a contrastive InfoNCE loss between two halves of each task's context — neither used by PEARL/FOCAL/VariBAD baselines.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Self-attention encoder + Gaussian SAC",
+    "tagline": "Replaces PEARL's product-of-Gaussians aggregator with a self-attention encoder that mean-and-max pools the attended transitions into (μ, logσ²).",
+    "kind": "hybrid",
+    "formula": "$$h_t = \\mathrm{MLP}(o_t,a_t,r_t),\\qquad \\tilde h = \\mathrm{LN}\\bigl(h + W_O\\,\\mathrm{MHA}(h)\\bigr)$$\n$$z = \\mu + \\sigma\\,\\varepsilon,\\quad (\\mu, \\log\\sigma^2) = \\mathrm{MLP}\\bigl([\\mathrm{mean}_t \\tilde h,\\ \\max_t \\tilde h]\\bigr)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "ctx", "label": "context (o,a,r)"},
+        {"id": "enc", "label": "transition MLP"},
+        {"id": "mha", "label": "self-attention"},
+        {"id": "agg", "label": "mean + max pool"},
+        {"id": "post", "label": "Gaussian z"},
+        {"id": "sac", "label": "SAC heads (Q,V,π)"}
+      ],
+      "edges": [
+        {"from": "ctx", "to": "enc"},
+        {"from": "enc", "to": "mha"},
+        {"from": "mha", "to": "agg"},
+        {"from": "agg", "to": "post"},
+        {"from": "post", "to": "sac"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "latent_dim", "value": "5", "role": "task embedding dim", "learnable": false},
+      {"name": "hidden_dim", "value": "200", "role": "encoder width", "learnable": false},
+      {"name": "num_heads", "value": "4", "role": "attention heads", "learnable": false},
+      {"name": "logvar_clamp", "value": "[-10, 10]", "role": "stability bounds", "learnable": false},
+      {"name": "kl_lambda", "value": "0.1", "role": "prior weight", "learnable": false}
+    ],
+    "diff_from_baseline": "Drops PEARL's per-transition product-of-Gaussians for a self-attention encoder followed by mean+max pooling, then a single Gaussian posterior; otherwise inherits PEARL's SAC + KL training pipeline.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "PEARL with attention-weighted PoG",
+    "tagline": "Per-transition encoder outputs (μ, σ², attention logit); attention softmax over the sequence weights both the mean and variance instead of the product-of-Gaussians.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{MLP}(o_t,a_t,r_t) \\to (\\mu_t, s_t = \\mathrm{softplus}(\\cdot), \\ell_t)$$\n$$w_t = \\mathrm{softmax}_t(\\ell_t),\\quad \\mu = \\sum_t w_t\\mu_t,\\ \\sigma^2 = \\sum_t w_t s_t,\\quad z \\sim \\mathcal N(\\mu, \\sigma^2)$$",
+    "key_hyperparams": [
+      {"name": "latent_dim", "value": "5", "role": "task embedding dim", "learnable": false},
+      {"name": "hidden_dim", "value": "200", "role": "MLP width", "learnable": false},
+      {"name": "n_layers", "value": "3", "role": "encoder MLP depth", "learnable": false},
+      {"name": "var_clamp", "value": "[1e-7, 1e4]", "role": "stability", "learnable": false},
+      {"name": "kl_lambda", "value": "0.1", "role": "KL prior weight", "learnable": false}
+    ],
+    "init_recovers": "Uniform attention ⇒ mean of (μ_t, σ²_t)",
+    "diff_from_baseline": "Replaces PEARL's product-of-Gaussians aggregator with a learned per-transition attention head (softmax over sequence) that linearly combines (μ_t, σ²_t); keeps SAC + KL otherwise unchanged.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "PEARL + reward-aware prototype fusion",
+    "tagline": "Probabilistic encoder plus a deterministic prototype encoder; the policy sees a confidence-blended z = exp(-σ²)·z_stoch + (1-exp(-σ²))·z_proto.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Two encoders: prob_encoder → (μ, σ²) via PoG; proto_encoder → z_t per transition\n// 2. For dense rewards: $z_{\\mathrm{proto}} = \\mathrm{mean}_t(\\mathrm{proto}(c_t))$\n// 3. For sparse rewards: $z_{\\mathrm{proto}} = \\sum_t w_t z_t / \\sum_t w_t$,  $w_t = 1 + 4\\,\\mathrm{ReLU}(r_t)$\n// 4. Sample $z_{\\mathrm{stoch}} = \\mu + \\sigma\\,\\varepsilon$\n// 5. Confidence: $c = \\exp(-\\sigma^2)$,  $z = c\\cdot z_{\\mathrm{stoch}} + (1-c)\\,z_{\\mathrm{proto}}$\n// 6. Reward decoder $\\hat r(s,a,z)$ trained jointly: $L_{\\mathrm{rp}} = \\lambda_{\\mathrm{rp}}\\,\\mathrm{MSE}(\\hat r, r)$\n// 7. Encoder loss = $L_Q + \\lambda_{\\mathrm{kl}}\\mathrm{KL}(q\\|\\mathcal N(0,I)) + L_{\\mathrm{rp}} + \\lambda_{\\mathrm{align}}\\|z_{\\mathrm{means}} - z_{\\mathrm{proto}}\\|^2$",
+    "key_hyperparams": [
+      {"name": "latent_dim", "value": "5", "role": "task embedding dim", "learnable": false},
+      {"name": "soft_target_tau", "value": "0.01", "role": "Polyak average (vs 0.005)", "learnable": false},
+      {"name": "kl_lambda (dense)", "value": "0.05", "role": "halved for dense rewards", "learnable": false},
+      {"name": "rp_weight (dense/sparse)", "value": "0.5 / 2.0", "role": "reward-pred loss weight", "learnable": false},
+      {"name": "proto_align_weight", "value": "0.2 / 1.0", "role": "‖z_means − z_proto‖² weight", "learnable": false},
+      {"name": "sparse_reward_w", "value": "1 + 4·ReLU(r)", "role": "reward-aware prototype weighting", "learnable": false}
+    ],
+    "diff_from_baseline": "Beyond PEARL, adds a parallel deterministic prototype encoder, blends it with the stochastic z by an uncertainty-driven gate exp(-σ²), and (in sparse settings) up-weights high-reward transitions in the prototype average; also includes a reward decoder.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Mean-pool Gaussian + reward consistency",
+    "tagline": "Per-transition (μ, logσ²) encoder mean-pooled across context; encoder trained jointly with a reward-prediction decoder and standard SAC.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Per-transition MLP $(o,a,r) \\to (\\mu_t, \\log\\sigma_t^2)$\n// 2. Posterior: $\\mu = \\mathrm{mean}_t \\mu_t$, $\\log\\sigma^2 = \\mathrm{mean}_t \\log\\sigma_t^2$\n// 3. $z = \\mu + e^{0.5\\log\\sigma^2}\\,\\varepsilon$\n// 4. Reward decoder $\\hat r = g(s,a,z)$,  $L_{\\mathrm{rew}} = \\mathrm{MSE}(\\hat r, r)$\n// 5. Encoder objective: $L_Q + \\lambda_{\\mathrm{kl}}\\,\\mathrm{KL}(q\\|\\mathcal N(0,I)) + 1.0\\cdot L_{\\mathrm{rew}}$\n// 6. KL coefficient is held at config default 0.1 (despite docstring; not annealed in code)\n// 7. SAC π, Q, V trained with detached z and Polyak τ=0.005",
+    "key_hyperparams": [
+      {"name": "latent_dim", "value": "5", "role": "task embedding", "learnable": false},
+      {"name": "encoder_hidden", "value": "200", "role": "encoder MLP width", "learnable": false},
+      {"name": "n_layers", "value": "3", "role": "encoder MLP depth", "learnable": false},
+      {"name": "reward_consistency_weight", "value": "1.0", "role": "MSE on predicted reward", "learnable": false},
+      {"name": "kl_lambda", "value": "0.1", "role": "Gaussian KL prior weight", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces PEARL's product-of-Gaussians with a simple mean of per-transition (μ, logσ²); adds a reward-consistency MSE decoder; otherwise SAC training is identical to PEARL.",
+    "confidence": "high"
+  }
+]

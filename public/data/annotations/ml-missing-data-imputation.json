@@ -1,0 +1,85 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Per-feature stacked MICE/ET/KNN",
+    "tagline": "Run MICE-BR, IterativeExtraTrees, and KNN imputers in parallel; per-feature softmax-weight them by cross-validated BayesianRidge MSE on observed values.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Compute three full imputations of $X$: $X_{\\text{MICE}}$ (BayesianRidge), $X_{\\text{ET}}$ (ExtraTrees), $X_{\\text{KNN}}$ ($k=\\min(7,\\max(3,n/20))$, distance weights).\n// 2. For each feature $j$ with missing entries:\n//    a. If $\\#\\text{obs}_j\\ge 15$: 5-fold CV BayesianRidge on observed $X[:, \\neg j]$ for each method, record MSE $e_m$.\n//    b. Set weights $w_m\\propto (1/e_m)^2$ (sharpened inverse-MSE softmax, T=2 effect).\n//    c. Else use uniform $w_m=1/3$.\n// 3. Fill $X_{\\text{result}}[\\text{mis}_j,j]\\leftarrow\\sum_m w_m X_m[\\text{mis}_j,j]$, keep observed values intact.",
+    "key_hyperparams": [
+      {"name": "base methods", "value": "MICE-BR, IterativeExtraTrees, KNN", "role": "diverse base imputers", "learnable": false},
+      {"name": "weighting", "value": "(1/MSE)² normalised", "role": "per-feature softmax-style stacking", "learnable": false},
+      {"name": "knn_k", "value": "min(7, max(3, n/20))", "role": "neighborhood size for KNN baseline", "learnable": false},
+      {"name": "min obs for CV", "value": "15", "role": "fallback threshold to uniform weights", "learnable": false},
+      {"name": "cv splits", "value": "min(5, max(3, n/5))", "role": "K-fold count for evaluation", "learnable": false}
+    ],
+    "init_recovers": "Average of MICE / ET / KNN when CV is unavailable",
+    "diff_from_baseline": "Goes beyond MICE/MissForest/GAIN by running all three baselines and selecting per feature using cross-validated BayesianRidge errors with squared-inverse-MSE weights.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Adaptive iterative ensemble (BR+RF+KNN)",
+    "tagline": "MissForest-style chained imputation where every column step is the inverse-MSE blend of BayesianRidge, RandomForest, and KNN regressors evaluated by 5-fold CV on observed data.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Mean-init missing entries; sort features ascending by missingness.\n// 2. For each iteration up to max_iter:\n//    a. For each feature $j$ in sorted order:\n//       i.  Build training set $(X_{\\neg j}, X_j)$ on rows with observed $X_j$.\n//       ii. 5-fold CV BR / RF($n=100$) / KNN($k=5$) → MSE $e_m$.\n//       iii.Weights $w_m=(1/e_m)/\\sum 1/e_{m'}$.\n//       iv. Fit each on full obs, predict missing, write $X_j[\\text{mis}]\\leftarrow\\sum_m w_m\\hat y_m$.\n//    b. Stop if $\\|X-X_\\text{prev}\\|^2/\\|X\\|^2<10^{-4}$.",
+    "key_hyperparams": [
+      {"name": "base regressors", "value": "BayesianRidge, RF(100), KNN(k=5, weights=distance)", "role": "ensemble per chained step", "learnable": false},
+      {"name": "max_iter", "value": "10", "role": "outer round-robin iterations", "learnable": false},
+      {"name": "weighting", "value": "1/MSE normalised", "role": "per-feature inverse-CV-error blend", "learnable": false},
+      {"name": "tol", "value": "1e-4", "role": "convergence threshold on relative change", "learnable": false}
+    ],
+    "init_recovers": "MissForest if RF dominates the inverse-MSE weighting",
+    "diff_from_baseline": "Like MICE but each chained step is an inverse-MSE-weighted ensemble of BayesianRidge + RandomForest + KNN regressors, with per-feature CV evaluation every iteration.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Linear + ExtraTrees residual booster",
+    "tagline": "Iterative imputation where each chained step fits BayesianRidge then an ExtraTreesRegressor on the linear residuals, with missingness mask augmentation and per-feature value clipping.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Build mask $M=\\mathbb{1}_{\\text{NaN}}(X)$, mean-init $X_{\\text{imp}}$, store per-column min/max.\n// 2. For iter = 1..max_iter:\n//    a. Sort missing features ascending by missingness.\n//    b. For each feature $j$:\n//       i.   Form training matrix $[X_{\\neg j},\\,M_{\\neg j}]$ on obs($j$).\n//       ii.  Fit BayesianRidge → linear preds $g$ on missing rows.\n//       iii. If $\\sigma(\\text{residual})>10^{-5}$: fit ExtraTrees(50, sqrt) on residuals, predict $\\delta$.\n//       iv.  $X_{\\text{imp}}[\\text{mis},j]\\leftarrow\\mathrm{clip}(g+\\delta,\\,\\text{lo}_j,\\text{hi}_j)$.\n//    c. Stop if $\\|X-X_\\text{prev}\\|^2/\\|X\\|^2<10^{-4}$.",
+    "key_hyperparams": [
+      {"name": "linear model", "value": "BayesianRidge", "role": "global linear predictor per feature", "learnable": false},
+      {"name": "tree model", "value": "ExtraTreesRegressor(n=50, sqrt, min_leaf=2)", "role": "non-linear residual booster", "learnable": false},
+      {"name": "mask augmentation", "value": "concat M_{¬j}", "role": "missingness indicator features", "learnable": false},
+      {"name": "value clip", "value": "[col_min, col_max]", "role": "post-prediction range clamp", "learnable": false},
+      {"name": "tol / max_iter", "value": "1e-4 / 10", "role": "convergence", "learnable": false}
+    ],
+    "init_recovers": "MICE (BayesianRidge) when residual std → 0",
+    "diff_from_baseline": "Replaces single-estimator MICE with a per-feature BayesianRidge + ExtraTrees(residual) two-stage regressor, augmented with NaN mask features and value clipping each iteration.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Calibrated MICE+KNN with confidence gate",
+    "tagline": "Iterative MICE limited to top-correlated predictors blended with distance-weighted KNN; per-feature blend weight calibrated by held-out pseudo-mask and modulated by R² confidence and neighbor closeness.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Calibrate: pseudo-mask up to 20 obs/feature; impute, fit BR + KNN on top-$\\sqrt p\\,2$ correlated predictors; weight $w_j$ by $1/e_l/(1/e_l+1/e_g)$, clipped to [0.15, 0.85].\n// 2. Fit-impute loop (max_iter):\n//    a. Recompute corr$(X_{\\text{imp}})$.\n//    b. For each feature $j$ (ascending missingness): predictors = top-k by $|\\rho_{j,\\cdot}|$.\n//    c. BR fit on observed → $g$, KNN ($k=\\sqrt n$, weights $1/(d+0.1)$) → $l$, closeness $=\\exp(-\\mathrm{med}\\,d)$.\n//    d. $w=\\mathrm{clip}(w_j(0.25+0.75\\,\\text{closeness})(1-0.5\\,R^2),0.05,0.95)$.\n//    e. $\\hat X[\\text{mis},j]\\leftarrow(1-\\eta)\\hat X[\\text{mis},j]+\\eta\\,\\mathrm{clip}((1-w)g+wl,\\,\\text{lo}_j,\\text{hi}_j)$ with damping $\\eta=0.7$.",
+    "key_hyperparams": [
+      {"name": "max_predictors", "value": "12", "role": "cap on top-correlated predictors", "learnable": false},
+      {"name": "damping η", "value": "0.7", "role": "EMA on iterative updates", "learnable": false},
+      {"name": "weight floor / cap", "value": "[0.15, 0.85] then [0.05, 0.95]", "role": "per-feature local/global blend bounds", "learnable": false},
+      {"name": "knn k", "value": "min(15, max(3, √n))", "role": "neighborhood size for KNN branch", "learnable": false},
+      {"name": "value clip", "value": "[0.5%, 99.5%] percentile", "role": "robust per-feature clamp", "learnable": false},
+      {"name": "tol", "value": "RMSE on missing < 1e-3", "role": "convergence check", "learnable": false}
+    ],
+    "init_recovers": "Pure MICE when w → 0; KNN when w → 1",
+    "diff_from_baseline": "Adds calibration via pseudo-masking, top-correlation predictor pruning, R²-modulated KNN+BR blend, percentile clipping, and damped iterative updates on top of standard MICE.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "KNN-init → MICE → variance calibration",
+    "tagline": "Three-stage imputer: correlation-weighted KNN initialization, IterativeImputer with BayesianRidge refinement, then a per-feature mean/variance rescaling to the observed distribution.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Compute pairwise correlation $C$ on observed pairs.\n// 2. Stage 1 (KNN init): for each feature $j$ with missing entries — mean-fill all features, find $K=\\min(5,n_{\\text{obs}_j})$ nearest observed rows in feature space, fill with neighbor mean.\n// 3. Stage 2: run IterativeImputer(BayesianRidge, max_iter, tol=1e-5) on the KNN-initialised matrix.\n// 4. Stage 3 (calibration): for each feature $j$ rescale $X[:,j]\\leftarrow(X[:,j]-\\bar X_j)\\,\\sigma^{\\text{obs}}_j/\\sigma_j+\\mu^{\\text{obs}}_j$.",
+    "key_hyperparams": [
+      {"name": "K", "value": "min(5, n_obs_j)", "role": "neighbor count for KNN init", "learnable": false},
+      {"name": "tol / max_iter", "value": "1e-5 / 10", "role": "BayesianRidge IterativeImputer convergence", "learnable": false},
+      {"name": "calibration target", "value": "(μ_obs_j, σ_obs_j)", "role": "match observed-distribution moments per feature", "learnable": false}
+    ],
+    "init_recovers": "Plain MICE if KNN init returns mean and calibration is skipped",
+    "diff_from_baseline": "Adds a correlation-weighted KNN warm start before MICE and a variance-preserving per-feature mean/std calibration after iterative refinement.",
+    "confidence": "high"
+  }
+]

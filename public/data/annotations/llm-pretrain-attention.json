@@ -1,0 +1,128 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "RoPE + QK-Norm + Per-Head Temp",
+    "tagline": "Adds a learnable per-head log-temperature on top of RoPE+QK-Norm so each head can self-tune attention sharpness.",
+    "kind": "hybrid",
+    "formula": "$$q' = e^{\\alpha_h}\\cdot \\mathrm{RoPE}(\\mathrm{RMS}(q)), \\quad k' = \\mathrm{RoPE}(\\mathrm{RMS}(k)), \\quad \\mathrm{Attn} = \\mathrm{softmax}\\!\\left(\\frac{q' k'^{\\top}}{\\sqrt{d_k}}\\right) v$$",
+    "diagram": {
+      "nodes": [
+        {"id": "qkv", "label": "QKV proj"},
+        {"id": "rms", "label": "RMSNorm Q,K"},
+        {"id": "rope", "label": "RoPE rotate"},
+        {"id": "scale", "label": "× exp(α_h)"},
+        {"id": "sdpa", "label": "scaled dot-prod"}
+      ],
+      "edges": [
+        {"from": "qkv", "to": "rms"},
+        {"from": "rms", "to": "rope"},
+        {"from": "rope", "to": "scale", "label": "Q only"},
+        {"from": "scale", "to": "sdpa"},
+        {"from": "rope", "to": "sdpa", "label": "K"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "α_h (attn_logit_scale)", "value": "0 init, shape (n_head,1,1)", "role": "log per-head temperature multiplier on Q", "learnable": true},
+      {"name": "RoPE base", "value": "10000", "role": "default RoPE frequency base", "learnable": false}
+    ],
+    "init_recovers": "RoPE + QK-Norm at α=0 (since exp(0)=1)",
+    "diff_from_baseline": "Vs rope_qk_norm: adds per-head learnable temperature exp(α_h) multiplied into Q after RoPE so each head can sharpen or soften attention independently of the standard 1/sqrt(d_k) scale; everything else (RMSNorm before RoPE, no learned positional emb) is unchanged.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "AFS-RoPE + QK-Norm",
+    "tagline": "Multiplies each RoPE inverse-frequency by a learnable per-pair scale; QK-Norm applied before rotation.",
+    "kind": "formula",
+    "formula": "$$\\theta'_i = s_i \\cdot \\theta_i,\\quad \\theta_i = 10000^{-2i/d},\\quad q,k \\leftarrow \\mathrm{RoPE}_{\\theta'}(\\mathrm{RMS}(q,k))$$",
+    "key_hyperparams": [
+      {"name": "freq_scales (s)", "value": "ones init, shape (head_dim/2,)", "role": "learnable per-frequency-pair multiplier on RoPE base frequencies", "learnable": true},
+      {"name": "RoPE base", "value": "10000", "role": "frequency base", "learnable": false}
+    ],
+    "init_recovers": "RoPE + QK-Norm baseline at s_i=1",
+    "diff_from_baseline": "Vs rope_qk_norm: makes the RoPE inverse-frequency vector learnable via per-dimension multiplicative scales (Adaptive Frequency Scaling) so the model can stretch or compress the rotational schedule; QK-Norm (RMSNorm) is applied before AFS-RoPE.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Token-Shift + RoPE + Per-Head Temp",
+    "tagline": "Mixes each token's QKV with its left neighbor via a learnable gate, then applies QK-Norm, RoPE, and a learnable per-head temperature.",
+    "kind": "hybrid",
+    "formula": "$$\\mathrm{QKV}_t' = \\tau\\odot\\mathrm{QKV}_t + (1-\\tau)\\odot\\mathrm{QKV}_{t-1},\\quad q\\leftarrow s_h\\cdot\\mathrm{RoPE}(\\mathrm{RMS}(q')),\\; k\\leftarrow\\mathrm{RoPE}(\\mathrm{RMS}(k'))$$",
+    "diagram": {
+      "nodes": [
+        {"id": "qkv", "label": "QKV proj"},
+        {"id": "shift", "label": "shift right by 1"},
+        {"id": "mix", "label": "mix τ⊙x+(1-τ)⊙shift(x)"},
+        {"id": "rms", "label": "RMSNorm Q,K"},
+        {"id": "rope", "label": "RoPE"},
+        {"id": "scale", "label": "× s_h"},
+        {"id": "sdpa", "label": "scaled dot-prod"}
+      ],
+      "edges": [
+        {"from": "qkv", "to": "mix"},
+        {"from": "qkv", "to": "shift"},
+        {"from": "shift", "to": "mix"},
+        {"from": "mix", "to": "rms"},
+        {"from": "rms", "to": "rope"},
+        {"from": "rope", "to": "scale", "label": "Q"},
+        {"from": "scale", "to": "sdpa"},
+        {"from": "rope", "to": "sdpa", "label": "K"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "τ (time_mix)", "value": "U(0.2, 0.8), shape (1,1,3·n_embd)", "role": "per-channel mixing weight between current and shifted token", "learnable": true},
+      {"name": "s_h (attn_scale)", "value": "ones, shape (1,n_head,1,1)", "role": "learnable per-head temperature on Q", "learnable": true},
+      {"name": "RoPE base", "value": "10000", "role": "frequency base", "learnable": false}
+    ],
+    "init_recovers": "Approaches RoPE+QK-Norm when τ→1 and s_h=1",
+    "diff_from_baseline": "Vs rope_qk_norm: precedes QKV with an RWKV-style token-shift mix (learnable per-channel gate τ between current and previous token), then applies the standard QK-Norm + RoPE pipeline plus a learnable per-head temperature s_h on Q.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Differential Rotary + Recency Bias",
+    "tagline": "RoPE+QK-Norm with separate learnable Q/K gains and a learnable per-head linear recency bias added to attention logits.",
+    "kind": "hybrid",
+    "formula": "$$q\\leftarrow \\mathrm{RoPE}(g^Q_h\\,\\mathrm{RMS}(q)),\\; k\\leftarrow \\mathrm{RoPE}(g^K_h\\,\\mathrm{RMS}(k)),\\quad \\mathrm{logits}_{ij} \\mathrel{+}= -\\mathrm{ReLU}(\\rho_h)\\cdot|i-j|$$",
+    "diagram": {
+      "nodes": [
+        {"id": "qkv", "label": "QKV proj"},
+        {"id": "rms", "label": "RMSNorm Q,K"},
+        {"id": "gain", "label": "× g_h^Q, g_h^K"},
+        {"id": "rope", "label": "RoPE (interleaved)"},
+        {"id": "bias", "label": "−ReLU(ρ_h)·|i−j|"},
+        {"id": "sdpa", "label": "SDPA + bias"}
+      ],
+      "edges": [
+        {"from": "qkv", "to": "rms"},
+        {"from": "rms", "to": "gain"},
+        {"from": "gain", "to": "rope"},
+        {"from": "rope", "to": "sdpa"},
+        {"from": "bias", "to": "sdpa"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "g_h^Q, g_h^K", "value": "ones, shape (n_head,1,1)", "role": "decoupled per-head gains on RMS-normalized Q and K", "learnable": true},
+      {"name": "ρ_h (recency_scale)", "value": "0 init, shape (n_head,1,1)", "role": "per-head non-negative slope for linear recency bias", "learnable": true},
+      {"name": "RoPE pairing", "value": "interleaved (::2 / 1::2)", "role": "alternative RoPE dimension pairing", "learnable": false}
+    ],
+    "init_recovers": "RoPE + QK-Norm at gains=1 and ρ=0",
+    "diff_from_baseline": "Vs rope_qk_norm: separates the QK-Norm scale into independent per-head Q and K gains, switches RoPE to interleaved (even/odd) pairing of dimensions, and adds a per-head ALiBi-style linear recency bias attn_logits -= ReLU(ρ_h)·|i-j| (passed through SDPA's attn_mask).",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "NTK-RoPE + QK-Norm + Cached Cos/Sin",
+    "tagline": "QK-Norm + RoPE with NTK-aware base = 10000·(block_size/head_dim) and a precomputed cos/sin cache.",
+    "kind": "formula",
+    "formula": "$$\\theta_i = (10000\\cdot T/d)^{-2i/d},\\quad q,k\\leftarrow\\mathrm{RoPE}_{\\theta}(\\mathrm{RMS}(q,k))$$",
+    "key_hyperparams": [
+      {"name": "ntk_factor", "value": "block_size/head_dim = 1024/64 = 16", "role": "NTK-aware scaling of the RoPE base frequency", "learnable": false},
+      {"name": "base_freq", "value": "10000·ntk_factor = 160000", "role": "effective RoPE base after NTK rescaling", "learnable": false}
+    ],
+    "init_recovers": "RoPE + QK-Norm when ntk_factor=1",
+    "diff_from_baseline": "Vs rope_qk_norm: replaces the constant 10000 RoPE base with an NTK-aware base 10000·(block_size/head_dim) so frequencies are stretched for the 1024 context length, and precomputes the (cos,sin) cache for the full block size; QK-Norm is unchanged.",
+    "confidence": "high"
+  }
+]

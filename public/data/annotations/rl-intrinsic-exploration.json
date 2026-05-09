@@ -1,0 +1,98 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Controllability-Gated RND (CG-RND)",
+    "tagline": "RND novelty multiplied by a learned soft controllability gate from inverse-dynamics confidence; floor β keeps high-novelty states rewarded.",
+    "kind": "hybrid",
+    "formula": "$$b(s,a,s') = \\big\\|f_{\\theta}(s')-f^{\\star}(s')\\big\\|_2^2/2 \\;\\cdot\\; \\big[\\beta + (1-\\beta)\\,\\sigma\\!\\big(g_{\\phi}(s,s')_a\\big)\\big]$$",
+    "diagram": {
+      "nodes": [
+        {"id": "s", "label": "s, s'"},
+        {"id": "rnd", "label": "RND error"},
+        {"id": "inv", "label": "inverse-dyn p(a|s,s')"},
+        {"id": "gate", "label": "β + (1−β)·p"},
+        {"id": "b", "label": "intrinsic bonus"}
+      ],
+      "edges": [
+        {"from": "s", "to": "rnd"},
+        {"from": "s", "to": "inv"},
+        {"from": "inv", "to": "gate"},
+        {"from": "rnd", "to": "b"},
+        {"from": "gate", "to": "b"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "β (gate floor)", "value": "0.5", "role": "minimum gate value to preserve RND signal", "learnable": false},
+      {"name": "RND mask rate", "value": "args.update_proportion", "role": "RND update sampling", "learnable": false},
+      {"name": "loss = RND + inverse_CE", "value": "1:1", "role": "joint training of inverse model with RND", "learnable": false}
+    ],
+    "init_recovers": "Plain RND when β=1 or inverse model is uniform",
+    "diff_from_baseline": "Vs RND: keeps the RND fixed-target / learned-predictor novelty as the primary signal but multiplies it by [β + (1-β)·p̂(a|s,s')] where p̂ is from a small inverse-dynamics network; trains a separate inverse encoder/head jointly. Vs ICM: doesn't use forward-model error as the bonus, only uses inverse-dyn for gating.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "RND + Forward-Dynamics Bonus",
+    "tagline": "Bonus = RND prediction error + 0.3·forward-dynamics MSE on a separate small encoder.",
+    "kind": "formula",
+    "formula": "$$b = \\tfrac12\\|f^{\\star}(s')-f_{\\theta}(s')\\|_2^2 + 0.3\\cdot \\tfrac12\\,\\mathrm{mean}\\!\\big(\\hat{\\phi}(s')-\\phi(s,a)\\big)^2,\\quad \\mathcal{L}=\\mathcal{L}_{\\text{RND}}+0.5\\,\\mathcal{L}_{\\text{fwd}}$$",
+    "key_hyperparams": [
+      {"name": "RND coefficient", "value": "1.0", "role": "weight on RND novelty", "learnable": false},
+      {"name": "forward coefficient", "value": "0.3", "role": "weight on forward-dynamics novelty in bonus", "learnable": false},
+      {"name": "forward loss weight", "value": "0.5", "role": "weight in training loss", "learnable": false},
+      {"name": "fwd encoder dim", "value": "128", "role": "small separate forward encoder size", "learnable": true}
+    ],
+    "init_recovers": "RND when forward coefficient=0",
+    "diff_from_baseline": "Vs RND/ICM: directly sums RND novelty and ICM-style forward-prediction error (with a small dim=128 separate forward encoder), with fixed mixing weights 1.0/0.3 in the bonus and 1.0/0.5 in the loss; no inverse-dynamics head, no gating.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "BYOL-Explore (EMA Latent Distillation)",
+    "tagline": "Replaces the RND fixed random target with an EMA-updated copy of the online encoder; bonus is the L2 between L2-normalized predictor and EMA target.",
+    "kind": "formula",
+    "formula": "$$b(s') = \\big\\|\\,\\widehat{p_\\theta(z_{s'})}\\,-\\widehat{z^{\\text{tgt}}_{s'}}\\big\\|_2^2,\\quad z^{\\text{tgt}}\\!\\leftarrow \\tau z^{\\text{tgt}} + (1-\\tau)z^{\\text{online}}$$",
+    "key_hyperparams": [
+      {"name": "τ (ema_tau)", "value": "0.99", "role": "EMA decay for target encoder", "learnable": false},
+      {"name": "latent dim", "value": "256", "role": "embedding dimension", "learnable": true},
+      {"name": "L2 normalization", "value": "applied to predictor & target", "role": "cosine-distance equivalence", "learnable": false}
+    ],
+    "init_recovers": "Becomes RND-like when τ=1 (target frozen at init copy)",
+    "diff_from_baseline": "Vs RND: target encoder is no longer a fixed random net but an EMA copy of the trainable online encoder (BYOL-Explore style); both predictor output and target are L2-normalized before the squared difference, so the bonus is essentially 1-cosine; no inverse/forward dynamics, no controllability.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Reachability-Gated Hybrid Bonus",
+    "tagline": "Geometric mean of RND and forward-dynamics errors, gated by sigmoid inverse-dynamics confidence; advantages mixed with adaptive scale balancing.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. RND error $r = \\mathrm{MSE}(f^{\\star}(s'), f_{\\theta}(s'))$\n// 2. forward error $f = \\tfrac12\\,\\mathrm{mean}\\,(\\hat\\phi(s,a)-\\phi(s'))^2$\n// 3. inverse prob $p = \\mathrm{softmax}(g_\\phi(\\phi(s),\\phi(s')))_a$\n// 4. gate $G = \\sigma(3.0\\cdot(p - 1/A))$\n// 5. bonus $b = G \\cdot \\sqrt{\\max(r,0)\\cdot\\max(f,0) + 10^{-8}}$, clamp to $[0,10]$\n// 6. $\\mathcal{L} = \\mathcal{L}_{\\text{RND}} + 1.0\\,\\mathcal{L}_{\\text{inv}} + 0.2\\,\\mathcal{L}_{\\text{fwd}}$\n// 7. mix: $\\hat A = \\alpha A^{\\text{ext}} + (1-0.5\\sigma(2(|A^{\\text{ext}}|/\\bar{|A^{\\text{ext}}|}-1)))\\cdot \\hat A^{\\text{int}}$ with $\\hat A^{\\text{int}} = A^{\\text{int}}\\cdot\\bar{|A^{\\text{ext}}|}/\\bar{|A^{\\text{int}}|}$",
+    "key_hyperparams": [
+      {"name": "gate_sharpness", "value": "3.0", "role": "sigmoid sharpness in reachability gate", "learnable": false},
+      {"name": "max_intrinsic", "value": "10.0", "role": "clamp on per-step intrinsic reward", "learnable": false},
+      {"name": "forward_coef (loss)", "value": "0.2", "role": "weight on forward dynamics loss", "learnable": false},
+      {"name": "inverse_coef (loss)", "value": "1.0", "role": "weight on inverse-dynamics loss", "learnable": false},
+      {"name": "rollout reward clamp", "value": "[0, 5]", "role": "clamp on normalized intrinsic reward", "learnable": false}
+    ],
+    "init_recovers": "Approaches RND with full gate (=1) and forward error≈RND error",
+    "diff_from_baseline": "Vs RND/ICM: defines bonus as the geometric-mean of RND novelty and forward-dynamics error (both clamped non-negative), then multiplies by a sigmoid-of-(inverse-dyn-prob - uniform) reachability gate; advantage mixing is also non-standard, rebalancing intrinsic/extrinsic by their |mean| and downweighting intrinsic when extrinsic is large.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Dual-Signal RND+Forward, Adaptive Mix",
+    "tagline": "Sum of RND and forward-dynamics errors with weights w_RND, w_fwd computed from EMA error magnitudes via a softmax-temperature-style normalization.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. compute RND error $r = \\sum(f^{\\star}-f_{\\theta})^2$ on $s'$\n// 2. compute forward error $f = \\sum(\\hat\\phi(s,a)-\\phi(s'))^2$\n// 3. EMA: $\\bar r \\leftarrow 0.99\\bar r + 0.01\\,\\bar r_{\\text{batch}}$ and same for $\\bar f$\n// 4. for $\\text{count}>10$:\n//      $w_{RND} \\propto 1.0\\cdot(\\bar r/(\\bar r+\\bar f))^{0.1},\\;w_{fwd}\\propto 0.5\\cdot(\\bar f/(\\bar r+\\bar f))^{0.1}$\n// 5. else: $w_{RND}=1.0,\\;w_{fwd}=0.5$\n// 6. normalize $w_{RND}, w_{fwd}$ to sum to 1\n// 7. bonus $b = w_{RND}\\,r + w_{fwd}\\,f$\n// 8. $\\mathcal{L} = \\mathcal{L}_{\\text{RND}} + \\tfrac12\\,\\mathrm{mean}(\\hat\\phi-\\phi)^2$",
+    "key_hyperparams": [
+      {"name": "rnd_base_weight", "value": "1.0", "role": "base mixing weight for RND", "learnable": false},
+      {"name": "forward_base_weight", "value": "0.5", "role": "base mixing weight for forward dynamics", "learnable": false},
+      {"name": "mixing_temperature", "value": "0.1", "role": "exponent on relative-error softening", "learnable": false},
+      {"name": "EMA decay", "value": "0.99", "role": "running mean of error scales", "learnable": false},
+      {"name": "feature_dim", "value": "512", "role": "encoder/embedding size", "learnable": true}
+    ],
+    "init_recovers": "Equal-weight RND + ICM-fwd at temperature → ∞; pure RND when w_fwd=0",
+    "diff_from_baseline": "Vs RND/ICM: bonus is a weighted sum of RND and forward-prediction errors with mixing weights computed at each step from EMA-scaled relative errors raised to a small temperature 0.1 (so weights track the larger error); after a 10-update warmup, before that uses fixed 1.0/0.5; loss is plain RND + 0.5·forward MSE without inverse-dynamics.",
+    "confidence": "high"
+  }
+]

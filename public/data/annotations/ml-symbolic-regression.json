@@ -1,0 +1,94 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Hybrid Lexicase + Multi-Op GP",
+    "tagline": "Lexicase/tournament hybrid with adaptive parsimony, four-mode mutation, hill-climbing on constants, and random immigrants.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. fitness = MSE + 1e-4·tree.size()  (mild parsimony in fitness)\n// 2. selection: w.p. 0.75 ε-lexicase (per-case ε = min+MAD), else tournament-7 on penalised score\n// 3. crossover: subtree with Koza 90/10 (90% pick internal node)\n// 4. mutation chooses ∈ {subtree 30%, point 30%, hoist 15%, constant-Gauss 25%}\n// 5. generation:\n// 6.   adaptive parsimony τ = clamp(Cov(L, f)/Var(L), 0, 0.002);  penalised = f + τ·L\n// 7.   keep top-3 unique-fitness elites (raw)\n// 8.   stochastic hill-climb on best (15 Gaussian-perturb candidates)\n// 9.   fill: 65% crossover, 25% mutation, 10% (5% random immigrant ∪ 5% reproduce)",
+    "key_hyperparams": [
+      {"name": "size_penalty α", "value": "1e-4 · |tree|", "role": "added to MSE in fitness", "learnable": false},
+      {"name": "lexicase frac", "value": "0.75", "role": "rest is tournament-7", "learnable": false},
+      {"name": "ε rule", "value": "min + MAD", "role": "semi-dynamic ε-lexicase", "learnable": false},
+      {"name": "parsimony cap", "value": "[0, 0.002]", "role": "auto Cov/Var clamp", "learnable": false},
+      {"name": "mutation mix", "value": "subtree 30 / point 30 / hoist 15 / const 25 (%)", "role": "operator distribution", "learnable": false},
+      {"name": "elite count", "value": "max(3, pop/50) unique fits", "role": "elitism", "learnable": false},
+      {"name": "hill-climb steps", "value": "15", "role": "constant Gaussian perturbations on best", "learnable": false},
+      {"name": "random immigrant frac", "value": "5%", "role": "anti-stagnation", "learnable": false},
+      {"name": "Koza crossover bias", "value": "0.9 internal", "role": "favour function-node points", "learnable": false}
+    ],
+    "init_recovers": "Parsimony GP at lexicase frac=0, mutation mix={subtree 100%}, no hill-climb, no immigrants.",
+    "diff_from_baseline": "Compared to Lexicase or Parsimony GP individually, this stacks both (75/25 hybrid selection with auto-Cov/Var parsimony) and replaces single-operator subtree mutation with a 4-mode mutation distribution plus hill-climbing on the best individual's constants and 5% random immigrants — none of the named baselines combine these.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Lexicase-Parsimony GP",
+    "tagline": "ε-lexicase selection with parsimony added to per-case errors plus subtree+point mutation.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. fitness = MSE (no penalty)\n// 2. selection: ε-lexicase on E_{ic} + (τ·median(E))·L_i  (parsimony on cases)\n// 3.   inner ε rule: median(case) + MAD(case)\n// 4. crossover: standard subtree (no bias)\n// 5. mutation: 70% subtree, 30% point (operator/terminal swap or Gauss tweak on constants)\n// 6. generation:\n// 7.   τ = clamp(Cov(L,f)/Var(L), 0, 1e-3);  errors = |y - ŷ|\n// 8.   elite by raw MSE; fill via crossover/mutation/reproduction sampling lexicase parents",
+    "key_hyperparams": [
+      {"name": "selection", "value": "ε-lexicase median + MAD", "role": "per-case survivors", "learnable": false},
+      {"name": "parsimony injection", "value": "τ·median(errors)·L per case", "role": "added to per-case errors before lexicase", "learnable": false},
+      {"name": "τ cap", "value": "[0, 1e-3]", "role": "auto Cov/Var clamp", "learnable": false},
+      {"name": "mutation mix", "value": "70% subtree / 30% point", "role": "operator distribution", "learnable": false},
+      {"name": "tournament size", "value": "5 (fallback only)", "role": "used if no errors", "learnable": false},
+      {"name": "max_depth", "value": "17 (default)", "role": "tree depth cap", "learnable": false}
+    ],
+    "init_recovers": "Lexicase GP when τ=0 and mutation=100% subtree.",
+    "diff_from_baseline": "Compared to plain Lexicase GP, the per-case error matrix is augmented by a length-scaled parsimony term (τ·median(E)·L) before ε-lexicase, and 30% of mutations become point mutations on individual nodes — Lexicase GP and Parsimony GP have only one of these mechanisms, never both.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Lexicase + Penalised Errors",
+    "tagline": "ε-lexicase on per-case errors that are additively penalised by an adaptive parsimony coefficient.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. fitness = MSE\n// 2. compute lengths L_i, raw MSE rf;  τ = clamp(Cov(L,rf)/Var(L), 0, 0.002)\n// 3. compute per-case errors E ∈ ℝ^{N×n_cases};  Ẽ = E + τ·L (broadcast)\n// 4. selection: ε-lexicase on Ẽ (per-case ε = min + MAD over current candidates)\n// 5. elitism: keep best by raw MSE\n// 6. fill via crossover/subtree-mutation/reproduction (rates 0.9/0.05/0.05)",
+    "key_hyperparams": [
+      {"name": "τ cap", "value": "[0, 0.002]", "role": "auto Cov/Var parsimony coefficient (raised from 0.001)", "learnable": false},
+      {"name": "ε rule", "value": "min + MAD per case", "role": "ε-lexicase epsilon", "learnable": false},
+      {"name": "operators", "value": "subtree crossover + subtree mutation", "role": "no point/hoist", "learnable": false},
+      {"name": "elitism", "value": "1 (raw fitness)", "role": "elite slot", "learnable": false},
+      {"name": "rates", "value": "cx 0.9 / mut 0.05 / repro 0.05", "role": "default GP rates", "learnable": false}
+    ],
+    "init_recovers": "Lexicase GP when τ=0 (errors unchanged).",
+    "diff_from_baseline": "Compared to Lexicase GP, penalises every cell of the per-case error matrix by τ·L (auto Cov/Var with cap raised from 0.001 to 0.002) — i.e. parsimony pressure baked into ε-lexicase rather than into a scalar fitness; vs. Parsimony GP, the penalty is applied per-case under lexicase rather than to the scalar MSE.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Difficulty-Aware Tournament + Compaction",
+    "tagline": "Hybrid scalar/case-difficulty tournament with size tie-breaking, near-elite compact archive, size-matched crossover.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. fitness = raw MSE; per-case errors E ∈ ℝ^{N×n_cases}\n// 2. parsimony τ = clamp(Cov(size, MSE)/Var(size), 0, 0.002); s_i = MSE_i + τ·size_i\n// 3. mixed selection (tournament-7): w.p. 0.6 sample case ∝ mean column-error, pick min E[i, case] (break ties by s_i then size); else pick min(s_i, size_i)\n// 4. crossover: 3-try size-matched subtree swap (donor subtree size within ±max(2, |T|/2)); keep best by (depth, size)\n// 5. mutation: terminal-edit (constants Gauss±1 or random terminal) | operator swap | small subtree regen; max-depth check\n// 6. evolve_one_generation:\n// 7.   keep MSE-best elite, then add up to 2 \"near-elite\" trees (within 1.1× best MSE) sorted by (size, MSE)\n// 8.   fill: cx_rate, (mut_rate + 0.15) extra mutation, else reproduction",
+    "key_hyperparams": [
+      {"name": "case-tournament prob", "value": "0.6", "role": "case-difficulty branch", "learnable": false},
+      {"name": "tournament size", "value": "7", "role": "candidate pool", "learnable": false},
+      {"name": "parsimony cap", "value": "[0, 0.002]", "role": "auto Cov/Var, applied to selection only", "learnable": false},
+      {"name": "near-elite slots", "value": "≤2 within 1.1× best", "role": "compact archive", "learnable": false},
+      {"name": "size-matched crossover tries", "value": "3", "role": "donor size within ±max(2, |T|/2)", "learnable": false},
+      {"name": "extra mutation prob", "value": "+0.15", "role": "raises effective mutation_rate", "learnable": false},
+      {"name": "mutation modes", "value": "terminal-edit / op-swap / small-regen", "role": "fine-grained mutation", "learnable": false}
+    ],
+    "init_recovers": "Parsimony GP-like behaviour at case-tournament prob=0, near-elite=0, fixed extra-mut=0.",
+    "diff_from_baseline": "Compared to standard/parsimony/lexicase GP, parents are picked by a hybrid tournament that with 60% probability targets the case with highest current population error (a \"residual focus\" sampler) and breaks ties by size; crossover prefers donor subtrees of similar size and retries 3×; up to 2 near-best individuals are added to the elite slot.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Pareto-Lexicase GP",
+    "tagline": "Pre-filter the population by penalised fitness (top 40%), then run ε-lexicase, with extra point and hoist mutations.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. fitness = MSE; lengths L; τ = clamp(Cov(L, f)/Var(L), 0, 1e-3)\n// 2. penalised = f + τ·L\n// 3. selection: sort by penalised, keep top max(12, 2·pop/5);\n// 4.   then ε-lexicase on per-case errors with cutoff = min(case) + MAD(case)\n// 5. operators: subtree crossover, subtree mutation, point mutation, hoist mutation\n// 6. evolve_one_generation: cx 0.9 / mut 0.05 / point 0.02 / hoist 0.02 / repro 0.01\n// 7. elitism: 1 (raw MSE)",
+    "key_hyperparams": [
+      {"name": "Pareto pre-filter", "value": "top max(12, 2·pop/5)", "role": "shrink lexicase pool by penalised score", "learnable": false},
+      {"name": "τ cap", "value": "[0, 1e-3]", "role": "auto Cov/Var parsimony", "learnable": false},
+      {"name": "ε rule", "value": "min(case) + MAD(case)", "role": "tighter than median+MAD", "learnable": false},
+      {"name": "operator mix", "value": "cx 0.9 / mut 0.05 / point 0.02 / hoist 0.02 / repro 0.01", "role": "rates", "learnable": false},
+      {"name": "elitism", "value": "1 (raw)", "role": "elite slot", "learnable": false}
+    ],
+    "init_recovers": "Plain ε-lexicase when n_keep = pop and τ = 0.",
+    "diff_from_baseline": "Adds two pieces vs. Lexicase GP: (i) a Pareto-style pre-filter that trims the lexicase candidate pool to the top 40% by penalised fitness, and (ii) extra point and hoist mutation operators (each 2%) — Lexicase GP runs ε-lexicase over the entire population with subtree mutation only.",
+    "confidence": "high"
+  }
+]

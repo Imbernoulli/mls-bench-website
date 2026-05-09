@@ -1,0 +1,102 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "L1 + LPIPS + Log-Spectral + Phase",
+    "tagline": "L1 + multi-scale L1 + LPIPS@2.0 + sqrt-frequency-weighted log-amplitude FFT loss + small phase-aware FFT term + KL.",
+    "kind": "formula",
+    "formula": "$$ \\mathcal{L} = \\|x-\\hat x\\|_1 + \\lambda_{ms}\\|\\downarrow_2 x - \\downarrow_2 \\hat x\\|_1 + \\lambda_p\\,\\text{LPIPS}(x,\\hat x) + \\lambda_{kl}\\,D_{\\text{KL}} $$\n$$ + \\lambda_s\\Big(\\sum w(f)\\,\\big|\\log(1+|F\\hat x|) - \\log(1+|Fx|)\\big| + 0.05\\big(\\|\\Re F\\hat x - \\Re Fx\\|_1 + \\|\\Im F\\hat x - \\Im Fx\\|_1\\big)\\Big) $$\n$$ w(f) = 1 + 4\\sqrt{\\|f\\|_2} $$",
+    "key_hyperparams": [
+      {"name": "kl_weight", "value": "1e-6", "role": "KL coefficient", "learnable": false},
+      {"name": "perceptual_weight", "value": "2.0", "role": "LPIPS scaling (4x baseline)", "learnable": false},
+      {"name": "spectral_weight", "value": "0.1", "role": "log-amp + phase FFT term", "learnable": false},
+      {"name": "ms_weight", "value": "0.5", "role": "L1 at 0.5x bilinear downsample", "learnable": false},
+      {"name": "freq_weight_a", "value": "1.0", "role": "constant in w(f)=1+4*sqrt(|f|)", "learnable": false},
+      {"name": "freq_weight_b", "value": "4.0", "role": "sqrt-freq emphasis coefficient", "learnable": false},
+      {"name": "phase_weight", "value": "0.05", "role": "scaling of real+imag L1 within spectral term", "learnable": false},
+      {"name": "lpips_net", "value": "vgg", "role": "LPIPS backbone", "learnable": false}
+    ],
+    "init_recovers": "perceptual baseline at perceptual_weight=0.5 with extra terms zeroed",
+    "diff_from_baseline": "Adds three terms on top of L1+LPIPS+KL: a half-resolution L1 (ms_loss), a sqrt-frequency-weighted log-amplitude FFT loss, and a small real/imaginary L1 phase term, while quadrupling the LPIPS weight to 2.0.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "L1 + LPIPS + Hinge GAN + Feature Match",
+    "tagline": "Identical to the vqgan baseline: L1 + LPIPS + KL plus a spectral-norm PatchGAN discriminator with feature-matching loss after step 5000.",
+    "kind": "formula",
+    "formula": "$$ \\mathcal{L}_G = \\|x-\\hat x\\|_1 + \\lambda_p\\,\\text{LPIPS}(x,\\hat x) + \\mathbb{1}[t\\!\\geq\\!t_0]\\,\\lambda_{fm}\\,\\tfrac{1}{L}\\sum_l \\|\\phi_l(D,\\hat x) - \\phi_l(D,x)\\|_1 + \\lambda_{kl}\\,D_{\\text{KL}} $$\n$$ \\mathcal{L}_D = \\big[\\mathrm{ReLU}(1+D(\\hat x)) + \\mathrm{ReLU}(1-D(x))\\big] + 10\\,\\big(\\|\\nabla_x D(x)\\|_2 - 1\\big)^2 $$",
+    "key_hyperparams": [
+      {"name": "kl_weight", "value": "1e-6", "role": "KL coefficient", "learnable": false},
+      {"name": "perceptual_weight", "value": "0.5", "role": "LPIPS scaling", "learnable": false},
+      {"name": "feat_match_weight", "value": "1.0", "role": "discriminator feature-matching weight", "learnable": false},
+      {"name": "disc_start", "value": "5000", "role": "step at which GAN turns on", "learnable": false},
+      {"name": "disc_lr", "value": "1e-4", "role": "discriminator Adam learning rate (β=(0.5,0.9))", "learnable": false},
+      {"name": "ndf", "value": "64", "role": "PatchGAN base channels", "learnable": false},
+      {"name": "n_layers", "value": "3", "role": "discriminator depth", "learnable": false},
+      {"name": "gp_weight", "value": "10.0", "role": "R1 gradient-penalty coefficient (added by training loop)", "learnable": false}
+    ],
+    "init_recovers": "perceptual baseline before disc_start; vqgan baseline thereafter",
+    "diff_from_baseline": "Effectively the same loss class as the vqgan baseline (spectral-norm PatchGAN, hinge loss, feature-matching coefficient 1.0, disc_start=5000) — no novel modifications to the vqgan recipe.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Low-pass + 16-ring Spectrum + LPIPS",
+    "tagline": "L1 + LPIPS + KL combined with a low-pass-filtered pixel L1 and a 16-ring radially-binned amplitude-spectrum L1 (high rings up-weighted).",
+    "kind": "formula",
+    "formula": "$$ M_{LF}(r) = \\exp(-r^2/0.1), \\quad B_i = \\{(u,v): \\lfloor r(u,v)\\cdot 16 \\rfloor = i\\}, \\quad w_i = 1+\\tfrac{i}{16} $$\n$$ \\mathcal{L} = 0.5\\|x-\\hat x\\|_1 + \\|F^{-1}(M_{LF}\\,F\\hat x) - F^{-1}(M_{LF}\\,Fx)\\|_1 + 2\\sum_i w_i\\big|\\overline{|F\\hat x|}_{B_i} - \\overline{|Fx|}_{B_i}\\big| + \\lambda_p\\text{LPIPS} + \\lambda_{kl}D_{\\text{KL}} $$",
+    "key_hyperparams": [
+      {"name": "kl_weight", "value": "1e-6", "role": "KL coefficient", "learnable": false},
+      {"name": "perceptual_weight", "value": "1.0", "role": "LPIPS weight", "learnable": false},
+      {"name": "rec_weight", "value": "0.5", "role": "pixel L1 weight (halved)", "learnable": false},
+      {"name": "lf_weight", "value": "1.0", "role": "low-pass-filtered L1 weight", "learnable": false},
+      {"name": "radial_weight", "value": "2.0", "role": "16-ring spectrum weight", "learnable": false},
+      {"name": "lf_sigma2", "value": "0.1", "role": "Gaussian low-pass variance in r^2", "learnable": false},
+      {"name": "num_rings", "value": "16", "role": "radial frequency bins", "learnable": false},
+      {"name": "ring_weight_max", "value": "1.9375", "role": "1+15/16 weight on highest ring", "learnable": false}
+    ],
+    "diff_from_baseline": "Adds two FFT-domain terms to the perceptual baseline: an L1 between Gaussian-low-pass-filtered images and a 16-ring radial-mean amplitude-spectrum L1 with linearly increasing per-ring weights; pixel L1 weight is halved to 0.5.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Phase-aware Spectrum + HF Balance + Var Anchor",
+    "tagline": "Curriculum spectral loss on log-compressed amplitudes plus a low/high-band balance term and a posterior log-variance anchor.",
+    "kind": "formula",
+    "formula": "$$ p(t) = \\min(t/5000, 1), \\quad \\rho = \\sqrt{u^2+v^2}, \\quad A_x = \\overline{|Fx|}_C $$\n$$ \\mathcal{L}_{\\text{fft}} = \\overline{(0.8 + \\rho(0.5+1.0\\,p(t)))\\,\\big|\\log(1+6 A_{\\hat x}) - \\log(1+6 A_x)\\big|} $$\n$$ \\mathcal{L}_{\\text{HF}} = \\overline{\\mathrm{ReLU}\\big(\\overline{e}_{\\rho>0.45} - (0.9-0.3 p(t))\\,\\overline{e}_{\\rho\\leq 0.45}\\big)},\\;\\; \\mathcal{L}_{\\text{var}} = (\\overline{\\log\\sigma^2} + 0.2)^2 $$\n$$ \\mathcal{L} = \\|x-\\hat x\\|_1 + 0.6\\,\\text{LPIPS} + 10^{-6} D_{\\text{KL}} + 0.06\\,\\mathcal{L}_{\\text{fft}} + 0.03\\,\\mathcal{L}_{\\text{HF}} + 10^{-4}\\,\\mathcal{L}_{\\text{var}} $$",
+    "key_hyperparams": [
+      {"name": "kl_weight", "value": "1e-6", "role": "KL coefficient", "learnable": false},
+      {"name": "perceptual_weight", "value": "0.6", "role": "LPIPS weight", "learnable": false},
+      {"name": "fft_weight", "value": "0.06", "role": "log-amplitude spectrum L1", "learnable": false},
+      {"name": "hf_weight", "value": "0.03", "role": "high/low band ReLU balance", "learnable": false},
+      {"name": "var_weight", "value": "1e-4", "role": "anchor on E[logvar] near -0.2", "learnable": false},
+      {"name": "amp_compression", "value": "6.0", "role": "scale inside log1p compressed amplitude", "learnable": false},
+      {"name": "freq_curriculum_steps", "value": "5000", "role": "linear ramp p(t)=t/5000", "learnable": false},
+      {"name": "ring_split", "value": "0.45", "role": "low/high band threshold on normalized radial freq", "learnable": false}
+    ],
+    "init_recovers": "perceptual baseline before step 0 (FFT/var terms small)",
+    "diff_from_baseline": "On top of L1+LPIPS+KL adds (a) a curriculum-weighted log-amplitude spectrum L1 with high-frequency emphasis growing over 5k steps, (b) a ReLU 'high should not exceed (0.9 - 0.3p)*low' band-balance term, and (c) a quadratic anchor pulling the posterior mean log-variance toward -0.2.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Freq-weighted L2 + HP Gradient + MS-SSIM",
+    "tagline": "L1 + LPIPS + KL augmented with frequency-weighted FFT residual L1, high-pass gradient matching, and 2-scale SSIM.",
+    "kind": "formula",
+    "formula": "$$ M_{HP}(r)=\\tfrac{1}{1+(0.35/r)^4},\\;\\; W(r)=1+2r,\\;\\; \\mathcal{L}_{\\text{fw}}=\\overline{|F(\\hat x - x)|\\cdot W} $$\n$$ \\mathcal{L}_{\\text{grad}} = \\big\\| |\\nabla F^{-1}(M_{HP}F\\hat x)| - |\\nabla F^{-1}(M_{HP}Fx)| \\big\\|_1 $$\n$$ \\mathcal{L} = \\|x-\\hat x\\|_1 + 0.5\\,\\text{LPIPS} + 0.1\\,\\mathcal{L}_{\\text{fw}} + 0.2\\,\\mathcal{L}_{\\text{grad}} + 0.2\\,\\mathcal{L}_{\\text{SSIM}}^{(11)} + 0.05\\,\\mathcal{L}_{\\text{SSIM}}^{(7,\\downarrow_2)} + 10^{-6} D_{\\text{KL}} $$",
+    "key_hyperparams": [
+      {"name": "kl_weight", "value": "1e-6", "role": "KL coefficient", "learnable": false},
+      {"name": "perceptual_weight", "value": "0.5", "role": "LPIPS weight", "learnable": false},
+      {"name": "freq_l2_weight", "value": "0.1", "role": "FFT residual weighted by 1+2r", "learnable": false},
+      {"name": "grad_weight", "value": "0.2", "role": "high-pass gradient-magnitude L1", "learnable": false},
+      {"name": "ssim_weight", "value": "0.2", "role": "11x11 SSIM at native scale", "learnable": false},
+      {"name": "ssim_ds_weight", "value": "0.05", "role": "7x7 SSIM at 0.5x average pool", "learnable": false},
+      {"name": "high_cutoff", "value": "0.35", "role": "Butterworth-style high-pass cutoff on normalized radius", "learnable": false},
+      {"name": "low_cutoff", "value": "0.30", "role": "low-pass cutoff (mask precomputed but unused in final loss)", "learnable": false},
+      {"name": "freq_weight_slope", "value": "2.0", "role": "linear ramp on radial weight W(r)=1+2r", "learnable": false}
+    ],
+    "init_recovers": "perceptual baseline when freq, grad and SSIM weights are zero",
+    "diff_from_baseline": "Beyond L1+LPIPS+KL it adds a frequency-radial-weighted FFT residual L1, an L1 between gradient magnitudes of high-pass-filtered images, and an MS-SSIM term at full and half resolution.",
+    "confidence": "high"
+  }
+]

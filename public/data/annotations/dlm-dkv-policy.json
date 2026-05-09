@@ -1,0 +1,81 @@
+[
+  {
+    "model": "claude-opus-4-6",
+    "name": "Stability-Adaptive Feature Cache (SAPCR)",
+    "tagline": "Closed-loop dLLM-Cache: an EMA of step-to-step argmax agreement raises or lowers the gen-refresh interval and modulates transfer ratio per workload.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. each step compute $\\mathrm{agreement}_t = \\mathrm{mean}(\\hat{y}_t = \\hat{y}_{t-1})$\n// 2. $\\mathrm{EMA}_t = \\alpha\\,\\mathrm{agreement}_t + (1-\\alpha)\\,\\mathrm{EMA}_{t-1}$ with $\\alpha=0.3$\n// 3. after warm-up: if EMA $>$ relax-thr, $I \\leftarrow \\min(I+1, I_{\\max})$\n// 4. if EMA $<$ tighten-thr ($0.50$), $I \\leftarrow \\max(I-1, I_{\\text{start}})$\n// 5. transfer_ratio interpolated in $[0.15, 0.30]$ by EMA\n// 6. on new block: reset interval to $I_{\\text{start}}$, damp EMA by $0.5$\n// 7. always: row_selector = lowest_value_feature_similarity, kv_update = scatter_refresh",
+    "key_hyperparams": [
+      {"name": "EMA alpha", "value": "0.3", "role": "smoothing of stability signal", "learnable": false},
+      {"name": "tighten threshold", "value": "0.50", "role": "EMA below tightens interval", "learnable": false},
+      {"name": "warmup_steps", "value": "3", "role": "delay before adaptation", "learnable": false},
+      {"name": "transfer range", "value": "[0.15, 0.30]", "role": "min/max scatter-refresh ratio", "learnable": false},
+      {"name": "(prompt, gen_start, gen_max)", "value": "math (50,6,16) / humaneval (50,7,18) / lm_eval (50,2,5)", "role": "per-workload presets", "learnable": false}
+    ],
+    "diff_from_baseline": "Extends dllm_cache by replacing fixed gen_refresh_interval with a closed-loop adaptation driven by an EMA of token-argmax agreement, plus a stability-interpolated transfer ratio and per-block resetting; retains lowest-similarity row selector and scatter_refresh kv_update.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini/gemini-3.1-pro-preview",
+    "name": "Convergence-Aware Cache + Early Commit",
+    "tagline": "Adapts dLLM-Cache intervals from average and minimum feature-similarity over masked positions, and commits ultra-confident tokens early via a 0.99 threshold.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. base by total_steps: short ($\\leq 64$) -> $I_{\\text{base}}=2,\\,I_{\\max}=3$; long -> $I_{\\text{base}}=8,\\,I_{\\max}=16$\n// 2. avg_sim, min_sim, max_diff over local masked positions\n// 3. if avg_sim $\\geq 0.98$ and min_sim $\\geq 0.85$: $I \\leftarrow \\min(1.8\\,I_{\\text{base}}, I_{\\max})$, transfer $=$ min_transfer\n// 4. elif avg_sim $\\geq 0.92$ and min_sim $\\geq 0.70$: $I \\leftarrow 1.4\\,I_{\\text{base}}$, transfer $=1.5\\,$min_transfer\n// 5. elif avg_sim $<0.75$ or min_sim $<0.30$: $I \\leftarrow I_{\\text{base}}/2$, transfer $=0.40$\n// 6. if max_diff $>0.85$: $I \\leftarrow I-1$\n// 7. token_transfer: low-confidence with threshold $=0.99$ (commit ultra-confident)",
+    "key_hyperparams": [
+      {"name": "avg_sim thresholds", "value": "0.98 / 0.92 / 0.75", "role": "adaptive interval tiers", "learnable": false},
+      {"name": "min_sim thresholds", "value": "0.85 / 0.70 / 0.30", "role": "worst-case guardrail", "learnable": false},
+      {"name": "early-commit threshold", "value": "0.99", "role": "transfer tokens above this confidence", "learnable": false},
+      {"name": "min_transfer", "value": "0.10 (long) / 0.20 (short)", "role": "scatter-refresh fraction floor", "learnable": false}
+    ],
+    "diff_from_baseline": "Builds on dllm_cache: per-step adapts gen_refresh_interval from both mean AND min feature-similarity over the local masked window, and adds a 0.99 confidence threshold to the token-transfer plan for early commitment of high-confidence positions.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Gate-Aware Uncertainty-Adaptive Cache",
+    "tagline": "Per-workload presets plus a 0.7*difficulty + 0.3*(1-similarity) uncertainty score that picks one of three (interval, transfer) tiers; lm_eval forced to no-cache.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. base $(P,G,T)$ = math (44,5,0.24) / humaneval (52,8,0.18) / lm_eval (24,1,0.0)\n// 2. progress $= step/\\text{total}$, $u = 0.7\\,\\overline{\\text{difficulty}} + 0.3\\,(1-\\overline{\\text{similarity}})$\n// 3. if workload = lm_eval -> use_cache = True but $G=1$, $T=0$ (effectively no skip)\n// 4. math: if progress $<0.30$ or $u>0.52$: $G=4,T=0.28$; elif $u>0.38$: $G=5,T=0.24$; else $G=6,T=0.20$\n// 5. humaneval: if progress $<0.18$ or $u>0.56$: $G=6,T=0.22$; elif $u>0.35$: $G=8,T=0.18$; else $G=10$ (or $9$), $T=0.14$\n// 6. token_transfer: extra +1 transfer in early math/humaneval steps when remaining tokens > threshold",
+    "key_hyperparams": [
+      {"name": "uncertainty weights", "value": "(0.7, 0.3)", "role": "difficulty vs (1-similarity) blend", "learnable": false},
+      {"name": "math tier thresholds", "value": "u>0.52 / 0.38; progress<0.30", "role": "tier selection", "learnable": false},
+      {"name": "humaneval tier thresholds", "value": "u>0.56 / 0.35; progress<0.18", "role": "tier selection", "learnable": false},
+      {"name": "presets (P,G,T)", "value": "(44,5,0.24)/(52,8,0.18)/(24,1,0.0)", "role": "math/humaneval/lm_eval defaults", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces dllm_cache's static (interval, transfer) preset with a workload+progress+uncertainty rule that switches among three tiers per workload, gives lm_eval a fast-cache-only-no-skip path, and bumps the token-transfer count by 1 during the early-progress regime.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Workload-Routed + Progressive Cache",
+    "tagline": "Routes lm_eval to the vanilla uncached policy; for math/humaneval, escalates gen_interval and transfer ratio in three progress bins, modulated by an EMA confidence-stability signal.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. presets: math (P=40,G=4,T=0.30); humaneval (P=40,G=5,T=0.30); lm_eval -> use_cache=False\n// 2. progress $= step/(\\text{total}-1)$\n// 3. if progress $<0.3$: $G=G_b,\\ T=T_b$\n// 4. elif progress $<0.7$: $G=2G_b,\\ T=1.2\\,T_b$\n// 5. else: $G=3G_b,\\ T=\\min(0.5,1.5T_b)$\n// 6. let stable_frac = EMA over (max-prob mean $>0.7$ AND var $<0.01$)\n// 7. if stable_frac $>0.6$: $G \\leftarrow \\max(G,\\, \\lfloor G_b(1+\\text{stable\\_frac})\\rfloor),\\ T\\leftarrow T+0.1\\,\\text{stable\\_frac}$\n// 8. cap $G \\leq$ math:$12$ / humaneval:$15$",
+    "key_hyperparams": [
+      {"name": "EMA alpha (max_prob mean)", "value": "0.3", "role": "stability smoothing", "learnable": false},
+      {"name": "stable thresholds", "value": "mean>0.7 AND var<0.01", "role": "what counts as 'stable'", "learnable": false},
+      {"name": "stable_frac trigger", "value": ">0.6", "role": "extra interval boost", "learnable": false},
+      {"name": "transfer ratio cap", "value": "0.5", "role": "max scatter-refresh fraction", "learnable": false},
+      {"name": "interval caps", "value": "math: 12, humaneval: 15", "role": "upper bound on G", "learnable": false}
+    ],
+    "init_recovers": "vanilla_uncached on lm_eval; dllm_cache-style on math/humaneval at progress<0.3",
+    "diff_from_baseline": "Augments dllm_cache with three progress-binned escalations of (gen_interval, transfer_ratio), an EMA-of-max-prob stability signal that further extends interval, hard caps on G per workload, and an explicit fall-back to vanilla_uncached for lm_eval.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "PID-Style Difficulty-Driven Cache",
+    "tagline": "Treats mean token-difficulty as a controlled variable: a proportional law modulates gen_interval, similarity scales transfer_ratio, and importance lengthens prompt_interval.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. EMA(alpha=0.3) on (difficulty, similarity, importance) over masked tokens\n// 2. error $e = \\bar{d} - 0.5$, gain $K_p=0.5$\n// 3. factor $= 1/(1+K_p e)$ if $e>0$ else $1+K_p|e|$\n// 4. $G \\leftarrow \\max(1, \\lfloor G_{\\text{base}}\\,\\text{factor}\\rfloor)$\n// 5. $T \\leftarrow \\min\\!\\bigl(0.5,\\, T_{\\text{base}}/\\max(0.1, \\bar{s})\\bigr)$\n// 6. $P \\leftarrow \\max(1, \\lfloor P_{\\text{base}}(1+\\bar{i})\\rfloor)$\n// 7. row_selector = lowest_value_feature_similarity, kv_update = scatter_refresh",
+    "key_hyperparams": [
+      {"name": "EMA alpha", "value": "0.3", "role": "smoothing on token statistics", "learnable": false},
+      {"name": "K_p", "value": "0.5", "role": "proportional gain", "learnable": false},
+      {"name": "difficulty target", "value": "0.5", "role": "set point for the controller", "learnable": false},
+      {"name": "transfer cap", "value": "0.5", "role": "upper bound on T", "learnable": false},
+      {"name": "base presets", "value": "math (P=7,G=50,T=0.25); humaneval (P=8,G=50,T=0.25); lm_eval (P=3,G=50,T=0.25)", "role": "(prompt, gen, transfer) defaults", "learnable": false}
+    ],
+    "diff_from_baseline": "Same hook surface as dllm_cache (lowest-similarity rows, scatter_refresh) but interval/transfer/prompt are controller outputs: gen_interval driven by a proportional law on mean difficulty error vs 0.5, transfer scaled by 1/similarity, prompt_interval scaled by importance.",
+    "confidence": "medium"
+  }
+]

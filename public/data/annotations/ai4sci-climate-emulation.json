@@ -1,0 +1,174 @@
+[
+  {
+    "model": "claude-opus-4-6",
+    "name": "Gated multi-scale FiLM CNN",
+    "tagline": "1D residual CNN over vertical levels with multi-scale gated convolutions, FiLM scalar conditioning, and SE channel attention.",
+    "kind": "hybrid",
+    "formula": "$$h_{i+1} = \\mathrm{Block}\\big((1+\\gamma_i(s))\\odot h_i + \\beta_i(s)\\big),\\quad h \\leftarrow h \\odot \\sigma(\\mathrm{SE}(h)),\\quad \\hat{y}_{sl} = \\mathrm{Head}(h) + W_{skip}\\, s$$",
+    "diagram": {
+      "nodes": [
+        {"id": "ml", "label": "9x60 profile"},
+        {"id": "sl", "label": "scalars s"},
+        {"id": "proj", "label": "scalar->2x60"},
+        {"id": "stem", "label": "Conv1d stem"},
+        {"id": "blk", "label": "8 GatedRes (k=3,5)"},
+        {"id": "se", "label": "SE attn"},
+        {"id": "mlh", "label": "ML head 6x60"},
+        {"id": "slh", "label": "SL head + skip"}
+      ],
+      "edges": [
+        {"from": "ml", "to": "stem"},
+        {"from": "sl", "to": "proj"},
+        {"from": "proj", "to": "stem"},
+        {"from": "stem", "to": "blk"},
+        {"from": "sl", "to": "blk", "label": "FiLM x3"},
+        {"from": "blk", "to": "se"},
+        {"from": "se", "to": "mlh"},
+        {"from": "se", "to": "slh"},
+        {"from": "sl", "to": "slh", "label": "skip"}
+      ]
+    },
+    "pseudocode": "// 1. split input into ml profile (9x60) and scalars s\n// 2. h ← Conv1d-stem(concat(ml, scalar->2x60 proj))\n// 3. for i = 1..8: if i ∈ FiLM points: h ← (1 + $\\gamma_i(s)$) ⊙ h + $\\beta_i(s)$\n// 4.   h ← GatedResBlock with kernels {3, 5} and learned gate\n// 5. h ← h ⊙ $\\sigma(\\mathrm{SE}(h))$\n// 6. ml_out ← ML head; sl_out ← SL head + linear skip from s",
+    "key_hyperparams": [
+      {"name": "channels", "value": "144", "role": "hidden conv channels", "learnable": false},
+      {"name": "n_blocks", "value": "8", "role": "gated residual blocks", "learnable": false},
+      {"name": "kernels", "value": "[3, 5]", "role": "dual conv kernels per block", "learnable": false},
+      {"name": "film_points", "value": "[0, 3, 6]", "role": "block indices receiving FiLM", "learnable": false},
+      {"name": "se_reduction", "value": "4", "role": "SE bottleneck ratio", "learnable": false},
+      {"name": "dropout", "value": "0.08", "role": "in residual blocks", "learnable": false},
+      {"name": "learning_rate", "value": "3e-4", "role": "AdamW lr override", "learnable": false},
+      {"name": "weight_decay", "value": "1e-5", "role": "AdamW wd override", "learnable": false},
+      {"name": "patience", "value": "15", "role": "early-stopping patience override", "learnable": false}
+    ],
+    "diff_from_baseline": "Extends the CNN baseline by adding GLU-style multi-kernel gated residual blocks, three FiLM stages driven by surface scalars, an SE attention recalibration, and an explicit linear skip from scalars to single-level outputs.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "FiLM-mixer with level mixing",
+    "tagline": "Per-level token MLP with cross-level mixing and per-block FiLM gamma/beta generated from surface scalars.",
+    "kind": "hybrid",
+    "formula": "$$h \\leftarrow h + \\mathrm{LevelMix}(\\mathrm{LN}(h)),\\quad h \\leftarrow h + \\gamma_s\\cdot \\mathrm{MLP}\\big(\\gamma_i(s)\\odot \\mathrm{LN}(h)+\\beta_i(s)\\big)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "ml", "label": "9x60"},
+        {"id": "tok", "label": "Linear -> 60x192"},
+        {"id": "pos", "label": "+ pos embed"},
+        {"id": "sl", "label": "scalars s"},
+        {"id": "film", "label": "FiLM MLP"},
+        {"id": "blk", "label": "10x FiLMMixer"},
+        {"id": "mlh", "label": "ML head + raw skip"},
+        {"id": "slh", "label": "soft pool + SL MLP"}
+      ],
+      "edges": [
+        {"from": "ml", "to": "tok"},
+        {"from": "tok", "to": "pos"},
+        {"from": "pos", "to": "blk"},
+        {"from": "sl", "to": "film"},
+        {"from": "film", "to": "blk", "label": "gamma,beta per layer"},
+        {"from": "blk", "to": "mlh"},
+        {"from": "ml", "to": "mlh", "label": "skip"},
+        {"from": "blk", "to": "slh"},
+        {"from": "sl", "to": "slh", "label": "skip"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "dim", "value": "192", "role": "token embedding dim", "learnable": false},
+      {"name": "num_blocks", "value": "10", "role": "FiLM mixer layers", "learnable": false},
+      {"name": "mlp_ratio", "value": "4.0", "role": "channel MLP expansion", "learnable": false},
+      {"name": "level_mix_ratio", "value": "4", "role": "level MLP expansion", "learnable": false},
+      {"name": "gamma_scale_init", "value": "1e-6", "role": "LayerScale init for residuals", "learnable": true},
+      {"name": "pos_embed_init", "value": "N(0,0.02)", "role": "level positional embedding", "learnable": true},
+      {"name": "sl_pool_weights", "value": "60-dim", "role": "softmax pooling over levels", "learnable": true},
+      {"name": "dropout", "value": "0.1", "role": "block + head dropout", "learnable": false},
+      {"name": "learning_rate", "value": "1e-3", "role": "AdamW lr override", "learnable": false},
+      {"name": "weight_decay", "value": "1e-3", "role": "AdamW wd override", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces the convolutional baselines with a tokens-as-levels MLP-mixer where every block is FiLM-conditioned by surface scalars, plus learned soft pooling for single-level outputs and raw input skips into both heads.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Depthwise GLU column mixer",
+    "tagline": "Depthwise-separable GLU residual blocks with multi-scale kernels, scalar-conditioned FiLM, and SE channel gating.",
+    "kind": "hybrid",
+    "formula": "$$\\mathrm{Block}: a,b = \\mathrm{DW}(\\mathrm{PW}_1 x);\\; x \\leftarrow x + \\mathrm{PW}_2(a\\odot \\sigma(b));\\; x \\leftarrow x + \\mathrm{SE}(\\mathrm{FF}(x));\\; h \\leftarrow h\\big(1+0.1\\gamma(s)\\big)+0.1\\beta(s)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "ml", "label": "9x60 profile"},
+        {"id": "sl", "label": "scalars s"},
+        {"id": "emb", "label": "PW embed + pos"},
+        {"id": "ctx", "label": "scalar MLP -> ctx"},
+        {"id": "blks", "label": "6 ProfileBlocks (k=3,5,3,7,3,5)"},
+        {"id": "head_p", "label": "Profile head"},
+        {"id": "pool", "label": "mean+max pool"},
+        {"id": "head_s", "label": "Scalar head"}
+      ],
+      "edges": [
+        {"from": "ml", "to": "emb"},
+        {"from": "sl", "to": "ctx"},
+        {"from": "ctx", "to": "emb", "label": "broadcast"},
+        {"from": "emb", "to": "blks"},
+        {"from": "ctx", "to": "blks", "label": "FiLM per block"},
+        {"from": "blks", "to": "head_p"},
+        {"from": "blks", "to": "pool"},
+        {"from": "pool", "to": "head_s"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "width", "value": "96", "role": "channel width", "learnable": false},
+      {"name": "n_blocks", "value": "6", "role": "ProfileBlock count", "learnable": false},
+      {"name": "kernel_schedule", "value": "[3,5,3,7,3,5]", "role": "depthwise kernel sizes", "learnable": false},
+      {"name": "se_reduction", "value": "8", "role": "SE bottleneck ratio", "learnable": false},
+      {"name": "film_scale", "value": "0.1", "role": "FiLM gamma/beta dampening", "learnable": false},
+      {"name": "pos", "value": "linspace(-1,1,60)", "role": "fixed level positional channel", "learnable": false},
+      {"name": "dropout", "value": "0.05", "role": "feedforward dropout", "learnable": false},
+      {"name": "learning_rate", "value": "2e-4", "role": "AdamW lr override", "learnable": false},
+      {"name": "weight_decay", "value": "5e-6", "role": "AdamW wd override", "learnable": false},
+      {"name": "patience", "value": "15", "role": "early-stopping override", "learnable": false}
+    ],
+    "diff_from_baseline": "Goes beyond the CNN baseline with depthwise-separable GLU blocks, mixed kernel sizes, SE recalibration in every block, dampened FiLM modulation from scalars, and dual mean+max pooling into the scalar head.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "CNN-Transformer column hybrid",
+    "tagline": "Per-level token embedding with a depthwise CNN stem followed by a small Transformer encoder over the 60 vertical levels.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "ml", "label": "9x60 profile"},
+        {"id": "sl", "label": "scalars"},
+        {"id": "emb", "label": "Linear -> 60x128"},
+        {"id": "pos", "label": "+ pos embed"},
+        {"id": "slb", "label": "scalar bias"},
+        {"id": "cnn", "label": "2 depthwise convs"},
+        {"id": "tr", "label": "4-layer Transformer"},
+        {"id": "out", "label": "per-level head + pooled SL head"}
+      ],
+      "edges": [
+        {"from": "ml", "to": "emb"},
+        {"from": "emb", "to": "pos"},
+        {"from": "sl", "to": "slb"},
+        {"from": "pos", "to": "slb"},
+        {"from": "slb", "to": "cnn"},
+        {"from": "cnn", "to": "tr"},
+        {"from": "tr", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "128", "role": "token width", "learnable": false},
+      {"name": "num_heads", "value": "4", "role": "transformer heads", "learnable": false},
+      {"name": "transformer_layers", "value": "4", "role": "encoder depth", "learnable": false},
+      {"name": "ffn_ratio", "value": "4", "role": "feedforward expansion", "learnable": false},
+      {"name": "cnn_blocks", "value": "2", "role": "depthwise residual stems", "learnable": false},
+      {"name": "kernel", "value": "3", "role": "depthwise conv kernel", "learnable": false},
+      {"name": "pos_embed", "value": "60x128", "role": "learned level positions", "learnable": true},
+      {"name": "dropout", "value": "0.1", "role": "shared dropout", "learnable": false},
+      {"name": "learning_rate", "value": "3e-4", "role": "AdamW lr override", "learnable": false},
+      {"name": "weight_decay", "value": "1e-4", "role": "AdamW wd override", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces baseline CNNs with a per-level Transformer over 60 column tokens, after two depthwise residual conv stems and a global scalar bias added to every token.",
+    "confidence": "high"
+  }
+]

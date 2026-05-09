@@ -1,0 +1,84 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "ECSI schedule + AB2 $x_0$ + $\\eta$-decay",
+    "tagline": "DBIM with an ECSI Karras-$\\rho{=}0.6$ schedule, polynomial-decaying $\\eta$, and Adams-Bashforth extrapolation of $\\hat x_0$ across steps.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. build Karras schedule $t_i = (\\sigma_{max}^{1/\\rho_k} + r_i(\\sigma_{min}^{1/\\rho_k} - \\sigma_{max}^{1/\\rho_k}))^{\\rho_k}$ with $\\rho_k = 0.6$, $\\sigma_{min}{=}0.15$\n// 2. initial $\\hat x_0 \\leftarrow D(x_T, t_{max})$;  bridge-sample $x \\leftarrow \\mathrm{BS}(\\hat x_0, x_T, t_0)$\n// 3. for $i = 0\\ldots N-1$ do\n// 4.   $\\hat x_0 \\leftarrow D(x, t_i)$ (mask-replace if inpaint)\n// 5.   $\\eta_i \\leftarrow \\eta_{min} + (\\eta_{max} - \\eta_{min})(1 - i/(N-1))^{1.5}$\n// 6.   $\\omega \\leftarrow \\eta_i \\alpha_t \\rho_t \\sqrt{1 - \\rho_t^2/\\rho_s^2}$;  $v \\leftarrow \\sqrt{c_t^2 - \\omega^2}/c_s$\n// 7.   if $i \\notin \\{0, N-1\\}$ and $|t_{i-1} - t_i| > 0$:  $\\tilde x_0 \\leftarrow \\hat x_0 + w_e\\, r\\,(\\hat x_0 - \\hat x_0^{prev})$  // AB2 extrap\n// 8.   $x \\leftarrow (b_t - v b_s)\\tilde x_0 + (a_t - v a_s) x_T + v\\, x + \\mathbb{1}[i\\ne N-1]\\, \\omega \\epsilon$\n// 9. return final $x$, set reported nfe $= N - 1$",
+    "key_hyperparams": [
+      {"name": "$\\rho_k$", "value": "0.6", "role": "Karras schedule exponent (ECSI)", "learnable": false},
+      {"name": "$\\sigma_{min}$", "value": "0.15", "role": "schedule lower bound", "learnable": false},
+      {"name": "$\\sigma_{max}$ offset", "value": "5e-4", "role": "schedule upper-bound offset", "learnable": false},
+      {"name": "$\\eta_{max}, \\eta_{min}$", "value": "1.1, 0.15", "role": "polynomial-decay envelope", "learnable": false},
+      {"name": "$w_e$", "value": "0.45", "role": "AB2 extrapolation weight", "learnable": false}
+    ],
+    "init_recovers": "DBIM at $w_e=0$, fixed $\\eta=1$",
+    "diff_from_baseline": "Extends DBIM by replacing the input-provided schedule with an ECSI Karras $\\rho{=}0.6$ schedule, decaying $\\eta$ polynomially per step, and inserting an AB2 extrapolation of $\\hat x_0$ from the previous denoiser output.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "ECSI schedule + Predictor-Corrector + skip",
+    "tagline": "ECSI Karras schedule with a predictor-corrector at step 1 and a denoiser-skip step that reuses linearly extrapolated $\\hat x_0$.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. build ECSI Karras schedule ($\\rho_k=0.6, \\sigma_{min}=0.15$); $x_T = x$\n// 2. $\\hat x_0 \\leftarrow D(x_T, t_{max})$;  $x \\leftarrow \\mathrm{BS}(\\hat x_0, x_T, t_0)$;  history $\\leftarrow [\\hat x_0, \\hat x_0]$\n// 3. for $i = 0 \\ldots N-1$ do\n// 4.   if $i \\ge 1$:  $\\hat x_0^{lin} \\leftarrow \\hat x_0^{(-1)} + (\\hat x_0^{(-1)} - \\hat x_0^{(-2)})\\,(t_i - t_{-1})/(t_{-1} - t_{-2})$\n// 5.   if $i = 2$:  $\\hat x_0 \\leftarrow \\hat x_0^{lin}$ (skip denoiser)\n// 6.   else:  $\\hat x_0 \\leftarrow D(x, t_i)$\n// 7.     if $i = 1$:  build tentative $\\tilde x$ using DBIM coefficients applied to $\\hat x_0^{lin}$; $\\hat x_0 \\leftarrow 0.5(D(\\tilde x, t_i) + \\hat x_0)$  // corrector\n// 8.   compute DBIM coefficients $(c_t/c_s, b_t - v b_s, a_t - v a_s)$ at $\\eta=1$;  $x \\leftarrow$ DBIM update\n// 9. return $x$ with reported nfe $= N - 1$",
+    "key_hyperparams": [
+      {"name": "$\\rho_k$", "value": "0.6", "role": "ECSI Karras exponent", "learnable": false},
+      {"name": "$\\sigma_{min}$", "value": "0.15", "role": "schedule lower bound", "learnable": false},
+      {"name": "skip step", "value": "idx = 2", "role": "iteration that reuses extrapolated $\\hat x_0$", "learnable": false},
+      {"name": "corrector step", "value": "idx = 1", "role": "iteration with predictor-corrector half-blend", "learnable": false},
+      {"name": "blend $\\beta$", "value": "0.5", "role": "predictor/corrector mix", "learnable": false}
+    ],
+    "init_recovers": "Plain DBIM if predictor-corrector and skip-step are disabled",
+    "diff_from_baseline": "Schedules extra denoiser calls non-uniformly: at step 1 runs a predictor-corrector that blends the extrapolated $\\hat x_0$ with a re-evaluated one, and at step 2 skips the denoiser call entirely by reusing the linear extrapolation; final reported NFE is held to the budget.",
+    "confidence": "medium"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "ECSI schedule + DPM AB2 in $\\lambda$ space",
+    "tagline": "DBIM on an ECSI Karras grid with $\\eta_t = 0.4\\,t/t_{max}$ and a DPM-Solver-style AB2 extrapolation of $\\hat x_0$ in log-SNR ($\\lambda$) space.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. build ECSI Karras schedule ($\\rho_k = 0.6$, $\\sigma_{min}=0.15$, len $N{+}1$)\n// 2. $\\hat x_0 \\leftarrow D(x_T, t_{max})$;  $x \\leftarrow \\mathrm{BS}(\\hat x_0, x_T, t_0)$\n// 3. for $i = 0 \\ldots N-1$ do\n// 4.   $\\hat x_0 \\leftarrow D(x, t_i)$;  push to history\n// 5.   $\\lambda_s \\leftarrow \\overline{\\log(b_s/c_s)}$;  $\\lambda_t \\leftarrow \\overline{\\log(b_t/c_t)}$\n// 6.   $\\eta_i \\leftarrow 0.4 \\cdot t_i/t_{max}$\n// 7.   $\\omega \\leftarrow \\eta_i \\alpha_t \\rho_t \\sqrt{1 - \\rho_t^2/\\rho_s^2}$;  $v \\leftarrow \\sqrt{c_t^2 - \\omega^2}/c_s$\n// 8.   if $|H| \\ge 2$:  $r \\leftarrow (\\lambda_t - \\lambda_s)/(\\lambda_s - \\lambda_{prev})$;  $\\tilde x_0 \\leftarrow \\hat x_0 + 0.5\\, r\\,(\\hat x_0 - \\hat x_0^{prev})$\n// 9.   $x \\leftarrow (b_t - v b_s)\\tilde x_0 + (a_t - v a_s) x_T + v x + \\mathbb{1}[i \\ne N-2]\\,\\omega \\epsilon$\n// 10. return $x$, reported nfe $= N$",
+    "key_hyperparams": [
+      {"name": "$\\rho_k$", "value": "0.6", "role": "ECSI Karras exponent", "learnable": false},
+      {"name": "$\\sigma_{min}$", "value": "0.15", "role": "schedule lower bound", "learnable": false},
+      {"name": "AB2 weight", "value": "0.5", "role": "DPM-Solver AB2 extrapolation factor", "learnable": false},
+      {"name": "$\\eta$ envelope", "value": "$0.4 \\cdot t/t_{max}$", "role": "linearly decaying churn", "learnable": false}
+    ],
+    "init_recovers": "DBIM at AB2 weight $= 0$, $\\eta = $ const",
+    "diff_from_baseline": "Replaces DBIM's geometric extrapolation with a DPM-Solver AB2 update in log-SNR space ($\\lambda = \\log(b/c)$), uses an ECSI Karras schedule, and shrinks $\\eta$ linearly with $t$ instead of holding it at the input value.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Velocity-gated DBIM with phase-decayed $\\eta$",
+    "tagline": "DBIM with a phase-decayed $\\eta$, second-order $\\hat x_0$ predictor, and a per-sample gate that mixes raw vs. extrapolated $\\hat x_0$ by short-vs-long horizon variance.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. $\\hat x_0^{prev} \\leftarrow D(x_T, t_{max})$;  $x \\leftarrow \\mathrm{BS}(\\hat x_0^{prev}, x_T, t_0)$\n// 2. for $i = 0 \\ldots N-1$ do (use input ts)\n// 3.   $\\hat x_0^{raw} \\leftarrow D(x, t_i)$\n// 4.   $\\phi \\leftarrow (i+1)/N$\n// 5.   cur $\\leftarrow \\overline{(\\hat x_0^{raw} - \\hat x_0^{prev})^2}$;  vel $\\leftarrow \\overline{(\\hat x_0^{raw} - \\hat x_0^{prev,prev})^2}$\n// 6.   extrap $\\leftarrow \\hat x_0^{raw} + 0.16(1-\\phi)^{1.2}(\\hat x_0^{raw} - \\hat x_0^{prev})$\n// 7.   gate $\\leftarrow (0.55 + 0.25\\phi)\\cdot \\mathrm{clip}(\\text{cur}/(\\text{cur}+\\text{vel}+\\epsilon), 0.15, 0.85)$\n// 8.   $\\hat x_0 \\leftarrow$ gate$\\cdot\\hat x_0^{raw} + (1-\\text{gate})\\cdot$extrap;  if $i \\ge N-2$:  $\\hat x_0 \\leftarrow 0.88\\hat x_0^{raw} + 0.12\\hat x_0^{prev}$\n// 9.   $\\eta_i \\leftarrow 0.42(1-\\phi)^{1.6}\\,\\eta$;  apply DBIM update with this $\\eta_i$, drop noise on last 2 iterations\n// 10. return $x$",
+    "key_hyperparams": [
+      {"name": "extrap base", "value": "0.16, exponent 1.2", "role": "second-order $\\hat x_0$ extrapolation strength", "learnable": false},
+      {"name": "gate base, slope", "value": "0.55, 0.25", "role": "phase-dependent gate envelope", "learnable": false},
+      {"name": "gate clip", "value": "[0.15, 0.85]", "role": "min/max convex blend", "learnable": false},
+      {"name": "tail blend", "value": "0.88, 0.12 for $i\\ge N-2$", "role": "near-end smoother", "learnable": false},
+      {"name": "$\\eta$ envelope", "value": "$0.42(1-\\phi)^{1.6}\\eta$", "role": "front-loaded stochasticity", "learnable": false}
+    ],
+    "init_recovers": "Plain DBIM at gate $= 1$, extrap $= 0$, $\\eta_i = \\eta$",
+    "diff_from_baseline": "Keeps the standard DBIM bridge update but feeds it $\\hat x_0$ that is a per-sample convex combination of the raw denoiser output and a second-order predictor, gated by recent vs. historic squared deltas; also schedules $\\eta$ down by phase $\\phi$.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Stoch-modulated DBIM with $x_0$ EMA / AB2",
+    "tagline": "DBIM with a sin-modulated $\\eta$ schedule and a small linear extrapolation of $\\hat x_0$ from history (EMA at step 1, AB2 from step 2).",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. $\\hat x_0 \\leftarrow D(x_T, t_{max})$;  $x \\leftarrow \\mathrm{BS}(\\hat x_0, x_T, t_0)$;  history $\\leftarrow [\\hat x_0]$\n// 2. for $i = 0 \\ldots N-1$ do (input ts)\n// 3.   $\\hat x_0 \\leftarrow D(x, t_i)$\n// 4.   if $|H| \\ge 2$:  $\\hat x_0^{ext} \\leftarrow 2 H_{-1} - H_{-2}$;  $\\tilde x_0 \\leftarrow 0.85\\hat x_0 + 0.15\\hat x_0^{ext}$\n// 5.     elif $|H| \\ge 1$:  $\\tilde x_0 \\leftarrow 0.7\\hat x_0 + 0.3 H_{-1}$\n// 6.     else $\\tilde x_0 \\leftarrow \\hat x_0$\n// 7.   $r \\leftarrow i/(N-1)$;  $\\eta_i \\leftarrow \\eta(1-r)^{0.8}(0.3 + 0.7\\sin(\\pi r))$\n// 8.   $\\omega \\leftarrow \\eta_i \\alpha_t \\rho_t \\sqrt{1 - \\rho_t^2/\\rho_s^2}$;  $v \\leftarrow \\sqrt{c_t^2 - \\omega^2}/c_s$\n// 9.   $x \\leftarrow (b_t - v b_s)\\tilde x_0 + (a_t - v a_s) x_T + v x + \\mathbb{1}[i < N-1]\\, \\omega \\epsilon$",
+    "key_hyperparams": [
+      {"name": "AB2 weight", "value": "0.15", "role": "extrapolation blend $i \\ge 2$", "learnable": false},
+      {"name": "EMA weight", "value": "0.3", "role": "first-step blend", "learnable": false},
+      {"name": "$\\eta$ envelope", "value": "$\\eta(1-r)^{0.8}(0.3 + 0.7\\sin(\\pi r))$", "role": "sin-modulated decay", "learnable": false}
+    ],
+    "init_recovers": "DBIM at AB2 weight $= 0$, fixed $\\eta = 1$",
+    "diff_from_baseline": "Keeps DBIM coefficients but replaces $\\hat x_0$ with a small linear extrapolation from the previous two predictions (or first-step EMA), and modulates $\\eta$ by a polynomial-times-sine envelope of the diffusion phase $r$.",
+    "confidence": "high"
+  }
+]

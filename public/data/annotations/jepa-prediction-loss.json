@@ -1,0 +1,77 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Smooth-L1 + Spatial + Temporal Gradients",
+    "tagline": "Smooth-L1 latent matching plus Smooth-L1 on spatial finite-difference gradients (H, W) and on temporal differences.",
+    "kind": "formula",
+    "formula": "$$ \\mathcal{L} = \\mathrm{SL1}(z, \\hat z) + \\lambda_s \\big(\\mathrm{SL1}(\\Delta_H \\hat z, \\Delta_H z) + \\mathrm{SL1}(\\Delta_W \\hat z, \\Delta_W z)\\big) + \\lambda_t\\,\\mathrm{SL1}(\\Delta_T \\hat z, \\Delta_T z) $$\n$$ \\mathrm{SL1}(a,b) = \\overline{\\begin{cases}0.5(a-b)^2 & |a-b|<1 \\\\ |a-b|-0.5 & \\text{else}\\end{cases}} $$",
+    "key_hyperparams": [
+      {"name": "spatial_grad_weight", "value": "0.5", "role": "weight on H+W finite-difference Smooth-L1", "learnable": false},
+      {"name": "temporal_grad_weight", "value": "0.25", "role": "weight on T finite-difference Smooth-L1", "learnable": false},
+      {"name": "huber_delta", "value": "1.0", "role": "Smooth-L1 transition (PyTorch default)", "learnable": false}
+    ],
+    "init_recovers": "smooth_l1 baseline when both gradient weights → 0",
+    "diff_from_baseline": "Adds two finite-difference Smooth-L1 terms (along H+W and along T) on top of the smooth_l1 baseline to encourage matching of spatial and temporal feature gradients.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "MSE + Spatial/Temporal Grad + Std Match",
+    "tagline": "MSE + spatial+temporal MSE-on-differences + L2 between spatial and temporal feature standard deviations.",
+    "kind": "formula",
+    "formula": "$$ \\mathcal{L} = \\|z-\\hat z\\|_2^2 + w_{spat}\\big(\\|\\Delta_H\\hat z - \\Delta_H z\\|_2^2 + \\|\\Delta_W\\hat z - \\Delta_W z\\|_2^2\\big) + w_{temp}\\,\\|\\Delta_T\\hat z - \\Delta_T z\\|_2^2 $$\n$$ + w_{\\sigma_t}\\,\\|\\sigma_T(\\hat z) - \\sigma_T(z)\\|_2^2 + w_{\\sigma_s}\\,\\|\\sigma_{HW}(\\hat z) - \\sigma_{HW}(z)\\|_2^2 $$",
+    "key_hyperparams": [
+      {"name": "w_spat", "value": "0.5", "role": "spatial-difference MSE weight", "learnable": false},
+      {"name": "w_temp", "value": "1.0", "role": "temporal-difference MSE weight", "learnable": false},
+      {"name": "w_std_t", "value": "0.5", "role": "temporal-std match weight", "learnable": false},
+      {"name": "w_std_s", "value": "0.5", "role": "spatial-std match weight", "learnable": false},
+      {"name": "var_eps", "value": "1e-6", "role": "epsilon inside sqrt(var+eps)", "learnable": false}
+    ],
+    "init_recovers": "MSE baseline when all extra weights → 0",
+    "diff_from_baseline": "Adds to the mse baseline (a) MSE on H, W, T finite-difference gradients with anisotropic weights and (b) two standard-deviation matching terms — one over the time axis, one over the (H,W) plane — to preserve temporal and spatial contrast.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Whitened Smooth-L1 + Hardness + ΔT + Cosine",
+    "tagline": "Channel-whitened Smooth-L1 with detached per-step hardness re-weighting, plus temporal-difference Smooth-L1 and a small cosine term.",
+    "kind": "formula",
+    "formula": "$$ \\sigma_c = \\sqrt{\\mathrm{Var}_{B,T,H,W}(z) + \\varepsilon}, \\quad \\tilde z = z/\\sigma, \\;\\; \\tilde p = \\hat z/\\sigma $$\n$$ \\ell_t = \\overline{\\mathrm{SL1}(\\tilde p, \\tilde z)}_{B,C,H,W}, \\quad w_t = \\Big(\\tfrac{\\mathrm{sg}(\\ell_t)}{\\overline{\\mathrm{sg}(\\ell)}+\\varepsilon}\\Big)^{1.5} \\Big/ \\overline{(\\cdot)} $$\n$$ \\mathcal{L} = \\overline{w_t \\ell_t} + \\lambda_\\Delta\\,\\mathrm{SL1}(\\Delta_T\\tilde p, \\Delta_T\\tilde z) + \\lambda_c\\big(1 - \\overline{\\cos(\\mathrm{flat}\\tilde p, \\mathrm{flat}\\tilde z)}\\big) $$",
+    "key_hyperparams": [
+      {"name": "ε", "value": "1e-4", "role": "scale floor for whitening / weight normalisation", "learnable": false},
+      {"name": "focus", "value": "1.5", "role": "exponent on detached per-step hardness", "learnable": false},
+      {"name": "delta_weight", "value": "0.35", "role": "temporal-difference Smooth-L1", "learnable": false},
+      {"name": "cosine_weight", "value": "0.1", "role": "directional cosine term", "learnable": false},
+      {"name": "huber_delta", "value": "1.0", "role": "Smooth-L1 transition (default)", "learnable": false}
+    ],
+    "init_recovers": "smooth_l1 baseline at focus=0, delta_weight=0, cosine_weight=0",
+    "diff_from_baseline": "Goes well beyond the smooth_l1 baseline: divides features by per-channel std, computes Smooth-L1 per timestep, re-weights timesteps by detached hardness^1.5, and adds a temporal-difference Smooth-L1 plus a small cosine-similarity term over flattened spatio-temporal slices.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Edge-weighted Huber + Cosine + ΔT Huber",
+    "tagline": "Pixelwise Huber re-weighted by target spatial-gradient magnitude, plus per-pixel cosine across channels and a temporal Huber.",
+    "kind": "formula",
+    "formula": "$$ w_{b,t,h,w} = \\overline{|\\Delta_W z|}_C + \\overline{|\\Delta_H z|}_C \\;\\;(\\text{padded to } H\\!\\times\\!W),\\;\\; \\tilde w = w \\cdot \\tfrac{BCTHW}{\\sum w + \\varepsilon} $$\n$$ \\mathcal{L} = \\alpha\\,\\overline{\\tilde w \\cdot \\mathrm{Huber}_1(z, \\hat z)} + \\beta\\,\\overline{1 - \\cos_C(z_{:,c,t,h,w}, \\hat z_{:,c,t,h,w})} + \\gamma\\,\\mathrm{Huber}_1(\\Delta_T \\hat z, \\Delta_T z) $$",
+    "key_hyperparams": [
+      {"name": "α", "value": "0.5", "role": "edge-weighted Huber", "learnable": false},
+      {"name": "β", "value": "0.3", "role": "channel-cosine per pixel", "learnable": false},
+      {"name": "γ", "value": "0.2", "role": "temporal-difference Huber", "learnable": false},
+      {"name": "huber_delta", "value": "1.0", "role": "Huber transition", "learnable": false}
+    ],
+    "init_recovers": "uniform-weighted Huber + cosine + ΔT-Huber when α dominates and edge mask becomes uniform",
+    "diff_from_baseline": "Replaces plain MSE/cosine with a Huber loss whose pixel weights come from the L1-averaged spatial gradient of the target latent (focus on 'edge' pixels), and adds a per-pixel channel-direction cosine term and a temporal-difference Huber.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "Unmodified template (zero loss)",
+    "tagline": "Returned the scaffold's placeholder loss unchanged: a constant 0.0 with requires_grad=True.",
+    "kind": "formula",
+    "formula": "$$ \\mathcal{L}(z, \\hat z) = 0 $$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "No actual loss is implemented — the agent left the CustomPredictionLoss template untouched, so training receives no prediction-loss gradient (only the VICReg regularizer and the auxiliary recon/det probes drive the encoder).",
+    "confidence": "high"
+  }
+]

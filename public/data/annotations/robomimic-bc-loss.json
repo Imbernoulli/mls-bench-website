@@ -1,0 +1,84 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Sharpened-responsibility NLL + var floor + entropy",
+    "tagline": "Blend of standard logsumexp NLL and a softmax-temperature-sharpened detached-responsibility NLL, with a variance-floor ReLU penalty and a mixing-weight entropy bonus.",
+    "kind": "formula",
+    "formula": "$$r_k = \\mathrm{stop\\_grad}\\!\\Big[\\mathrm{softmax}_k\\!\\big(\\tfrac{\\log\\mathcal{N}(a|\\mu_k,\\sigma_k)}{\\tau}\\big)\\Big],\\;\\; \\mathrm{nll}_{\\mathrm{sharp}} = -\\!\\sum_k r_k(\\log\\pi_k + \\log\\mathcal{N}(a|\\mu_k,\\sigma_k))$$ $$\\mathcal{L} = 0.6\\,\\mathrm{nll}_{\\mathrm{std}} + 0.4\\,\\mathrm{nll}_{\\mathrm{sharp}} + \\lambda_v\\,\\mathrm{ReLU}(v_{\\min}-\\sigma_k^2) - \\lambda_e\\,H(\\pi)$$",
+    "key_hyperparams": [
+      {"name": "sharp_temp tau", "value": "0.5", "role": "softmax temperature on responsibilities", "learnable": false},
+      {"name": "blend (std/sharp)", "value": "0.6 / 0.4", "role": "weights between marginal and sharpened NLL", "learnable": false},
+      {"name": "var_floor v_min", "value": "0.01", "role": "minimum allowed component variance", "learnable": false},
+      {"name": "var_weight lambda_v", "value": "0.1", "role": "ReLU(v_min - sigma^2) coefficient", "learnable": false},
+      {"name": "entropy_weight lambda_e", "value": "0.01", "role": "mixing-weight entropy bonus", "learnable": false}
+    ],
+    "init_recovers": "Standard NLL when sharp blend = 0, var_weight = 0, entropy_weight = 0",
+    "diff_from_baseline": "Compared to default NLL and the nll_entropy baseline, replaces the entropy-only regularizer with a 60/40 blend of marginal NLL and a temperature-sharpened-responsibility NLL (responsibilities detached, tau=0.5), plus a ReLU(v_min - sigma^2) penalty on component variances and a mixing-weight entropy bonus.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Vanilla NLL (no change)",
+    "tagline": "Returns -dist.log_prob(target).mean(); identical to the robomimic default loss.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = -\\frac{1}{B}\\sum_{i=1}^{B}\\log p_{\\mathrm{GMM}}(a_i\\mid s_i)$$",
+    "key_hyperparams": [
+      {"name": "action_dim", "value": "7", "role": "stored only; does not affect the loss", "learnable": false}
+    ],
+    "init_recovers": "Default robomimic NLL exactly",
+    "diff_from_baseline": "No change vs the 'default' baseline. The class is the standard GMM NLL with no extra terms; the docstring even labels it 'Vanilla NLL loss'.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Variance-clamped NLL + WTA SmoothL1 + assignment CE",
+    "tagline": "Down-weight gripper in NLL with std clamped to 0.01, add 50x SmoothL1 from the closest-mode mean, and 5x cross-entropy pushing logits onto that mode.",
+    "kind": "formula",
+    "formula": "$$k^\\star = \\arg\\min_k \\|\\mu_k - a\\|_2^2,\\quad \\sigma' = \\max(\\sigma, 10^{-2})$$ $$\\mathcal{L} = -\\!\\sum_d w^{\\mathrm{nll}}_d\\,\\mathrm{logsumexp}_k\\!\\big(\\log\\pi_k + \\log\\mathcal{N}(a_d\\mid\\mu_{k,d}, \\sigma'_{k,d})\\big) + 50\\sum_d w^{l1}_d\\,\\mathrm{smoothL1}_{0.01}(\\mu_{k^\\star,d}, a_d) + 5\\,\\mathrm{CE}(\\mathrm{logits},k^\\star)$$",
+    "key_hyperparams": [
+      {"name": "scale floor", "value": "0.01", "role": "clamp_min on component std", "learnable": false},
+      {"name": "nll_weights", "value": "[1,1,1,1,1,1,0.1] x 7/sum", "role": "down-weight gripper NLL", "learnable": false},
+      {"name": "l1_weights", "value": "[1,1,1,1,1,1,0] x 7/sum", "role": "WTA SmoothL1 ignores gripper", "learnable": false},
+      {"name": "WTA SmoothL1 beta", "value": "0.01", "role": "SmoothL1 transition", "learnable": false},
+      {"name": "L1 weight", "value": "50.0", "role": "WTA mean-anchoring strength", "learnable": false},
+      {"name": "CE weight", "value": "5.0", "role": "logits -> closest-mode cross-entropy", "learnable": false}
+    ],
+    "init_recovers": "Per-dim weighted NLL when L1 and CE coefficients are 0",
+    "diff_from_baseline": "Compared to the weighted_nll baseline (which weights positional dims 2x and gripper 1x by rescaling targets), this proposal: (1) implements the per-dimension Gaussian log-prob manually with a hard scale floor of 0.01 (variance clamp) and gripper down-weight 0.1 in NLL, (2) adds a 50x weighted SmoothL1 (beta=0.01) loss between the target and the mean of the closest mode (WTA argmin in Euclidean space, gripper ignored), and (3) adds a 5x CE pushing the mixing logits onto that closest mode.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Tempered posterior distillation + Mahalanobis anchor",
+    "tagline": "NLL plus a KL between the policy mixture logits and a tempered detached posterior, plus a responsibility-weighted standardized-MSE anchor with mild gripper up-weight.",
+    "kind": "formula",
+    "formula": "$$\\hat r_k = \\mathrm{stop\\_grad}\\!\\Big[\\mathrm{softmax}_k\\!\\big(\\tfrac{\\log\\pi_k+\\log\\mathcal{N}(a|\\mu_k,\\sigma_k)}{T}\\big)\\Big]$$ $$\\mathcal{L} = -\\!\\log p_{\\mathrm{GMM}}(a) + \\lambda_{\\mathrm{KL}}\\,\\mathrm{KL}(\\hat r\\,\\|\\,\\pi) + \\lambda_{\\mathrm{anchor}}\\sum_k \\hat r_k\\,\\sum_d w_d\\Big(\\tfrac{a_d-\\mu_{k,d}}{\\sigma_{k,d}}\\Big)^2$$",
+    "key_hyperparams": [
+      {"name": "posterior_temp T", "value": "1.5", "role": "soften the detached posterior target", "learnable": false},
+      {"name": "kl_coef", "value": "0.2", "role": "tempered-posterior distillation strength", "learnable": false},
+      {"name": "anchor_coef", "value": "0.02", "role": "responsibility-weighted Mahalanobis MSE", "learnable": false},
+      {"name": "gripper_weight", "value": "1.5", "role": "per-dim weight on the last action component (anchor only)", "learnable": false},
+      {"name": "stddev floor", "value": "1e-4", "role": "clamp_min on component std", "learnable": false}
+    ],
+    "init_recovers": "Standard NLL when kl_coef = anchor_coef = 0",
+    "diff_from_baseline": "Builds on the default NLL and is closer to nll_entropy but replaces the entropy bonus with two distillation-style terms: a KL between policy mixing logits and a temperature-1.5-softened detached posterior over modes (forces specialization without WTA brittleness), and a responsibility-weighted standardized MSE anchor that pulls the closest mode's mean toward the demo (gripper dim weighted 1.5x).",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Joint-log-marginal NLL + log-sigma box + balance",
+    "tagline": "Manual GMM NLL via logsumexp, plus quadratic ReLU penalties pinning log sigma into [-3, -0.5] and an MSE on mixing probs vs uniform.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = -\\overline{\\log\\!\\sum_k \\pi_k \\mathcal{N}(a|\\mu_k,\\sigma_k)} + \\lambda_s\\overline{\\mathrm{ReLU}(s_{\\min}-\\log\\sigma)^2 + \\mathrm{ReLU}(\\log\\sigma-s_{\\max})^2} + \\lambda_b\\overline{(\\pi-1/K)^2}$$",
+    "key_hyperparams": [
+      {"name": "best_weight", "value": "1.0", "role": "scaling of marginal NLL (named best_nll despite using logsumexp)", "learnable": false},
+      {"name": "scale_reg_weight lambda_s", "value": "0.05", "role": "log-sigma box penalty weight", "learnable": false},
+      {"name": "scale_min, scale_max", "value": "-3.0, -0.5", "role": "soft box on log sigma", "learnable": false},
+      {"name": "balance_weight lambda_b", "value": "0.01", "role": "uniform-prior MSE on mixing probs", "learnable": false},
+      {"name": "fallback constants", "value": "log(2pi) approx 2.3026, eps=1e-8", "role": "manual log_prob computation", "learnable": false}
+    ],
+    "init_recovers": "Standard NLL when scale_reg_weight = balance_weight = 0",
+    "diff_from_baseline": "Compared to the default and nll_entropy baselines, recomputes the GMM log-prob by hand to keep numerical control, then adds two regularizers: a quadratic ReLU pair pinning log component sigma inside [-3, -0.5] (prevents collapse and over-spread), and a uniform-target MSE on mixing probabilities (replaces the usual entropy bonus). NOTE: the variable named best_nll is actually the standard logsumexp marginal NLL, despite the docstring describing 'best-component NLL'.",
+    "confidence": "high"
+  }
+]

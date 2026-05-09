@@ -1,0 +1,82 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Stochastic-gated BN $\\,/\\,$GN blend",
+    "tagline": "Per-channel sigmoid gate blends affine-free BN and GN, with Gaussian noise injected into the gate logits at training time.",
+    "kind": "formula",
+    "formula": "$$ y = \\gamma \\odot \\big(a(x)\\, \\mathrm{BN}_{na}(x) + (1 - a(x))\\, \\mathrm{GN}_{na}(x)\\big) + \\beta, \\qquad a(x) = \\sigma\\!\\big(g + \\mathbb{1}_{train}\\,\\sigma_n\\,\\epsilon\\big),\\ \\epsilon \\sim \\mathcal{N}(0, I) $$",
+    "key_hyperparams": [
+      {"name": "$g$", "value": "init 1.0", "role": "per-channel gate logit", "learnable": true},
+      {"name": "$\\sigma_n$", "value": "0.3", "role": "Gaussian-noise std on gate logits at train", "learnable": false},
+      {"name": "$G$", "value": "min(8, $C$) (largest divisor)", "role": "GN groups", "learnable": false},
+      {"name": "$\\gamma, \\beta$", "value": "ones, zeros", "role": "affine scale/shift", "learnable": true}
+    ],
+    "init_recovers": "BatchNorm (no noise, $g\\to+\\infty$); GroupNorm at $g\\to-\\infty$",
+    "diff_from_baseline": "Like Batch-Instance Norm but mixes BN with GN(8) instead of IN, removes affine from each branch, and adds Gaussian noise on the gate logit during training as implicit regularization.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "GN + per-channel SE-style scale",
+    "tagline": "GroupNorm followed by a per-channel multiplicative scale $1+\\tfrac12\\tanh(\\cdot)$ driven by per-instance mean absolute activation.",
+    "kind": "formula",
+    "formula": "$$ y = \\gamma \\odot \\Big(\\mathrm{GN}_{32}(x) \\cdot \\big[1 + \\tfrac{1}{2}\\tanh(w_a \\odot p(x) + b_a)\\big]\\Big) + \\beta, \\qquad p_c = \\overline{|x_{:,c,:,:}|}_{HW} $$",
+    "key_hyperparams": [
+      {"name": "$w_a$", "value": "init 0", "role": "per-channel adaptive weight on $\\overline{|x|}$", "learnable": true},
+      {"name": "$b_a$", "value": "init 0", "role": "adaptive bias", "learnable": true},
+      {"name": "$\\gamma, \\beta$", "value": "ones, zeros", "role": "affine", "learnable": true},
+      {"name": "groups", "value": "min(32, $C$) divisor", "role": "GN groups", "learnable": false}
+    ],
+    "init_recovers": "GroupNorm at $w_a = b_a = 0$",
+    "diff_from_baseline": "Adds a small per-instance, per-channel SE-style scale modulator on top of GroupNorm; the modulator is a tanh of a learned linear projection of $\\overline{|x_{:,c,:,:}|}_{HW}$, bounded in $[\\tfrac12, \\tfrac32]$.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "LayerNorm-then-BatchNorm",
+    "tagline": "Pre-normalize each sample to zero mean / unit variance over (C,H,W), then apply standard BatchNorm.",
+    "kind": "formula",
+    "formula": "$$ y = \\mathrm{BN}\\!\\Big(\\frac{x - \\mu(x)}{\\sqrt{\\sigma^2(x) + \\epsilon}}\\Big), \\qquad \\mu, \\sigma^2 \\text{ per-sample over } (C, H, W) $$",
+    "key_hyperparams": [
+      {"name": "$\\epsilon$", "value": "1e-5", "role": "stabilizer for instance variance", "learnable": false},
+      {"name": "BN affine", "value": "default (on)", "role": "from inner BatchNorm2d", "learnable": true}
+    ],
+    "init_recovers": "BatchNorm if $\\sigma(x) \\to 1$ and $\\mu(x) \\to 0$ (centered/normalized inputs)",
+    "diff_from_baseline": "Pre-pends a non-affine LayerNorm-over-CHW (instance-level energy decoupling) before standard BatchNorm; no learnable mixing weights.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Reliability-gated BN $\\,/\\,$(GN+LN)",
+    "tagline": "Per-channel gate shrinks toward BN moments when local (GN+LN) moments agree with running batch statistics, away when they don't.",
+    "kind": "formula",
+    "formula": "$$ \\mu_{loc} = a\\,\\mu_g + (1-a)\\,\\mu_\\ell, \\qquad q_{loc} = a\\,q_g + (1-a)\\,q_\\ell, \\quad a = \\sigma(\\alpha) $$ $$ d = \\frac{(\\mu_{loc} - \\mu_b)^2}{v_b + \\epsilon} + \\big|\\log(v_{loc}+\\epsilon) - \\log(v_b+\\epsilon)\\big|,\\quad g = \\sigma\\!\\big(b_g - s_g^2\\, d\\big) $$ $$ \\mu = g\\,\\mu_b + (1-g)\\,\\mu_{loc}, \\quad v = g\\,q_b + (1-g)\\,q_{loc} - \\mu^2,\\quad y = \\gamma\\frac{x-\\mu}{\\sqrt{v+\\epsilon}}+\\beta $$",
+    "key_hyperparams": [
+      {"name": "$\\alpha$", "value": "init 1", "role": "GN/LN local-moment mix logit", "learnable": true},
+      {"name": "$b_g$", "value": "init 1", "role": "gate bias", "learnable": true},
+      {"name": "$s_g$", "value": "init 1", "role": "gate sharpness (squared)", "learnable": true},
+      {"name": "BN momentum", "value": "0.1", "role": "running-stat update", "learnable": false},
+      {"name": "$G$", "value": "min(8, $C$) divisor", "role": "GN groups", "learnable": false},
+      {"name": "$\\gamma, \\beta$", "value": "ones, zeros", "role": "affine", "learnable": true}
+    ],
+    "init_recovers": "Pure BatchNorm when $g\\to1$ ($d=0$); pure GN+LN mix when $g\\to0$",
+    "diff_from_baseline": "Generalizes Switchable Norm: builds a sample-local moment from a learned GN/LN mix and gates it against running BN moments using a KL-like discrepancy $d$ that grows when local stats disagree with the batch.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Per-channel BN/GN moment blend",
+    "tagline": "Per-channel learnable sigmoid gate convexly mixes BN moments (running at eval) with GN moments before normalization.",
+    "kind": "formula",
+    "formula": "$$ \\mu = g\\,\\mu_b + (1-g)\\,\\mu_g, \\qquad v = g\\,v_b + (1-g)\\,v_g, \\qquad g = \\sigma(\\alpha) $$ $$ y = \\gamma \\odot \\frac{x - \\mu}{\\sqrt{v + \\epsilon}} + \\beta $$",
+    "key_hyperparams": [
+      {"name": "$\\alpha$", "value": "init 2.0", "role": "per-channel BN/GN mix logit", "learnable": true},
+      {"name": "BN momentum", "value": "0.1", "role": "running-stat update", "learnable": false},
+      {"name": "groups", "value": "$\\max(1, C/16)$ then $C/8$ fallback", "role": "GN group count", "learnable": false},
+      {"name": "$\\gamma, \\beta$", "value": "ones, zeros", "role": "affine", "learnable": true}
+    ],
+    "init_recovers": "BatchNorm at $\\alpha\\to+\\infty$, GroupNorm at $\\alpha\\to-\\infty$",
+    "diff_from_baseline": "Like Switchable Norm but only mixes BN and GN, the mixing weight is per-channel (not per-norm), the BN branch uses running stats at eval to avoid train/test drift, and the GN/BN moments themselves (not the normalized outputs) are blended.",
+    "confidence": "high"
+  }
+]

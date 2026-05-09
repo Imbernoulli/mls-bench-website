@@ -1,0 +1,74 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Regime-Routed (KL-UCB / LinTS / DTS+PH)",
+    "tagline": "Routes by regime: KL-UCB if K>5 stationary, LinTS if contextual, dual-rate discounted Thompson Sampling with two-sided Page-Hinkley soft-reset on K≤5 nonstationary.",
+    "kind": "pseudocode",
+    "pseudocode": "// Regime: contextual if context_dim>0, else 'small-K nonstationary' if K≤5, else stationary KL-UCB\n// Stationary (K>5): standard KL-UCB index via 32-iter binary search\n// Contextual: LinTS with Cholesky sample θ ~ N(B^{-1}f, v²·B^{-1}); v² = 0.25, λ = 1\n// Small-K nonstationary: discounted Beta TS\n// 1. on update: γ_eff ← γ_burst (=0.92) if burst else γ (=0.998); α,β ← 1 + (·−1)·γ_eff; α[arm]+=r, β[arm]+=1−r\n// 2. Page-Hinkley per arm (allowance δ=0.01, threshold 5):\n//    PH_pos = sum − min(sum); PH_neg = analog on −·\n//    if max(PH_pos, PH_neg) > 5 and n>20 → soft reset: α,β ← 1 + (·−1)·0.05; reset PH; burst_remaining ← 50\n// select on small-K: argmax Beta(α,β) sample",
+    "key_hyperparams": [
+      {"name": "γ slow / fast", "value": "0.998 / 0.92", "role": "discount factors (normal vs burst)", "learnable": false},
+      {"name": "burst_length", "value": "50", "role": "steps of fast discount after detected change", "learnable": false},
+      {"name": "PH threshold / δ", "value": "5.0 / 0.01", "role": "Page-Hinkley change-detection params", "learnable": false},
+      {"name": "soft_reset decay", "value": "0.05", "role": "fraction of mass kept after soft reset", "learnable": false},
+      {"name": "min_n for PH", "value": "20", "role": "minimum arm pulls before PH triggers", "learnable": false},
+      {"name": "LinTS λ / v²", "value": "1.0 / 0.25", "role": "regularization / sampling scale", "learnable": false},
+      {"name": "regime gate", "value": "K ≤ 5 → nonstationary; else KL-UCB", "role": "routing rule", "learnable": false}
+    ],
+    "init_recovers": "KL-UCB on stationary, LinTS on contextual",
+    "diff_from_baseline": "Versus the three baselines, builds an explicit regime router: KL-UCB on big-K stationary, LinTS contextual, and a discounted-Thompson policy with two-sided Page-Hinkley + dual-rate decay (slow γ then fast γ for burst_length steps after detected change) for small-K nonstationary.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Discounted KL-UCB + LinUCB",
+    "tagline": "KL-UCB using both full and discounted statistics (switches at t>1000) plus a LinUCB head for the contextual case.",
+    "kind": "formula",
+    "formula": "$$N_a^{(d)} \\leftarrow \\gamma N_a^{(d)} + \\mathbf{1}[\\text{pull}=a],\\ S_a^{(d)} \\leftarrow \\gamma S_a^{(d)} + r\\cdot\\mathbf{1}[\\cdot],\\ \\gamma = 0.995,$$ $$n_{\\mathrm{eff}} = N_a^{(d)}\\,\\tfrac{1-\\gamma}{1-\\gamma^{N_a^{(d)}}},\\quad U_a = \\sup\\{q : n_{\\mathrm{eff}}\\,\\mathrm{kl}(\\hat\\mu^{(d)}_a, q) \\le \\log t\\}\\ (t > 1000),$$ $$\\mathrm{LinUCB:}\\ \\theta_a = A_a^{-1} b_a,\\ U_a = \\theta_a^\\top x + \\sqrt{2\\log(t+1)\\cdot x^\\top A_a^{-1} x}.$$",
+    "key_hyperparams": [
+      {"name": "γ (discount)", "value": "0.995", "role": "exponential decay of counts/rewards", "learnable": false},
+      {"name": "switch threshold", "value": "t = 1000", "role": "use discounted stats only after this", "learnable": false},
+      {"name": "KL-UCB c", "value": "1.0", "role": "exploration constant", "learnable": false},
+      {"name": "LinUCB λ", "value": "1.0", "role": "ridge regularization", "learnable": false},
+      {"name": "LinUCB α(t)", "value": "sqrt(2 log(t+1))", "role": "exploration scale", "learnable": false}
+    ],
+    "init_recovers": "KL-UCB at t ≤ 1000; standard LinUCB on contextual",
+    "diff_from_baseline": "Versus KL-UCB / LinUCB baselines, maintains discounted parallel statistics (γ=0.995) and switches the index from full-history KL-UCB to discounted KL-UCB with effective sample size after t = 1000; contextual case is plain LinUCB.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "KL-UCB + Multi-Window GLR Reset (LinTS contextual)",
+    "tagline": "KL-UCB on per-arm reward histories with a multi-window Bernoulli GLR change-detector that triggers a hard era reset; contextual case uses eigh-based LinTS.",
+    "kind": "pseudocode",
+    "pseudocode": "// Contextual: LinTS via eigendecomp of v²·B⁻¹ (v² = 0.01, λ = 0.4)\n// MAB: maintain per-arm history list; era_t increments every step\n// Select: round-robin if any arm empty, else argmax kl_ucb_bound(μ_a, n_a, era_t, c=1)\n// Update(arm, r):\n//   history[arm].append(r); era_t += 1\n//   for W ∈ {20, 50, 100, 200} with n > 1.5W:\n//     past_mean / recent_mean / all_mean from history[arm]\n//     GLR = n_past·KL(past_mean, all_mean) + n_recent·KL(recent_mean, all_mean)\n//     if GLR > 12: reset era_t ← 0; clear all histories  // hard reset",
+    "key_hyperparams": [
+      {"name": "GLR windows", "value": "[20, 50, 100, 200]", "role": "multi-scale change windows", "learnable": false},
+      {"name": "GLR threshold", "value": "12", "role": "Bernoulli GLR statistic for reset", "learnable": false},
+      {"name": "min_n for window W", "value": "n > 1.5·W", "role": "stability before checking", "learnable": false},
+      {"name": "KL-UCB c", "value": "1.0", "role": "exploration constant", "learnable": false},
+      {"name": "LinTS λ / v²", "value": "0.4 / 0.01", "role": "ridge / sampling scale (small)", "learnable": false}
+    ],
+    "init_recovers": "KL-UCB on stationary, LinTS on contextual when no GLR fires",
+    "diff_from_baseline": "Versus KL-UCB, attaches a multi-scale Bernoulli GLR test on the most-recently-pulled arm's history (windows 20/50/100/200, threshold 12) that hard-resets the era_t and full history on detection; contextual uses LinTS with very tight v² = 0.01.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Regime-Routed Memory Fusion",
+    "tagline": "Three internal heads — small-K stationary uses KL-UCB blended with sliding-window KL-UCB; nonstationary uses drift-gated long+short Thompson; contextual uses optimistic LinUCB with mild noise.",
+    "kind": "pseudocode",
+    "pseudocode": "// Maintain full counts/rewards + sliding window of size W (160 for small-K, 900 else)\n// Regime: contextual if context else small-K (K≤5) else 'big-K nonstationary'\n// Contextual: v_a = θ_a·x + (0.35 + 0.7/√(n_a+1))·s_a + 0.08·s_a·𝒩(0,1), s_a = √(x·B⁻¹_a·x); LinUCB with Sherman-Morrison\n// Small-K stationary: argmax 0.8·kl_ucb_bound(global, c=0.7) + 0.2·kl_ucb_bound(local_window, c=0.1)\n//   plus periodic full reset every 2000 steps\n// Big-K nonstationary: drift weight w = σ(4·(√min(n_local,64)·|μ_local−μ_global| − 0.75))\n//   sample θ_g ~ Beta(global), θ_l ~ Beta(local); add bonus 0.12·√(log(t+2)/eff_n)\n//   argmax (1−w)·θ_g + w·θ_l + bonus",
+    "key_hyperparams": [
+      {"name": "W (sliding window)", "value": "160 (K≤5 noctx) / 900 (else)", "role": "regime-specific window length", "learnable": false},
+      {"name": "small-K KL-UCB blend", "value": "0.8·global + 0.2·local; c=0.7 / c=0.1", "role": "two-scale KL-UCB", "learnable": false},
+      {"name": "small-K hard reset", "value": "every 2000 steps", "role": "periodic full memory wipe", "learnable": false},
+      {"name": "drift gate σ(·)", "value": "σ(4·(√min(n_loc,64)·|Δμ| − 0.75))", "role": "weights global vs local TS", "learnable": false},
+      {"name": "exploration bonus", "value": "0.12·√(log(t+2)/eff_n)", "role": "added to drift-fused TS sample", "learnable": false},
+      {"name": "LinUCB exploration", "value": "0.35 + 0.7/√(n+1)", "role": "decaying optimism", "learnable": false},
+      {"name": "LinUCB noise σ", "value": "0.08·s", "role": "small randomized exploration term", "learnable": false}
+    ],
+    "init_recovers": "KL-UCB on small-K (when local window empty); LinUCB-like on contextual",
+    "diff_from_baseline": "Versus KL-UCB / Thompson / LinUCB baselines, fuses long- and short-memory statistics in three different ways depending on regime: blended KL-UCB for small-K (with periodic hard reset), drift-gated TS-fusion for big-K nonstationary, and optimistic LinUCB with decaying optimism + small Gaussian noise for contextual.",
+    "confidence": "high"
+  }
+]

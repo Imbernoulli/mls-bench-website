@@ -1,0 +1,67 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "AUTO-S + LR-Adaptive Noise (LR-ANS)",
+    "tagline": "Per-sample normalize gradients (AUTO-S, γ=0.01) and scale noise as 1/sqrt(lr_t) of the cosine LR; sigma_0 calibrated so harmonic-mean = budget sigma.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for step t do\n// 2.   $\\rho_t = \\tfrac12(1+\\cos(\\pi\\,t/T))$ (cosine LR ratio), clamp $\\geq 0.05$\n// 3.   $f_t = \\min(1/\\sqrt{\\rho_t}, 4)$\n// 4.   per-sample $\\tilde g_i = g_i/(\\|g_i\\|+\\gamma)$ (AUTO-S, sensitivity≤1)\n// 5.   $\\bar g = \\tfrac{1}{B}\\sum_i \\tilde g_i$\n// 6.   $\\sigma_t = \\sigma_0 f_t$ where $\\sigma_0 = \\sigma\\sqrt{\\tfrac{\\sum_t 1/f_t^2}{T}}$ (harmonic-mean calibration)\n// 7.   $\\hat g = \\bar g + \\mathcal{N}(0, (\\sigma_t/B)^2)$",
+    "key_hyperparams": [
+      {"name": "γ (AUTO-S)", "value": "0.01", "role": "denominator regularizer in normalization", "learnable": false},
+      {"name": "max_noise_factor", "value": "4.0", "role": "cap on per-step noise growth", "learnable": false},
+      {"name": "lr_floor", "value": "0.05", "role": "minimum cosine ratio to avoid blow-up", "learnable": false}
+    ],
+    "init_recovers": "AUTO-S baseline when LR-ratio is constant",
+    "diff_from_baseline": "Vs automatic_clipping (AUTO-S) and noise_decay: keeps AUTO-S per-sample normalization (sensitivity 1) but instead of step-decay schedules the noise as 1/sqrt(cosine LR), with sigma_0 chosen so the harmonic mean of per-step noises equals the calibrated budget sigma; uses a smaller γ=0.01 vs AUTO-S baseline's 1.0.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Layer-wise Adaptive Clip + Noise Decay",
+    "tagline": "Per-layer Andrew-style quantile-adaptive clip thresholds combined with the noise_decay step-decay schedule on σ and global clip.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. stage $s = (\\text{epoch}-1)\\div(\\lceil E/4\\rceil)$\n// 2. $\\sigma_s = \\sigma_0 \\cdot 0.8^s$, $C^{glb}_s = C_0 \\cdot 0.85^s$\n// 3. for each layer $\\ell$\n// 4.   $\\rho_\\ell = \\Pr_i[\\|g_{\\ell,i}\\| > C_\\ell]$\n// 5.   $C_\\ell \\leftarrow \\mathrm{clip}\\big(C_\\ell e^{0.1(\\rho_\\ell - 0.5)}, 0.01, 10\\big)$\n// 6.   effective $C^{eff}_\\ell = \\mathrm{clip}(C_\\ell\\,C^{glb}_s/C_0, 0.01, 10)$\n// 7.   per-sample clip $g_{\\ell,i} \\cdot \\min(1, C^{eff}_\\ell/\\|g_{\\ell,i}\\|)$, average\n// 8.   add noise $\\mathcal{N}(0, (\\sigma_s C^{eff}_\\ell/B)^2)$",
+    "key_hyperparams": [
+      {"name": "decay_interval", "value": "max(1, epochs//4)", "role": "epochs per decay stage", "learnable": false},
+      {"name": "noise_decay_factor", "value": "0.8", "role": "per-stage σ multiplier", "learnable": false},
+      {"name": "clip_decay_factor", "value": "0.85", "role": "per-stage global C multiplier", "learnable": false},
+      {"name": "target_quantile", "value": "0.5", "role": "Andrew clip target", "learnable": false},
+      {"name": "clip_lr", "value": "0.1", "role": "geometric step for per-layer threshold", "learnable": false},
+      {"name": "clip_min, clip_max", "value": "0.01, 10.0", "role": "per-layer clip bounds", "learnable": false}
+    ],
+    "init_recovers": "Adaptive clipping at noise_decay_factor=1; noise_decay at quantile rule disabled",
+    "diff_from_baseline": "Vs adaptive_clipping + noise_decay: maintains a separate Andrew-style EMA threshold for EACH layer (rather than one global threshold), and modulates each per-layer threshold by the noise_decay step-decay schedule; noise per layer is calibrated to its own effective clip rather than a global one.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "AUTO-S + Step-Decay Noise (AUTO-S-ND)",
+    "tagline": "AUTO-S per-sample normalization with the noise_decay-style step-decay σ schedule, calibrated so harmonic-mean σ equals the budget σ.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. stage $s = (\\text{epoch}-1)\\div(\\lceil E/4\\rceil)$, $\\sigma_t = \\sigma_0\\cdot 0.8^s$\n// 2. $\\sigma_0$ chosen s.t. harmonic mean over all steps equals calibrated $\\sigma$\n// 3. per-sample normalize $\\tilde g_i = g_i/(\\|g_i\\| + 0.01)$\n// 4. $\\bar g = \\tfrac{1}{B}\\sum_i \\tilde g_i$\n// 5. $\\hat g = \\bar g + \\mathcal{N}(0, (\\sigma_t/B)^2)$",
+    "key_hyperparams": [
+      {"name": "γ", "value": "0.01", "role": "AUTO-S regularizer", "learnable": false},
+      {"name": "decay_interval", "value": "max(1, epochs//4)", "role": "epochs per decay stage", "learnable": false},
+      {"name": "noise_decay_factor", "value": "0.8", "role": "per-stage σ multiplier", "learnable": false}
+    ],
+    "init_recovers": "AUTO-S when noise_decay_factor=1",
+    "diff_from_baseline": "Vs automatic_clipping (AUTO-S) and noise_decay: composes AUTO-S sensitivity-1 normalization with the noise_decay step-decay σ schedule (no clipping decay since AUTO-S has no threshold), using harmonic-mean calibration of σ_0 to keep the privacy budget exact.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Anchor-Centered Residual Clipping + Late-Budget σ",
+    "tagline": "Subtracts an EMA anchor of past noisy gradients before clipping residuals, with a cosine importance noise schedule that gives later steps lower σ.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. cosine weight $w_t = 0.4 + 0.6\\cdot\\tfrac12(1-\\cos(\\pi t/T))$\n// 2. $\\sigma_t = \\sigma\\,\\sqrt{\\bar w/w_t}$ (harmonic-mean calibrated to budget)\n// 3. shrinking clip $C_t = C(0.6 + 0.4(1-t/T)^{1/2})$\n// 4. anchor $\\bar a$ (EMA $\\beta=0.9$ of past noisy grads); for $t\\geq$ warmup use center $c=0.55\\bar a$ else $c=0$\n// 5. residual $r_i = g_i - c$, clip $r_i \\cdot \\min(1, C_t/\\|r_i\\|)$\n// 6. average; add back $c$; add $\\mathcal{N}(0, (\\sigma_t C_t/B)^2)$\n// 7. update anchor with the released noisy gradient",
+    "key_hyperparams": [
+      {"name": "anchor_beta", "value": "0.90", "role": "EMA decay for public anchor", "learnable": false},
+      {"name": "center_scale", "value": "0.55", "role": "fraction of anchor used as recentering vector", "learnable": false},
+      {"name": "warmup_steps", "value": "max(10, steps_per_epoch//2)", "role": "delay before anchor-centering kicks in", "learnable": false},
+      {"name": "final_clip_ratio", "value": "0.60", "role": "C_T/C_0", "learnable": false},
+      {"name": "σ schedule", "value": "0.4 + 0.6·(1-cos)/2 cosine importance", "role": "non-uniform per-step noise budget", "learnable": false}
+    ],
+    "init_recovers": "Standard DP-SGD when anchor=0 and σ_t,C_t constant",
+    "diff_from_baseline": "Vs standard_dpsgd / noise_decay: clips per-sample RESIDUALS around an EMA anchor of previously released (already-noisy) gradients (anchor is post-DP, hence public), then adds the anchor back; noise σ follows a cosine-importance schedule that allocates less noise to later steps and clip C decays in a (1-t/T)^{1/2} curve; harmonic-mean calibration keeps total privacy exact.",
+    "confidence": "high"
+  }
+]

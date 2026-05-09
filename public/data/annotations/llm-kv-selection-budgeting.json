@@ -1,0 +1,87 @@
+[
+  {
+    "model": "claude-opus-4-6",
+    "name": "Recency-weighted EA + value diversity",
+    "tagline": "Expected-Attention with exponential-recency weighted query mean/cov, fused with a per-token value-diversity bonus and a recency ramp.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. if seq_len ≤ 64 or n_kept ≤ n_sink+4: skip compression\n// 2. for body tokens (after 4 sinks):\n//    w_t = exp(λ(t-T+1)) / Σexp,  λ = 0.008  (recency softmax over query positions)\n// 3. μ ← Σ w_t q_t,  Σ ← Σ √w_t (q_t - μ)(q_t - μ)^⊤  (weighted mean+cov)\n// 4. (μ, Σ) ← avg-RoPE over next 512 future positions\n// 5. score_t ← softmax(μ·k_t/√d + k_t^⊤Σ k_t / (2d))  · ‖v_t‖\n// 6. div_t ← 1 - 0.5(cos(v_t,v_{t-1}) + cos(v_t,v_{t+1}));  combined ← (1-β)·norm(score) + β·norm(div),  β = 0.12\n// 7. recent ramp: last n_recent = max(4, min(0.25·n_kept, body/2)) tokens get base+0.3..1.0\n// 8. sink (4) tokens forced to max+1; top-k by combined; rerotate kept keys to new positions",
+    "key_hyperparams": [
+      {"name": "λ_recency", "value": "0.008", "role": "exponential decay on query positions for weighted mean/cov", "learnable": false},
+      {"name": "β_diversity", "value": "0.12", "role": "weight of value-diversity blend", "learnable": false},
+      {"name": "recent_fraction", "value": "0.25", "role": "fraction of n_kept reserved as recency ramp", "learnable": false},
+      {"name": "n_future_positions", "value": "512", "role": "future window for avg-RoPE", "learnable": false},
+      {"name": "n_sink", "value": "4", "role": "always-kept attention sinks", "learnable": false},
+      {"name": "short_seq_threshold", "value": "64", "role": "below this length, compression is disabled", "learnable": false}
+    ],
+    "init_recovers": "Expected-Attention baseline at λ_recency=0, β_diversity=0, no recency ramp.",
+    "diff_from_baseline": "On top of Expected-Attention: replaces the uniform mean/covariance with an exponential-recency-weighted estimator, adds a normalized value-diversity bonus 1-cos(v,neighbors), and overlays a graded recency ramp on the most recent ~25% of kept tokens.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini/gemini-3.1-pro-preview",
+    "name": "GQA-pooled obs-window + cross-layer EMA",
+    "tagline": "Within an observation window of last 128 queries, GQA-max-pool attention onto KV heads, EMA across layers, then force-keep sinks and a budget-scaled recent window.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. layer_id == 0: skip compression entirely (anchor layer)\n// 2. take W_obs = min(128, T-1) most recent queries; project through q_proj + RoPE at their actual positions\n// 3. attn ← softmax(q · K^⊤ / √d)  (B, H_kv, G, W_obs, T)\n// 4. attn_pool ← max over G then over W_obs   ⟹  per-(KV-head, token) saliency\n// 5. if layer_id > 0: attn_pool ← 0.3·attn_prev + 0.7·attn_pool  (EMA bottom-up across layers)\n// 6. if use_value_norm: attn_pool ← (attn_pool + 1e-3) · ‖v_t‖\n// 7. force-keep first 4 sinks at max+1e4 + slope; force-keep last W_protect = min(64, n_kept/2, T-4) at max+slope\n// 8. top-k by score; sort indices; gather K, V (no rerotation)",
+    "key_hyperparams": [
+      {"name": "W_obs", "value": "128", "role": "observation-window size for explicit attention probing", "learnable": false},
+      {"name": "EMA α", "value": "0.3", "role": "weight on previous-layer accumulated_scores", "learnable": false},
+      {"name": "n_sink", "value": "4", "role": "always-kept attention sinks", "learnable": false},
+      {"name": "recent_tokens", "value": "64 (capped at n_kept/2)", "role": "always-kept tail window", "learnable": false},
+      {"name": "value_norm ε", "value": "1e-3", "role": "added to attn_pool before scaling by ‖v‖", "learnable": false},
+      {"name": "layer-0 bypass", "value": "True", "role": "no compression on layer 0", "learnable": false}
+    ],
+    "diff_from_baseline": "Departs from Expected-Attention by computing exact attention from a 128-token observation window (not future-query Gaussian), then GQA-max-pools across query-head groups and the window so a token critical to any head/query is preserved; adds a layer-bottom-up EMA for cross-layer consistency, plus a layer-0 bypass.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Anchor-balanced pooled saliency",
+    "tagline": "Workload/layer-conditioned sinks+tail, last-token query relevance fused with pool-novelty, value-norm, and a mid-context bridge prior.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. plan: sink_tokens = 8 if workload ∈ {hotpotqa, gsm8k, longbench_v2} else 4\n//          tail = (96 or 128 if repobench/gsm8k) + 32(if truncated) + 16; pool = 8 if T>512 else 4\n// 2. force sinks and last-tail tokens to score 1e6\n// 3. for body tokens [n_sink:T-tail]:\n//    a) q ← q_proj(h_T) projected onto KV-head groups, GQA-mean, then L2-normalize\n//    b) relevance_t ← cos(q, k_t)\n//    c) pool keys/values into chunks of size `pool`; novelty_t ← ‖k_t - mean(k_chunk)‖² (chunk-normalized)\n//    d) vnorm_t ← ‖v_t‖ (mean-normalized)\n//    e) bridge_t ← 1 - |t - center|/center  (mid-context preference)\n// 4. body_score = 0.60·relevance + 0.20·novelty + 0.15·vnorm + 0.05·bridge\n// 5. top-k → sort → rerotate kept keys to new RoPE positions",
+    "key_hyperparams": [
+      {"name": "sink_tokens", "value": "4 or 8 (per workload)", "role": "always-kept sinks; 8 for hotpotqa/gsm8k/longbench_v2", "learnable": false},
+      {"name": "tail (recent_window)", "value": "96 / 128 / +32 if truncated / +16", "role": "always-kept tail tokens, workload-dependent", "learnable": false},
+      {"name": "pool_size", "value": "8 (T>512) else 4", "role": "chunk size for novelty pooling", "learnable": false},
+      {"name": "weights", "value": "[0.60, 0.20, 0.15, 0.05]", "role": "(relevance, novelty, vnorm, bridge)", "learnable": false},
+      {"name": "rerotate_selected_keys", "value": "True", "role": "RoPE re-rotation after pruning", "learnable": false}
+    ],
+    "diff_from_baseline": "A heuristic departure from EA/StreamingLLM: uses only the last-token query (no Gaussian future model), adds chunk-level novelty and a mid-context bridge term, and tunes sinks/tail/pool size by workload metadata so different LongBench tasks get different recency budgets.",
+    "confidence": "medium"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Expected-Attention + value-norm gate + pos bias",
+    "tagline": "Expected-Attention scoring multiplied by a min-max value-norm gate, with an explicit edge boost on first 16 / last 32 tokens.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. body = tokens[4:];  μ, Σ ← mean and covariance of pre-RoPE queries q_t over body\n// 2. avg-RoPE μ, Σ over next 512 future positions\n// 3. attn_t ← softmax((μ·k_t/√d + k_t^⊤Σk_t/(2d)) / temperature),  GQA mean across head groups\n// 4. v̂_t ← ‖v_t‖ min-max normalized to [0,1]\n// 5. combined_t ← (attn_t + 0.5) · (v̂_t + 0.5) / temperature\n// 6. add positional bonus: linear ramp 0.3→0 over first 16 tokens, +0.3 on last 32 tokens\n// 7. prepend sinks (4) at max+1; top-k → sort → rerotate kept keys to new RoPE positions",
+    "key_hyperparams": [
+      {"name": "n_sink", "value": "4", "role": "always-kept attention sinks", "learnable": false},
+      {"name": "n_future_positions", "value": "512", "role": "future window for avg-RoPE", "learnable": false},
+      {"name": "use_covariance", "value": "True", "role": "include covariance correction term", "learnable": false},
+      {"name": "temperature", "value": "1.0", "role": "softmax temperature on attention scores", "learnable": false},
+      {"name": "first/last edge bonus", "value": "16 / 32 tokens, +0.3 max", "role": "explicit positional priors", "learnable": false},
+      {"name": "rerotate_selected_keys", "value": "True", "role": "RoPE re-rotation after pruning", "learnable": false}
+    ],
+    "init_recovers": "Expected-Attention with value-norm rescaling when the position bonus is zero and the +0.5 offsets do not change the top-k ranking.",
+    "diff_from_baseline": "On top of Expected-Attention: multiplies (attn+0.5) by a min-max-rescaled (vnorm+0.5) instead of additive (attn+ε)·‖v‖, adds a hand-coded ramp boosting the first 16 and last 32 tokens, and re-rotates selected keys to compact positions.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "Last-token attention + value-norm",
+    "tagline": "Treat the last hidden state's query as the future-query proxy; score keys by softmax dot product, scale by value norm, force-keep 4 sinks.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. q ← q_proj(h_T)[:, last token]; reshape and GQA-mean to KV-head dimension\n// 2. score_t ← softmax(q · k_t^⊤ / √d) along t\n// 3. score_t ← (score_t + 1e-6) · ‖v_t‖    (value-norm rescaling)\n// 4. score[:, :, :4] ← max(score)  (preserve sinks)\n// 5. top-k by score, sort indices, rerotate kept keys to new RoPE positions",
+    "key_hyperparams": [
+      {"name": "n_sink", "value": "4", "role": "always-kept attention sinks", "learnable": false},
+      {"name": "use_value_norm", "value": "True", "role": "scale attention by ‖v‖", "learnable": false},
+      {"name": "ε", "value": "1e-6", "role": "additive smoothing before vnorm scaling", "learnable": false},
+      {"name": "rerotate_selected_keys", "value": "True", "role": "RoPE re-rotation after pruning", "learnable": false}
+    ],
+    "init_recovers": "A stripped-down Expected-Attention with no covariance, no future-position averaging, and only the very last query.",
+    "diff_from_baseline": "Simplifies Expected-Attention down to a single deterministic future query (the last hidden state), drops the covariance correction and the future-position RoPE averaging, but keeps the sink protection and value-norm rescaling, then rerotates kept keys.",
+    "confidence": "high"
+  }
+]

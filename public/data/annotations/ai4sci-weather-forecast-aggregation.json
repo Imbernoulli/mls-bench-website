@@ -1,0 +1,111 @@
+[
+  {
+    "model": "claude-opus-4-6",
+    "name": "Adaptive Query + Gated Mean Residual",
+    "tagline": "Augments ClimaX cross-attention with a context-conditioned query delta and a sigmoid-gated residual injection of the variable-mean token.",
+    "kind": "formula",
+    "formula": "$$\\bar{x}_\\ell = \\tfrac{1}{V}\\sum_v x_{\\ell,v},\\quad q_\\ell = q_0 + W_q\\,\\mathrm{LN}(\\bar{x}_\\ell)$$\n$$a_\\ell = \\mathrm{MHA}(q_\\ell,\\,X_\\ell,\\,X_\\ell),\\quad g_\\ell = \\sigma\\!\\bigl(W_g\\,\\mathrm{LN}(a_\\ell)+b_g\\bigr)$$\n$$z_\\ell = a_\\ell + g_\\ell \\odot \\bar{x}_\\ell$$",
+    "key_hyperparams": [
+      {"name": "W_q init", "value": "0", "role": "query-adapter weight (zero-init keeps pretrained baseline at start)", "learnable": true},
+      {"name": "W_g init", "value": "0", "role": "gate weight (zero-init)", "learnable": true},
+      {"name": "b_g", "value": "-4.0", "role": "gate bias so sigmoid starts near 0.018", "learnable": true}
+    ],
+    "init_recovers": "ClimaX cross-attention at init",
+    "diff_from_baseline": "Extends the cross_attention baseline by making the learnable query content-conditioned via a zero-initialized linear adapter and adding a sigmoid-gated residual from the per-location variable mean.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Inter-Variable Transformer Block + Context Query",
+    "tagline": "Pre-aggregator transformer block (variable self-attention plus FFN) followed by cross-attention with a query conditioned on mean and max context.",
+    "kind": "hybrid",
+    "formula": "$$\\tilde{X} = X + W_{\\!o}\\,\\mathrm{MHA}\\bigl(W_{\\!h}\\mathrm{LN}(X)\\bigr)\\!,\\ X' = \\tilde{X} + \\mathrm{FFN}(\\mathrm{LN}(\\tilde{X}))$$\n$$c = [\\mathrm{mean}_v X' \\,\\Vert\\, \\max_v X'],\\quad q = q_0 + g(c)$$\n$$z = \\mathrm{MHA}(q,\\,X',\\,X')$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "X [B,V,L,D]"},
+        {"id": "sa", "label": "Var SA (D/2 bottleneck)"},
+        {"id": "ffn", "label": "Var FFN"},
+        {"id": "ctx", "label": "mean+max context"},
+        {"id": "q", "label": "q_0 + g(c)"},
+        {"id": "ca", "label": "Cross-Attn"},
+        {"id": "z", "label": "Z [B,L,D]"}
+      ],
+      "edges": [
+        {"from": "x", "to": "sa"},
+        {"from": "sa", "to": "ffn"},
+        {"from": "ffn", "to": "ctx"},
+        {"from": "ctx", "to": "q"},
+        {"from": "ffn", "to": "ca", "label": "K,V"},
+        {"from": "q", "to": "ca", "label": "Q"},
+        {"from": "ca", "to": "z"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "embed_dim/2", "role": "bottleneck for inter-var SA and FFN", "learnable": false},
+      {"name": "interact_out, ffn out, query_proj out", "value": "0-init", "role": "preserves pretrained behavior at start", "learnable": true}
+    ],
+    "init_recovers": "ClimaX cross-attention at init",
+    "diff_from_baseline": "Inserts a full transformer block (self-attention plus FFN, both bottlenecked to D/2 with zero-initialized output projections) over the variable axis before the standard cross-attention, and conditions the query on a concatenated mean+max context.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Anomaly-Aware Dual-Path Aggregator",
+    "tagline": "Mixes pretrained cross-attention with an anomaly-weighted softmax pool, blended via a context gate and anchored by a residual mean.",
+    "kind": "formula",
+    "formula": "$$\\bar{x}=\\mathrm{mean}_v X,\\ \\delta=X-\\bar{x},\\ s=\\delta^{2}\\text{ averaged over }v,\\ c=W_c[\\bar{x}\\,\\Vert\\,s]$$\n$$a^{(1)} = \\mathrm{MHA}(q_0,X,X)$$\n$$\\alpha = \\mathrm{softmax}_v\\bigl(W_a(X+\\tanh(\\delta_p)\\,(X-\\bar{x})+c)\\bigr),\\quad a^{(2)} = \\sum_v \\alpha_v X_v$$\n$$g = \\mathrm{softmax}(W_g c),\\quad z = \\mathrm{LN}\\bigl(g_1 a^{(1)} + g_2 a^{(2)} + \\bar{x}\\bigr)$$",
+    "key_hyperparams": [
+      {"name": "delta", "value": "0.5 (init)", "role": "scalar that scales centered residual in anomaly score (passed through tanh)", "learnable": true},
+      {"name": "context_proj", "value": "Linear(2D->D)", "role": "fuses mean and per-variable spread", "learnable": true},
+      {"name": "gate_proj", "value": "Linear(D->2)", "role": "context-driven mixture between attention path and anomaly path", "learnable": true}
+    ],
+    "init_recovers": "Approximately ClimaX cross-attention plus mean residual",
+    "diff_from_baseline": "Adds a second softmax-pooling path that scores each variable by anomaly relative to local consensus, mixes it with the pretrained cross-attention via a softmax gate over a mean+spread context, and applies a LayerNorm residual anchor on the variable mean.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Inter-Variable SA + Cross-Attention (Two-Stage)",
+    "tagline": "Self-attention across variables with a learnable scalar gain, followed by the standard learnable-query cross-attention; both stages wrapped in post-norm residuals.",
+    "kind": "formula",
+    "formula": "$$X' = \\mathrm{LN}\\!\\bigl(X + \\alpha\\,\\mathrm{MHA}_\\text{var}(X,X,X)\\bigr)$$\n$$z = \\mathrm{LN}\\!\\bigl(q_0 + \\mathrm{MHA}(q_0, X', X')\\bigr)$$",
+    "key_hyperparams": [
+      {"name": "alpha", "value": "0.5 (init)", "role": "learnable scale on the inter-variable self-attention contribution", "learnable": true},
+      {"name": "learning_rate (override)", "value": "3e-4", "role": "lowered from 5e-4 default", "learnable": false}
+    ],
+    "init_recovers": "Cross-attention baseline when alpha shrinks toward 0 (with norm)",
+    "diff_from_baseline": "Prepends an inter-variable multi-head self-attention block with a learnable scalar gain and post-norm residual to the original cross-attention aggregator, and lowers the learning rate to 3e-4.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "Hierarchical Group Mean + Cross-Attn",
+    "tagline": "Buckets the 48 ClimaX variables into 8 physically motivated groups, mean-pools within each group, then cross-attends across the 8 group tokens.",
+    "kind": "hybrid",
+    "formula": "$$g_k = \\tfrac{1}{|S_k|}\\sum_{v\\in S_k} x_v,\\quad k=1,\\dots,8$$\n$$z = \\mathrm{LN}\\!\\bigl(\\mathrm{MHA}(q_0,\\,[g_1,\\dots,g_8],\\,[g_1,\\dots,g_8]) + \\lambda\\,\\bar{x}\\bigr)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "X [B,V=48,L,D]"},
+        {"id": "g", "label": "8 group means (constants/surface/z/u/v/T/RH/q)"},
+        {"id": "ca", "label": "Cross-Attn over G=8"},
+        {"id": "mean", "label": "global mean"},
+        {"id": "z", "label": "LN(out + lambda*mean)"}
+      ],
+      "edges": [
+        {"from": "x", "to": "g", "label": "group-pool"},
+        {"from": "g", "to": "ca", "label": "K,V"},
+        {"from": "ca", "to": "z"},
+        {"from": "x", "to": "mean"},
+        {"from": "mean", "to": "z", "label": "lambda"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "num_groups", "value": "8", "role": "constants, surface, geopotential, u-wind, v-wind, T, RH, q", "learnable": false},
+      {"name": "lambda (mean_weight)", "value": "0.1 (init)", "role": "scalar weight on residual global mean", "learnable": true},
+      {"name": "norm", "value": "LayerNorm(D)", "role": "post-aggregation normalization", "learnable": true}
+    ],
+    "init_recovers": "Cross-attention over 8 group tokens at init",
+    "diff_from_baseline": "Replaces the V=48 cross-attention input with G=8 hand-coded group-mean tokens (one per physical variable family across pressure levels) and adds a small learnable residual injection of the all-variable mean.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,65 @@
+[
+  {
+    "model": "deepseek-reasoner",
+    "name": "AGLU: Affine-Gated Linear Unit",
+    "tagline": "GLU-shaped MLP whose gating sigmoid uses a learnable per-channel affine transform of the gate stream.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{AGLU}(x) = \\bigl(\\sigma(\\gamma \\odot W_1 x + \\beta) \\odot W_3 x\\bigr)\\,W_o,\\quad \\gamma, \\beta \\in \\mathbb{R}^{d_h}\\;\\text{learnable}$$",
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "round_64(8/3 · n_embd)", "role": "GLU hidden width", "learnable": false},
+      {"name": "γ (gate_scale)", "value": "init 1, shape [d_h]", "role": "per-channel scale on pre-sigmoid", "learnable": true},
+      {"name": "β (gate_shift)", "value": "init 0, shape [d_h]", "role": "per-channel bias on pre-sigmoid", "learnable": true},
+      {"name": "learning_rate", "value": "7e-4", "role": "raised LR override (vs default 6e-4)", "learnable": false}
+    ],
+    "init_recovers": "Plain sigmoid-GLU (SwiGLU/GeGLU style) when γ=1, β=0.",
+    "diff_from_baseline": "Compared to SwiGLU/GeGLU which apply a fixed nonlinearity (SiLU or GELU) to W₁x, AGLU uses a sigmoid gate with a learnable per-channel affine pre-activation γ⊙(W₁x)+β; same parameter budget except for the two extra hidden-dim vectors, plus LR override 7e-4.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Adaptive-Swish MLP",
+    "tagline": "Standard 4× MLP with a Swish gate whose β is a single learnable scalar (plus learnable bias).",
+    "kind": "formula",
+    "formula": "$$h = W_1 x,\\quad y = W_o\\bigl(h \\odot \\sigma(\\alpha\\, h + \\beta)\\bigr),\\quad \\alpha, \\beta \\in \\mathbb{R}\\;\\text{learnable}$$",
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "4 · n_embd", "role": "MLP expansion (no GLU)", "learnable": false},
+      {"name": "α", "value": "init 1, scalar", "role": "Swish/SiLU temperature", "learnable": true},
+      {"name": "β", "value": "init 0, scalar", "role": "shift inside sigmoid gate", "learnable": true}
+    ],
+    "init_recovers": "SiLU MLP (β-Swish, β=1) at α=1, β=0.",
+    "diff_from_baseline": "Replaces the fixed GELU activation with a single-scalar learnable β-Swish (h·σ(αh+β)) at the same 4× expansion, no GLU branch — strictly more parameter-efficient than SwiGLU/GeGLU but adds a per-MLP scalar tuning of activation steepness.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Squared-SiLU GLU (NSS-GLU)",
+    "tagline": "GLU with a squared-and-normalised SiLU gate at hidden width 2·n_embd, preserving the 4× parameter budget.",
+    "kind": "formula",
+    "formula": "$$y = W_o\\bigl((W_1 x) \\odot \\frac{\\mathrm{SiLU}(W_2 x)^2}{1.27}\\bigr),\\quad d_h = 2\\,d$$",
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "2 · n_embd", "role": "GLU width keeps 4× param budget", "learnable": false},
+      {"name": "gate_norm", "value": "1.27", "role": "fixed scalar to keep activation scale ≈ SwiGLU", "learnable": false},
+      {"name": "activation", "value": "SiLU(g)² (always positive)", "role": "sharper gate than SiLU", "learnable": false},
+      {"name": "no projection bias", "value": "config.bias", "role": "follows model config", "learnable": false}
+    ],
+    "init_recovers": "Approximately SwiGLU at small g (SiLU(g)²/1.27 ≈ 0.79·g·σ(g) for moderate g).",
+    "diff_from_baseline": "Replaces the SiLU/GELU gate of SwiGLU/GeGLU with the squared SiLU gate SiLU(g)²/1.27 at hidden_dim = 2·d (same 4× param budget); the squared, always-positive gate is sharper than SwiGLU and the 1.27 normaliser keeps the activation scale matched.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Adaptive Squared GELU (ASG)",
+    "tagline": "Sigmoid-gated MLP with a single learnable interpolant between GELU and GELU·h, plus a hidden-dim LayerNorm.",
+    "kind": "formula",
+    "formula": "$$h = \\mathrm{GELU}(W_1 x),\\quad \\tilde{h} = h\\,\\bigl(1 + s\\,(h - 1)\\bigr),\\quad y = W_o\\bigl(\\mathrm{LN}(\\tilde{h}) \\odot \\sigma(W_g x)\\bigr)$$",
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "round_64(8/3 · n_embd)", "role": "GLU-equivalent width", "learnable": false},
+      {"name": "s (squash)", "value": "init 0.5, scalar", "role": "interpolates GELU (s=0) ↔ GELU·h (s=1)", "learnable": true},
+      {"name": "LayerNorm(d_h)", "value": "no bias", "role": "stabilises squared activations", "learnable": false},
+      {"name": "gate", "value": "σ(W_g x)", "role": "extra GLU-style gating branch", "learnable": false}
+    ],
+    "init_recovers": "GeGLU at s=0 (LN(GELU(W₁x)) · σ(W_g x)).",
+    "diff_from_baseline": "Adds two pieces on top of GeGLU: a single learnable squash s that interpolates h vs. h² in the activation branch, and a LayerNorm on the hidden activations — the named baselines have neither a squash blend nor an internal LayerNorm.",
+    "confidence": "high"
+  }
+]

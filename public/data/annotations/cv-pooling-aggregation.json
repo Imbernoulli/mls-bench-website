@@ -1,0 +1,73 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Avg + Gated Std + (Max-Avg) Residual",
+    "tagline": "Augments global average pooling with two learnable corrections: spatial std (a spread term) and the max-minus-mean residual.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{Pool}(x) = \\bar{x} + \\sigma(\\alpha)\\,\\mathrm{std}(x) + (1-\\sigma(\\alpha))\\,(\\max(x) - \\bar x),$$ where $\\bar x, \\mathrm{std}(x), \\max(x)\\in\\mathbb{R}^C$ are spatial statistics. If $H\\!\\cdot\\!W = 1$, return $\\bar x$.",
+    "key_hyperparams": [
+      {"name": "alpha", "value": "0.5 (init)", "role": "logit mixing std vs max-minus-mean", "learnable": true},
+      {"name": "eps", "value": "1e-6", "role": "numerical stability", "learnable": false}
+    ],
+    "init_recovers": "GAP at α=−∞ (when std and max-mean both contribute 0)",
+    "diff_from_baseline": "Versus AvgMax / GeM, replaces the single mean-vs-max blend with a triplet (mean, spatial std, max−mean residual), where σ(α) divides total perturbation between the std and the max-residual branches; falls back to GAP on 1×1 maps.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Per-Channel Avg/Max Gate",
+    "tagline": "Replaces GAP with a per-channel gated combination of average and max pooling, with a learned channel gate and a global temperature.",
+    "kind": "formula",
+    "formula": "$$g_c = \\sigma(w_c \\cdot \\tau),\\qquad \\mathrm{Pool}(x)_c = g_c\\,\\mathrm{GAP}(x)_c + (1 - g_c)\\,\\mathrm{GMP}(x)_c,\\quad w \\in \\mathbb{R}^{2048}.$$",
+    "key_hyperparams": [
+      {"name": "max_channels", "value": "2048", "role": "size of static gate parameter buffer", "learnable": false},
+      {"name": "gate_weight w", "value": "zeros (init)", "role": "per-channel logit, sigmoid(0)=0.5", "learnable": true},
+      {"name": "temperature τ", "value": "1.0 (init)", "role": "global gate sharpness", "learnable": true}
+    ],
+    "init_recovers": "AvgMax (uniform 0.5/0.5) at init",
+    "diff_from_baseline": "Versus AvgMax, swaps the fixed 0.5 mixing with per-channel sigmoid gates and a learnable temperature so each channel autonomously slides between mean and max pooling. Excess channels (beyond 2048) just use plain average pooling.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Global Max Pool",
+    "tagline": "Replaces global average pooling with global max pooling — identical to the global_max baseline.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{Pool}(x)_c = \\max_{h,w}\\,x_{c,h,w}.$$",
+    "key_hyperparams": [],
+    "init_recovers": "Same as global_max baseline",
+    "diff_from_baseline": "Identical to the global_max baseline (single-line F.adaptive_max_pool2d), no learnable parameters or new mechanism.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Variance-Calibrated Softmax Pooling",
+    "tagline": "Adds a content-adaptive softmax-attention branch to GAP, gated by a normalized per-channel variance score so high-variance channels lean toward saliency pooling.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{logits}_{h,w} = \\bar{x}_{h,w}\\cdot\\mathrm{softplus}(\\alpha),\\qquad a_{h,w} = \\mathrm{softmax}_{h,w}(\\mathrm{logits}),\\qquad \\bar{x}_{h,w} = \\tfrac{1}{C}\\sum_c x_{c,h,w},$$ $$g_c = \\sigma\\!\\left(\\frac{\\mathrm{Var}_{h,w}(x_c)}{|\\mathrm{GAP}(x)_c| + \\sqrt{\\mathrm{Var}_{h,w}(x_c)} + \\varepsilon} + b\\right),\\qquad \\mathrm{Pool}(x)_c = \\mathrm{GAP}(x)_c + g_c\\,\\big(\\langle a, x_c\\rangle - \\mathrm{GAP}(x)_c\\big).$$",
+    "key_hyperparams": [
+      {"name": "alpha", "value": "1.0 (init)", "role": "softmax-attention temperature (via softplus)", "learnable": true},
+      {"name": "mix_bias b", "value": "-0.5 (init)", "role": "global bias toward GAP at init", "learnable": true},
+      {"name": "eps", "value": "1e-6", "role": "numerical stability in variance gate", "learnable": false}
+    ],
+    "init_recovers": "GAP when mix_bias→−∞ so g_c→0 (stays close at init)",
+    "diff_from_baseline": "Versus AvgMax / attention-pool, builds a softmax-attention branch over channel-mean logits, then per-channel-mixes with GAP using a sigmoid gate of normalized variance (low-spread channels stay GAP, textured channels lean saliency). Falls back to GAP on 1×1 maps.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Signed GeM + Spatial-Std Mix",
+    "tagline": "Generalized-mean pooling on |x|^p with sign recovery, blended with a sign-corrected spatial std term via a learnable α (clamped ≤0.1).",
+    "kind": "formula",
+    "formula": "$$\\mathrm{GeM}_c = \\Big(\\tfrac{1}{HW}\\sum_{h,w} (|x_{c,h,w}| + \\varepsilon)^p\\Big)^{1/p}\\cdot\\mathrm{sign}(\\bar{x}_c),$$ $$\\mathrm{Std}_c = \\sqrt{\\mathrm{Var}_{h,w}(x_c) + \\varepsilon}\\cdot\\mathrm{sign}(\\bar{x}_c),\\qquad \\alpha = 0.1\\cdot\\sigma(w_v),$$ $$\\mathrm{Pool}(x)_c = (1-\\alpha)\\,\\mathrm{GeM}_c + \\alpha\\,\\mathrm{Std}_c,\\qquad p \\in [1, 20].$$",
+    "key_hyperparams": [
+      {"name": "p", "value": "3.0 (init), clamp [1,20]", "role": "GeM power", "learnable": true},
+      {"name": "var_weight w_v", "value": "0.0 (init)", "role": "logit for std mix; α = 0.1·σ(w_v)", "learnable": true},
+      {"name": "alpha cap", "value": "0.1", "role": "max contribution of std term", "learnable": false},
+      {"name": "eps", "value": "1e-6", "role": "numerical stability", "learnable": false}
+    ],
+    "init_recovers": "GeM (Radenovic et al.) when α→0 — exactly matches the gem baseline at init since w_v = 0 and σ(0)·0.1 = 0.05",
+    "diff_from_baseline": "Versus GeM, runs power-mean on |x|^p with explicit sign recovery from channel mean and adds a small (≤10%) spatial-std contribution. Skips entirely on 1×1 maps to avoid disturbing VGG/MobileNet classifiers.",
+    "confidence": "high"
+  }
+]

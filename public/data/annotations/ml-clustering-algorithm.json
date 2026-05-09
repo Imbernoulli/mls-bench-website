@@ -1,0 +1,87 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "SNN-MSSC: SNN-weighted multi-scale spectral",
+    "tagline": "Spectral clustering whose affinity is a self-tuning multi-scale RBF gated by SNN weights, with adaptive PCA for high-dim data.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. if d>15: project X with PCA to nc = min(n-1, d, max(4k, 40))\n// 2. build kNN graph with k = min(max(15, sqrt(n)), n-1); B = sparse adjacency\n// 3. SNN_w(i,j) = (|N_k(i) ∩ N_k(j)| + 1) / (k+1)   // shared-neighbor weight\n// 4. for s in {3,5,7,10,15,20} ∩ [0, k):\n//      σ_i = dist to s-th NN of i\n//      W_s(i,j) = SNN_w * exp(-d(i,j)^2 / (σ_i σ_j))   // self-tuning RBF\n// 5. W = mean_s W_s, symmetrize\n// 6. L_sym = D^{-1/2} W D^{-1/2}; take top-k eigenvectors via eigsh(LM)\n// 7. row-normalize V; labels ← KMeans(k, n_init=50).fit_predict(V)",
+    "key_hyperparams": [
+      {"name": "k_NN", "value": "min(max(15, sqrt(n)), n-1)", "role": "kNN graph fan-out", "learnable": false},
+      {"name": "scales", "value": "[3, 5, 7, 10, 15, 20]", "role": "self-tuning bandwidth indices", "learnable": false},
+      {"name": "PCA dim", "value": "min(n-1, d, max(4k, 40)) when d>15", "role": "high-dim noise reduction", "learnable": false},
+      {"name": "SNN smoothing", "value": "(snn_count + 1)/(k_NN + 1)", "role": "additive smoothing on shared-NN weight", "learnable": false},
+      {"name": "n_init", "value": "50", "role": "KMeans restarts on spectral embedding", "learnable": false}
+    ],
+    "init_recovers": "Ng-Jordan-Weiss spectral clustering when SNN_w=1 and one bandwidth scale",
+    "diff_from_baseline": "None of the kmeans/dbscan/hdbscan baselines are spectral. This proposal builds a custom affinity W = SNN_weight x mean_s self-tuning Gaussian, applies the standard normalized Laplacian + eigsh + KMeans pipeline, and adds a PCA preprocessing step for d>15. The agent introduces SNN gating and multi-scale Gaussian averaging as the algorithmic novelty.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "SOHC: silhouette-arbitrated HDBSCAN/KMeans",
+    "tagline": "Run both HDBSCAN and KMeans on PCA(95%) features and pick the labeling with the higher silhouette score (with sensible fallbacks).",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. if n_clusters == 1: return all-zero labels\n// 2. if d > 50: X ← PCA(0.95).fit_transform(X)\n// 3. k ← n_clusters or min(sqrt(n)+1, 20)\n// 4. labels_hdb ← HDBSCAN(min_cluster_size=max(5, n//50), min_samples=5, cluster_selection='eom').fit_predict(X)\n//    relabel each noise point as its own negative cluster\n// 5. labels_km  ← KMeans(k, random_state).fit_predict(X)\n// 6. score(L) = silhouette(X, L) if |L|>=2 else -1\n// 7. choose argmax_score(labels_hdb, labels_km)\n// 8. if chosen has only one effective cluster -> fall back to the other",
+    "key_hyperparams": [
+      {"name": "PCA threshold", "value": "d > 50", "role": "trigger for 95% variance projection", "learnable": false},
+      {"name": "k (KMeans)", "value": "n_clusters or min(sqrt(n)+1, 20)", "role": "centroid count", "learnable": false},
+      {"name": "min_cluster_size", "value": "max(5, n//50)", "role": "HDBSCAN granularity", "learnable": false},
+      {"name": "min_samples", "value": "5", "role": "HDBSCAN core-point threshold", "learnable": false},
+      {"name": "cluster_selection", "value": "'eom'", "role": "HDBSCAN selection method", "learnable": false},
+      {"name": "selection metric", "value": "silhouette (Euclidean)", "role": "model arbiter", "learnable": false}
+    ],
+    "init_recovers": "Equivalent to HDBSCAN baseline when its silhouette dominates, KMeans baseline otherwise",
+    "diff_from_baseline": "Combines the kmeans and hdbscan baselines into a single estimator: each method is fit independently (with PCA(0.95) preprocessing when d>50), silhouette is computed on the same processed X, and the higher-silhouette labeling wins; degenerate single-cluster outputs trigger a fallback to the other method.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Manifold-constrained density-adaptive spectral",
+    "tagline": "Self-tuning Gaussian affinity multiplied by a symmetric K-NN connectivity mask, then SpectralClustering with cluster_qr assignment.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. D ← pairwise euclidean distances\n// 2. σ_i ← distance to the (n_neighbors_density=7)-th NN, clamp >= 1e-8\n// 3. W_dense_ij ← exp(-D_ij^2 / (σ_i σ_j))   // self-tuning Zelnik-Manor & Perona\n// 4. A ← kNN connectivity graph (n_neighbors_manifold=15), A_sym = max(A, A^T)\n// 5. W ← W_dense ⊙ A_sym; symmetrize, zero diagonal   // manifold constraint\n// 6. labels ← SpectralClustering(k, affinity='precomputed', assign_labels='cluster_qr').fit_predict(W)\n// 7. on failure fall back to assign_labels='kmeans'",
+    "key_hyperparams": [
+      {"name": "n_neighbors_density", "value": "7", "role": "self-tuning sigma_i", "learnable": false},
+      {"name": "n_neighbors_manifold", "value": "15", "role": "kNN connectivity mask", "learnable": false},
+      {"name": "affinity", "value": "self-tuning Gaussian masked by kNN union", "role": "manifold-constrained similarity", "learnable": false},
+      {"name": "assign_labels", "value": "cluster_qr (fallback kmeans)", "role": "spectral discretization", "learnable": false}
+    ],
+    "init_recovers": "Self-tuning spectral clustering when A_sym is all-ones",
+    "diff_from_baseline": "Different family from kmeans/dbscan/hdbscan. Implements Zelnik-Manor self-tuning spectral clustering with a Hadamard kNN connectivity mask to suppress cross-manifold short circuits in high-D, and uses sklearn's SpectralClustering with cluster_qr discretization.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Geometry-routed spectral / GMM / KMeans consensus",
+    "tagline": "Pick k by silhouette, build a kNN graph to score manifoldness/density-CV, then ensemble spectral, GMM, KMeans and choose with agreement-weighted silhouette.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. if n_clusters None: pick k in [2, min(12, sqrt(n/2))] maximizing KMeans silhouette\n// 2. build kNN graph with k = max(8, min(20, sqrt(n)/2 + 6))\n//    density_cv = std(deg) / mean(deg); asym = 1 - mutual_kNN_count / kNN_count\n// 3. Xp ← PCA(min(max(6, 2k), d, 24)) if d>6 else X\n// 4. candidates = []\n//    if d <= 10 and asym > 0.35: add ('spectral', SpectralClustering(k, NN affinity).fit_predict(Xp))\n//    add ('gmm', GMM(k, 'full').fit_predict(Xp))\n//    add ('kmeans', KMeans(k, n_init=20).fit_predict(Xp or X))\n// 5. score(L) = silhouette + 0.15 * Σ_other ARI(L, other) + 0.05*[spectral & asym>0.45] + 0.03*[gmm & density_cv>0.25]\n// 6. labels ← argmax_score; predict() = nearest centroid in the chosen mode's space",
+    "key_hyperparams": [
+      {"name": "k_NN_score", "value": "max(8, min(20, sqrt(n)/2 + 6))", "role": "graph for manifoldness/density score", "learnable": false},
+      {"name": "asym threshold (spectral)", "value": "0.35 to add candidate, 0.45 bonus", "role": "non-mutual-kNN fraction", "learnable": false},
+      {"name": "PCA dim", "value": "min(max(6, 2k), d, 24)", "role": "subspace for graph methods", "learnable": false},
+      {"name": "score weights", "value": "silhouette + 0.15*ARI agreement + 0.05/0.03 mode bonuses", "role": "model arbiter", "learnable": false},
+      {"name": "k_search", "value": "argmax silhouette in [2, min(12, sqrt(n/2))]", "role": "auto-k when not given", "learnable": false}
+    ],
+    "init_recovers": "Plain KMeans baseline when graph route is rejected and KMeans wins arbitration",
+    "diff_from_baseline": "Hybrid of all three baseline families. Computes density-CV and mutual-kNN-asymmetry to gate inclusion of SpectralClustering, always runs GMM(full) and KMeans on PCA-reduced features, then picks the labeling that maximizes silhouette + 0.15*Sum_other ARI + small mode-priors. predict() reuses cached centroids in the chosen embedding instead of re-fitting.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Self-tuning spectral with adaptive PCA + KMeans",
+    "tagline": "PCA when d>20, kNN graph with sigma_i x sigma_j RBF, eigenvectors of the normalized affinity, KMeans on row-normalized embedding.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. if d > 20: X ← PCA(min(d, max(20, 0.15n, 3k))).fit_transform(X)\n// 2. n_neighbors = min(30, max(10 if d>20 else 5, n // {30 if d>20 else 50}))\n// 3. compute kNN distances; σ_i ← max(dist to k-th NN, 1e-6)\n// 4. for each (i, j) edge: W_ij = exp(-d_ij^2 / (σ_i σ_j)); symmetrize W = (W + W^T)/2\n// 5. D_ii = Σ_j W_ij; A_norm = D^{-1/2} W D^{-1/2}\n// 6. take top-k eigenvectors of A_norm (largest eigenvalues) -> embedding V\n// 7. row-normalize V; labels ← KMeans(k, n_init=20, max_iter=500).fit_predict(V)",
+    "key_hyperparams": [
+      {"name": "PCA threshold", "value": "d > 20", "role": "trigger for projection", "learnable": false},
+      {"name": "PCA dim", "value": "min(d, max(20, 0.15n, 3k))", "role": "subspace size", "learnable": false},
+      {"name": "n_neighbors", "value": "min(30, max(5/10, n // 50/30))", "role": "kNN fan-out (low/high-d branch)", "learnable": false},
+      {"name": "sigma_i", "value": "max(dist to k-th NN, 1e-6)", "role": "self-tuning bandwidth", "learnable": false},
+      {"name": "n_init / max_iter", "value": "20 / 500", "role": "KMeans on spectral embedding", "learnable": false}
+    ],
+    "init_recovers": "Standard Ng-Jordan-Weiss spectral clustering with self-tuning bandwidths",
+    "diff_from_baseline": "Different family from the kmeans/dbscan/hdbscan baselines. Builds a symmetric self-tuning kNN affinity graph, does the normalized-Laplacian eigendecomposition by hand (numpy.eigh), row-normalizes the top-k embedding, and clusters it with a high-restart KMeans. PCA is applied automatically when d>20.",
+    "confidence": "high"
+  }
+]

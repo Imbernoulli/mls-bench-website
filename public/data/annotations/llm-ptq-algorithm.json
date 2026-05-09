@@ -1,0 +1,82 @@
+[
+  {
+    "model": "claude-opus-4-6",
+    "name": "AWQ scale + GPTQ in scaled space",
+    "tagline": "Search a per-channel AWQ scale $s$ (with $H$-diagonal-weighted error), then run GPTQ on $W{\\cdot}\\mathrm{diag}(s)$ with the transformed Hessian $\\mathrm{diag}(1/s) H \\mathrm{diag}(1/s)$.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. accumulate $H = X^\\top X$ and $\\overline{|x|}$ from calibration\n// 2. $h_d \\leftarrow \\mathrm{diag}(H/N)$;  $\\bar x \\leftarrow \\overline{|x|}/N$\n// 3. for $i = 0\\ldots N_\\alpha{-}1$:  $r = i/N_\\alpha$;  $s = \\bar x^r$ (range-normalized)\n// 4.   $\\hat W = \\mathrm{quant}(W \\mathrm{diag}(s))/\\mathrm{diag}(s)$;  $\\mathrm{err} = \\sum_{ij} h_{d,j}(W - \\hat W)^2_{ij}$\n// 5.   keep $s^\\star$ minimizing err\n// 6. $W' \\leftarrow W\\,\\mathrm{diag}(s^\\star)$;  $H' \\leftarrow \\mathrm{diag}(1/s^\\star)\\,H\\,\\mathrm{diag}(1/s^\\star) + \\delta I$\n// 7. $H'^{-1} \\leftarrow$ Cholesky-inverse$(H')$\n// 8. run column-wise GPTQ on $W'$ with $H'^{-1}$ and per-group min-max scales\n// 9. return $W^{(q)} \\mathrm{diag}(1/s^\\star)$",
+    "key_hyperparams": [
+      {"name": "$N_\\alpha$", "value": "20", "role": "AWQ scale-search grid", "learnable": false},
+      {"name": "BLOCK_SIZE", "value": "128", "role": "GPTQ block width", "learnable": false},
+      {"name": "PERCDAMP", "value": "0.01", "role": "Hessian diagonal damping", "learnable": false}
+    ],
+    "init_recovers": "GPTQ at $s = 1$",
+    "diff_from_baseline": "Replaces AWQ's clip-search and GPTQ's plain Hessian with a hybrid: AWQ-style scale search uses $H$-diagonal as the importance metric, and GPTQ then runs in the scaled space with the correctly transformed Hessian (no separate clip search).",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini/gemini-3.1-pro-preview",
+    "name": "Scale-grid + clip-grid GPTQ",
+    "tagline": "Search a 26-point grid over $(\\alpha, \\text{clip})$ for per-channel scaling and clip ratio (using $H$-diagonal-weighted error), then run GPTQ in the scaled space.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. accumulate $H = X^\\top X$;  $H_{damp} \\leftarrow H/N + \\delta I$;  $H^{-1}_d \\leftarrow \\mathrm{diag}(\\mathrm{Cholesky\\_inv}(H_{damp}))$\n// 2. $v \\leftarrow \\sqrt{\\mathrm{diag}(H_{damp})}$;  $w_{max} \\leftarrow \\max_i|W_{i,:}|$\n// 3. for $\\alpha \\in \\{0, 0.1, \\ldots, 1.2\\}$ and use_wmax $\\in \\{T, F\\}$:\n// 4.   $S = v^\\alpha / w_{max}^{1-\\alpha}$ (or $S = v^\\alpha$);  normalize mean to 1\n// 5.   for clip $\\in \\{0.8, 0.85, 0.9, 0.95, 1.0\\}$:\n// 6.     $W_q^{(\\alpha,c)} = \\mathrm{quant}(W S, \\mathrm{scale} = c\\,\\mathrm{groupmax})/S$\n// 7.     $\\mathrm{err} = \\sum_{ij} (W - W_q^{(\\alpha,c)})_{ij}^2 / H^{-1}_{d,j}$\n// 8.   keep best $(S^\\star, c^\\star)$\n// 9. run GPTQ column-wise on $W$ in scaled coords using best $(S^\\star, c^\\star)$ for per-group scales",
+    "key_hyperparams": [
+      {"name": "$\\alpha$ grid", "value": "{0, 0.1, ..., 1.2}", "role": "scale exponent", "learnable": false},
+      {"name": "clip grid", "value": "{0.8, 0.85, 0.9, 0.95, 1.0}", "role": "fraction of group-max kept", "learnable": false},
+      {"name": "use_wmax variants", "value": "{True, False}", "role": "include $w_{max}^{1-\\alpha}$ denom or not", "learnable": false},
+      {"name": "BLOCK_SIZE", "value": "128", "role": "GPTQ block width", "learnable": false},
+      {"name": "PERCDAMP", "value": "0.01", "role": "Hessian diagonal damping", "learnable": false}
+    ],
+    "init_recovers": "GPTQ at $\\alpha=0$, clip$=1$",
+    "diff_from_baseline": "Augments GPTQ with a 26-point joint search over per-channel scale exponent and per-group clip ratio; the search uses an $H^{-1}$-diagonal-weighted error rather than AWQ's $X^\\top X$ output error.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Whitened group quant + bias correction",
+    "tagline": "Mild $\\bar x^{1/4}$ column whitening, percentile-clipped per-group min-max quant, and one-step activation-weighted bias correction inside each group.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. accumulate $H_d = \\overline{X^2}$ from calibration\n// 2. $c \\leftarrow (h_d^{1/4})/\\overline{h_d^{1/4}}$ clipped to $[0.5, 2]$\n// 3. $W_n \\leftarrow W/\\mathrm{diag}(c)$;  $h_n \\leftarrow h_d \\odot c^2$\n// 4. for each group $g$ of size $G$:\n// 5.   if $G > 8$:  clip $\\leftarrow$ top-$\\lceil \\mathrm{ratio}\\, G \\rceil$ |entry|;  else  clip $\\leftarrow$ groupmax\n// 6.   $\\mathrm{scale}_g \\leftarrow$ clip$/q_{max}$;  $W_c \\leftarrow \\mathrm{clamp}(W_g, \\pm$clip$)$;  $Q \\leftarrow$ round$\\to$int\n// 7.   bias $\\leftarrow \\mathrm{clamp}(\\sum_j (W_g - Q)_j h_{n,j} / \\sum_j h_{n,j},\\ \\pm 0.5\\,\\mathrm{scale})$\n// 8.   $Q \\leftarrow \\mathrm{round}((W_c + \\mathrm{bias})/\\mathrm{scale}) \\cdot \\mathrm{scale}$\n// 9. return $Q \\cdot \\mathrm{diag}(c)$",
+    "key_hyperparams": [
+      {"name": "CLIP_RATIO_INT4", "value": "0.995", "role": "group-clip percentile at $\\ge 4$ bits", "learnable": false},
+      {"name": "CLIP_RATIO_INT3", "value": "0.980", "role": "group-clip percentile at 3 bits", "learnable": false},
+      {"name": "whitening exponent", "value": "0.25", "role": "$c \\propto h_d^{0.25}$", "learnable": false},
+      {"name": "$c$ clip", "value": "[0.5, 2.0]", "role": "per-channel scale bounds", "learnable": false},
+      {"name": "bias clip", "value": "$\\pm 0.5\\,\\mathrm{scale}$", "role": "max one-step bias correction", "learnable": false}
+    ],
+    "init_recovers": "RTN-per-group at $c=1$, clip ratio $=1$, no bias",
+    "diff_from_baseline": "No GPTQ error feedback; instead, mildly whitens columns by $h_d^{1/4}$, clips each group at a percentile (looser at 4-bit, tighter at 3-bit), and computes a single activation-weighted bias offset per group before re-rounding.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "GPTQ + per-group scale grid refine",
+    "tagline": "Standard column-wise GPTQ followed by an activation-weighted scale-multiplier grid search ($\\times 0.88\\ldots1.12$) per quantization group.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. run vanilla GPTQ with min-max per-group scales -> $Q$\n// 2. compute $\\bar a_c = \\overline{|x_c|}$ per input channel\n// 3. for each group $g$:\n// 4.   $s_0 \\leftarrow \\max_{j\\in g} |W_{:,j}| / q_{max}$\n// 5.   for $\\mu \\in$ linspace$(0.88, 1.12, 20)$:\n// 6.     $Q' \\leftarrow$ round$(W_g/(\\mu s_0)) \\cdot (\\mu s_0)$\n// 7.     err $\\leftarrow \\sum_{ij}(W_g - Q')_{ij}^2\\, \\bar a_{g,j}$\n// 8.   keep $\\mu^\\star$ minimizing err;  overwrite $Q_g$ with the corresponding quantization\n// 9. return $Q$",
+    "key_hyperparams": [
+      {"name": "N_REFINE", "value": "20", "role": "scale-multiplier grid size", "learnable": false},
+      {"name": "scale range", "value": "[0.88, 1.12]", "role": "multiplier grid bounds", "learnable": false},
+      {"name": "BLOCK_SIZE", "value": "128", "role": "GPTQ block width", "learnable": false},
+      {"name": "PERCDAMP", "value": "0.01", "role": "Hessian diagonal damping", "learnable": false}
+    ],
+    "init_recovers": "Plain GPTQ if $\\mu^\\star = 1$ for every group",
+    "diff_from_baseline": "Keeps GPTQ's column-wise error compensation and adds a post-hoc per-group scale grid search using activation-weighted MSE; unlike AWQ, only re-quantizes against the original $W$ and ignores cross-group interactions.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "Activation-aware scaled GPTQ",
+    "tagline": "Per-channel scale $\\alpha = (\\overline{|x|})^\\gamma$, transform Hessian by $\\mathrm{diag}(1/\\alpha)\\,H\\,\\mathrm{diag}(1/\\alpha)$, then run GPTQ in the scaled space.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. accumulate $H = X^\\top X$ and $\\overline{|x|}$\n// 2. $\\alpha \\leftarrow (\\overline{|x|}/\\overline{\\overline{|x|}})^\\gamma$;  $\\alpha \\leftarrow \\alpha/\\overline{\\alpha}$\n// 3. $W' \\leftarrow W\\,\\mathrm{diag}(\\alpha)$\n// 4. $H' \\leftarrow \\mathrm{diag}(1/\\alpha)\\,(H/N)\\,\\mathrm{diag}(1/\\alpha) + \\delta\\,\\overline{\\mathrm{diag}(H')} I$\n// 5. $H'^{-1} \\leftarrow$ Cholesky-inverse$(H')$\n// 6. run vanilla column-wise GPTQ on $W'$ with $H'^{-1}$, per-group min-max scales\n// 7. return $W^{(q)}\\,\\mathrm{diag}(1/\\alpha)$",
+    "key_hyperparams": [
+      {"name": "$\\gamma$", "value": "0.5", "role": "activation-scale exponent", "learnable": false},
+      {"name": "$\\delta$", "value": "0.01", "role": "Hessian diagonal damping", "learnable": false},
+      {"name": "BLOCK_SIZE", "value": "128", "role": "GPTQ block width", "learnable": false}
+    ],
+    "init_recovers": "GPTQ at $\\gamma = 0$ (then $\\alpha = 1$)",
+    "diff_from_baseline": "Replaces AWQ's grid-searched scale with a fixed $\\alpha = \\overline{|x|}^{1/2}$ per-channel scale and feeds it through GPTQ with the correctly conjugated Hessian $\\mathrm{diag}(1/\\alpha)\\,H\\,\\mathrm{diag}(1/\\alpha)$.",
+    "confidence": "high"
+  }
+]

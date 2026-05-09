@@ -1,0 +1,47 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Residual gated JK-sum",
+    "tagline": "Per-layer Bahdanau-style sigmoid gates scale node features by (1+gate) before sum pooling, then concatenate batch-normed graph vectors over layers.",
+    "kind": "formula",
+    "formula": "$$ g^{(\\ell)}_v = \\sigma\\!\\left(W_2^{(\\ell)} \\tanh(W_1^{(\\ell)} h^{(\\ell)}_v)\\right),\\quad z^{(\\ell)} = \\mathrm{BN}_\\ell\\!\\left(\\sum_{v\\in V} (1 + g^{(\\ell)}_v)\\,h^{(\\ell)}_v\\right) $$ $$ \\text{readout} = \\big[\\, z^{(1)} \\,\\Vert\\, \\dots \\,\\Vert\\, z^{(L)} \\,\\big] $$",
+    "key_hyperparams": [
+      {"name": "gate hidden", "value": "hidden_dim/4", "role": "bottleneck width of the per-layer gating MLP", "learnable": true},
+      {"name": "residual offset", "value": "1.0", "role": "additive base in (1+gate) so unattended nodes still contribute", "learnable": false},
+      {"name": "output_dim", "value": "hidden_dim * num_layers", "role": "JK concatenation width", "learnable": false}
+    ],
+    "init_recovers": "GIN JK-sum readout when gates collapse to 0",
+    "diff_from_baseline": "Versus the gin_sum baseline this adds a per-layer node-attention gate and uses a residual (1+gate) multiplier rather than replacing the sum, so worst-case behaviour matches GIN-JK while important nodes can be amplified up to 2x.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Saliency-modulated JK-sum",
+    "tagline": "Standard JK-sum readout, but each layer's graph vector is scaled by a graph-specific modulator derived from degree-aware salient deviations of node embeddings.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for each layer $\\ell$: $z_\\ell \\leftarrow \\mathrm{BN}_\\ell(\\sum_v h^{(\\ell)}_v)$\n// 2. context $c \\leftarrow \\mathrm{MEAN}_{v\\in G}\\, x_v$;\\; centered $\\tilde x_v \\leftarrow x_v - c_{\\text{batch}(v)}$\n// 3. degree feats: $\\log(1+d_v)$ and $d_v - \\mathrm{MEAN}_G(d)$\n// 4. node gate $\\alpha_v \\leftarrow \\sigma(\\mathrm{MLP}([x_v, c_{\\text{batch}(v)}, \\log(1+d_v), d_v - \\bar d]))$, normalized so $\\sum_{v\\in G} \\alpha_v = 1$\n// 5. saliency $s_G \\leftarrow \\mathrm{LN}(\\,[\\sum_v \\alpha_v \\tilde x_v;\\; \\sqrt{\\sum_v \\alpha_v \\tilde x_v^{\\odot 2}}\\,])$\n// 6. modulators $m \\leftarrow 1 + 0.1\\,\\tanh(W_{\\text{mod}}\\,s_G)$ with $W_{\\text{mod}}$ near-zero init\n// 7. return $\\big[\\, m_1 z_1 \\,\\Vert\\, \\dots \\,\\Vert\\, m_L z_L \\,\\big]$",
+    "key_hyperparams": [
+      {"name": "modulator scale", "value": "0.1", "role": "amplitude of layer-wise tanh modulation around 1.0", "learnable": false},
+      {"name": "layer_mod init std", "value": "1e-3", "role": "near-identity layer modulation at init", "learnable": true},
+      {"name": "saliency stat", "value": "weighted (mean, std)", "role": "gate-weighted first/second moment of centered node features", "learnable": false},
+      {"name": "output_dim", "value": "hidden_dim * num_layers", "role": "JK concatenation width", "learnable": false}
+    ],
+    "init_recovers": "GIN JK-sum at init (m≈1)",
+    "diff_from_baseline": "Versus gin_sum it adds a degree-aware per-graph attention summary that produces small (±0.1) per-layer scalar modulators on the JK-concatenated layer vectors. The base JK-sum + per-layer BN backbone is preserved, modulation is near-identity at init.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Learned sum/mean/max JK mix",
+    "tagline": "Per layer, take sum/mean/max pools, mix them with a learnable softmax (initialized as pure sum), batch-norm, then JK-concatenate across layers.",
+    "kind": "formula",
+    "formula": "$$ w^{(\\ell)} = \\mathrm{softmax}(\\theta^{(\\ell)}),\\;\\theta^{(\\ell)}_{\\text{init}} = (3, 0, 0) $$ $$ z^{(\\ell)} = \\mathrm{BN}_\\ell\\!\\left( w^{(\\ell)}_1 \\sum_v h^{(\\ell)}_v + w^{(\\ell)}_2 \\mathrm{MEAN}_v\\, h^{(\\ell)}_v + w^{(\\ell)}_3 \\max_v\\, h^{(\\ell)}_v \\right) $$ $$ \\text{readout} = [\\, z^{(1)} \\,\\Vert\\, \\dots \\,\\Vert\\, z^{(L)} \\,] $$",
+    "key_hyperparams": [
+      {"name": "agg_weight", "value": "init [3, 0, 0] per layer", "role": "logits over (sum, mean, max) aggregators", "learnable": true},
+      {"name": "output_dim", "value": "hidden_dim * num_layers", "role": "JK concatenation width", "learnable": false}
+    ],
+    "init_recovers": "GIN JK-sum at init (sum weight ~ 95%)",
+    "diff_from_baseline": "Versus gin_sum, replaces the fixed sum readout per layer with a learnable softmax mixture over {sum, mean, max}; the mixture logits start at (3, 0, 0) so the model degenerates to JK-sum at init and only deviates if training prefers it.",
+    "confidence": "high"
+  }
+]

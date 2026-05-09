@@ -1,0 +1,79 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "ES-ReBRAC: ensemble actor + grad clip",
+    "tagline": "ReBRAC with per-env tuned hyperparameters, but the actor uses the mean of both critics for the policy gradient and both actor/critic gradients are norm-clipped.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}_\\pi = \\mathbb{E}\\!\\left[\\beta_\\pi\\|\\pi(s)-a\\|^2 - \\lambda\\,\\frac{Q_1(s,\\pi(s))+Q_2(s,\\pi(s))}{2}\\right],\\quad \\lambda = \\frac{1}{|\\mathrm{mean}(|Q|)|+\\varepsilon}$$",
+    "key_hyperparams": [
+      {"name": "actor_bc_coef", "value": "per-env (0.001 / 0.05 / 0.01 / 0.003)", "role": "ReBRAC actor BC coefficient", "learnable": false},
+      {"name": "critic_bc_coef", "value": "per-env (0.01 / 0.1 / 0.01 / 0.001)", "role": "ReBRAC critic next-action BC coefficient", "learnable": false},
+      {"name": "lr", "value": "per-env (1e-3 or 3e-4)", "role": "shared actor/critic Adam lr", "learnable": false},
+      {"name": "actor_grad_clip", "value": "2.0", "role": "max actor grad norm", "learnable": false},
+      {"name": "critic_grad_clip", "value": "10.0", "role": "max critic grad norm", "learnable": false},
+      {"name": "policy_noise", "value": "0.2", "role": "TD3 target smoothing noise", "learnable": false},
+      {"name": "noise_clip", "value": "0.5", "role": "TD3 noise clip", "learnable": false},
+      {"name": "policy_freq", "value": "2", "role": "delayed actor update period", "learnable": false},
+      {"name": "normalize_q", "value": "true", "role": "rescale q by 1/|mean(|Q|)| in actor loss", "learnable": false}
+    ],
+    "init_recovers": "ReBRAC baseline at large grad-clip and Q1-only actor gradient",
+    "diff_from_baseline": "Direct extension of the rebrac baseline: substitutes the Q1-only actor gradient with the (Q1+Q2)/2 ensemble mean and adds explicit gradient-norm clipping on both actor and critic optimizer steps.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "UACQL: CQL + Q-disagreement scaling",
+    "tagline": "CQL-style critic regularizer scaled per-batch by the normalized Q1/Q2 disagreement, plus TD3-style target smoothing and SAC entropy temperature.",
+    "kind": "formula",
+    "formula": "$$\\begin{array}{l}\\mathcal{L}_{\\text{CQL}} = \\tfrac12\\sum_{i\\in\\{1,2\\}}\\mathbb{E}_s\\!\\left[\\mathrm{logsumexp}_a Q_i(s,a)/\\tau - Q_i(s,a_{\\text{data}})\\right]\\\\u = \\mathbb{E}\\!\\left[\\mathrm{std}_{i}(Q_i)/(|\\mathrm{mean}_i Q_i|+\\varepsilon)\\right]\\\\\\mathcal{L}_{\\text{critic}} = \\mathrm{TD} + \\alpha_{\\text{cql}}(1+\\kappa\\,u)\\,\\mathcal{L}_{\\text{CQL}}\\end{array}$$",
+    "key_hyperparams": [
+      {"name": "cql_alpha", "value": "1.0 (maze) / 5.0 (mujoco)", "role": "CQL regularizer weight", "learnable": false},
+      {"name": "uncertainty_scale (kappa)", "value": "0.1 / 0.5", "role": "extra weight on CQL when twin-critic disagreement is high", "learnable": false},
+      {"name": "num_samples", "value": "3 / 5", "role": "logsumexp samples per state", "learnable": false},
+      {"name": "tau (CQL temperature)", "value": "1.0", "role": "logsumexp temperature", "learnable": false},
+      {"name": "log_alpha_init", "value": "log(0.1)", "role": "SAC entropy temperature init", "learnable": true},
+      {"name": "target_entropy", "value": "-action_dim", "role": "SAC target entropy", "learnable": false},
+      {"name": "policy_noise / noise_clip", "value": "0.2 / 0.5 * max_action", "role": "TD3 target smoothing", "learnable": false},
+      {"name": "bc_loss_weight", "value": "0.1", "role": "extra MSE BC term in actor loss", "learnable": false},
+      {"name": "policy_freq", "value": "2", "role": "delayed actor update period", "learnable": false}
+    ],
+    "init_recovers": "CQL baseline at uncertainty_scale=0",
+    "diff_from_baseline": "Adds a CQL-style critic baseline (none of the shipped baselines use CQL) that is dynamically scaled by per-state twin-critic disagreement, plus TD3 target smoothing, SAC entropy temperature, and a small MSE BC term.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "UG-ReBRAC: uncertainty-modulated BC",
+    "tagline": "ReBRAC, but the critic and actor BC penalties are multiplied by a per-state factor proportional to |Q1-Q2| relative to the batch mean, clipped to [0.5, 5].",
+    "kind": "formula",
+    "formula": "$$m(s) = \\mathrm{clip}\\!\\left(1 + \\kappa\\!\\left(\\frac{|Q_1-Q_2|}{\\mathbb{E}|Q_1-Q_2|+\\varepsilon}-1\\right),\\,0.5,\\,5\\right),\\quad \\beta_{\\text{eff}} = \\beta\\,m(s)$$",
+    "key_hyperparams": [
+      {"name": "kappa", "value": "1.0", "role": "uncertainty modulation strength", "learnable": false},
+      {"name": "multiplier_clip", "value": "[0.5, 5.0]", "role": "min/max BC scaling per state", "learnable": false},
+      {"name": "actor_bc_coef / critic_bc_coef", "value": "per-env from ReBRAC", "role": "base BC coefficients", "learnable": false},
+      {"name": "policy_noise / noise_clip", "value": "0.2 / 0.5", "role": "TD3 smoothing", "learnable": false},
+      {"name": "policy_freq", "value": "2", "role": "delayed actor update period", "learnable": false}
+    ],
+    "init_recovers": "ReBRAC baseline at kappa = 0",
+    "diff_from_baseline": "Extends the rebrac baseline by replacing constant actor/critic BC weights with state-dependent multipliers driven by |Q1-Q2| epistemic disagreement (clipped to [0.5x, 5x] of base).",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "DA-IQL: double-anchor IQL",
+    "tagline": "Standard IQL value learning, but the critic target uses min(V(s'), 0.75 Q(s', a'_data)+0.25 V(s')) and the actor adds a temporal-consistency log-prob loss on dataset next actions.",
+    "kind": "formula",
+    "formula": "$$y = r + \\gamma(1-d)\\,\\min\\!\\Big(V(s'),\\;0.75\\,\\min_i Q^{\\text{tgt}}_i(s', a'_{\\text{data}}) + 0.25\\,V(s')\\Big),\\quad \\mathcal{L}_\\pi = -\\mathbb{E}[w\\log\\pi(a|s)] - 0.25\\,\\mathbb{E}[w\\log\\pi(a'_{\\text{data}}|s')]$$",
+    "key_hyperparams": [
+      {"name": "expectile", "value": "0.8", "role": "IQL value expectile", "learnable": false},
+      {"name": "beta", "value": "3.0", "role": "advantage-weight temperature", "learnable": false},
+      {"name": "exp_adv_max", "value": "100.0", "role": "exp(beta*adv) cap", "learnable": false},
+      {"name": "anchor_mix", "value": "0.75", "role": "weight on Q(s',a'_data) in mixed anchor", "learnable": false},
+      {"name": "policy_gap_coef", "value": "0.2", "role": "weight on relu(Q(s,π(s))-Q(s,a)) optimism penalty", "learnable": false},
+      {"name": "temporal_bc_coef", "value": "0.25", "role": "weight on AWR loss at (s', a'_data)", "learnable": false}
+    ],
+    "init_recovers": "IQL baseline at anchor_mix=0, policy_gap_coef=0, temporal_bc_coef=0",
+    "diff_from_baseline": "Extends the iql baseline along three axes: a pessimistic min-of-(V, mixed anchor) critic target, a critic-side ReLU policy-gap regularizer that suppresses Q(s,π(s)) > Q(s,a_data), and a temporal-consistency AWR term on dataset next actions.",
+    "confidence": "high"
+  }
+]

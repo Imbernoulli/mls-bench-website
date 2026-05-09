@@ -1,0 +1,91 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Catoni⊓Quad with Soft-01 Blend",
+    "tagline": "Joint Catoni-λ + quadratic bounds (take min) on a multi-sample bounded NLL blended with a temperature-soft 0/1 surrogate.",
+    "kind": "formula",
+    "formula": "$$\\hat{R}_\\text{train} = (1-\\alpha)\\,\\bar{\\ell}_\\text{NLL} + \\alpha\\,\\overline{1 - \\mathrm{softmax}(T \\cdot z)_y},\\quad \\bar{\\ell}_\\text{NLL} = \\tfrac{1}{K}\\!\\sum_{k=1}^{K}\\frac{\\mathrm{NLL}^{(k)}}{\\log(1/p_\\min)}$$$$B = \\min\\!\\Bigl(\\frac{\\hat{R}}{1-\\lambda/2} + \\frac{\\mathrm{KL} + \\log\\!\\tfrac{2\\sqrt{n}}{\\delta}}{n\\lambda(1-\\lambda/2)},\\;\\bigl(\\sqrt{\\hat{R}+c} + \\sqrt{c}\\bigr)^2\\Bigr)$$",
+    "key_hyperparams": [
+      {"name": "K (train MC samples)", "value": "3", "role": "variance reduction per train_step", "learnable": false},
+      {"name": "soft-01 temperature T", "value": "4.0", "role": "sharpness of softmax used as 0/1 surrogate", "learnable": false},
+      {"name": "α (soft-01 blend)", "value": "0.5", "role": "weight of soft-01 vs bounded NLL", "learnable": false},
+      {"name": "λ init", "value": "0.2", "role": "Catoni λ start, jointly optimised by SGD", "learnable": true},
+      {"name": "λ optimiser LR", "value": "0.01", "role": "SGD on detached bound", "learnable": false},
+      {"name": "loss_scale", "value": "1/log(1/p_min)", "role": "bounds NLL into [0, 1]", "learnable": false},
+      {"name": "certificate", "value": "PAC-Bayes-kl inversion (Seeger-Langford)", "role": "0/1 risk certificate", "learnable": false}
+    ],
+    "init_recovers": "Quadratic bound on bounded NLL when α=0 and Catoni term is dominated.",
+    "diff_from_baseline": "Compared to mcallester/catoni/quadratic individually, this picks the elementwise minimum of Catoni-λ and Quadratic on a *blended* surrogate combining bounded-NLL (3-sample MC averaged) and a temperature-scaled soft 0/1 loss; certificate uses PAC-Bayes-kl inversion on the 0/1 risk.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Adaptive-Curvature Bound",
+    "tagline": "McAllester sqrt-KL term scaled by (1 + β·empirical_risk) where β is a learned non-negative curvature parameter.",
+    "kind": "formula",
+    "formula": "$$B = \\hat{R} + \\sqrt{\\frac{\\mathrm{KL} + \\log\\!\\tfrac{2\\sqrt{n}}{\\delta}}{2n}}\\,(1 + \\beta\\,\\hat{R}),\\quad \\beta \\ge 0$$",
+    "key_hyperparams": [
+      {"name": "β (curvature)", "value": "init 0.5, clipped to [0, 10]", "role": "scales sqrt-KL term by empirical risk", "learnable": true},
+      {"name": "β LR / momentum", "value": "0.01 / 0.9 (SGD)", "role": "manual update via analytic ∂B/∂β = √c·R", "learnable": false},
+      {"name": "training surrogate", "value": "raw NLL (clamped log-prob)", "role": "no [0,1] rescaling", "learnable": false},
+      {"name": "certificate", "value": "PAC-Bayes-kl inversion on 0/1 risk", "role": "final certificate", "learnable": false}
+    ],
+    "init_recovers": "McAllester at β=0.",
+    "diff_from_baseline": "Replaces McAllester's additive sqrt-KL with a multiplicatively boosted version (1 + β·R̂) and meta-trains β jointly with the posterior — neither McAllester, Catoni nor Quadratic introduce a curvature scalar; certificate is still PAC-Bayes-kl inversion on 0/1 risk.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Differentiable inv-KL on Ensemble NLL",
+    "tagline": "Differentiable Seeger-Langford bound (bisection forward + analytic backward) trained on a multi-sample ensemble bounded NLL.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. forward(q, c): bisection (64 iters) on inv binary-KL → p such that kl(q || p) = c\n// 2. backward(grad_p): closed-form ∂p/∂q, ∂p/∂c via implicit-function theorem on kl(q || p) = c\n// 3. train_step:\n// 4.   sample posterior 5×; average softmax → mean_probs;  $\\bar\\ell = -\\log(\\mathrm{mean}\\_\\mathrm{probs}_y) / \\log(1/p_\\min)$\n// 5.   $c = (\\mathrm{KL} + \\log(2\\sqrt{n}/\\delta))/n$;  loss = DiffInvKL($\\bar\\ell$, $c$)\n// 6. certificate: PAC-Bayes-kl inversion on 0/1 risk (standard inv_kl)",
+    "key_hyperparams": [
+      {"name": "train MC samples", "value": "5", "role": "ensemble averaging on softmax", "learnable": false},
+      {"name": "loss_scale", "value": "1/log(1/p_min)", "role": "bounds ensemble NLL into [0, 1]", "learnable": false},
+      {"name": "bisection iters", "value": "64", "role": "inv-KL precision", "learnable": false},
+      {"name": "learning_rate (override)", "value": "0.01", "role": "raised because inv-KL gradients are small", "learnable": false},
+      {"name": "certificate", "value": "PAC-Bayes-kl inversion (inv_kl)", "role": "0/1 risk certificate", "learnable": false}
+    ],
+    "init_recovers": "Standard PAC-Bayes-kl bound (Seeger-Langford) on the bounded ensemble NLL.",
+    "diff_from_baseline": "Trains the posterior directly through the *tightest* PAC-Bayes-kl (Seeger-Langford) bound by implementing a differentiable inverse-binary-KL (bisection + analytic gradient) and feeding it an ensemble bounded NLL; baselines train through the looser McAllester / Catoni / Quadratic surrogates.",
+    "confidence": "low"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Catoni+Quad Mixture on Ensemble Surrogate",
+    "tagline": "Convex blend of Catoni-λ and Quadratic bounds on an ensemble bounded-NLL plus a Jensen-gap stability regulariser.",
+    "kind": "formula",
+    "formula": "$$\\hat{R} = \\bar\\ell_{\\mathrm{ens}} + 0.2\\,\\mathrm{ReLU}(\\bar\\ell_{\\mathrm{single}} - \\bar\\ell_{\\mathrm{ens}}),\\quad \\bar\\ell_{\\mathrm{ens}} = -\\log\\!\\Bigl(\\tfrac{1}{K}\\sum_k p_y^{(k)}\\Bigr)/\\log(1/p_\\min)$$$$B = \\mu\\,(\\sqrt{\\hat{R}+c} + \\sqrt{c})^2 + (1-\\mu)\\,\\Bigl(\\frac{\\hat{R}}{1-\\lambda/2} + \\frac{\\mathrm{KL} + \\log\\!\\tfrac{2\\sqrt{n}}{\\delta}}{n\\lambda(1-\\lambda/2)}\\Bigr),\\;\\mu = 0.7\\;\\text{if}\\;c<0.025\\;\\text{else}\\;0.3$$",
+    "key_hyperparams": [
+      {"name": "K (train MC samples)", "value": "3", "role": "posterior samples per train_step", "learnable": false},
+      {"name": "Jensen-gap weight", "value": "0.2", "role": "stability regulariser (ReLU(mean_single − ensemble))", "learnable": false},
+      {"name": "λ init", "value": "0.9 (clipped to [0.05, 1.8])", "role": "Catoni λ jointly optimised by SGD", "learnable": true},
+      {"name": "λ LR", "value": "0.01", "role": "SGD on detached bound", "learnable": false},
+      {"name": "blend μ", "value": "0.7 if c<0.025 else 0.3", "role": "complexity-aware Quad/Catoni mix", "learnable": false},
+      {"name": "loss_scale", "value": "1/log(1/p_min)", "role": "bounds ensemble NLL", "learnable": false},
+      {"name": "eval MC samples", "value": "5", "role": "ensemble for certificate", "learnable": false}
+    ],
+    "init_recovers": "Pure Catoni at μ=0; pure Quadratic at μ=1.",
+    "diff_from_baseline": "Compared to the pure Catoni or Quadratic baselines, replaces the single-sample bounded NLL with an ensemble Jensen surrogate, trains λ jointly, and convex-combines Catoni and Quadratic with mix μ that depends on the per-instance complexity term c — also adds a 0.2·Jensen-gap stability penalty.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Closed-Form-λ Catoni + KL Budget",
+    "tagline": "Catoni bound where λ is set analytically per call to its optimal value, plus a soft KL-budget penalty on training loss.",
+    "kind": "formula",
+    "formula": "$$\\lambda^\\star = \\frac{-1 + \\sqrt{1 + 4k}}{2k},\\quad k = \\frac{R\\,n}{2(\\mathrm{KL} + \\log(2\\sqrt{n}/\\delta))},\\quad B = \\frac{R}{1 - \\lambda^\\star/2} + \\frac{\\mathrm{KL} + \\log(2\\sqrt{n}/\\delta)}{n\\,\\lambda^\\star(1 - \\lambda^\\star/2)}$$$$\\mathcal{L}_{\\mathrm{train}} = B\\bigl(\\bar{R}/\\log(1/p_\\min)\\bigr) + 0.5\\,\\mathrm{ReLU}\\!\\bigl(\\mathrm{KL} - 10^{-4}\\,n\\bigr)$$",
+    "key_hyperparams": [
+      {"name": "λ rule", "value": "closed-form root of dB/dλ=0 (clipped to [0.01, 1.99])", "role": "no learnable λ, set per call", "learnable": false},
+      {"name": "train MC samples", "value": "2", "role": "variance reduction per train_step", "learnable": false},
+      {"name": "loss_scale", "value": "1/log(1/p_min)", "role": "bounds NLL into [0, 1]", "learnable": false},
+      {"name": "KL budget", "value": "1e-4 · n  (≈ 3 for n=30000)", "role": "soft target for KL", "learnable": false},
+      {"name": "KL penalty weight", "value": "0.5", "role": "ReLU(KL − target) coefficient", "learnable": false},
+      {"name": "certificate", "value": "PAC-Bayes-kl inversion on 0/1 risk", "role": "final certificate", "learnable": false}
+    ],
+    "init_recovers": "Vanilla Catoni baseline at the analytical λ when KL ≤ budget (penalty = 0).",
+    "diff_from_baseline": "Replaces Catoni's learnable λ (jointly SGD-trained) with a per-call closed-form optimum λ⋆ = (−1+√(1+4k))/(2k), uses a 2-sample MC bounded-NLL surrogate, and adds a soft hinge penalty when KL exceeds 1e-4·n — the named Catoni baseline learns λ; McAllester/Quadratic don't expose λ at all.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,91 @@
+[
+  {
+    "model": "claude-opus-4-6",
+    "name": "Bit-adaptive LSQ + noise warmup",
+    "tagline": "LSQ scales initialized at a bit-aware fraction of |W|_max with a noise-mix warmup, plus an annealed outlier hinge and an in-grid attraction term.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. init s_g ← clip_ratio·max|W_g|/qmax (clip_ratio = 0.95@4, 0.90@3, 0.80@2)\n// 2. ŵ ← LSQQuantFn(W, s, qmin, qmax, g_scale·(1+2/qmax))\n//    (LSQ gradient on s, STE on W, but with a bit-amplified scale-grad)\n// 3. forward weight = (1-α)·W + α·ŵ where α ramps 0→1 over [0, warmup_frac·T]\n//    warmup_frac = 0.25 / 0.35 / 0.50 for 4 / 3 / 2 bits\n// 4. aux_loss:\n//    a) outlier hinge: $\\beta\\,\\overline{\\mathrm{ReLU}(|W/s| - q_{\\max})}$, β anneals 0.05→0.01, ×3 at INT2\n//    b) after warmup, in-grid attraction: $0.001\\overline{(\\mathrm{clip}(W/s) - \\mathrm{round}(\\cdot))^2}$ (×5 at INT2)",
+    "key_hyperparams": [
+      {"name": "clip_ratio (init)", "value": "0.95 / 0.90 / 0.80 for 4/3/2 bits", "role": "fraction of max|W| used for initial scale", "learnable": false},
+      {"name": "warmup_frac (noise-mix)", "value": "0.25 / 0.35 / 0.50 for 4/3/2 bits", "role": "fraction of training spent ramping fake-quant in", "learnable": false},
+      {"name": "g_scale boost", "value": "(1 + 2/qmax)", "role": "amplifies LSQ scale gradient at low bits", "learnable": false},
+      {"name": "outlier hinge β", "value": "0.05 → 0.01 (×3 at INT2)", "role": "annealed clip penalty on |W/s| > qmax", "learnable": false},
+      {"name": "grid pull weight", "value": "1e-3 (×5 at INT2)", "role": "post-warmup MSE to nearest integer", "learnable": false},
+      {"name": "lsq_scale", "value": "Parameter (per-group)", "role": "learned LSQ scale", "learnable": true},
+      {"name": "ema_scale momentum", "value": "0.99 / 0.95 (≥3 / 2 bits)", "role": "EMA smoothing of running scale", "learnable": false}
+    ],
+    "init_recovers": "Plain LSQ at noise_mix=1, no aux_loss, clip_ratio=1.",
+    "diff_from_baseline": "Layered on top of LSQ: bit-aware scale init (clip_ratio<1 at low bits), a fake-quant noise-mix warmup that fades from FP toward LSQ, and two bit-conditioned regularizers (outlier hinge + post-warmup grid attraction).",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini/gemini-3.1-pro-preview",
+    "name": "LSQ + warmup-step noise ratio",
+    "tagline": "Standard LSQ where the fake-quant grid is linearly mixed with the FP weight over the first warmup_steps then fully applied.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. init s_g ← 2·mean|W_g|/sqrt(qmax)  (LSQ paper init)\n// 2. ŵ ← LSQQuantFn(W, s, qmin, qmax, 1/sqrt(N·qmax))\n// 3. noise_ratio_t ← min(1, (t+1)/warmup_steps)\n// 4. forward weight = W + noise_ratio_t · (ŵ - W)   (during training)\n// 5. eval: real per-group QDQ on the LSQ grid using the learned s\n// 6. aux_loss returns 0 — used only as a side channel to push the current step into wrappers",
+    "key_hyperparams": [
+      {"name": "init scale", "value": "2·mean|W|/√qmax", "role": "LSQ paper initialization", "learnable": false},
+      {"name": "warmup_steps", "value": "50 (= CONFIG_OVERRIDES.warmup_steps)", "role": "linear noise-ratio ramp duration", "learnable": false},
+      {"name": "lsq_scale", "value": "Parameter (per-group)", "role": "learned LSQ scale (applied per-row, per-group)", "learnable": true}
+    ],
+    "init_recovers": "Plain LSQ once t ≥ warmup_steps.",
+    "diff_from_baseline": "Identical to the LSQ baseline except the fake-quant residual (ŵ − W) is multiplied by a linearly-ramping noise ratio for the first warmup_steps so training begins close to FP.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "RTN-anchored LSQ + lattice align",
+    "tagline": "LSQ with log-scale parameter blended toward the deployment RTN scale, with a late-stage center-masked round-error penalty.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. parameterize s_g = exp(log_s_g);  s_lsq ← s_g.clamp(1e-8)\n// 2. each step: rtn_g ← max|W_g|/qmax;  α(t) = target·½(1 - cos(π·t/T))\n//    target = 0.55 (4-bit), 0.45 (3-bit), 0.30 (2-bit)\n// 3. blended scale s = (1-α)·rtn + α·s_lsq;  ŵ ← LSQQuantFn(W, s, ...)\n// 4. eval: real RTN QDQ on max|W|/qmax (no learned scales used at deployment)\n// 5. aux_loss:\n//    a) align = mean(frac²·1[|W/rtn|<qmax-0.25]),  frac = W/rtn - round(·)\n//    b) scale_reg = mean((s_lsq - rtn)/rtn)²\n//    c) total = (0.0015@4 / 0.003@3 / 0.006@2)·t²·align + 5e-4·scale_reg",
+    "key_hyperparams": [
+      {"name": "blend target α_max", "value": "0.55 / 0.45 / 0.30 for 4/3/2 bits", "role": "asymptotic LSQ-vs-RTN scale interpolation", "learnable": false},
+      {"name": "α schedule", "value": "α_max·½(1 - cos(π·t/T))", "role": "cosine ramp from 0 to α_max", "learnable": false},
+      {"name": "align weight", "value": "0.0015 / 0.003 / 0.006 (4/3/2 bits)·t²", "role": "weight on lattice-alignment penalty", "learnable": false},
+      {"name": "center mask threshold", "value": "qmax - 0.25", "role": "skip clipped-out values from align loss", "learnable": false},
+      {"name": "scale_reg weight", "value": "5e-4", "role": "anchors learned scale to RTN scale", "learnable": false},
+      {"name": "log_lsq_scale", "value": "Parameter (per-group)", "role": "exp-parameterized LSQ scale", "learnable": true}
+    ],
+    "init_recovers": "RTN finetune-then-PTQ when α=0; pure LSQ when α=1 with no align loss.",
+    "diff_from_baseline": "LSQ where the train-time scale is blended toward the actual deployment (max-abs RTN) scale on a cosine schedule, plus an aux loss that pulls non-clipped weights to integer lattice points and pins log-LSQ near RTN — closing the train/eval grid mismatch.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "LSQ + scale-anchor regularizer",
+    "tagline": "Plain LSQ plus a tiny ramped MSE between the learned scale and its max-abs initialization to prevent drift.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. init s_g ← 2·mean|W_g|/sqrt(qmax)  (LSQ init)\n// 2. ŵ ← LSQQuantFn(W, s, qmin, qmax)  (LSQ fwd/bwd, every step, no noise warmup)\n// 3. eval: forward path is identical to training (s applied to QDQ)\n// 4. aux_loss:\n//    rel_dev = (s - s_init)/s_init.clamp(1e-12)\n//    return 1e-4·(0.5 + 0.5·t/T)·mean(rel_dev²)",
+    "key_hyperparams": [
+      {"name": "init scale", "value": "2·mean|W|/√qmax", "role": "LSQ paper initialization (kept as buffer)", "learnable": false},
+      {"name": "scale_coeff", "value": "1e-4", "role": "weight on relative-deviation MSE penalty", "learnable": false},
+      {"name": "schedule", "value": "0.5 + 0.5·t/T", "role": "linear ramp from 0.5 to 1 over training", "learnable": false},
+      {"name": "lsq_scale", "value": "Parameter (per-group)", "role": "learned LSQ scale", "learnable": true},
+      {"name": "init_scale buffer", "value": "fixed at start", "role": "anchor for relative-deviation penalty", "learnable": false}
+    ],
+    "init_recovers": "LSQ baseline at scale_coeff=0.",
+    "diff_from_baseline": "Adds a single scale-anchoring penalty mean(((s − s_init)/s_init)²) at coefficient 1e-4, ramped linearly from 0.5 to 1; otherwise identical to the LSQ baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "LSQ + per-group rounding offset",
+    "tagline": "LSQ with a per-group learnable rounding offset δ that fades in over 100 steps, plus grid-MSE and δ L2 aux losses.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. init s_g ← 2·mean|W_g|/sqrt(qmax);  δ_g ← 0\n// 2. warmup_t = min(1, t/100)\n// 3. ŵ ← _LSQARWQuantFn(W, s, δ, warmup_t, qmin, qmax, g_scale, clip_grad=1)\n//    where forward = round(clip(W/s + δ·warmup_t)) · s,  STE-like with grad-clip\n// 4. aux_loss:\n//    a) grid_loss = MSE(clip(W/s_ema + δ·warmup_t), round(·)) summed and per-element averaged\n//    b) delta_loss = mean(δ²)\n//    return 1e-2·grid_loss + 1e-3·delta_loss",
+    "key_hyperparams": [
+      {"name": "init scale", "value": "2·mean|W|/√qmax", "role": "LSQ paper initialization", "learnable": false},
+      {"name": "delta_warmup_steps", "value": "100", "role": "linear ramp on δ contribution", "learnable": false},
+      {"name": "grid_loss_weight", "value": "1e-2", "role": "weight on grid-MSE in aux loss", "learnable": false},
+      {"name": "delta_reg_weight", "value": "1e-3", "role": "L2 weight on per-group offset δ", "learnable": false},
+      {"name": "clip_grad", "value": "1.0", "role": "clamp on scale and delta gradients", "learnable": false},
+      {"name": "ema_momentum", "value": "0.99", "role": "EMA on scale (used in aux loss)", "learnable": false},
+      {"name": "lsq_scale", "value": "Parameter (per-group)", "role": "learned LSQ scale", "learnable": true},
+      {"name": "delta", "value": "Parameter (per-group)", "role": "learned per-group rounding offset", "learnable": true}
+    ],
+    "init_recovers": "Plain LSQ when δ=0 and warmup_t=1.",
+    "diff_from_baseline": "Extends LSQ with a per-group learnable rounding offset δ that ramps in over the first 100 steps, plus an auxiliary loss that combines a grid-MSE pulling W toward integer points and an L2 on δ — a learned-rounding variant in the spirit of AdaRound applied at QAT time.",
+    "confidence": "high"
+  }
+]

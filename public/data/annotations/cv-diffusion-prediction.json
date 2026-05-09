@@ -1,0 +1,67 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "SNR-blended epsilon/v target",
+    "tagline": "Trains a sigmoid mixture of epsilon- and v-prediction whose blend weight ramps with log-SNR, then algebraically inverts the mixture for x0.",
+    "kind": "formula",
+    "formula": "$$ \\text{target} = (1 - w_t)\\,\\epsilon + w_t\\,v,\\quad v = \\sqrt{\\bar\\alpha_t}\\,\\epsilon - \\sqrt{1-\\bar\\alpha_t}\\,x_0,\\quad w_t = \\sigma\\!\\left(\\frac{\\log\\mathrm{SNR}_t - \\mu}{\\tau}\\right) $$",
+    "key_hyperparams": [
+      {"name": "mu", "value": "2.5", "role": "log-SNR midpoint of the sigmoid", "learnable": false},
+      {"name": "tau", "value": "0.8", "role": "sigmoid temperature", "learnable": false}
+    ],
+    "init_recovers": "epsilon at high noise (w→0), v at low noise (w→1)",
+    "diff_from_baseline": "Replaces the static epsilon / v / x0 baselines with a SNR-dependent convex combination of epsilon and v as the regression target, and inverts the resulting linear-in-x0 system in predict_x0. Other components (UNet, schedule, sampler) untouched.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Stabilized affine target",
+    "tagline": "Predicts a delta-shifted convex blend $\\sqrt{\\bar\\alpha+\\delta}\\,\\epsilon + \\sqrt{1-\\bar\\alpha+\\delta}\\,x_0$, with a clamped algebraic inversion for sampling.",
+    "kind": "formula",
+    "formula": "$$ \\text{target} = \\sqrt{\\bar\\alpha_t + \\delta}\\,\\epsilon + \\sqrt{1 - \\bar\\alpha_t + \\delta}\\,x_0,\\quad \\delta = 0.5 $$",
+    "key_hyperparams": [
+      {"name": "delta", "value": "0.5", "role": "shift added inside both square roots to bound coefficients away from 0", "learnable": false},
+      {"name": "x0 clamp", "value": "[-1, 1]", "role": "post-inversion clipping at sampling time", "learnable": false}
+    ],
+    "init_recovers": "v-prediction up to a sign and shift when delta→0",
+    "diff_from_baseline": "Differs from v-prediction by adding a constant offset under both square roots so neither weight collapses to 0 over the schedule, and clamps the inverted x0 to [-1,1]. The overall target is still linear in (eps, x0), so predict_x0 is a closed-form inversion.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini/gemini-3.1-pro-preview",
+    "name": "Min-SNR rotated v target",
+    "tagline": "Defines a Min-SNR-weighted rotated parameterization: the target is a rotated noise/x0 mix where the rotation is set so its variance equals min(SNR, gamma)*(1-alpha).",
+    "kind": "formula",
+    "formula": "$$ W_t = \\min(\\mathrm{SNR}_t, \\gamma),\\; C = \\sqrt{W_t(1-\\bar\\alpha_t)},\\; S = \\sqrt{1 - C^2} $$ $$ \\text{target} = (\\sqrt{\\bar\\alpha_t} C + \\sqrt{1-\\bar\\alpha_t} S)\\,\\epsilon - (\\sqrt{1-\\bar\\alpha_t} C - \\sqrt{\\bar\\alpha_t} S)\\,x_0 $$",
+    "key_hyperparams": [
+      {"name": "gamma", "value": "5.0", "role": "Min-SNR clipping threshold", "learnable": false}
+    ],
+    "init_recovers": "v-prediction up to scaling when gamma→∞",
+    "diff_from_baseline": "Generalizes v-prediction by injecting Min-SNR (gamma=5) directly into the target geometry: instead of weighting the loss after-the-fact, it builds an angle-parameterized {eps, x0} mix whose magnitude C is tied to clipped SNR. Sampling uses the matching analytic x0 inversion.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Epsilon - SNR-gated x0",
+    "tagline": "Predicts $\\epsilon - k\\,\\mathrm{gate}(t)\\,x_0$ with a soft gate $1/(1{+}\\mathrm{SNR})$ that boosts an x0 correction at high noise.",
+    "kind": "formula",
+    "formula": "$$ g_t = \\frac{1}{1 + \\mathrm{SNR}_t},\\quad \\text{target} = \\epsilon - k\\,g_t\\,x_0,\\quad k = 0.2 $$ $$ \\hat{x}_0 = \\frac{x_t - \\sqrt{1-\\bar\\alpha_t}\\,\\hat{y}}{\\sqrt{\\bar\\alpha_t} + k\\,g_t\\,\\sqrt{1-\\bar\\alpha_t}} $$",
+    "key_hyperparams": [
+      {"name": "k", "value": "0.2", "role": "x0-correction strength", "learnable": false}
+    ],
+    "init_recovers": "Epsilon prediction at k=0 or low-noise (SNR→∞, g→0)",
+    "diff_from_baseline": "A perturbed epsilon target: subtracts a (1+SNR)^-1 weighted fraction of x0 from the noise prediction so the high-noise regime gets an extra clean-image regression signal. predict_x0 inverts the affine map exactly.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Alpha^{1/4}-rescaled epsilon",
+    "tagline": "Predicts noise multiplied by $\\sqrt{1-\\bar\\alpha_t}/\\bar\\alpha_t^{1/4}$, giving low-noise timesteps more weight than standard epsilon.",
+    "kind": "formula",
+    "formula": "$$ \\text{target} = \\epsilon\\,\\frac{\\sqrt{1-\\bar\\alpha_t}}{\\bar\\alpha_t^{1/4}} ,\\qquad \\hat{x}_0 = \\frac{x_t - \\bar\\alpha_t^{1/4}\\,\\hat{y}}{\\sqrt{\\bar\\alpha_t}} $$",
+    "key_hyperparams": [],
+    "init_recovers": "Epsilon prediction up to a per-timestep loss reweighting",
+    "diff_from_baseline": "Same epsilon direction as the epsilon baseline but rescales each timestep's target by sqrt(1-alpha)/alpha^{1/4}. This is equivalent to MSE on epsilon with a 1/sqrt(alpha) weighting, focusing capacity on low-noise (high-SNR) timesteps that drive FID.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,75 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Architecture-Adaptive Hybrid (AAHI)",
+    "tagline": "Per-architecture initializer that uses orthogonal for VGG, fan-out Kaiming for residual convs, plus zero-gamma BN and Fixup scaling on residual branches.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for each module m do\n// 2.   if Conv2d: orthogonal(gain=$\\sqrt{2}$) for VGG; else Kaiming-normal fan_out\n// 3.   if BatchNorm2d: $\\gamma=1, \\beta=0$\n// 4.   if Linear and out_features = num_classes: Xavier-normal(gain=0.5)\n// 5.   else Linear: orthogonal (VGG) or Kaiming-normal fan_in\n// 6. if ResNet: scale conv2 in each BasicBlock by $L_{\\text{blocks}}^{-1/2}$, set bn2 $\\gamma\\!=\\!0$\n// 7. if MobileNetV2: for each shortcut-using InvertedResidual zero its last BN $\\gamma$",
+    "key_hyperparams": [
+      {"name": "Fixup scale", "value": "L_blocks^(-1/2)", "role": "depth-adaptive scaling for residual conv2", "learnable": false},
+      {"name": "classifier gain", "value": "0.5", "role": "Xavier gain for final Linear → num_classes", "learnable": false},
+      {"name": "ortho gain (VGG)", "value": "sqrt(2)", "role": "ReLU gain for orthogonal init", "learnable": false}
+    ],
+    "init_recovers": "Kaiming + Fixup-zero-BN on ResNet; orthogonal on VGG",
+    "diff_from_baseline": "Vs Kaiming/Orthogonal/Fixup baselines: routes by arch (orthogonal for VGG, Kaiming for ResNet/MobileNet), reuses Fixup's L^(-1/2) conv2 scaling and zero-BN trick on ResNet AND MobileNetV2 residual blocks, and downscales the classifier head with Xavier(gain=0.5).",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Residual-Aware Fan-Out Scaling (RAFS)",
+    "tagline": "Kaiming fan_out everywhere, then multiplies BOTH convs (and shortcut conv) of every BasicBlock by sqrt(0.5) and zero-inits the last BN.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for each module m do\n// 2.   Conv2d: Kaiming-normal fan_out, ReLU\n// 3.   BatchNorm2d: $\\gamma=1, \\beta=0$\n// 4.   Linear: Kaiming-normal fan_in\n// 5. if ResNet: for each BasicBlock\n// 6.   $W^{conv1}, W^{conv2}, W^{shortcut} \\leftarrow \\sqrt{0.5}\\,\\cdot W$\n// 7.   bn2 $\\gamma \\leftarrow 0$",
+    "key_hyperparams": [
+      {"name": "residual scale", "value": "sqrt(0.5)", "role": "downscales each conv inside residual blocks (constant, not L-dependent)", "learnable": false}
+    ],
+    "init_recovers": "Plain Kaiming when residual scale=1 and bn2 γ=1",
+    "diff_from_baseline": "Vs Fixup: replaces Fixup's L^(-1/2) scaling on the last conv only with a constant sqrt(0.5) scaling on conv1, conv2, and the shortcut conv of every BasicBlock; still zero-inits bn2 γ. Constant scale ignores network depth.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Orthogonal + Weight-Standardization",
+    "tagline": "Orthogonal init followed by per-output-channel mean/std normalization to target std=gain/sqrt(fan_in); zero-BN on residual branches.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for each Conv2d m\n// 2.   if depthwise: $\\mathcal{N}(0,1)$ else orthogonal(gain=1)\n// 3.   per output channel: $W \\leftarrow (W-\\mu)/(\\sigma+\\epsilon)\\cdot \\sqrt{2}/\\sqrt{\\text{fan\\_in}}$\n// 4. for each Linear m: orthogonal then standardize, gain=1 if final classifier else $\\sqrt{2}$\n// 5. BN: $\\gamma=1,\\beta=0$\n// 6. for each BasicBlock: bn2 $\\gamma=0$\n// 7. for each InvertedResidual with use_res and last layer = BN: last BN $\\gamma=0$",
+    "key_hyperparams": [
+      {"name": "ε (norm eps)", "value": "1e-5", "role": "stability in std normalization", "learnable": false},
+      {"name": "gain (hidden)", "value": "sqrt(2)", "role": "ReLU std target for hidden layers", "learnable": false},
+      {"name": "gain (classifier)", "value": "1.0", "role": "std target for final Linear", "learnable": false}
+    ],
+    "init_recovers": "Orthogonal init when standardization is skipped",
+    "diff_from_baseline": "Vs Orthogonal: applies post-hoc per-channel weight standardization (subtract mean, divide by std, then rescale to gain/sqrt(fan_in)) to every Conv2d/Linear; depthwise convs use plain Normal because orthogonal misbehaves on shape [C,1,k,k]; adds zero-γ on the last BN of residual blocks (ResNet & MobileNetV2).",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "RADAR-v3 Delta-Orthogonal + Gated BN",
+    "tagline": "Dirac-init shortcuts and depthwise convs, delta-orthogonal centers for 3x3 hidden convs, and progressive bn2 γ that scales with depth fraction.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for each named Conv2d m\n// 2.   if 'shortcut.0' in name: $W \\leftarrow$ Dirac (identity)\n// 3.   elif depthwise 3x3 stride1: $W \\leftarrow$ Dirac(groups)\n// 4.   elif standard 3x3 stride1 hidden: Kaiming fan_out × 0.08, then orthogonal on $W[:,:,1,1]$ (delta-orthogonal)\n// 5.   else: orthogonal(gain=$\\sqrt{2}$ or 1 if linear-path conv2/conv.3/conv.6)\n// 6. classifier Linear: $\\mathcal{N}(0, 1/\\sqrt{f \\cdot K})$; other Linear: orthogonal\n// 7. for ResNet block i of L: bn2 $\\gamma = 0.1 + 0.12\\sqrt{(i+1)/L}$\n// 8. for each MobileNet residual: last BN $\\gamma = 0.5\\,K^{-1/2}$",
+    "key_hyperparams": [
+      {"name": "hidden conv mul", "value": "0.08", "role": "post-Kaiming downscale before delta-ortho center", "learnable": false},
+      {"name": "bn2 γ schedule (ResNet)", "value": "0.1 + 0.12·sqrt((i+1)/L)", "role": "progressive non-zero residual gain", "learnable": false},
+      {"name": "MobileNet γ", "value": "0.5·K^(-1/2)", "role": "depth-normalized last-BN gain", "learnable": false},
+      {"name": "classifier std", "value": "1/sqrt(fan_in·K)", "role": "logit-magnitude control", "learnable": false}
+    ],
+    "init_recovers": "Closer to Fixup when γ schedule collapses to 0",
+    "diff_from_baseline": "Vs Kaiming/Orthogonal/Fixup: classifies convs by name/structure—Dirac for shortcut and depthwise, delta-orthogonal (only the 1×1 center of the 3×3 kernel is orthogonal) for hidden 3×3, plain orthogonal otherwise—and replaces the zero-γ residual anchor with a non-zero progressive schedule that grows with block index; classifier head uses 1/sqrt(fan_in·K) std.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Depth-Adaptive Hybrid Init (v2)",
+    "tagline": "Per-Conv2d Normal with std = sqrt(2/fan_in)·exp(-i·decay) where decay = min(0.012, 0.6/depth), conservative classifier std, zero-γ residual BN.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. depth $D$, decay $r = \\min(0.012, 0.6/D)$, $i = 0$\n// 2. for each Conv2d m\n// 3.   if depthwise: $\\sigma = \\sqrt{2/k^2}$\n// 4.   else: $\\sigma = \\sqrt{2/\\text{fan\\_in}} \\cdot e^{-i\\,r}$\n// 5.   $W \\sim \\mathcal{N}(0,\\sigma^2)$, $i \\leftarrow i+1$\n// 6. BN: $\\gamma=1,\\beta=0$\n// 7. classifier Linear: $\\sigma = 1/\\sqrt{\\text{fan\\_in}}$, others: $\\sqrt{2/\\text{fan\\_in}}$\n// 8. for each BasicBlock or InvertedResidual(use_res): last BN $\\gamma = 0$",
+    "key_hyperparams": [
+      {"name": "decay rate r", "value": "min(0.012, 0.6/depth)", "role": "exponential per-layer std decay", "learnable": false},
+      {"name": "classifier std", "value": "1/sqrt(fan_in)", "role": "downscale logits by ~sqrt(2)", "learnable": false}
+    ],
+    "init_recovers": "Kaiming fan_in + Fixup-style zero BN at decay=0",
+    "diff_from_baseline": "Vs Kaiming/Fixup: layers a sequential exp(-i·r) decay onto Kaiming-fan_in std for non-depthwise convs (depth-adaptive shrinkage), uses raw fan_in = k^2 for depthwise convs, gives the final Linear half the standard ReLU std, and zero-inits the last BN of residual blocks for both ResNet and MobileNetV2.",
+    "confidence": "high"
+  }
+]

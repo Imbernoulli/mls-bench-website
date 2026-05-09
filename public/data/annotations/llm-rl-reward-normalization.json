@@ -1,0 +1,75 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Conciseness rescue for zero-variance groups",
+    "tagline": "Pass rewards through unchanged for mixed groups; for all-correct groups give a small bonus to shorter responses, for all-wrong groups penalize longer ones (length-normalized in [0,1]).",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. $r_i \\leftarrow \\sum_t s_{i,t}$,  $L_i \\leftarrow \\sum_t m_{i,t}$\n// 2. for each prompt-group $G$:\n// 3.   if $\\mathrm{std}(r_G) > \\varepsilon$: continue (let GRPO handle it)\n// 4.   $\\hat L_i \\leftarrow (L_i - \\min_G L)/(\\max_G L - \\min_G L)$\n// 5.   if $\\bar r_G > 0.5$ (all correct):  $r_i \\mathrel{+}= 0.25\\,(1-\\hat L_i)$\n// 6.   else (all wrong):  $r_i \\mathrel{-}= 0.25\\,\\hat L_i$\n// 7. place $r_i$ at last valid token; mask",
+    "key_hyperparams": [
+      {"name": "conciseness_bonus", "value": "0.25", "role": "max bonus/penalty injected into zero-variance groups", "learnable": false},
+      {"name": "epsilon", "value": "1e-6", "role": "zero-variance threshold and division stabilizer", "learnable": false}
+    ],
+    "init_recovers": "outcome_only baseline when no group is zero-variance",
+    "diff_from_baseline": "Strict superset of the outcome_only baseline: only intervenes on prompt-groups where GRPO would emit zero gradient (all-correct or all-wrong), and breaks the tie with a length-based bonus/penalty bounded by 0.25.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Thresholded min-max conciseness penalty",
+    "tagline": "Penalize positively-rewarded responses that exceed the per-group minimum length by more than a 128-token margin, with linear ramp normalised to the group's max excess.",
+    "kind": "formula",
+    "formula": "$$M_i = \\frac{[L_i - L_{\\min,G} - 128]_+}{[L_{\\max,G}-L_{\\min,G}-128]_+},\\quad r'_i = r_i - 0.1\\,[r_i]_+\\,M_i$$",
+    "key_hyperparams": [
+      {"name": "alpha", "value": "0.1", "role": "max penalty fraction of positive reward", "learnable": false},
+      {"name": "margin", "value": "128", "role": "length threshold (tokens) before penalty kicks in", "learnable": false}
+    ],
+    "init_recovers": "outcome_only when length differences within a group are ≤ 128 tokens or all rewards ≤ 0",
+    "diff_from_baseline": "Asymmetric length-aware penalty applied per-group: instead of dividing every reward by sqrt(L) like the length_aware baseline, it only shrinks positive rewards of responses that overshoot the group's shortest answer by 128+ tokens.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Rank-Calibrated Group-Length Norm (RCGLN)",
+    "tagline": "Sqrt-length normalize per response, then within each prompt-group convert to a centered tied-average rank in [-1,1] scaled by an IQR/MAD separation factor, then batch-whiten.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. $r_i \\leftarrow (\\sum_t s_{i,t})/\\sqrt{L_i}$\n// 2. for each prompt-group $G$ with $|G|>1$:\n// 3.   tied-avg rank $\\rho_i \\in [0,|G|-1]$;  $\\hat\\rho_i \\leftarrow 2\\rho_i/(|G|-1)-1$\n// 4.   IQR $= Q_3-Q_1$,  MAD $= \\mathrm{med}(|r-\\mathrm{med}|)$,  $\\mathrm{sep}=\\mathrm{IQR}/(\\mathrm{IQR}+\\mathrm{MAD}+\\varepsilon)$\n// 5.   margin $\\leftarrow \\mathrm{clip}(0.25 + 0.75\\,\\mathrm{sep},\\;0.25,\\;1.0)$\n// 6.   $r'_i \\leftarrow \\hat\\rho_i \\cdot \\mathrm{margin}$\n// 7. global whiten: $(r' - \\bar r')/(\\sigma_{r'}+\\varepsilon)$;  place at last valid token",
+    "key_hyperparams": [
+      {"name": "length_power", "value": "0.5", "role": "sqrt-length pre-scale", "learnable": false},
+      {"name": "margin_floor", "value": "0.25", "role": "minimum margin even for flat (binary) groups", "learnable": false},
+      {"name": "margin_max", "value": "1.0", "role": "max margin", "learnable": false},
+      {"name": "sep_weight", "value": "0.75", "role": "weight on IQR/MAD separation in margin formula", "learnable": false}
+    ],
+    "init_recovers": "centered tied-rank only (no IQR/MAD) when sep = 0; pure rank-norm behaviour",
+    "diff_from_baseline": "Replaces both batch_std and group_std baselines with a within-group rank statistic plus an IQR/MAD-based margin and a final batch whitening; far more aggressive geometry change than length_aware.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "ALCN: log-length + percentile-clip + median-MAD",
+    "tagline": "Divide each reward by log(1+L), clip at the 5th/95th percentile of the batch, then center on the batch median and divide by 1.4826*MAD.",
+    "kind": "formula",
+    "formula": "$$r_i \\leftarrow \\frac{r_i}{\\log(1+L_i)+\\varepsilon},\\quad r_i \\leftarrow \\mathrm{clip}(r_i, P_5, P_{95}),\\quad r'_i = \\frac{r_i - \\mathrm{med}(r)}{1.4826\\,\\mathrm{MAD}(r) + \\varepsilon}$$",
+    "key_hyperparams": [
+      {"name": "length_norm", "value": "log(1+L)", "role": "softer length penalty than sqrt(L)", "learnable": false},
+      {"name": "p_low / p_high", "value": "0.05 / 0.95", "role": "batch-percentile clip range", "learnable": false},
+      {"name": "MAD_const", "value": "1.4826", "role": "Gaussian-equivalent MAD scale factor", "learnable": false}
+    ],
+    "init_recovers": "length_aware-style scaling when MAD scaling and percentile clip are saturated",
+    "diff_from_baseline": "Replaces the batch_std baseline's mean/std whitening with a robust median-MAD whitening on top of a log-length divisor and a percentile clipper, keeping the same last-valid-token placement.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "Length-normalized batch whitening (LNBW)",
+    "tagline": "First divide each scalar reward by sqrt(response_length), then z-score across the entire batch (mean/std).",
+    "kind": "formula",
+    "formula": "$$r_i \\leftarrow \\frac{\\sum_t s_{i,t}}{\\sqrt{L_i}+\\varepsilon},\\quad r'_i = \\frac{r_i - \\bar r}{\\sigma_r + \\varepsilon}$$",
+    "key_hyperparams": [
+      {"name": "length_power", "value": "0.5", "role": "exponent in length scaling (sqrt)", "learnable": false},
+      {"name": "epsilon", "value": "1e-6", "role": "division stabilizer", "learnable": false}
+    ],
+    "init_recovers": "batch_std baseline at length_power = 0; length_aware baseline at length_power = 0.5 without whitening",
+    "diff_from_baseline": "Composes the length_aware (sqrt-L) and batch_std baselines into a single hook: sqrt-length divide first, then mean/std batch whitening, before placing the scalar at the last valid token.",
+    "confidence": "high"
+  }
+]

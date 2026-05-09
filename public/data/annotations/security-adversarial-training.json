@@ -1,0 +1,80 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Curriculum-Attack TRADES + AWP",
+    "tagline": "TRADES with confidence-weighted KL, KL-then-CE attack curriculum, and a one-step AWP weight perturbation around the loss.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}=\\mathrm{CE}(f(x),y)+\\beta\\,\\mathbb{E}\\bigl[(1+0.5(1-p_y))\\,\\mathrm{KL}(p_c\\|p_{\\mathrm{adv}})\\bigr],\\quad x_{\\mathrm{adv}}^{(t)}=\\Pi_{B_\\infty(x,\\epsilon)}\\!\\left(x_{\\mathrm{adv}}^{(t-1)}+\\alpha\\,\\mathrm{sign}\\,\\nabla\\!\\bigl[\\mathbf{1}[t<K/2]\\,\\mathrm{KL}+\\mathbf{1}[t\\ge K/2]\\,\\mathrm{CE}\\bigr]\\right),\\quad w\\!\\leftarrow\\!w+\\gamma\\nabla_w\\mathcal{L},\\;\\text{step},\\;w\\!\\leftarrow\\!w-\\gamma\\nabla_w\\mathcal{L}$$",
+    "key_hyperparams": [
+      {"name": "β", "value": "6.0", "role": "TRADES KL weight", "learnable": false},
+      {"name": "γ_AWP", "value": "0.005", "role": "single-step AWP weight perturbation magnitude", "learnable": false},
+      {"name": "confidence boost", "value": "1 + 0.5·(1 - p_y)", "role": "per-sample KL upweight", "learnable": false},
+      {"name": "attack switch", "value": "K/2", "role": "step at which KL attack switches to CE attack", "learnable": false}
+    ],
+    "init_recovers": "TRADES when boost=1 and γ_AWP=0",
+    "diff_from_baseline": "Adds two pieces on top of TRADES+AWP: (a) the PGD attack uses KL maximization for the first K/2 steps then CE for the remaining steps (curriculum), and (b) the KL term is weighted by 1+0.5(1−p_y) so misclassified samples get larger consistency pressure. AWP is a simplified one-step gradient ascent on the actual loss (not a separate proxy model as in the AWP baseline).",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Confidence-Adaptive TRADES (CAR)",
+    "tagline": "Per-sample weight from clean confidence interpolates between KL consistency and adversarial CE, on top of vanilla TRADES.",
+    "kind": "formula",
+    "formula": "$$w_i=\\mathrm{clip}\\!\\left(\\frac{p_{i,y}-\\tau}{1-\\tau},\\,0.1,\\,1\\right),\\qquad \\mathcal{L}=\\mathrm{CE}(f(x),y)+\\beta\\,\\mathbb{E}[w_i\\,\\mathrm{KL}(p_c\\|p_{\\mathrm{adv}})]+\\lambda\\,\\mathbb{E}[(1-w_i)\\,\\mathrm{CE}(f(x_{\\mathrm{adv}}),y)]$$",
+    "key_hyperparams": [
+      {"name": "β", "value": "6.0", "role": "base KL weight", "learnable": false},
+      {"name": "λ", "value": "0.5", "role": "adversarial-CE weight on low-confidence samples", "learnable": false},
+      {"name": "τ", "value": "0.5", "role": "confidence threshold for adaptive weight", "learnable": false},
+      {"name": "w_min", "value": "0.1", "role": "minimum KL weight floor", "learnable": false}
+    ],
+    "init_recovers": "TRADES when λ=0 and w_i≡1",
+    "diff_from_baseline": "Replaces TRADES' uniform β·KL with a per-sample weighted KL plus a complementary (1−w_i)-weighted adversarial CE term. Confident samples are pushed toward boundary smoothness; under-confident samples receive PGDAT-style adversarial supervision. Attack still maximizes KL like TRADES.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "TRADES + Adaptive Adv-CE + Layer AWP",
+    "tagline": "AWP perturbation derived from a KL-only objective, then optimization on TRADES loss plus a confidence-weighted adversarial CE term.",
+    "kind": "formula",
+    "formula": "$$e_w=\\gamma_{\\mathrm{AWP}}\\,\\frac{\\|w\\|}{\\|\\nabla_w\\mathrm{KL}\\|}\\,\\nabla_w\\mathrm{KL}(p_{\\mathrm{adv}}\\|\\mathrm{sg}(p_c)),\\qquad \\mathcal{L}=\\mathrm{CE}(f(x),y)+\\beta\\,\\mathrm{KL}(p_{\\mathrm{adv}}\\|\\mathrm{sg}(p_c))+\\mathbb{E}[(1-p_{c,y})\\,\\mathrm{CE}(f(x_{\\mathrm{adv}}),y)]$$",
+    "key_hyperparams": [
+      {"name": "β", "value": "6.0", "role": "TRADES KL weight", "learnable": false},
+      {"name": "γ_AWP", "value": "0.01", "role": "layer-wise AWP magnitude", "learnable": false},
+      {"name": "AWP filter", "value": "param.dim>1", "role": "perturb only multi-dim weights", "learnable": false}
+    ],
+    "init_recovers": "TRADES when γ_AWP=0 and the (1−p_c,y) Adv-CE is dropped",
+    "diff_from_baseline": "AWP is computed in-place on the live model from the KL-only gradient (skipping the proxy model and the −(CE+βKL) objective the AWP baseline uses). The outer loss adds an adversarial cross-entropy term weighted by (1−clean confidence), so hard examples get extra direct adversarial supervision compared to plain TRADES.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Adaptive Anchor-Margin AT (AAMAT)",
+    "tagline": "PGD attack on CE+margin softplus; outer loss anchors adv predictions to a confidence-mixed soft target plus margin penalty, weighted by hardness.",
+    "kind": "formula",
+    "formula": "$$\\hat y=(1-\\tau)\\,e_y+\\tau\\,p_c,\\quad \\tau=0.05+0.55\\,p_{c,y},\\qquad w=0.75+(1-p_{c,y})+0.5\\,\\sigma(-(z_y-\\max_{j\\ne y}z_j))$$\n$$\\mathcal{L}=\\mathrm{CE}(f(x),y)+\\beta\\,\\mathbb{E}\\!\\left[w\\,\\mathrm{CE}(\\hat y,f(x_{\\mathrm{adv}}))\\right]+\\gamma\\,\\mathbb{E}\\!\\left[w\\,\\mathrm{softplus}(\\max_{j\\ne y}z_j^{\\mathrm{adv}}-z_y^{\\mathrm{adv}})\\right]$$\n$$x_{\\mathrm{adv}}\\leftarrow\\Pi_{B_\\infty(x,\\epsilon)}\\!\\left(x_{\\mathrm{adv}}+\\alpha\\,\\mathrm{sign}\\,\\nabla\\!\\bigl[\\mathrm{CE}+\\lambda\\,\\mathrm{softplus}(\\max_{j\\ne y}z_j-z_y)\\bigr]\\right)$$",
+    "key_hyperparams": [
+      {"name": "β", "value": "1.2", "role": "anchor-CE weight", "learnable": false},
+      {"name": "γ", "value": "0.6", "role": "margin-softplus weight", "learnable": false},
+      {"name": "λ_attack", "value": "1.0", "role": "margin term in attack objective", "learnable": false},
+      {"name": "τ schedule", "value": "0.05 + 0.55·p_y", "role": "label-smoothing strength tied to clean confidence", "learnable": false},
+      {"name": "weight w", "value": "0.75 + (1−p_y) + 0.5·σ(−margin)", "role": "per-sample hardness weight", "learnable": false}
+    ],
+    "init_recovers": "Roughly PGDAT when τ=0, w=1, γ=0",
+    "diff_from_baseline": "Replaces the simple PGDAT/TRADES targets with: (a) attack maximizes CE plus a margin-softplus, (b) adv loss uses an anchor target that interpolates one-hot with the clean predictive distribution (more smoothing for confident samples), (c) explicit margin-softplus penalty added, and (d) every adv term is reweighted by a hardness/boundary score. No KL, no AWP.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Robust Focal TRADES (RFT)",
+    "tagline": "TRADES KL plus adversarial CE, both reweighted by an adversarial-confidence focal factor (1 - p_adv,y)^γ.",
+    "kind": "formula",
+    "formula": "$$w_i=(1-p_{\\mathrm{adv},y})^{\\gamma},\\qquad \\mathcal{L}=\\mathrm{CE}(f(x),y)+\\mathbb{E}[w_i\\,\\mathrm{CE}(f(x_{\\mathrm{adv}}),y)]+\\beta\\,\\mathbb{E}[w_i\\,\\mathrm{KL}(p_{\\mathrm{adv}}\\|p_c)]$$",
+    "key_hyperparams": [
+      {"name": "β", "value": "6.0", "role": "KL weight", "learnable": false},
+      {"name": "γ", "value": "1.0", "role": "focal exponent on adversarial confidence", "learnable": false}
+    ],
+    "init_recovers": "TRADES + PGDAT sum when γ=0",
+    "diff_from_baseline": "Adds an explicit adversarial CE term to TRADES and reweights both adversarial CE and the KL term by the focal factor (1−p_adv,y)^γ. Compared to MART, the focal weight uses adversarial (not clean) confidence, so emphasis tracks current adversarial vulnerability.",
+    "confidence": "high"
+  }
+]

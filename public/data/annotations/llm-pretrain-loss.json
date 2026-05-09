@@ -1,0 +1,63 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Tanh softcap + smoothing + z-loss",
+    "tagline": "Bounds logits by $30\\tanh(\\cdot/30)$, applies label-smoothing $\\epsilon=0.1$, and adds a $10^{-4}$ z-loss; eval reverts to plain CE.",
+    "kind": "formula",
+    "formula": "$$\\tilde z=30\\,\\tanh(z/30),\\quad\\mathcal{L}=\\mathrm{CE}_{\\epsilon=0.1}(\\tilde z, y)+10^{-4}\\,\\mathbb{E}\\bigl[(\\log\\!\\!\\sum_v e^{\\tilde z_v})^{2}\\bigr]$$",
+    "key_hyperparams": [
+      {"name": "softcap", "value": "30.0", "role": "tanh softcap magnitude on training logits", "learnable": false},
+      {"name": "label_smoothing eps", "value": "0.1", "role": "training-only label smoothing", "learnable": false},
+      {"name": "z-loss weight", "value": "1e-4", "role": "PaLM-style log-partition penalty", "learnable": false}
+    ],
+    "init_recovers": "Plain CE during eval (`torch.no_grad()` branch)",
+    "diff_from_baseline": "Stacks all three baselines simultaneously: tanh-style softcap (vs. softcap_ce's sigmoid), $\\epsilon=0.1$ smoothing (vs. label_smoothing's 0.05), and z-loss with the same 1e-4 weight as the z_loss baseline; eval still uses raw CE for fair perplexity.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Manual smoothing + scaled z-loss",
+    "tagline": "Hand-built smoothed-target CE with $\\epsilon=0.05$ plus a relatively heavy $0.01$ z-loss; raw CE at eval.",
+    "kind": "formula",
+    "formula": "$$q_v=\\bigl(1-\\epsilon\\bigr)\\delta_{v,y}+\\tfrac{\\epsilon}{V-1}(1-\\delta_{v,y}),\\quad \\mathcal{L}=-\\!\\!\\sum_v q_v\\log p_v+0.01\\,\\mathbb{E}\\bigl[(\\log\\!\\!\\sum_v e^{z_v})^{2}\\bigr]$$",
+    "key_hyperparams": [
+      {"name": "ε", "value": "0.05", "role": "label-smoothing fraction", "learnable": false},
+      {"name": "z-loss weight", "value": "0.01", "role": "log-partition penalty (100× softcap baseline)", "learnable": false}
+    ],
+    "init_recovers": "Plain CE during eval; reduces to label-smoothing baseline at z-weight=0",
+    "diff_from_baseline": "Combines label_smoothing baseline ($\\epsilon=0.05$) with a z-loss term whose weight is 100$\\times$ the z_loss baseline ($10^{-2}$ vs $10^{-4}$); no logit softcapping. Smoothing is implemented by hand against a uniform-over-other-classes distribution rather than via `label_smoothing=` in F.cross_entropy.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Tanh softcap + tiny smoothing + z-loss",
+    "tagline": "Tanh-30 logit softcap, very light $\\epsilon=0.01$ label smoothing, and a $10^{-4}$ z-loss on the capped logits.",
+    "kind": "formula",
+    "formula": "$$\\tilde z=30\\,\\tanh(z/30),\\quad \\mathcal{L}=\\mathrm{CE}_{\\epsilon=0.01}(\\tilde z, y)+10^{-4}\\,\\mathbb{E}\\bigl[(\\log\\!\\!\\sum_v e^{\\tilde z_v})^{2}\\bigr]$$",
+    "key_hyperparams": [
+      {"name": "softcap A", "value": "30.0", "role": "tanh softcap magnitude", "learnable": false},
+      {"name": "label_smoothing", "value": "0.01", "role": "very small smoothing", "learnable": false},
+      {"name": "z-loss weight", "value": "1e-4", "role": "log-partition penalty", "learnable": false}
+    ],
+    "init_recovers": "Plain CE on capped logits during eval",
+    "diff_from_baseline": "Differs from softcap_ce baseline by using a tanh cap (modded-nanogpt style) instead of sigmoid; pulls smoothing in at $\\epsilon=0.01$ (much smaller than label_smoothing baseline) and matches z_loss baseline weight $10^{-4}$.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Margin-gated self-distillation CE",
+    "tagline": "Builds a detached softmax-T=1.35 teacher and mixes it into the target only when the gold-vs-competitor margin is small; sigmoid-gated $\\epsilon$, blended with hard NLL and a tiny z-loss.",
+    "kind": "formula",
+    "formula": "$$\\epsilon=0.01+0.07\\,\\sigma(-(z_y-\\max_{v\\ne y}z_v)/0.75),\\;\\;\\hat q=(1-\\epsilon)\\delta_{\\cdot,y}+\\epsilon\\,\\mathrm{softmax}(z/1.35)$$ $$\\mathcal{L}=0.85\\bigl(-\\hat q^{\\top}\\log p\\bigr)+0.15\\bigl(-\\log p_y\\bigr)+3\\!\\times\\!10^{-5}\\,\\mathbb{E}[(\\log\\!\\sum_v e^{z_v})^2]$$",
+    "key_hyperparams": [
+      {"name": "ε_min, ε_max", "value": "0.01, 0.08", "role": "smoothing range gated by margin", "learnable": false},
+      {"name": "margin temperature", "value": "0.75", "role": "scale inside sigmoid gate", "learnable": false},
+      {"name": "teacher T", "value": "1.35", "role": "softmax temperature for self-distill teacher", "learnable": false},
+      {"name": "soft/hard mix", "value": "0.85 / 0.15", "role": "blend weights on smoothed CE vs raw NLL", "learnable": false},
+      {"name": "z-loss weight", "value": "3e-5", "role": "log-partition penalty (small)", "learnable": false}
+    ],
+    "init_recovers": "Pure NLL at eval; near-pure NLL on confident tokens (gate→0)",
+    "diff_from_baseline": "Differs from all three baselines by using per-token, margin-gated label smoothing with a self-distilled soft target instead of a uniform smoothing distribution; no logit softcap, and the z-loss weight is much smaller (3e-5 vs 1e-4).",
+    "confidence": "high"
+  }
+]

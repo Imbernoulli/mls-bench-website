@@ -1,0 +1,188 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Scale-adaptive attn + scale-shift FiLM",
+    "tagline": "Modern DDPM-style sin/cos embeddings with attention placed by channel width and scale-shift time conditioning at every block.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x_t (32x32)"},
+        {"id": "sm", "label": "if first_ch<=64: AttnDown 32 -> 16 -> 8"},
+        {"id": "lg", "label": "else: Down 32 -> AttnDown 16 -> 8 -> Down 4"},
+        {"id": "mid", "label": "ScaleShift FiLM mid"},
+        {"id": "up", "label": "matched UpBlock2D / AttnUpBlock2D"},
+        {"id": "out", "label": "epsilon"}
+      ],
+      "edges": [
+        {"from": "x", "to": "sm"},
+        {"from": "x", "to": "lg"},
+        {"from": "sm", "to": "mid"},
+        {"from": "lg", "to": "mid"},
+        {"from": "mid", "to": "up"},
+        {"from": "up", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "attention_head_dim", "value": "8", "role": "multi-head attn channel split", "learnable": false},
+      {"name": "resnet_time_scale_shift", "value": "scale_shift", "role": "AdaGN-style FiLM in every ResBlock", "learnable": false},
+      {"name": "flip_sin_to_cos", "value": "True", "role": "modern ADM/improved-DDPM embedding", "learnable": false},
+      {"name": "freq_shift", "value": "0", "role": "embedding offset (vs DDPM=1)", "learnable": false},
+      {"name": "downsample_padding", "value": "1", "role": "preserves boundaries", "learnable": false},
+      {"name": "small_attn_levels", "value": "32, 16, 8", "role": "first_ch<=64 branch", "learnable": false},
+      {"name": "large_attn_levels", "value": "16, 8", "role": "else branch", "learnable": false}
+    ],
+    "init_recovers": "Standard DDPM with attn=16 if scale_shift and modern embed disabled",
+    "diff_from_baseline": "Switches the standard {Down, AttnDown@16, Down, Down} layout to a width-conditioned schedule (small models add attention at 32 and 8; medium/large keep 16 and 8), plus toggles scale_shift FiLM, flip_sin_to_cos=True, freq_shift=0, downsample_padding=1, and attention_head_dim=8. All other UNet2DModel kwargs match the baselines.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Scale-adaptive attn + dropout + head_dim=12",
+    "tagline": "Width-aware UNet: small uses attn at 16/8/4 with norm_groups=16; larger keeps 16/8 attn, both with FiLM and dropout=0.1.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x_t"},
+        {"id": "sm", "label": "first_ch=64: AttnDown 16 -> 8 -> 4 (norm_groups=16)"},
+        {"id": "lg", "label": "else: AttnDown 16 -> 8 (norm_groups=32)"},
+        {"id": "mid", "label": "ScaleShift FiLM mid"},
+        {"id": "up", "label": "mirrored UpBlock2D / AttnUpBlock2D"},
+        {"id": "out", "label": "epsilon"}
+      ],
+      "edges": [
+        {"from": "x", "to": "sm"},
+        {"from": "x", "to": "lg"},
+        {"from": "sm", "to": "mid"},
+        {"from": "lg", "to": "mid"},
+        {"from": "mid", "to": "up"},
+        {"from": "up", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "attention_head_dim", "value": "12", "role": "shared by both scales", "learnable": false},
+      {"name": "dropout", "value": "0.1", "role": "ResBlock dropout", "learnable": false},
+      {"name": "resnet_time_scale_shift", "value": "scale_shift", "role": "AdaGN time modulation", "learnable": false},
+      {"name": "flip_sin_to_cos", "value": "True", "role": "modern embedding", "learnable": false},
+      {"name": "freq_shift", "value": "0", "role": "embedding offset", "learnable": false},
+      {"name": "downsample_padding", "value": "1", "role": "boundary handling", "learnable": false},
+      {"name": "small_norm_groups", "value": "16", "role": "GroupNorm groups when first_ch=64", "learnable": false}
+    ],
+    "init_recovers": "Standard DDPM when dropout=0, scale_shift=default, head_dim=8, small layout disabled",
+    "diff_from_baseline": "Branches on first_ch==64: small variant uses AttnDown at 16/8/4 with norm_num_groups=16; medium/large match the standard {Down, AttnDown@16, AttnDown@8, Down} layout. Both turn on scale_shift FiLM, dropout=0.1, attention_head_dim=12, modern sin/cos embedding (flip=True, shift=0), and downsample_padding=1.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Attn 16+8 with FiLM, head_dim=32",
+    "tagline": "Standard DDPM layout extended with attention at 8x8, scale_shift FiLM, head_dim=32, and modern sin/cos embeddings.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x_t"},
+        {"id": "d1", "label": "DownBlock 32"},
+        {"id": "d2", "label": "AttnDown 16 (head_dim=32)"},
+        {"id": "d3", "label": "AttnDown 8"},
+        {"id": "d4", "label": "DownBlock 4"},
+        {"id": "mid", "label": "ScaleShift FiLM mid"},
+        {"id": "up", "label": "UpBlock + AttnUpBlock 8/16"},
+        {"id": "out", "label": "epsilon"}
+      ],
+      "edges": [
+        {"from": "x", "to": "d1"},
+        {"from": "d1", "to": "d2"},
+        {"from": "d2", "to": "d3"},
+        {"from": "d3", "to": "d4"},
+        {"from": "d4", "to": "mid"},
+        {"from": "mid", "to": "up"},
+        {"from": "up", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "attention_head_dim", "value": "32", "role": "wider per-head channel", "learnable": false},
+      {"name": "resnet_time_scale_shift", "value": "scale_shift", "role": "AdaGN time modulation", "learnable": false},
+      {"name": "flip_sin_to_cos", "value": "True", "role": "modern embedding", "learnable": false},
+      {"name": "freq_shift", "value": "0", "role": "embedding offset", "learnable": false},
+      {"name": "downsample_padding", "value": "0", "role": "kept as baseline", "learnable": false}
+    ],
+    "init_recovers": "Standard DDPM if scale_shift disabled, head_dim=8, modern embed off, attn at 8 dropped",
+    "diff_from_baseline": "Adds AttnDown/AttnUp at the 8x8 stage on top of the standard {Down, AttnDown@16, Down, Down} layout, switches to attention_head_dim=32, scale_shift FiLM, and modern flip_sin_to_cos=True / freq_shift=0; downsample_padding stays at 0 unlike the other proposals.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Encoder-heavy attn + FiLM",
+    "tagline": "Asymmetric UNet: encoder gets attention at 32/16/8 to build global context early, decoder only at 16/8 to avoid over-smoothing.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x_t"},
+        {"id": "d1", "label": "AttnDown 32"},
+        {"id": "d2", "label": "AttnDown 16"},
+        {"id": "d3", "label": "AttnDown 8"},
+        {"id": "d4", "label": "DownBlock 4"},
+        {"id": "mid", "label": "ScaleShift FiLM mid"},
+        {"id": "u1", "label": "UpBlock 4"},
+        {"id": "u2", "label": "AttnUp 8"},
+        {"id": "out", "label": "AttnUp 16, UpBlock 32 -> epsilon"}
+      ],
+      "edges": [
+        {"from": "x", "to": "d1"},
+        {"from": "d1", "to": "d2"},
+        {"from": "d2", "to": "d3"},
+        {"from": "d3", "to": "d4"},
+        {"from": "d4", "to": "mid"},
+        {"from": "mid", "to": "u1"},
+        {"from": "u1", "to": "u2"},
+        {"from": "u2", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "attention_head_dim", "value": "8", "role": "multi-head channel split", "learnable": false},
+      {"name": "resnet_time_scale_shift", "value": "scale_shift", "role": "AdaGN time modulation", "learnable": false},
+      {"name": "flip_sin_to_cos", "value": "True", "role": "modern embedding", "learnable": false},
+      {"name": "freq_shift", "value": "0", "role": "embedding offset", "learnable": false},
+      {"name": "downsample_padding", "value": "1", "role": "boundary handling", "learnable": false},
+      {"name": "down_attn_levels", "value": "32, 16, 8", "role": "encoder attention placement", "learnable": false},
+      {"name": "up_attn_levels", "value": "8, 16", "role": "decoder attention placement", "learnable": false}
+    ],
+    "init_recovers": "full-attn baseline if decoder attention also re-enabled at 32 and 4",
+    "diff_from_baseline": "Asymmetric attention placement: encoder is full-attn at 32/16/8 like the full-attn baseline but decoder reverts to UpBlock at the 32 and 4 stages, keeping AttnUp only at 8 and 16. Adds scale_shift FiLM, head_dim=8, modern sin/cos embedding (flip=True, shift=0), and downsample_padding=1.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Capacity-aware attn + scale-tuned conditioning",
+    "tagline": "Small models get dual attn at 16+8 with FiLM and modern embeddings; medium models keep DDPM-classic single attn at 16 with default conditioning.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x_t"},
+        {"id": "sm", "label": "first_ch<=64: AttnDown 16 + AttnDown 8, scale_shift, flip=True"},
+        {"id": "lg", "label": "else: AttnDown 16 only, default cond, flip=False"},
+        {"id": "mid", "label": "UNetMidBlock2D"},
+        {"id": "up", "label": "mirrored Up + AttnUp"},
+        {"id": "out", "label": "epsilon"}
+      ],
+      "edges": [
+        {"from": "x", "to": "sm"},
+        {"from": "x", "to": "lg"},
+        {"from": "sm", "to": "mid"},
+        {"from": "lg", "to": "mid"},
+        {"from": "mid", "to": "up"},
+        {"from": "up", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "small_layout", "value": "Down, AttnDown@16, AttnDown@8, Down", "role": "first_ch<=64", "learnable": false},
+      {"name": "large_layout", "value": "Down, AttnDown@16, Down, Down", "role": "else (matches standard)", "learnable": false},
+      {"name": "small_time_scale_shift", "value": "scale_shift", "role": "AdaGN for small models", "learnable": false},
+      {"name": "large_time_scale_shift", "value": "default", "role": "additive cond for medium", "learnable": false},
+      {"name": "small_flip_sin_to_cos", "value": "True", "role": "modern embedding when small", "learnable": false},
+      {"name": "small_freq_shift", "value": "0", "role": "modern offset when small", "learnable": false},
+      {"name": "downsample_padding", "value": "0", "role": "matches baselines", "learnable": false}
+    ],
+    "init_recovers": "Standard DDPM baseline in the medium/large branch",
+    "diff_from_baseline": "For first_ch>64 it exactly matches the standard baseline (attn only at 16, default conditioning, classic DDPM embedding). For first_ch<=64 it adds AttnDown/AttnUp at 8x8 and switches conditioning to scale_shift FiLM with modern flip_sin_to_cos=True / freq_shift=0. attention_head_dim is left at the diffusers default and downsample_padding stays at 0.",
+    "confidence": "high"
+  }
+]

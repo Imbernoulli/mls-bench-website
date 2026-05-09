@@ -1,0 +1,74 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "GP-EI with shrinking trust region",
+    "tagline": "After 8 random inits, fits an isotropic-RBF GP (lengthscale grid-MLE), and maximizes EI plus a distance-bonus over a shrinking trust region around the incumbent.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. if $|H| < 8$: return uniform sample at fidelity 1\n// 2. encode all configs to $[0,1]^d$ (categorical $\\to$ index/(K-1)); standardize $y$\n// 3. for $\\ell \\in \\{0.1, 0.2, 0.5, 1.0, 2.0\\}$: fit RBF GP, pick the $\\ell^\\star$ with max log-likelihood\n// 4. progress fraction $f = n / (n + \\text{budget\\_left})$; let $bx$ be incumbent encoding\n// 5. propose 200 candidates: 30% uniform, 30% jitter top-quartile $\\sigma=0.15$, 40% Gaussian around $bx$ with $\\sigma = \\max(0.02, 0.15(1 - f))$ (trust region)\n// 6. score by $\\mathrm{EI}(\\mu, \\sigma) + 0.05(1 - f)\\sqrt{\\min_i \\|x - X_i\\|^2}$\n// 7. return arg-max candidate at fidelity 1.0",
+    "key_hyperparams": [
+      {"name": "init samples", "value": "8", "role": "uniform warm-up", "learnable": false},
+      {"name": "lengthscale grid", "value": "[0.1, 0.2, 0.5, 1, 2]", "role": "RBF length-scale candidates", "learnable": false},
+      {"name": "GP jitter", "value": "0.01", "role": "noise added to K", "learnable": false},
+      {"name": "TR shrink", "value": "sigma=max(0.02, 0.15(1-f))", "role": "trust-region radius around incumbent", "learnable": false},
+      {"name": "diversity bonus", "value": "0.05*(1-f)", "role": "distance-to-history term added to EI", "learnable": false},
+      {"name": "fidelity", "value": "1.0 always", "role": "no multi-fidelity", "learnable": false}
+    ],
+    "init_recovers": "Random search before 8 evals; standard EI when diversity bonus → 0",
+    "diff_from_baseline": "Versus tpe/bohb/dehb, this is a single-fidelity GP-EI with two additions: a small distance-to-observed bonus on the EI to discourage clumping, and a trust-region candidate distribution whose radius shrinks linearly with progress. No multi-fidelity scheduling.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "AMFBE: TPE + Hyperband + DE (broken)",
+    "tagline": "Initializes Hyperband-style brackets seeded by TPE; promotes top-1/eta survivors with DE mutations; submission has IndentationError in suggest().",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. on first call: build successive-halving brackets with $s_{\\max}=\\min(4, \\lfloor\\log_\\eta B\\rfloor)$, $\\eta=2.5$, min-fidelity 0.2\n//   each bracket alternates uniform vs TPE-EI seeds\n// 2. on each call: update bracket scores with the latest history, advance brackets when full (keep top $1/\\eta$, raise fidelity by $\\eta$), inject DE mutants $a + 0.5(b - c)$ with crossover prob 0.5\n// 3. if queue empty: with prob 0.2 exploit best-so-far at $2\\times$ its previous fidelity; otherwise TPE-EI sample with fidelity $0.2 + 0.8\\,(\\text{spent}/\\text{total})^2$\n// 4. else pop next (cfg, fid); if its nearest-neighbour score $\\ge 80$th-percentile, multiply fidelity by 1.5\n// NOTE: the suggested submission has an over-indented body inside `if not self.initialized:`, so calling suggest() raises IndentationError",
+    "key_hyperparams": [
+      {"name": "eta", "value": "2.5", "role": "bracket reduction factor", "learnable": false},
+      {"name": "min_fidelity", "value": "0.2", "role": "lowest rung", "learnable": false},
+      {"name": "TPE gamma", "value": "0.3", "role": "good vs bad split fraction", "learnable": false},
+      {"name": "n_ei_candidates", "value": "32", "role": "TPE candidate pool", "learnable": false},
+      {"name": "DE F, CR", "value": "0.5, 0.5", "role": "differential mutation / crossover", "learnable": false},
+      {"name": "fidelity boost", "value": "1.5x if NN-score in top 20%", "role": "promote promising configs", "learnable": false}
+    ],
+    "init_recovers": "Pure Hyperband if TPE sampling and DE injection are removed",
+    "diff_from_baseline": "Combines bohb's TPE-seeded Hyperband with dehb's DE mutations on survivors and an additional adaptive-fidelity heuristic (boost when NN of past configs scored highly). Submission as-stored has indentation errors that prevent execution.",
+    "confidence": "medium"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "RandomForest-UCB + 2-rung successive halving",
+    "tagline": "Two-rung Hyperband (0.25, 1.0); after 8 evals fits a RandomForest on (encoding, budget) and picks UCB(mean + 1.96·std) of forest predictions over uniform + mutated candidates.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. assign each trial to nearest of two rungs $\\{0.25, 1.0\\}$\n// 2. for the upper rung: if any prev-rung config is in the top $1/\\eta$ ($\\eta=2$) and not yet promoted, return it at the upper fidelity\n// 3. if $|H| < 8$: random sample at fidelity 0.25\n// 4. encode (one-hot for categoricals); fit RandomForestRegressor(50 trees, min_samples_split=3) on $((x, b),\\, z)$ with $z = (y - \\bar y)/\\sigma_y$\n// 5. build candidate pool: 200 uniform + 5 best-so-far each $\\times$ 40 Gaussian-jitter mutations ($\\sigma$ = 0.15 of range)\n// 6. predict each candidate at fidelity 1.0; score $\\mathrm{UCB} = \\mu + 1.96 \\sigma$ over the 50 trees\n// 7. return arg-max at fidelity 0.25 (low rung)",
+    "key_hyperparams": [
+      {"name": "rungs", "value": "[0.25, 1.0]", "role": "two-rung successive-halving fidelities", "learnable": false},
+      {"name": "eta", "value": "2", "role": "promotion ratio", "learnable": false},
+      {"name": "RF n_estimators", "value": "50", "role": "ensemble size for surrogate uncertainty", "learnable": false},
+      {"name": "UCB beta", "value": "1.96", "role": "exploration bonus", "learnable": false},
+      {"name": "candidate pool", "value": "200 uniform + 5*40 mutated", "role": "acquisition optimization", "learnable": false},
+      {"name": "init samples", "value": "8", "role": "warm-up before surrogate", "learnable": false}
+    ],
+    "init_recovers": "Random search + 2-rung Hyperband if surrogate is bypassed",
+    "diff_from_baseline": "Versus bohb (TPE+Hyperband) this swaps the TPE density for a RandomForest UCB surrogate and uses only two rungs; versus hyperband it adds the surrogate-driven candidate selection at the low rung.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Quantile-calibrated UCB with benchmark-aware mutations",
+    "tagline": "Detects benchmark family (xgboost/svm/nn), calibrates low-fidelity scores to full-fidelity quantiles, fits a mixed-type kernel surrogate, and uses structure-aware mutations + asynchronous promotion.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. classify benchmark by parameter names: tree_like / svm_like / nn_like; pick $base\\_fid \\in \\{1.0, 0.8, 0.6\\}$ and warm-up size $n_\\text{init}$\n// 2. while $|H| < n_\\text{init}$: maximin-distance sample at $base\\_fid$\n// 3. quantile-transport low-fidelity scores onto the full-fidelity CDF (linear interp on ranks)\n// 4. dedup configs into records; if any low-fid config sits in top 40% of calibrated $y$ and full-fid corpus is small or progress > 0.25, promote it to fidelity 1.0\n// 5. set lengthscale per dim from elite std, shrink with progress, clip to [0.08, 0.45]; compute mixed kernel ($1.5\\cdot\\mathbb 1$ for categorical mismatch + RBF on numeric)\n// 6. propose 72 candidates: tree-structured jitters (lr↔n_est trade), elite-Gaussian, midpoint crossovers, maximin\n// 7. predict $\\mu, \\sigma$ via weighted-kernel regression on calibrated $y$ (weight $\\propto e^{-d/2}\\,(0.35 + b^{1.5})$); UCB $= \\mu + \\beta\\sigma + c\\,y_{\\text{scale}}\\tanh(d_{\\min})$\n// 8. choose fidelity 1.0 if tree-like or progress high or the chosen $\\mu$ is within $0.10\\,y_{\\text{scale}}$ of best full-score; else $base\\_fid$",
+    "key_hyperparams": [
+      {"name": "n_candidates", "value": "72", "role": "acquisition pool size", "learnable": false},
+      {"name": "n_init", "value": "10 / 8 / max(5, d+2)", "role": "warm-up by benchmark family", "learnable": false},
+      {"name": "base_fid", "value": "1.0 / 0.8 / 0.6", "role": "low-rung evaluation fraction by family", "learnable": false},
+      {"name": "beta (UCB)", "value": "1.6 → 0.3 (progress-decayed)", "role": "exploration weight", "learnable": false},
+      {"name": "promote threshold", "value": "top 40% by calibrated y", "role": "asynchronous fidelity promotion", "learnable": false},
+      {"name": "kernel cat-cost", "value": "1.5 per mismatch", "role": "categorical penalty in mixed kernel", "learnable": false}
+    ],
+    "init_recovers": "Plain UCB if calibration is identity and base_fid≡1",
+    "diff_from_baseline": "Versus bohb/dehb this hard-codes per-benchmark warm-up and base fidelities, calibrates low-fidelity scores via quantile transport before surrogate fitting, and uses structured (xgboost-aware) mutations rather than uniform DE. The kernel is a hand-built mixed-type weighted-NN regression rather than a GP or TPE.",
+    "confidence": "high"
+  }
+]

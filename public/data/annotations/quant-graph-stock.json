@@ -1,0 +1,184 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Concept-residual decomposition + rank loss",
+    "tagline": "Three-channel decomposition (concept proto cross-attention, residual stock-stock cosine attention, individual) trained with concept-co-membership-weighted pairwise rank loss.",
+    "kind": "hybrid",
+    "formula": "$$\\mathcal L = \\mathrm{MSE}(\\hat y, y) + \\alpha\\,\\mathcal L_{\\text{rank}} + \\beta\\,(\\overline{h_e\\!\\cdot\\!h_i})^2 + \\beta\\,(\\overline{h_i\\!\\cdot\\!h_{\\text{ind}}})^2,\\;\\; \\mathcal L_{\\text{rank}} = -\\,\\overline{\\tanh(5\\Delta\\hat y)\\,\\mathrm{sign}(\\Delta y)\\,\\big(0.7\\,U + 0.3\\,W_C\\big)}$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Alpha360 features"},
+        {"id": "gru", "label": "GRU encoder"},
+        {"id": "cp", "label": "Concept protos C^T·h"},
+        {"id": "ce", "label": "Cross-attn (mask C=0)"},
+        {"id": "res", "label": "Residual h - h_e"},
+        {"id": "imp", "label": "Cosine self-attn"},
+        {"id": "ind", "label": "Individual"},
+        {"id": "out", "label": "Sum + score"}
+      ],
+      "edges": [
+        {"from": "x", "to": "gru"},
+        {"from": "gru", "to": "cp"},
+        {"from": "cp", "to": "ce"},
+        {"from": "ce", "to": "res"},
+        {"from": "res", "to": "imp"},
+        {"from": "imp", "to": "ind"},
+        {"from": "ce", "to": "out"},
+        {"from": "imp", "to": "out"},
+        {"from": "ind", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "d_feat", "value": "6", "role": "Alpha360 feature channels per timestep", "learnable": false},
+      {"name": "hidden_size H", "value": "64", "role": "encoder dim", "learnable": false},
+      {"name": "n_epochs", "value": "50", "role": "training epochs (early stop patience 10)", "learnable": false},
+      {"name": "lr", "value": "5e-4", "role": "Adam learning rate", "learnable": false},
+      {"name": "α (rank-loss weight)", "value": "0.1", "role": "weight on concept-modulated pairwise rank loss", "learnable": false},
+      {"name": "β (orth weight)", "value": "0.01", "role": "weight on cross-channel orthogonality penalty", "learnable": false},
+      {"name": "rank-pair mix", "value": "0.7 uniform + 0.3 concept-comembership", "role": "row-normalized pair weight matrix", "learnable": false},
+      {"name": "implicit-attn temperature", "value": "10×cos sim", "role": "scales softmax of cosine self-attention", "learnable": false}
+    ],
+    "init_recovers": "Plain GRU + MSE when α = β = 0 and the implicit/explicit branches are masked out.",
+    "diff_from_baseline": "Departs from HIST/GATs by an explicit three-channel decomposition (cross-attention to concept prototypes, then implicit cosine self-attention on the residual, then an individual MLP) and trains it with a pairwise rank loss whose pair weights are 0.7 uniform + 0.3 concept-comembership — a graph-regularized ranking objective.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Concept-guided gated GRU",
+    "tagline": "GRU encoder, concept-attention-weighted aggregation up to concepts then back to stocks, with concept-channel dropout and a sigmoid gate that mixes individual vs. concept-enhanced features.",
+    "kind": "hybrid",
+    "formula": "$$\\tilde C = \\mathrm{rownorm}(C)\\odot(1 + \\mathrm{LR}(W_a h)),\\;\\; \\hat C = \\mathrm{rownorm}(\\tilde C^\\top h),\\;\\; h_g = \\mathrm{LR}(W_p\\,\\tilde C\\hat C),\\;\\; g = \\sigma(W_g[h_i\\Vert h_g]),\\;\\; \\hat y = \\mathrm{Lin}(g\\odot h_i + (1-g)\\odot h_g)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Alpha360 features"},
+        {"id": "gru", "label": "GRU encoder"},
+        {"id": "cattn", "label": "Concept attn weights"},
+        {"id": "agg", "label": "Concept aggregation"},
+        {"id": "drop", "label": "Concept-channel dropout"},
+        {"id": "back", "label": "Back-project to stocks"},
+        {"id": "ind", "label": "Individual MLP"},
+        {"id": "fuse", "label": "Sigmoid gate fuse"}
+      ],
+      "edges": [
+        {"from": "x", "to": "gru"},
+        {"from": "gru", "to": "cattn"},
+        {"from": "cattn", "to": "agg"},
+        {"from": "agg", "to": "drop"},
+        {"from": "drop", "to": "back"},
+        {"from": "gru", "to": "ind"},
+        {"from": "back", "to": "fuse"},
+        {"from": "ind", "to": "fuse"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "d_feat", "value": "6", "role": "Alpha360 feature channels", "learnable": false},
+      {"name": "hidden_size", "value": "64", "role": "GRU and concept dim", "learnable": false},
+      {"name": "num_layers", "value": "2", "role": "GRU layers", "learnable": false},
+      {"name": "concept_dropout", "value": "0.1", "role": "drop rate on concept channels during training", "learnable": false},
+      {"name": "loss", "value": "smooth rank-IC + MSE", "role": "training objective combining ranking and regression", "learnable": false}
+    ],
+    "init_recovers": "GRU + linear when the gate σ saturates to 1 (purely individual) or 0 (purely concept-enhanced).",
+    "diff_from_baseline": "Vs. HIST/GATs: replaces O(N²) self-attention with concept-bottleneck propagation (stocks → row-normalized concepts → stocks), adds a per-stock learned concept-attention modulator and concept-channel dropout, and fuses individual vs. graph-enhanced branches via a sigmoid gate.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Dual-graph GNN (TF-IDF + cosine)",
+    "tagline": "Two-layer GNN with two adjacency matrices: TF-IDF-weighted symmetrically-normalized concept graph plus dynamic cosine-similarity feature graph, residual-blended.",
+    "kind": "hybrid",
+    "formula": "$$A = C\\,\\mathrm{diag}(\\mathrm{idf})\\,C^\\top + I,\\;\\; S = D^{-1/2} A D^{-1/2},\\;\\; \\tilde A = \\mathrm{softmax}(5\\,\\hat h \\hat h^\\top),\\;\\; h^{(k+1)} = \\mathrm{LN}\\big(h^{(k)} + \\mathrm{GELU}(S\\,W^{(k)}_s h^{(k)} + \\tilde A\\,W^{(k)}_d h^{(k)})\\big)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Alpha360 features"},
+        {"id": "gru", "label": "GRU"},
+        {"id": "tfidf", "label": "TF-IDF concept adj"},
+        {"id": "cos", "label": "Cosine feature adj"},
+        {"id": "g1", "label": "Layer 1 (S+tildeA)"},
+        {"id": "g2", "label": "Layer 2 (S+tildeA)"},
+        {"id": "se", "label": "Stock embed"},
+        {"id": "out", "label": "MLP head"}
+      ],
+      "edges": [
+        {"from": "x", "to": "gru"},
+        {"from": "gru", "to": "g1"},
+        {"from": "tfidf", "to": "g1"},
+        {"from": "cos", "to": "g1"},
+        {"from": "g1", "to": "g2"},
+        {"from": "tfidf", "to": "g2"},
+        {"from": "cos", "to": "g2"},
+        {"from": "g2", "to": "out"},
+        {"from": "se", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_size", "value": "64", "role": "GRU and GNN dim", "learnable": false},
+      {"name": "num_layers (RNN)", "value": "2", "role": "GRU stack depth", "learnable": false},
+      {"name": "n_graph_layers", "value": "2", "role": "GNN message-passing layers", "learnable": false},
+      {"name": "dropout", "value": "0.2", "role": "RNN/MLP dropout", "learnable": false},
+      {"name": "stock_embed dim", "value": "16 (vocab=1000)", "role": "stock identity embedding concatenated at head", "learnable": true},
+      {"name": "cosine softmax temp", "value": "5.0", "role": "scales similarity logits before softmax", "learnable": false},
+      {"name": "static adj normalization", "value": "TF-IDF then symm D^{-1/2}", "role": "graph normalization over concept comembership", "learnable": false}
+    ],
+    "diff_from_baseline": "On top of GATs/HIST: builds a TF-IDF-weighted, symmetrically-normalized concept graph S as a static GNN adjacency, and adds a parallel dynamic cosine-similarity adjacency Ã; both are used at every GNN layer (residual + GELU + LN), and a per-stock embedding is concatenated at the head.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "LightGBM + concept low/high-pass + ridge calibration",
+    "tagline": "Augments LightGBM features with concept-graph low-pass and high-pass projections + concept degree, then calibrates LGB residual via concept-smoothed predictions and ridge.",
+    "kind": "pseudocode",
+    "pseudocode": "// Daily, for each cross-section:\n// 1. concept = get_concept_matrix(stock_idx)\n//    rownorm = concept / concept.sum(axis=1)\n//    colsum  = concept.sum(axis=0).clip(1)\n// 2. low_t  = rownorm · ((concept^⊤ x) / colsum^⊤)   (concept low-pass)\n// 3. high_t = x - low_t                              (concept high-pass)\n// 4. aux = [log(1+row_sum), sqrt(mean(high_t²))]\n// 5. augmented x = [x | low_t | high_t | aux]\n// 6. base = lgb.train(augmented x, y)  using HIST-baseline LightGBM hyperparams\n// 7. on validation: smooth_p = rownorm · ((concept^⊤ base_p)/colsum^⊤)\n//    meta features = [smooth - base, (smooth - base)·deg, (smooth - base)·idio, deg, idio]\n//    Ridge(α=1).fit(meta features, y - base)\n// 8. predict: y_hat = base + Ridge.predict(meta_features)",
+    "key_hyperparams": [
+      {"name": "objective", "value": "mse", "role": "LightGBM objective", "learnable": false},
+      {"name": "lr (LGB)", "value": "0.0421", "role": "LightGBM learning rate (HIST defaults)", "learnable": false},
+      {"name": "lambda_l1 / l2", "value": "205.6999 / 580.9768", "role": "LightGBM regularization (HIST defaults)", "learnable": false},
+      {"name": "max_depth / num_leaves", "value": "8 / 210", "role": "tree size (HIST defaults)", "learnable": false},
+      {"name": "num_boost_round", "value": "1000", "role": "max boosting rounds", "learnable": false},
+      {"name": "early_stopping_rounds", "value": "50", "role": "validation early stop patience", "learnable": false},
+      {"name": "ridge α", "value": "1.0", "role": "L2 strength on concept-meta calibrator", "learnable": false},
+      {"name": "concept low-pass", "value": "stock→row-normalized concept→col-normalized stock", "role": "graph diffusion projection", "learnable": false}
+    ],
+    "init_recovers": "Plain LightGBM on raw Alpha360 features when the concept low/high-pass branch and ridge correction are zero.",
+    "diff_from_baseline": "Hybrid of the lgbm baseline with a graph component: appends concept-graph low-pass / high-pass projections (and degree/idio aux features) to the LightGBM features, then learns a small ridge residual calibrator over (concept-smoothed − base, degree, idio) — concept-aware boosting without going to a GNN.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Pretrained-LSTM + concept-bottleneck GNN",
+    "tagline": "LSTM encoder warm-started from the qlib pretrained LSTM, then 2 layers of concept-mean → linear → scatter-back with sigmoid gate fusion and LN.",
+    "kind": "hybrid",
+    "formula": "$$\\bar C^{(k)} = \\frac{C^\\top h^{(k)}}{\\sum_i C_{ic} + \\varepsilon},\\;\\; \\hat C^{(k)} = W_c^{(k)} \\bar C^{(k)},\\;\\; h_g^{(k)} = W_s^{(k)} (C\\hat C^{(k)}),\\;\\; g = \\sigma(W_g[h^{(k)} \\Vert h_g^{(k)}]),\\;\\; h^{(k+1)} = \\mathrm{LN}(h^{(k)} + g\\odot h_g^{(k)})$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Alpha360 features"},
+        {"id": "lstm", "label": "LSTM (pretrained init)"},
+        {"id": "agg1", "label": "Concept mean (L1)"},
+        {"id": "back1", "label": "Scatter to stocks (L1)"},
+        {"id": "g1", "label": "Gated residual + LN"},
+        {"id": "agg2", "label": "Concept mean (L2)"},
+        {"id": "back2", "label": "Scatter to stocks (L2)"},
+        {"id": "out", "label": "MLP head"}
+      ],
+      "edges": [
+        {"from": "x", "to": "lstm"},
+        {"from": "lstm", "to": "agg1"},
+        {"from": "agg1", "to": "back1"},
+        {"from": "back1", "to": "g1"},
+        {"from": "g1", "to": "agg2"},
+        {"from": "agg2", "to": "back2"},
+        {"from": "back2", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "d_feat", "value": "6", "role": "Alpha360 features per timestep", "learnable": false},
+      {"name": "hidden_size", "value": "64", "role": "LSTM hidden / GNN dim", "learnable": false},
+      {"name": "num_layers (RNN)", "value": "2", "role": "LSTM stack depth", "learnable": false},
+      {"name": "n_graph_layers", "value": "2", "role": "concept-GNN message-passing layers", "learnable": false},
+      {"name": "loss", "value": "MSE", "role": "training objective", "learnable": false},
+      {"name": "init", "value": "qlib pretrained LSTM checkpoint", "role": "warm-start backbone", "learnable": true}
+    ],
+    "init_recovers": "Pretrained-LSTM baseline at gate g→0 (no graph contribution).",
+    "diff_from_baseline": "Departs from GATs/HIST self-attention: implements concept-bottleneck propagation (stock→concept mean→linear→stock scatter) over two layers with a learned sigmoid gate residual+LN at each layer, started from the qlib pretrained LSTM weights for the temporal backbone.",
+    "confidence": "high"
+  }
+]

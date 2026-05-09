@@ -1,0 +1,140 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "MSD-TCA: multi-scale DLinear + target attention",
+    "tagline": "Two-scale (kernel 15 / 25) DLinear backbone produces all-channel forecasts, then a [1xC] target-only attention over normalized histories conservatively gates exogenous information into the target prediction.",
+    "kind": "hybrid",
+    "formula": "$$\\mathrm{base} = \\sigma(a)\\,\\mathrm{DLinear}_{15}(x) + (1-\\sigma(a))\\,\\mathrm{DLinear}_{25}(x),\\;\\;\\hat y_{\\text{target}} = (1-\\sigma(g))\\,\\mathrm{base}_{\\text{target}} + \\sigma(g)\\,\\mathrm{Attn}([x_{\\text{target}}],\\,x,\\,V(\\widetilde{\\mathrm{base}}))$$",
+    "pseudocode": "// 1. decompose $x$ at kernels 15 and 25; per-scale season/trend Linear → forecasts\n// 2. mix scales: $\\mathrm{base} = \\sigma(a)\\,\\mathrm{out}_{15} + (1-\\sigma(a))\\,\\mathrm{out}_{25}$\n// 3. instance-normalize $x$;  target query $q = W_q\\,x_{\\text{target}}$, keys $K = W_k\\,x$\n// 4. attention $\\alpha = \\mathrm{softmax}(qK^\\top/\\sqrt{d})$ over channels\n// 5. per-channel normalize base, mix exo $= \\alpha V(\\widetilde{\\mathrm{base}})$, denormalize to target scale\n// 6. $\\hat y_{\\text{target}} = (1-\\sigma(g))\\,\\mathrm{base}_{\\text{target}} + \\sigma(g)\\,\\mathrm{exo}$;  pass through $\\mathrm{base}$ for non-target channels",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x_enc"},
+        {"id": "ds", "label": "decomp k=15"},
+        {"id": "dl", "label": "decomp k=25"},
+        {"id": "lin", "label": "linear S+T"},
+        {"id": "base", "label": "base [B,C,P]"},
+        {"id": "att", "label": "target-Q attn"},
+        {"id": "g", "label": "gate ~0.05"},
+        {"id": "out", "label": "out [B,P,C]"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ds"},
+        {"from": "x", "to": "dl"},
+        {"from": "ds", "to": "lin"},
+        {"from": "dl", "to": "lin"},
+        {"from": "lin", "to": "base"},
+        {"from": "base", "to": "att"},
+        {"from": "x", "to": "att"},
+        {"from": "att", "to": "g"},
+        {"from": "base", "to": "g"},
+        {"from": "g", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "decomp_kernels", "value": "[15, 25]", "role": "two trend-seasonal MA windows", "learnable": false},
+      {"name": "scale_alpha_init", "value": "0", "role": "logit for short/long DLinear mix (sigmoid → 0.5)", "learnable": true},
+      {"name": "lin_init", "value": "1/seq_len", "role": "uniform-average DLinear initialization", "learnable": true},
+      {"name": "d_attn", "value": "32", "role": "attention key/query width", "learnable": false},
+      {"name": "exo_gate_init", "value": "-3 (sigmoid ≈ 0.047)", "role": "conservative exogenous gate", "learnable": true}
+    ],
+    "init_recovers": "DLinear baseline at exo_gate → -∞ and scale_alpha = 0",
+    "diff_from_baseline": "Strict superset of the DLinear baseline: averages two decomposition scales and adds a [1xC] target-Q cross-channel attention with a learned gate that blends only into the target dimension.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "ExAT: variable-token Transformer + global gate",
+    "tagline": "iTransformer-style variable tokens with a global FFN gate that reweights each variable's history before a Transformer encoder runs cross-variable attention; time features are concatenated as extra tokens.",
+    "kind": "hybrid",
+    "formula": "$$w = \\sigma(\\mathrm{MLP}(\\mathrm{flatten}(x))),\\;\\tilde x = x \\odot w + x,\\;\\;Z = \\mathrm{TransformerEnc}(\\mathrm{Linear}(\\tilde x^\\top) + P_{\\text{var}}),\\;\\;\\hat y = \\mathrm{Linear}(Z)[\\,:C,\\,:]$$",
+    "pseudocode": "// 1. instance-normalize $x$ over time\n// 2. global gate $w = \\sigma(\\mathrm{MLP}(\\mathrm{flatten}(x)))$;  $\\tilde x = x\\odot w + x$\n// 3. concatenate time features as extra channels\n// 4. permute to $[B, C', L]$ and embed each row to $d$ via a Linear; add learned variable-positional embedding\n// 5. run TransformerEncoder across the variable axis\n// 6. project each token to pred_len, keep first enc_in tokens, denormalize",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x_enc (norm)"},
+        {"id": "gate", "label": "GlobalExogenousGate (MLP→σ)"},
+        {"id": "cat", "label": "concat time features"},
+        {"id": "ve", "label": "VariableEmbedding (L→d)"},
+        {"id": "pos", "label": "var_pos_embed"},
+        {"id": "enc", "label": "TransformerEnc (across variables)"},
+        {"id": "head", "label": "Linear (d→pred_len)"},
+        {"id": "out", "label": "out [B,P,C]"}
+      ],
+      "edges": [
+        {"from": "x", "to": "gate"},
+        {"from": "gate", "to": "cat"},
+        {"from": "cat", "to": "ve"},
+        {"from": "pos", "to": "ve"},
+        {"from": "ve", "to": "enc"},
+        {"from": "enc", "to": "head"},
+        {"from": "head", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "gate_hidden_dim", "value": "128", "role": "global gate MLP width", "learnable": false},
+      {"name": "d_model", "value": "configs.d_model", "role": "variable-token embedding dim", "learnable": false},
+      {"name": "max_vars", "value": "enc_in + 50", "role": "max variable-position bank", "learnable": true},
+      {"name": "norm", "value": "Non-stationary (sub mean / div std)", "role": "RevIN-like normalization before encoder", "learnable": false}
+    ],
+    "init_recovers": "iTransformer baseline at gate ≡ 0 (residual only)",
+    "diff_from_baseline": "Builds on the iTransformer baseline (variable tokens + cross-variable attention) by inserting a learned per-variable global gate and concatenating time-feature variables as extra tokens, then projecting the first enc_in tokens to pred_len.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Patch-Time + Variable Attention (PatchTST x iTransformer)",
+    "tagline": "PatchTST-style time-axis Transformer over patched per-variable series, then a multi-head self-attention across variables on the flattened patch tokens, finally a linear pred_len head.",
+    "kind": "hybrid",
+    "formula": "$$Z_{\\text{time}} = \\mathrm{TransformerEnc}_t(\\mathrm{PatchEmb}(x) + P),\\;\\;Z_{\\text{var}} = Z_{\\text{var}} + \\mathrm{MHA}(\\mathrm{LN}(Z_{\\text{var}})),\\;\\;\\hat y = \\mathrm{Linear}(Z_{\\text{var}})$$",
+    "pseudocode": "// 1. RevIN-normalize $x$;  permute to $[B, C, L]$ and replicate-pad\n// 2. unfold into patches of length 16 with stride 8 → $[B, C, P, 16]$\n// 3. patch embed: Linear$(16 → d)$ + learned position\n// 4. per-channel time TransformerEncoder (2 layers, 4 heads, d=128)\n// 5. flatten patches per channel → tokens of size $P\\cdot d$, run MHA + FFN across variables\n// 6. final Linear head $(P\\cdot d → \\mathrm{pred\\_len})$, transpose back, RevIN-denormalize",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x_enc (RevIN)"},
+        {"id": "patch", "label": "patch len=16, stride=8"},
+        {"id": "emb", "label": "Linear → d=128 + pos"},
+        {"id": "te", "label": "TransformerEnc time (2 layers, 4 heads)"},
+        {"id": "flat", "label": "flatten patches → P*d"},
+        {"id": "va", "label": "MHA over variables (4 heads) + FFN"},
+        {"id": "head", "label": "Linear (P*d → pred_len)"},
+        {"id": "out", "label": "out [B,pred,C] (RevIN^-1)"}
+      ],
+      "edges": [
+        {"from": "x", "to": "patch"},
+        {"from": "patch", "to": "emb"},
+        {"from": "emb", "to": "te"},
+        {"from": "te", "to": "flat"},
+        {"from": "flat", "to": "va"},
+        {"from": "va", "to": "head"},
+        {"from": "head", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "patch_len", "value": "16", "role": "PatchTST patch length", "learnable": false},
+      {"name": "stride", "value": "8", "role": "patch stride", "learnable": false},
+      {"name": "d_model", "value": "min(configs.d_model, 128) (cap at 128 if >256)", "role": "patch token width", "learnable": false},
+      {"name": "n_heads_time", "value": "4", "role": "time-axis attention heads", "learnable": false},
+      {"name": "n_layers_time", "value": "2", "role": "time-axis encoder depth", "learnable": false},
+      {"name": "n_heads_var", "value": "4", "role": "variable-axis attention heads", "learnable": false},
+      {"name": "embed_dim_var", "value": "patch_num * d_model", "role": "flattened token dim for variable attention", "learnable": false},
+      {"name": "norm", "value": "RevIN", "role": "pre/post normalization", "learnable": false}
+    ],
+    "init_recovers": "PatchTST baseline at variable attention block disabled (set MHA + FFN to identity)",
+    "diff_from_baseline": "Hybrid of PatchTST and iTransformer baselines: keeps PatchTST's per-channel patch encoder but follows it with a Transformer-block over flattened-patch variable tokens before the linear pred_len head.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Target-aware decomposition + low-rank correction",
+    "tagline": "Per-channel anchored trend+residual linear forecast, then a softmax channel gate built from target-attention compatibility blends an exogenous-pooled forecast into the target; a low-rank historical summary adds a shared horizon correction.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. RevIN-normalize $x$\n// 2. anchor at last value: trend $T = \\mathrm{Lin}(x-\\text{last}) + \\text{last}$;\\;seasonal $S = \\mathrm{Lin}(x - \\bar x)$;\\;base $= T + S$\n// 3. target query $q = W_q x_{\\text{tgt}}$;\\;keys $K = W_k x$;\\;compat $c = qK^\\top/\\sqrt h$\n// 4. gate $= 0.7\\,\\mathrm{softmax}(c) + 0.3\\,\\mathrm{softmax}(\\mathrm{Lin}(x))$;  renormalize\n// 5. pooled prediction $p = \\sum_c \\mathrm{gate}_c\\,\\mathrm{base}_c$\n// 6. target forecast $\\hat y_{\\text{tgt}} = \\mathrm{Lin}([\\mathrm{base}_{\\text{tgt}}; p])$;  broadcast back to all channels weighted by gate\n// 7. low-rank correction: rank-$r$ projection of channel means added as shared $\\Delta y$\n// 8. RevIN-denormalize, then $\\mathrm{channel\\_out}$ Linear, then *force* the last column to $\\hat y_{\\text{tgt}}$ (denorm)",
+    "key_hyperparams": [
+      {"name": "hidden", "value": "max(16, min(64, seq_len))", "role": "channel-gate / target-query hidden", "learnable": false},
+      {"name": "rank", "value": "min(8, enc_in)", "role": "low-rank correction rank", "learnable": false},
+      {"name": "trend_init", "value": "1/seq_len", "role": "uniform-average trend init (DLinear-style)", "learnable": true},
+      {"name": "gate_blend", "value": "0.7 attn + 0.3 prior", "role": "softmax compat vs MLP-gate prior mix", "learnable": false}
+    ],
+    "init_recovers": "DLinear-like baseline when gate_blend → 1 trivial gate and target_forecast = base_target",
+    "diff_from_baseline": "Custom design that combines a DLinear-style anchored trend/residual linear forecast with a target-conditioned channel gate, an exogenous pool, and a low-rank cross-channel residual correction; explicitly overwrites the target output channel after denormalization.",
+    "confidence": "high"
+  }
+]

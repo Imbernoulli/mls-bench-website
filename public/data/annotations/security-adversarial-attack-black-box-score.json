@@ -1,0 +1,85 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "FGSM-init Square with restarts",
+    "tagline": "Random ±eps init, a few SPSA-style sign-grad refinements, then a Square-Attack patch loop with adaptive patch fraction and per-sample restart on stagnation.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. init $adv = \\mathrm{clamp}(x + \\epsilon\\,\\mathrm{sign}(z),\\, 0, 1)$ with $z\\sim\\mathcal N(0, I)$; query margin $m_{\\text{best}}$\n// 2. for up to 4 cheap iters with $u = \\mathrm{sign}(\\mathcal N)$: estimate $\\hat g = \\sum_t (\\ell(x + 0.1\\epsilon u_t) - \\ell(x))\\,u_t$\n// 3. try $cd = \\mathrm{clamp}(x - \\epsilon\\,\\mathrm{sign}(\\hat g), 0, 1)$, accept if margin lower\n// 4. while budget remains and unsolved samples exist (active-set):\n//   a. patch fraction $p \\in \\{0.8, 0.5, 0.2, 0.1, 0.05\\}$ by progress; side $s = \\sqrt{p\\,HW}$\n//   b. for each active sample, sample a random $s\\!\\times\\!s$ patch and replace with $\\mathrm{clamp}(x + \\epsilon\\,\\mathrm{sign}(\\mathcal N), 0, 1)$\n//   c. accept patch if margin (true - max-other) drops; mark success if argmax flips\n//   d. for samples with no improvement in $> \\max(100, n_q/10)$ steps: full random ±eps re-init",
+    "key_hyperparams": [
+      {"name": "patch fractions", "value": "[0.8, 0.5, 0.2, 0.1, 0.05]", "role": "patch-size schedule by progress", "learnable": false},
+      {"name": "warm-up SPSA iters", "value": "min(4, n_q/25)", "role": "cheap initial gradient estimate", "learnable": false},
+      {"name": "warm-up step size", "value": "0.1*eps", "role": "SPSA finite-difference step", "learnable": false},
+      {"name": "stagnation threshold", "value": "max(100, n_q/10)", "role": "trigger random restart", "learnable": false},
+      {"name": "init", "value": "±eps sign(N(0,I))", "role": "saturate boundary at start", "learnable": false}
+    ],
+    "init_recovers": "Square Attack with margin loss and random init",
+    "diff_from_baseline": "Versus the square baseline this writes the loop in-place rather than calling torchattacks.Square: it adds an upfront SPSA-style random direction warm-up, an active-set budget that prunes solved samples, and a per-sample stagnation-restart that re-initializes the perturbation when no improvement has been seen for many queries.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "MWMA: margin-weighted SPSA momentum",
+    "tagline": "Symmetric ±delta queries along a unit direction; updates with tanh-weighted momentum and a cosine schedule on (delta, lr) before sign-projecting onto the L_inf ball.",
+    "kind": "formula",
+    "formula": "$$ u \\sim \\mathcal N(0, I)/\\|\\cdot\\|,\\quad x_\\pm = \\Pi_{[0,1]}\\!\\big(x + \\Pi_{B_\\infty^\\epsilon}(adv \\pm \\delta_t u - x)\\big) $$ $$ d_\\pm = \\mathrm{margin}(x_\\pm),\\quad w = \\tanh(5|d_- - d_+|),\\quad \\hat g = w\\,\\mathrm{sgn}(d_- - d_+)\\,u $$ $$ m \\leftarrow \\beta m + (1-\\beta)\\hat g,\\quad adv \\leftarrow \\Pi_{B_\\infty^\\epsilon}\\!\\big(adv + \\eta_t\\,\\mathrm{sgn}(m)\\big) $$",
+    "key_hyperparams": [
+      {"name": "beta", "value": "0.9", "role": "momentum coefficient", "learnable": false},
+      {"name": "delta_init", "value": "eps/4", "role": "initial probe radius", "learnable": false},
+      {"name": "lr_init", "value": "eps/4", "role": "initial step size", "learnable": false},
+      {"name": "delta schedule", "value": "delta_init * (1 - 0.6*cos_progress)", "role": "shrink probe radius", "learnable": false},
+      {"name": "lr schedule", "value": "lr_init * (1 + cos_progress)", "role": "grow step size", "learnable": false},
+      {"name": "tanh weight scale", "value": "5", "role": "saturating direction weight", "learnable": false}
+    ],
+    "init_recovers": "SPSA with constant step at progress=0",
+    "diff_from_baseline": "Versus spsa, the gradient estimate uses only one direction per iteration (2 queries) but weights it by tanh of margin difference; it also adds Nesterov-style momentum and cosine schedules on both probe radius and step size, then sign-projects onto the L_inf ball as in PGD.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Square-style search with Adam-grad direction",
+    "tagline": "Square-Attack patch updates whose direction blends sign(noise) with a per-coordinate Adam-on-margin gradient estimate; patch fraction decays exponentially.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. init $\\mathrm{pert} \\sim U(-\\epsilon, \\epsilon)$ for misclassified-only active set\n// 2. while budget left and active set nonempty:\n//   a. patch fraction $p = p_0 (p_T/p_0)^{i/I_{\\max}}$ with $p_0=0.05, p_T=0.005$; side $s = \\sqrt{p\\,HW}$\n//   b. for each active sample sample patch position; build mask\n//   c. direction $= \\mathrm{sign}(\\gamma\\, m_t/\\sqrt{v_t} + \\mathcal N)$ on masked pixels, otherwise unchanged\n//   d. candidate perturbation = $\\epsilon\\,\\text{direction}$ inside the patch\n//   e. evaluate margin; gradient proxy $g = \\mathrm{sgn}(\\Delta m)\\,(\\mathrm{cand} - \\mathrm{pert})/\\epsilon$\n//   f. update Adam moments $m, v$ on masked pixels; accept candidate if margin improves",
+    "key_hyperparams": [
+      {"name": "p_init, p_end", "value": "0.05, 0.005", "role": "patch-fraction schedule", "learnable": false},
+      {"name": "beta1, beta2", "value": "0.7, 0.99", "role": "Adam moments on margin gradient", "learnable": false},
+      {"name": "gamma", "value": "0.5", "role": "blend Adam-direction with random sign", "learnable": false}
+    ],
+    "init_recovers": "Square Attack at gamma=0 (pure random sign in patch)",
+    "diff_from_baseline": "Versus the square baseline this keeps patchwise updates but biases the patch sign by a per-pixel Adam estimate of the margin gradient (computed by finite-difference on accepted/rejected updates). Active-set pruning and exponential patch-fraction decay are added.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Active-set Square with restarts",
+    "tagline": "Boundary FGSM init, 8 in-loop patch rounds with quadratic-decay patch fraction, then up to 3 chunked Square restarts on the unresolved active set, plus a final budget-burn.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. measure $m(x)$ and $\\mathrm{succ}$; for active set: try $x + \\epsilon\\,\\mathrm{sign}(\\mathcal N)$, accept if $m$ drops or argmax flips\n// 2. for $t = 0..7$: patch fraction $p = 0.22(1 - t/7)^2 + 0.01$, side $s = \\sqrt{p\\,HW}$, replace patch with $\\mathrm{base} \\pm \\epsilon$ Bernoulli signs; accept if margin lower\n// 3. for stage = 0,1,2 while active samples remain: budget-per-sample $q = \\min(24, \\lfloor (\\text{budget} - \\text{spent})/m \\rfloor - 1)$; if $q < 8$ stop; run torchattacks.Square($p_{\\text{init}} = 0.8 \\cdot 0.5^{stage}$, $n_q=q$) on the active set, accept improvements\n// 4. final: split remaining budget over still-active samples and run Square once with $p_{\\text{init}}=0.2$",
+    "key_hyperparams": [
+      {"name": "patch rounds", "value": "8", "role": "in-place patch loop length", "learnable": false},
+      {"name": "patch fraction", "value": "0.22(1-t/7)^2 + 0.01", "role": "quadratic decay", "learnable": false},
+      {"name": "stage cap", "value": "3", "role": "Square restart stages", "learnable": false},
+      {"name": "p_init schedule", "value": "0.8 * 0.5^stage", "role": "Square exploration shrink per stage", "learnable": false},
+      {"name": "min q per stage", "value": "8", "role": "minimum budget to invoke Square", "learnable": false}
+    ],
+    "init_recovers": "torchattacks.Square if all extras disabled",
+    "diff_from_baseline": "Versus the square baseline this wraps torchattacks.Square in an active-set loop: an in-line patch search resolves easy samples cheaply, then Square is invoked on the still-failing subset with smaller p_init each restart. Budget is explicitly tracked and reallocated to unresolved samples.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Targeted Square with random restarts",
+    "tagline": "Square-style mask-and-replace with uniform random pixel values, but using a TARGETED margin (logit_target - logit_true); restarts on no-improvement bump exploration.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. pick random target class $\\hat y \\ne y$ for each sample; compute $\\ell = z_{\\hat y} - z_y$ (maximize)\n// 2. patch fraction $p \\leftarrow 0.5\\,p + 0.5\\,\\max(0.02, 0.8(1 - \\text{progress})^2)$; sample Bernoulli mask\n// 3. propose $cand = \\mathrm{mask}\\odot U(0,1) + (1-\\mathrm{mask})\\odot adv$; project to $x + \\Pi_{B_\\infty^\\epsilon}(cand - x)$, clamp to $[0,1]$\n// 4. evaluate $\\ell$; accept per-sample if $\\ell$ increases\n// 5. if 50 consecutive no-improvement steps: $p \\leftarrow \\min(1, p + 0.5)$; resample target labels",
+    "key_hyperparams": [
+      {"name": "p_init", "value": "0.8", "role": "starting patch fraction", "learnable": false},
+      {"name": "patch schedule", "value": "max(0.02, 0.8*(1-progress)^2)", "role": "decay over queries", "learnable": false},
+      {"name": "no_improve restart", "value": "50 steps", "role": "trigger to bump p and re-target", "learnable": false},
+      {"name": "replacement values", "value": "U(0,1) (per-pixel)", "role": "Square-style fresh-pixel substitution", "learnable": false}
+    ],
+    "init_recovers": "Targeted Square Attack with constant p",
+    "diff_from_baseline": "Versus square (untargeted, ±eps signs), this attack targets a random label and replaces selected pixels with uniform [0,1] values then projects to the L_inf ball. It uses a single global random Bernoulli mask (no spatially-contiguous patch) and re-targets every 50 stagnant steps.",
+    "confidence": "high"
+  }
+]

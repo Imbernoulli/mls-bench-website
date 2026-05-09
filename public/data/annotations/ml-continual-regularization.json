@@ -1,0 +1,19 @@
+[
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Hybrid Fisher-SI Geometric Consensus",
+    "tagline": "Per-parameter importance is the geometric mean of normalized EWC Fisher and SI omega; reg loss adds a clipped per-coordinate adaptive scale.",
+    "kind": "formula",
+    "formula": "$$\\Omega_n = \\sqrt{\\hat F_n \\cdot \\hat\\omega^{SI}_n + \\varepsilon},\\quad \\hat F_n = F_n/\\overline{|F_n|},\\;\\hat\\omega^{SI}_n=\\omega^{SI}_n/\\overline{|\\omega^{SI}_n|},$$ $$\\mathcal{L}_{\\text{reg}} = \\tfrac{1}{2}\\sum_n \\Omega_n\\,(\\theta_n-\\theta^{*}_n)^2\\cdot \\min\\!\\Big(5,\\,\\tfrac{|\\theta_n-\\theta^{*}_n|}{\\Delta^{ctx}_n}+\\varepsilon\\Big)$$",
+    "key_hyperparams": [
+      {"name": "ε (epsilon)", "value": "0.1", "role": "SI denominator stability", "learnable": false},
+      {"name": "consensus floor", "value": "1e-8", "role": "stabilizes geometric mean for zero terms", "learnable": false},
+      {"name": "adaptive_scale cap", "value": "5.0", "role": "max per-coordinate penalty boost", "learnable": false},
+      {"name": "fisher samples", "value": "min(200, |D|)", "role": "MC samples for diagonal Fisher", "learnable": false},
+      {"name": "reg_strength_scale", "value": "set to 0.5 then immediately overridden by {} (effectively default)", "role": "override on per-benchmark reg strength", "learnable": false}
+    ],
+    "init_recovers": "EWC at SI=0 (then geo-mean=0); SI when Fisher=0; collapses to 0 if either is uniformly 0",
+    "diff_from_baseline": "Vs EWC/SI/Online-EWC: combines Fisher and SI-omega via per-tensor mean-normalization followed by an element-wise geometric mean (a soft-AND of the two importance measures), and the regularizer further multiplies the EWC-style quadratic by an adaptive per-coordinate factor min(5, |Δθ|/Δ_ctx) tracking drift relative to the previous context's parameter change.",
+    "confidence": "medium"
+  }
+]

@@ -1,0 +1,77 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "FedProx + cosine-gated server momentum",
+    "tagline": "FedProx local objective plus a server EMA whose momentum coefficient is set each round by the cosine alignment of the new pseudo-gradient with the running buffer.",
+    "kind": "pseudocode",
+    "pseudocode": "// Client side (FedProx, mu=0.01):\n// 1. local SGD on $f_i(w) + \\tfrac{\\mu}{2}\\|w - w^t\\|^2$ for E epochs\n// Server side per round t:\n// 2. weighted average $\\bar w \\leftarrow \\sum_i (n_i/N)\\, w_i$, pseudo-grad $g_t = \\bar w - w^t$\n// 3. if t > 0: $\\beta_t = \\beta_{\\max}\\,\\max(0,\\, \\cos(g_t, m_{t-1}))$, else $\\beta_t = 0$\n// 4. EMA $m_t \\leftarrow \\beta_t m_{t-1} + (1 - \\beta_t) g_t$\n// 5. update $w^{t+1} \\leftarrow w^t + m_t$",
+    "key_hyperparams": [
+      {"name": "mu", "value": "0.01", "role": "FedProx proximal weight", "learnable": false},
+      {"name": "beta_max", "value": "0.9", "role": "max server momentum", "learnable": false}
+    ],
+    "init_recovers": "FedProx without server momentum at $t=0$",
+    "diff_from_baseline": "Versus fedprox baseline this layers a cosine-gated server-side momentum on top: when consecutive rounds' pseudo-gradients agree the server smooths with EMA, when they disagree it falls back to pure FedAvg-step. Versus fedavg it adds the proximal client term and the whole momentum gate.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Loss-weighted average + server momentum",
+    "tagline": "Plain SGD locally; weights clients by $n_i/(1+\\gamma\\,\\ell_i/n_i)$ then maintains a fixed-beta EMA of the round delta as server momentum.",
+    "kind": "formula",
+    "formula": "$$ w_i = \\frac{n_i}{1 + \\gamma\\,\\ell_i / n_i},\\quad \\bar w = \\sum_i \\frac{w_i}{\\sum_j w_j} \\cdot \\theta_i $$ $$ \\delta_t = \\bar w - \\theta^{t},\\;\\; m_t = \\beta m_{t-1} + (1 - \\beta)\\,\\delta_t,\\;\\; \\theta^{t+1} = \\theta^{t} + m_t $$",
+    "key_hyperparams": [
+      {"name": "beta", "value": "0.9", "role": "server momentum EMA", "learnable": false},
+      {"name": "gamma", "value": "0.001", "role": "loss-aware reweighting strength", "learnable": false}
+    ],
+    "init_recovers": "FedAvg + server momentum at gamma→0",
+    "diff_from_baseline": "Versus fedavg this both reweights clients by inverse-per-sample-loss (small effect at gamma=1e-3) and adds a global EMA server momentum on the aggregated delta. No client-side proximal/SCAFFOLD correction.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "FedProx + variance-shrunk + bias-corrected momentum",
+    "tagline": "FedProx local objective; server applies a per-coord James-Stein-style shrinkage by client-update std, then Adam-style bias-corrected momentum.",
+    "kind": "formula",
+    "formula": "$$ \\mu_k = \\sum_i w_i\\,(\\theta_i - \\theta^t)_k,\\;\\; \\hat v_k = \\sum_i w_i (\\delta_{i,k} - \\mu_k)^2 \\cdot \\frac{\\sum_i w_i^2}{1 - \\sum_i w_i^2} $$ $$ s_k = \\frac{|\\mu_k|}{|\\mu_k| + \\sqrt{\\hat v_k} + \\epsilon},\\;\\; \\tilde\\delta_k = s_k \\mu_k $$ $$ m_t = \\beta m_{t-1} + (1-\\beta)\\tilde\\delta,\\;\\; \\hat m_t = m_t / (1 - \\beta^{t+1}),\\;\\; \\theta^{t+1} = \\theta^t + \\hat m_t $$",
+    "key_hyperparams": [
+      {"name": "mu (prox)", "value": "0.01", "role": "FedProx local penalty", "learnable": false},
+      {"name": "beta", "value": "0.9", "role": "server momentum EMA", "learnable": false}
+    ],
+    "init_recovers": "FedProx + plain server momentum if shrinkage s_k → 1",
+    "diff_from_baseline": "Versus fedprox it adds two server-side stages: (1) per-parameter signal-to-noise shrinkage of the mean update using the across-client standard error, and (2) Adam-style bias-corrected EMA. Local loop is identical to FedProx.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Consensus-aligned clipped momentum",
+    "tagline": "Cyclic non-replacement client sampling; server reweights clients by cosine alignment with the round consensus, clips to median norm, and adds light momentum.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Compute per-client deltas $\\Delta_i = \\theta_i - \\theta^t$ and norms $\\|\\Delta_i\\|$\n// 2. Mean delta $\\bar\\Delta = \\sum_i (n_i/N)\\,\\Delta_i$, median norm $m = \\mathrm{median}_i \\|\\Delta_i\\|$\n// 3. for each i: $\\alpha_i = 0.2 + 0.8\\,\\max(0, \\cos(\\Delta_i, \\bar\\Delta))$, $s_i = 1/(1 + \\max(\\|\\Delta_i\\|/m - 1, 0))$\n// 4. Effective weight $w'_i = (n_i/N)\\,\\alpha_i\\,s_i$, normalized; clip $c_i = \\min(1, 1.75\\,m / \\|\\Delta_i\\|)$\n// 5. Aggregate $\\Delta^{\\star} = \\sum_i w'_i\\,c_i\\,\\Delta_i$\n// 6. Update server EMA: $m_t = 0.9\\,m_{t-1} + 0.1\\,\\Delta^{\\star}$; $\\theta^{t+1} = \\theta^t + \\Delta^{\\star} + 0.3\\,m_t$\n// Client selection: cyclic without replacement from a shuffled pool",
+    "key_hyperparams": [
+      {"name": "momentum_beta", "value": "0.9", "role": "server EMA decay", "learnable": false},
+      {"name": "momentum_scale", "value": "0.3", "role": "added EMA fraction in update", "learnable": false},
+      {"name": "alignment range", "value": "[0.2, 1.0]", "role": "cosine-based reweighting bounds", "learnable": false},
+      {"name": "norm clip ratio", "value": "1.75 * median", "role": "per-client norm clipping threshold", "learnable": false}
+    ],
+    "init_recovers": "Approx FedAvg if all clients aligned and same-norm",
+    "diff_from_baseline": "Versus fedavg this adds (a) cyclic no-replacement client sampling, (b) cosine-alignment reweighting, (c) median-norm clipping of outlier client deltas, and (d) server EMA momentum. Local SGD is unchanged (no FedProx/SCAFFOLD term).",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "DRAMA: adaptive prox + momentum (broken)",
+    "tagline": "Adaptive per-client FedProx where mu rises with the client's loss trajectory; intends server-side directional reweighting and adaptive-LR momentum but submission is incomplete.",
+    "kind": "pseudocode",
+    "pseudocode": "// Client side:\n// 1. Track 5-step loss history per client; let $\\Delta\\ell = \\ell_{\\text{last}} - \\ell_{\\text{first}}$\n// 2. $\\mu = \\min(\\mu_{\\max},\\, \\mu_0 + \\mu_{\\max}\\min(\\Delta\\ell/2, 1))$ if $\\Delta\\ell > 0$, else $\\mu_0\\,\\max(0.5, 1 + \\Delta\\ell)$\n// 3. Implement prox via per-parameter backward hooks adding $\\mu (w - w_0)$\n// 4. Plain SGD for E epochs\n// Server side (DECLARED but not implemented in submission):\n// 5. (intended) directional-consistency reweight by cosine with running momentum\n// 6. (intended) drift-adaptive server LR + EMA momentum\n// NOTE: aggregate() and select_clients() are MISSING from the submitted Strategy class",
+    "key_hyperparams": [
+      {"name": "mu_base", "value": "0.01", "role": "baseline proximal coefficient", "learnable": false},
+      {"name": "mu_max", "value": "0.5", "role": "cap on adaptive mu", "learnable": false},
+      {"name": "srv_mom", "value": "0.9", "role": "intended server EMA decay", "learnable": false},
+      {"name": "srv_lr_range", "value": "[0.5, 2.0]", "role": "intended drift-adaptive LR bounds", "learnable": false},
+      {"name": "loss history len", "value": "5", "role": "per-client trajectory window", "learnable": false}
+    ],
+    "init_recovers": "FedProx at mu_base when loss is flat, FedAvg at mu_base→0",
+    "diff_from_baseline": "Versus fedprox this turns mu into a per-client function of recent loss trajectory and uses backward hooks to add the proximal term to gradients. Server-side DRAMA pieces (cosine reweighting, drift-adaptive LR) are described but the submitted Strategy class lacks aggregate() and select_clients(), so the run would fall back to base-class behaviour or crash.",
+    "confidence": "medium"
+  }
+]

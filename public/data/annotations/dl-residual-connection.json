@@ -1,0 +1,102 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Pre-act + SE + small-init alpha",
+    "tagline": "Pre-activation BN-ReLU-Conv block with squeeze-and-excitation channel attention and a learnable scalar residual gate (alpha=0.1).",
+    "kind": "formula",
+    "formula": "$$y=\\mathrm{shortcut}(x)+\\alpha\\;\\big[\\,F(x)\\odot \\sigma(W_2\\,\\mathrm{ReLU}(W_1\\,\\mathrm{GAP}(F(x))))\\,\\big],\\quad F(x)=\\mathrm{Conv}_2(\\mathrm{ReLU}\\circ\\mathrm{BN}_2)\\,\\mathrm{Conv}_1(\\mathrm{ReLU}\\circ\\mathrm{BN}_1(x))$$",
+    "key_hyperparams": [
+      {"name": "alpha", "value": "0.1", "role": "residual scalar gate (init)", "learnable": true},
+      {"name": "se_reduction", "value": "max(planes//4, 4)", "role": "SE bottleneck", "learnable": false},
+      {"name": "ordering", "value": "BN-ReLU-Conv", "role": "pre-activation", "learnable": false}
+    ],
+    "init_recovers": "Pre-activation block when SE gate=1",
+    "diff_from_baseline": "Combines the pre_activation baseline (BN-ReLU-Conv with alpha=0.1 scalar gate) with a small SE block (1x1-conv reduction r=max(planes/4,4), ReLU, sigmoid) inserted on the residual branch before the alpha multiply; shortcut is unchanged.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Pre-act + per-channel scale + ReZero alpha",
+    "tagline": "Pre-activation block with per-output-channel learnable gain and a ReZero scalar gate initialized at zero so each block starts as identity.",
+    "kind": "formula",
+    "formula": "$$y=\\mathrm{shortcut}(x)+\\alpha\\,(F(x)\\odot \\gamma),\\quad \\gamma\\in\\mathbb{R}^{C},\\;\\gamma\\!\\leftarrow\\!\\mathbf{1},\\;\\alpha\\!\\leftarrow\\!0$$",
+    "key_hyperparams": [
+      {"name": "alpha", "value": "0", "role": "ReZero global residual gate (init)", "learnable": true},
+      {"name": "channel_weights", "value": "ones(planes)", "role": "per-channel gain on residual branch", "learnable": true},
+      {"name": "ordering", "value": "BN-ReLU-Conv", "role": "pre-activation", "learnable": false},
+      {"name": "post-add ReLU", "value": "removed", "role": "no activation after add", "learnable": false}
+    ],
+    "init_recovers": "Identity mapping at init (alpha=0)",
+    "diff_from_baseline": "Pre-activation backbone like the pre_activation baseline, but replaces alpha=0.1 with a ReZero-style alpha=0 scalar gate, multiplies the residual by a learnable per-channel vector gamma initialized to 1, and drops the post-add ReLU so the trunk is fully linear at init.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "GELU + SE + AvgPool shortcut + StochDepth",
+    "tagline": "Post-activation GELU block with SE attention, AvgPool-then-1x1 strided shortcut, depth-decay stochastic drop, and per-channel learnable alpha.",
+    "kind": "hybrid",
+    "formula": "$$y=\\mathrm{GELU}\\!\\Big(\\mathrm{shortcut}(x)+\\alpha_{c}\\odot\\big[F(x)\\!\\cdot\\!\\sigma(\\mathrm{SE}(F(x)))\\big]\\!\\cdot\\!\\mathrm{Drop}(p_\\ell)\\Big),\\;\\;p_\\ell=\\tfrac{\\ell}{L}\\,p_{\\max}(L)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x"},
+        {"id": "main", "label": "Conv-BN-GELU-Conv-BN"},
+        {"id": "se", "label": "SE (GELU, sigmoid)"},
+        {"id": "alpha", "label": "alpha_c (per-channel, init 0.1)"},
+        {"id": "drop", "label": "depth-decay drop"},
+        {"id": "short", "label": "AvgPool/1x1 shortcut"},
+        {"id": "out", "label": "GELU(short + .)"}
+      ],
+      "edges": [
+        {"from": "x", "to": "main"},
+        {"from": "main", "to": "se"},
+        {"from": "se", "to": "alpha"},
+        {"from": "alpha", "to": "drop"},
+        {"from": "x", "to": "short"},
+        {"from": "drop", "to": "out"},
+        {"from": "short", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "alpha", "value": "0.1*ones(1, planes, 1, 1)", "role": "per-channel residual gate", "learnable": true},
+      {"name": "se_reduction", "value": "max(4, planes//4)", "role": "SE bottleneck (GELU+sigmoid)", "learnable": false},
+      {"name": "max_drop_prob", "value": "0.2 + max(0, L-9)/45 * 0.3", "role": "depth-scaled drop ceiling", "learnable": false},
+      {"name": "drop_prob", "value": "block_idx/L * max_drop", "role": "linear-scale stochastic depth", "learnable": false},
+      {"name": "shortcut", "value": "AvgPool2d(2)+Conv1x1+BN when stride=2", "role": "anti-aliased downsample", "learnable": false},
+      {"name": "activation", "value": "GELU", "role": "main + post-add", "learnable": false}
+    ],
+    "init_recovers": "ResNet basic block with SE when drop_prob=0",
+    "diff_from_baseline": "Combines several baselines: post-activation Conv-BN block with GELU instead of ReLU, AvgPool+1x1+BN downsample shortcut (anti-aliased), SE channel attention, depth-linear stochastic drop with a depth-aware ceiling (uses a class-level _block_counter like the stochastic_depth baseline), and a per-channel learnable alpha initialized to 0.1 (broadcasting over spatial dims).",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Pre-act + dual-context tanh calibrator",
+    "tagline": "Pre-activation block whose residual is rescaled by a tanh gate built from both shortcut and residual global context, plus alpha=0.15.",
+    "kind": "formula",
+    "formula": "$$g = 1 + \\tanh\\!\\big(m\\cdot\\mathrm{GAP}(F(x)) + (1-m)\\cdot\\mathrm{GAP}(\\mathrm{shortcut}(x))\\big),\\;\\; y=\\mathrm{ReLU}\\!\\big(\\mathrm{shortcut}(x) + \\alpha\\,g\\odot F(x)\\big)$$",
+    "key_hyperparams": [
+      {"name": "alpha", "value": "0.15", "role": "scalar residual gate (init)", "learnable": true},
+      {"name": "mix m", "value": "0.5", "role": "blend of residual vs shortcut context for the calibrator", "learnable": true},
+      {"name": "ordering", "value": "BN-ReLU-Conv", "role": "pre-activation main branch", "learnable": false}
+    ],
+    "init_recovers": "Pre-activation block when calibrator gate g=1",
+    "diff_from_baseline": "Pre-activation main branch from pre_activation baseline, but extends the scalar alpha gate with a dual-context calibrator: shortcut and residual are each global-average-pooled, blended with a learnable scalar mix m, passed through tanh and shifted to gate ~1, then multiplied per-channel onto the residual; ends with a post-add ReLU.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Pre-act + SE + spatial CBAM + alpha",
+    "tagline": "Pre-activation block with serial SE channel attention and CBAM-style spatial attention, then learnable alpha=0.1.",
+    "kind": "formula",
+    "formula": "$$y=\\mathrm{shortcut}(x)+\\alpha\\,\\Big[F(x)\\odot \\sigma\\!\\big(W_2\\mathrm{ReLU}(W_1\\mathrm{GAP}(F(x)))\\big)\\odot\\sigma\\!\\big(\\mathrm{Conv}_{3\\times3}([\\mathrm{mean}_c F;\\mathrm{max}_c F])\\big)\\Big]$$",
+    "key_hyperparams": [
+      {"name": "alpha", "value": "0.1", "role": "scalar residual gate (init)", "learnable": true},
+      {"name": "se_reduction", "value": "max(planes//4, 1)", "role": "SE channel bottleneck", "learnable": false},
+      {"name": "spatial_kernel", "value": "3x3 over [mean,max] channel stats", "role": "CBAM spatial attention", "learnable": false},
+      {"name": "ordering", "value": "BN-ReLU-Conv", "role": "pre-activation", "learnable": false}
+    ],
+    "init_recovers": "Pre-activation block when both attentions act as identity",
+    "diff_from_baseline": "Adds CBAM (SE channel + 2-stat spatial) attention on top of the pre_activation baseline: residual branch is multiplied first by sigmoid(SE) and then by sigmoid(Conv3x3 of channel-mean+channel-max) before the alpha=0.1 scalar gate; no post-add ReLU.",
+    "confidence": "high"
+  }
+]

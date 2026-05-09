@@ -1,0 +1,88 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "MSE + LPIPS + spectral magnitude/phase",
+    "tagline": "MSE on velocity plus LPIPS, FFT magnitude L1, and amplitude-weighted phase consistency on the denoised image, with quadratic time decay and warm-up ramp.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}=\\overline{\\|\\hat v-v\\|^2}+r(\\text{step})\\,\\overline{w(t)\\!\\left[0.1\\,L_{\\mathrm{LPIPS}}+0.02\\,L_{\\mathrm{spec}}+0.003\\,L_{\\phi}\\right]},\\quad w(t)=(1-t)^2\\mathbf{1}_{t>0.1}$$",
+    "key_hyperparams": [
+      {"name": "λ_LPIPS", "value": "0.1", "role": "weight on LPIPS feature distance", "learnable": false},
+      {"name": "λ_spec", "value": "0.02", "role": "weight on FFT magnitude L1", "learnable": false},
+      {"name": "λ_phase", "value": "0.003", "role": "weight on amplitude-weighted phase consistency", "learnable": false},
+      {"name": "t_min", "value": "0.1", "role": "low-noise mask threshold", "learnable": false},
+      {"name": "ramp steps", "value": "1000", "role": "linear warm-up of auxiliary losses", "learnable": false}
+    ],
+    "init_recovers": "Pure velocity MSE before ramp activates",
+    "diff_from_baseline": "Replaces lpips_spectral's gradient/multiscale auxiliaries with an amplitude-weighted phase term (1-cos(Δφ)) and adds a 1000-step ramp.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Multi-band spectral + phase perceptual",
+    "tagline": "MSE plus LPIPS, gradient and multiscale L1, banded FFT magnitude with low/mid/high weights, and a unit-vector phase loss on the denoised image.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}=\\overline{\\|\\hat v-v\\|^2}+\\overline{w(t)\\!\\left[L_{\\mathrm{LPIPS}}+0.05L_{\\nabla}+0.05L_{\\mathrm{ms}}+0.8L_{\\mathrm{band}}+0.3L_{\\phi}\\right]}$$",
+    "key_hyperparams": [
+      {"name": "frequency bands", "value": "[(0,0.2,0.2),(0.2,0.5,0.6),(0.5,1.0,0.2)]", "role": "(low, high, weight) per radial band on |FFT|", "learnable": false},
+      {"name": "λ_LPIPS", "value": "1.0", "role": "weight on LPIPS", "learnable": false},
+      {"name": "λ_grad / λ_multi", "value": "0.05 / 0.05", "role": "Sobel gradient and multiscale L1 weights", "learnable": false},
+      {"name": "λ_mag", "value": "0.8", "role": "banded magnitude weight", "learnable": false},
+      {"name": "λ_phase", "value": "0.3", "role": "weight on unit-vector phase L1", "learnable": false},
+      {"name": "t_min", "value": "0.1", "role": "denoised-image mask threshold", "learnable": false}
+    ],
+    "init_recovers": "lpips_spectral baseline if bands collapse and phase weight → 0",
+    "diff_from_baseline": "Adds a radial-band weighted FFT magnitude (low/mid/high) and a unit-vector real/imag phase L1 to the lpips_spectral stack, with mid-band weighting (0.6).",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "LPIPS + focal log-magnitude spectral",
+    "tagline": "MSE plus LPIPS and a tri-component spectral term combining standard, focal-weighted, and log-magnitude FFT differences, time-weighted by (1-t)^2.",
+    "kind": "formula",
+    "formula": "$$L_{\\mathrm{spec}}=\\overline{|A_d-A_c|}+\\overline{\\frac{|A_d-A_c|}{\\max|A_d-A_c|}\\cdot|A_d-A_c|}+0.1\\,\\overline{|\\log A_d-\\log A_c|},\\;\\mathcal{L}=\\overline{\\|\\hat v-v\\|^2}+\\overline{w(t)(L_{\\mathrm{LPIPS}}+L_{\\mathrm{spec}})}$$",
+    "key_hyperparams": [
+      {"name": "λ_focal", "value": "1.0", "role": "weight on max-normalised focal magnitude", "learnable": false},
+      {"name": "λ_log", "value": "0.1", "role": "weight on log-magnitude L1", "learnable": false},
+      {"name": "log eps", "value": "1e-4", "role": "log stability constant", "learnable": false},
+      {"name": "t_min", "value": "0.1", "role": "denoised-image mask threshold", "learnable": false}
+    ],
+    "init_recovers": "lpips_spectral baseline if focal+log terms vanish",
+    "diff_from_baseline": "Drops gradient and multiscale terms; adds a focal magnitude (|Δ|² normalized by max|Δ|) and log-magnitude term to the LPIPS+spectral stack.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Target-anchored perceptual + phase",
+    "tagline": "MSE+Charbonnier on velocity plus LPIPS/grad/multiscale/spectral losses anchored against both the clean image and the target-induced denoised image, with amplitude-gated phase alignment.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}=\\overline{\\|\\hat v-v\\|^2}+0.05\\,\\overline{\\sqrt{(\\hat v-v)^2+10^{-6}}}+\\overline{w(t)\\!\\left[0.4\\bar L_{\\mathrm{LPIPS}}+0.15\\bar L_{\\nabla}+0.15\\bar L_{\\mathrm{ms}}+0.2L_{\\mathrm{spec}}+0.1L_{\\phi}\\right]}$$",
+    "key_hyperparams": [
+      {"name": "anchor mix", "value": "0.5/0.5", "role": "blend of clean-image and target-denoised perceptual losses", "learnable": false},
+      {"name": "λ_charb", "value": "0.05", "role": "Charbonnier velocity weight", "learnable": false},
+      {"name": "λ_LPIPS / λ_grad / λ_multi", "value": "0.40 / 0.15 / 0.15", "role": "spatial perceptual weights", "learnable": false},
+      {"name": "λ_spec / λ_phase", "value": "0.20 / 0.10", "role": "spectral magnitude and amplitude-gated phase weights", "learnable": false},
+      {"name": "t_min", "value": "0.1", "role": "denoised-image mask threshold", "learnable": false}
+    ],
+    "init_recovers": "lpips_grad if anchor mix → clean-only and spectral/phase → 0",
+    "diff_from_baseline": "Adds (i) target-induced denoised image $x-t v_{\\mathrm{target}}$ as an extra anchor for LPIPS/grad/multi, (ii) amplitude-gated Fourier phase alignment $|A_t|\\,|\\Delta\\hat\\phi|$, and (iii) a small Charbonnier velocity term.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Log-spectral + phase perceptual stack",
+    "tagline": "MSE plus LPIPS, log-magnitude spectral, magnitude-weighted phase coherence, gradient and multiscale L1, ramped over the first 1000 steps.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}=\\overline{\\|\\hat v-v\\|^2}+r(\\text{step})\\,\\overline{w(t)\\!\\left[0.05L_{\\mathrm{LPIPS}}+0.05L_{\\log}+0.005L_{\\phi}+0.02L_{\\nabla}+0.02L_{\\mathrm{ms}}\\right]},\\;L_{\\log}=\\overline{|\\log(1+|F_d|)-\\log(1+|F_c|)|}$$",
+    "key_hyperparams": [
+      {"name": "λ_LPIPS", "value": "0.05", "role": "LPIPS weight", "learnable": false},
+      {"name": "λ_log", "value": "0.05", "role": "log-magnitude spectral weight", "learnable": false},
+      {"name": "λ_phase", "value": "0.005", "role": "magnitude-weighted (1-cos) phase weight", "learnable": false},
+      {"name": "λ_grad / λ_multi", "value": "0.02 / 0.02", "role": "edge and multiscale L1 weights", "learnable": false},
+      {"name": "ramp steps", "value": "1000", "role": "linear warm-up", "learnable": false},
+      {"name": "t_min", "value": "0.1", "role": "low-noise mask threshold", "learnable": false}
+    ],
+    "init_recovers": "Pure MSE before ramp activates",
+    "diff_from_baseline": "Replaces raw FFT magnitude L1 (lpips_spectral) with a log(1+|F|) magnitude loss and adds magnitude-weighted phase coherence (1-cos Δφ); decays grad/multi weights to 0.02 and warms in over 1000 steps.",
+    "confidence": "high"
+  }
+]

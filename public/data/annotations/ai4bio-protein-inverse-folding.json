@@ -1,0 +1,167 @@
+[
+  {
+    "model": "claude-opus-4-6",
+    "name": "ProteinMPNN + RLFE + GeoGate",
+    "tagline": "Augments ProteinMPNN edges with relative local-frame rotations and gates messages by frame-conditioned sigmoids.",
+    "kind": "hybrid",
+    "formula": "$$ R^{\\text{rel}}_{ij} = F_i^{\\top} F_j \\in \\mathbb{R}^{3\\times3}, \\quad g_{ij} = \\sigma\\!\\big(\\mathrm{MLP}(\\mathrm{vec}(R^{\\text{rel}}_{ij}))\\big), \\quad m_{ij} = g_{ij} \\odot \\mathrm{MPNN}(h_i, h_j, e_{ij}) $$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "backbone X"},
+        {"id": "rbf", "label": "25 atom-pair RBF"},
+        {"id": "frame", "label": "local frame F_i"},
+        {"id": "rel", "label": "F_i^T F_j (9-d)"},
+        {"id": "edge", "label": "edge embed"},
+        {"id": "gate", "label": "geo gate sigmoid"},
+        {"id": "msg", "label": "MPNN msg x gate"},
+        {"id": "h", "label": "node update"}
+      ],
+      "edges": [
+        {"from": "x", "to": "rbf"},
+        {"from": "x", "to": "frame"},
+        {"from": "frame", "to": "rel"},
+        {"from": "rbf", "to": "edge"},
+        {"from": "rel", "to": "edge"},
+        {"from": "rel", "to": "gate"},
+        {"from": "edge", "to": "msg"},
+        {"from": "gate", "to": "msg"},
+        {"from": "msg", "to": "h"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "128", "role": "node/edge channel width", "learnable": false},
+      {"name": "num_layers", "value": "3", "role": "encoder MPNN layers", "learnable": false},
+      {"name": "k_neighbors", "value": "30", "role": "KNN graph size", "learnable": false},
+      {"name": "num_rbf", "value": "16", "role": "RBF distance bins per atom pair", "learnable": false},
+      {"name": "dropout", "value": "0.1", "role": "encoder dropout", "learnable": false},
+      {"name": "rel_frame_dim", "value": "9", "role": "flattened relative rotation features per edge", "learnable": false}
+    ],
+    "init_recovers": "ProteinMPNN baseline when the geo-gate saturates to 1",
+    "diff_from_baseline": "Extends the ProteinMPNN baseline (25 all-atom RBFs + positional edges) with a per-edge 9-d relative local-frame rotation $F_i^\\top F_j$, which is concatenated into edge features and also fed through a sigmoid MLP that element-wise gates each MPNN message.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "GeoContext + Two-Scale Aggregation",
+    "tagline": "Edge-gated MPNN that fuses geometric-KNN and sequence-decay aggregates, then interpolates with a global protein context vector.",
+    "kind": "hybrid",
+    "formula": "$$ m_{ij} = g_{ij}^{\\text{edge}} \\odot \\phi(h_i, h_j, e_{ij}), \\quad a_{\\text{geo}} = \\tfrac{\\sum_j m_{ij} M_{ij}}{\\sum_j M_{ij}}, \\quad a_{\\text{seq}} = \\tfrac{\\sum_j e^{-0.35\\,k} m_{ij}}{\\sum_j e^{-0.35\\,k}} $$\n$$ \\tilde a = \\alpha\\,a_{\\text{geo}} + (1-\\alpha)\\,a_{\\text{seq}}, \\quad h_i \\leftarrow \\mathrm{LN}\\!\\big(h_i + \\beta_i \\tilde a + (1-\\beta_i) c\\big),\\;\\; c = \\tfrac{\\sum_i h_i M_i}{\\sum_i M_i} $$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "backbone X"},
+        {"id": "node", "label": "node feats (dihed+intra-RBF)"},
+        {"id": "edge", "label": "10x atom-pair RBF + dirs + PE"},
+        {"id": "msg", "label": "edge-gated msg"},
+        {"id": "ageo", "label": "geometric KNN aggr"},
+        {"id": "aseq", "label": "seq-decay aggr"},
+        {"id": "ctx", "label": "global context c"},
+        {"id": "h", "label": "context-gated node"}
+      ],
+      "edges": [
+        {"from": "x", "to": "node"},
+        {"from": "x", "to": "edge"},
+        {"from": "node", "to": "msg"},
+        {"from": "edge", "to": "msg"},
+        {"from": "msg", "to": "ageo"},
+        {"from": "msg", "to": "aseq", "label": "exp(-0.35 k)"},
+        {"from": "ageo", "to": "h"},
+        {"from": "aseq", "to": "h"},
+        {"from": "ctx", "to": "h"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "128", "role": "node/edge channel width", "learnable": false},
+      {"name": "num_layers", "value": "4", "role": "GeoContext encoder layers (CONFIG_OVERRIDE)", "learnable": false},
+      {"name": "k_neighbors", "value": "30", "role": "KNN size", "learnable": false},
+      {"name": "num_rbf", "value": "16", "role": "RBF bins", "learnable": false},
+      {"name": "dropout", "value": "0.05", "role": "encoder dropout (CONFIG_OVERRIDE)", "learnable": false},
+      {"name": "seq_decay", "value": "0.35", "role": "exp decay rate over neighbor index k for sequence-near aggregation", "learnable": false},
+      {"name": "virtual_vec", "value": "[-0.5827, 0.5680, -0.5407]", "role": "learnable Cb anchor coefficients", "learnable": true}
+    ],
+    "diff_from_baseline": "Replaces ProteinMPNN's plain mean-aggregation with edge-gated messages aggregated under two reweightings (geometric KNN mean and exponential-decay sequence proximity), fused by a learned mix gate, and finally interpolated against a length-pooled global protein context per layer.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Multi-head Geo-Attention + Edge Update",
+    "tagline": "KNN encoder with multi-head attention message passing, dynamic edge updates, and a learnable virtual Cb anchor.",
+    "kind": "hybrid",
+    "formula": "$$ V_{ij} = W_V[h_i;h_j;e_{ij}], \\quad b_{ij}^h = \\tfrac{W_B^h[h_i;h_j;e_{ij}]}{\\sqrt{d_h}}, \\quad \\alpha_{ij}^h = \\mathrm{softmax}_j(b_{ij}^h) $$\n$$ h_i \\leftarrow \\mathrm{LN}\\!\\big(h_i + W_O \\sum_{j,h} \\alpha_{ij}^h V_{ij}^h\\big), \\quad e_{ij} \\leftarrow e_{ij} + W_E[h_i;h_j;e_{ij}] $$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "backbone X"},
+        {"id": "vcb", "label": "learnable virtual Cb"},
+        {"id": "node", "label": "dihed+orient+CbRBF"},
+        {"id": "edge", "label": "RBF+dir+frame angles"},
+        {"id": "attn", "label": "4-head geo-attn"},
+        {"id": "ffn", "label": "FFN + LN"},
+        {"id": "eupd", "label": "edge MLP update"},
+        {"id": "h", "label": "h_V out"}
+      ],
+      "edges": [
+        {"from": "x", "to": "vcb"},
+        {"from": "x", "to": "node"},
+        {"from": "vcb", "to": "node"},
+        {"from": "x", "to": "edge"},
+        {"from": "node", "to": "attn"},
+        {"from": "edge", "to": "attn"},
+        {"from": "attn", "to": "ffn"},
+        {"from": "ffn", "to": "eupd"},
+        {"from": "eupd", "to": "h"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "128", "role": "node/edge dim", "learnable": false},
+      {"name": "num_heads", "value": "4", "role": "attention heads", "learnable": false},
+      {"name": "num_layers", "value": "3", "role": "encoder layers", "learnable": false},
+      {"name": "num_rbf", "value": "16", "role": "RBF distance bins", "learnable": false},
+      {"name": "k_neighbors", "value": "30", "role": "KNN neighbors", "learnable": false},
+      {"name": "virtual_cb", "value": "[[-0.5827, 0.5680, -0.5407]]", "role": "learnable Cb anchor in local frame", "learnable": true},
+      {"name": "edge_in_dim", "value": "num_rbf + 7", "role": "edge feature width: RBF + direction + 4 frame angles", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces the scaffold's sum-mean MPNN with a multi-head attention layer whose attention bias is learned from concatenated [h_i;h_j;e_{ij}] features, and adds a per-layer edge update plus a learnable virtual-Cb position used in the node features.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "Geometric Transformer + Edge Bias",
+    "tagline": "PiFold-style 15 atom-pair RBFs and frame-rotation edges fed into a wide multi-head transformer with edge-feature attention bias.",
+    "kind": "hybrid",
+    "formula": "$$ \\mathrm{Attn}_{ij}^h = \\frac{(W_q h_i)\\cdot(W_k[h_j;e_{ij}])}{\\sqrt{d_h}} + W_b^h e_{ij} $$\n$$ h_i \\leftarrow \\mathrm{LN}(h_i + W_o\\,\\mathrm{Aggr}_j \\alpha_{ij} W_v[h_j;e_{ij}]), \\quad e_{ij} \\leftarrow \\mathrm{LN}(e_{ij} + \\mathrm{MLP}([h_i;h_j;e_{ij}])) $$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "backbone + 3 virtual atoms"},
+        {"id": "node", "label": "6 intra-RBF + dihed + orient"},
+        {"id": "edge", "label": "15 inter-RBF + 9 rel-frame + PE"},
+        {"id": "qkv", "label": "Q,K,V projections"},
+        {"id": "bias", "label": "edge -> head bias"},
+        {"id": "attn", "label": "softmax attention"},
+        {"id": "ffn", "label": "FFN + LN"},
+        {"id": "eupd", "label": "edge MLP update"}
+      ],
+      "edges": [
+        {"from": "x", "to": "node"},
+        {"from": "x", "to": "edge"},
+        {"from": "node", "to": "qkv"},
+        {"from": "edge", "to": "qkv"},
+        {"from": "edge", "to": "bias"},
+        {"from": "qkv", "to": "attn"},
+        {"from": "bias", "to": "attn"},
+        {"from": "attn", "to": "ffn"},
+        {"from": "ffn", "to": "eupd"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "192", "role": "transformer width", "learnable": false},
+      {"name": "num_layers", "value": "8", "role": "transformer depth (CONFIG_OVERRIDE)", "learnable": false},
+      {"name": "num_heads", "value": "4", "role": "attention heads", "learnable": false},
+      {"name": "num_rbf", "value": "16", "role": "RBF bins per pair", "learnable": false},
+      {"name": "k_neighbors", "value": "30", "role": "KNN size", "learnable": false},
+      {"name": "dropout", "value": "0.15", "role": "encoder dropout (CONFIG_OVERRIDE)", "learnable": false},
+      {"name": "atom_pairs_node", "value": "6", "role": "intra-residue atom-pair RBF channels", "learnable": false},
+      {"name": "atom_pairs_edge", "value": "15", "role": "inter-residue atom-pair RBF channels (PiFold set)", "learnable": false}
+    ],
+    "diff_from_baseline": "Combines PiFold-like rich atom-pair geometry (3 virtual atoms, 15 inter-residue RBF channels, relative-frame rotation features) with a wider transformer encoder (192-d, 8 layers, 4 heads) where edge features inject a per-head additive attention bias and edges are updated each layer.",
+    "confidence": "high"
+  }
+]

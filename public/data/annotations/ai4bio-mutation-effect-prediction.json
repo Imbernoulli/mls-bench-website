@@ -1,0 +1,161 @@
+[
+  {
+    "model": "claude-opus-4-6",
+    "name": "Contextually-Gated Interaction Net",
+    "tagline": "Gated delta + element-wise embedding-delta interaction fused with a learned linear-residual blend.",
+    "kind": "hybrid",
+    "formula": "$$\\hat{y} = \\alpha \\, W_{\\text{lin}}\\Delta + (1-\\alpha)\\, \\mathrm{Head}\\bigl(\\,\\mathrm{Enc}_{\\Delta}(g(e)\\odot\\Delta) \\;\\Vert\\; \\mathrm{Enc}_{\\times}(e\\odot\\Delta)\\,\\bigr),\\quad \\alpha = \\sigma(b)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "e", "label": "embedding e"},
+        {"id": "d", "label": "delta Δ"},
+        {"id": "g", "label": "context gate g(e)"},
+        {"id": "gd", "label": "g⊙Δ"},
+        {"id": "x", "label": "e⊙Δ interaction"},
+        {"id": "fuse", "label": "fusion MLP"},
+        {"id": "lin", "label": "linear residual"},
+        {"id": "out", "label": "α·lin + (1-α)·MLP"}
+      ],
+      "edges": [
+        {"from": "e", "to": "g"},
+        {"from": "g", "to": "gd"},
+        {"from": "d", "to": "gd"},
+        {"from": "e", "to": "x"},
+        {"from": "d", "to": "x"},
+        {"from": "gd", "to": "fuse"},
+        {"from": "x", "to": "fuse"},
+        {"from": "fuse", "to": "out"},
+        {"from": "d", "to": "lin"},
+        {"from": "lin", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "bottleneck", "value": "128", "role": "gate net hidden width", "learnable": false},
+      {"name": "hidden", "value": "256", "role": "encoder/fusion hidden dim", "learnable": false},
+      {"name": "dropout (encoders)", "value": "0.2", "role": "delta and interaction encoder dropout", "learnable": false},
+      {"name": "dropout (head)", "value": "0.15", "role": "fusion head dropout", "learnable": false},
+      {"name": "α blend", "value": "σ(0)=0.5", "role": "linear-vs-nonlinear mix", "learnable": true},
+      {"name": "learning_rate", "value": "5e-4", "role": "AdamW LR override", "learnable": false},
+      {"name": "weight_decay", "value": "0.05", "role": "AdamW WD override", "learnable": false}
+    ],
+    "init_recovers": "Linear-on-Δ (ridge) when α→1.",
+    "diff_from_baseline": "Replaces the ridge head with a two-pathway nonlinear fusion (context-gated Δ and element-wise e⊙Δ interaction) on top of the original linear-Δ baseline, smoothly blended via a learned scalar α so the model can fall back to ridge.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini/gemini-3.1-pro-preview",
+    "name": "FiLM-Modulated Δ with Geometric Stats",
+    "tagline": "Project [WT, mutant, WT⊙Δ] into context, FiLM-modulate the Δ stream, and concatenate L2/cosine geometric features.",
+    "kind": "hybrid",
+    "formula": "$$x = \\mathrm{DeltaProj}(\\Delta),\\quad c = \\mathrm{CtxProj}\\bigl([\\,e_{wt}\\Vert e\\Vert e_{wt}\\odot\\Delta\\,]\\bigr),\\quad (\\gamma,\\beta)=\\mathrm{FiLM}(c),\\quad \\hat{y}=\\mathrm{MLP}\\bigl([\\,c\\Vert x(1+\\gamma)+\\beta\\Vert\\Vert\\Delta\\Vert_2\\Vert\\cos(e,e_{wt})\\Vert\\Vert e_{wt}\\Vert\\Vert\\Vert e\\Vert\\,]\\bigr)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "e", "label": "mutant e"},
+        {"id": "d", "label": "Δ"},
+        {"id": "wt", "label": "WT = e − Δ"},
+        {"id": "ctx", "label": "context proj"},
+        {"id": "film", "label": "FiLM (γ, β)"},
+        {"id": "dx", "label": "Δ proj"},
+        {"id": "geo", "label": "norms + cos sim"},
+        {"id": "out", "label": "combiner MLP"}
+      ],
+      "edges": [
+        {"from": "e", "to": "wt"},
+        {"from": "d", "to": "wt"},
+        {"from": "wt", "to": "ctx"},
+        {"from": "e", "to": "ctx"},
+        {"from": "ctx", "to": "film"},
+        {"from": "d", "to": "dx"},
+        {"from": "film", "to": "out"},
+        {"from": "dx", "to": "out"},
+        {"from": "geo", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "1024", "role": "context/Δ hidden width", "learnable": false},
+      {"name": "dropout", "value": "0.1", "role": "MLP dropout", "learnable": false},
+      {"name": "FiLM init", "value": "zeros", "role": "γ,β init so x_mod≡x at start", "learnable": false},
+      {"name": "extra geom features", "value": "4 (∥Δ∥, cos, ∥WT∥, ∥e∥)", "role": "concatenated to combiner", "learnable": false},
+      {"name": "learning_rate", "value": "5e-4", "role": "AdamW LR override", "learnable": false},
+      {"name": "weight_decay", "value": "0.01", "role": "AdamW WD override", "learnable": false}
+    ],
+    "init_recovers": "Δ-MLP + geometric features when (γ,β)≡0 at init.",
+    "diff_from_baseline": "Replaces the ridge/MLP head with a FiLM-modulated Δ stream conditioned on a context vector built from WT, mutant and WT⊙Δ, then concatenates explicit L2/cosine geometric statistics for the combiner — none of the baselines use FiLM or hand-crafted geometry.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Bilinear Gated Delta Head",
+    "tagline": "LayerNormed delta and context streams combined with a low-rank gated bilinear interaction plus a linear-Δ residual.",
+    "kind": "formula",
+    "formula": "$$\\tilde{e}=\\mathrm{LN}(e),\\;\\tilde{\\Delta}=\\mathrm{LN}(\\Delta),\\quad h_\\Delta=\\tanh(W_\\Delta\\tilde{\\Delta}),\\;h_c=\\mathrm{GELU}(W_c\\tilde{e}),\\;g=\\sigma(W_m[\\tilde{e}\\Vert\\tilde{\\Delta}])$$$$\\hat{y} = \\mathrm{MLP}\\bigl([h_\\Delta\\Vert h_c\\Vert g\\odot h_\\Delta\\odot h_c]\\bigr) + W_{\\text{lin}}\\tilde{\\Delta}$$",
+    "key_hyperparams": [
+      {"name": "hidden", "value": "192", "role": "projection width for δ, context, gate", "learnable": false},
+      {"name": "head MLP", "value": "192·3 → 128 → 1", "role": "fusion head", "learnable": false},
+      {"name": "dropout", "value": "0.1", "role": "head dropout", "learnable": false},
+      {"name": "δ-activation", "value": "tanh", "role": "bounded δ projection", "learnable": false},
+      {"name": "ctx-activation", "value": "GELU", "role": "context projection", "learnable": false}
+    ],
+    "init_recovers": "Linear-Δ (ridge) when MLP head output is zero.",
+    "diff_from_baseline": "Adds LayerNorm on the frozen ESM features and a gated low-rank bilinear interaction g⊙h_Δ⊙h_c on top of the linear-Δ ridge head — baselines use either a flat linear or a single-hidden MLP with no gating or bilinear term.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Cross-Attention Δ Fusion Stack",
+    "tagline": "Three stacked blocks fusing feature-space cross-attention, multiplicative, and gated views with delta-centric residuals.",
+    "kind": "hybrid",
+    "formula": "$$\\mathrm{Attn}(e,\\Delta)=\\mathrm{softmax}_H\\!\\bigl(\\tfrac{q_\\Delta\\odot k_e}{\\sqrt{d}}\\bigr)\\,v_e,\\quad x_{\\text{mul}}=\\mathrm{MLP}(e\\odot\\Delta),\\quad x_{\\text{gate}}=\\sigma(\\mathrm{MLP}(\\Delta))\\odot e$$$$\\Delta \\leftarrow \\mathrm{LN}\\bigl(\\Delta + \\mathrm{MLP}([\\mathrm{Attn}\\Vert x_{\\text{mul}}\\Vert x_{\\text{gate}}])\\bigr)\\quad \\text{(}\\times 3\\text{)},\\;\\hat{y}=\\mathrm{Head}(\\Delta)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "e", "label": "embedding"},
+        {"id": "d", "label": "delta"},
+        {"id": "ep", "label": "emb proj 384"},
+        {"id": "dp", "label": "delta proj 384"},
+        {"id": "blk", "label": "fusion block ×3"},
+        {"id": "attn", "label": "cross-attn (Q=Δ, K,V=e)"},
+        {"id": "mul", "label": "e⊙Δ MLP"},
+        {"id": "gate", "label": "σ(MLP(Δ))⊙e"},
+        {"id": "head", "label": "MLP head"}
+      ],
+      "edges": [
+        {"from": "e", "to": "ep"},
+        {"from": "d", "to": "dp"},
+        {"from": "ep", "to": "blk"},
+        {"from": "dp", "to": "blk"},
+        {"from": "blk", "to": "attn"},
+        {"from": "blk", "to": "mul"},
+        {"from": "blk", "to": "gate"},
+        {"from": "blk", "to": "head"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "dim", "value": "384", "role": "shared embedding dim after projection", "learnable": false},
+      {"name": "num_heads", "value": "8", "role": "feature-space attention heads", "learnable": false},
+      {"name": "n_blocks", "value": "3", "role": "stacked InteractionFusion blocks", "learnable": false},
+      {"name": "dropout", "value": "0.1", "role": "block + head dropout", "learnable": false},
+      {"name": "learning_rate", "value": "5e-4", "role": "AdamW LR override", "learnable": false},
+      {"name": "weight_decay", "value": "0.01", "role": "AdamW WD override", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces the linear/MLP head with a 3-block transformer-style stack where each block fuses cross-attention (Δ as query, e as key/value), an element-wise interaction MLP, and a Δ-gated context view, all residually added to Δ — none of the baselines use attention or stacked fusion.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "Per-dim FiLM from Δ (DCAM-Net)",
+    "tagline": "Map each Δ scalar through a shared MLP to per-dimension (γ, β); affine-modulate the mutant embedding then linearly predict.",
+    "kind": "formula",
+    "formula": "$$(\\gamma_i,\\beta_i)=\\mathrm{MLP}_{\\text{shared}}(\\Delta_i),\\quad \\tilde{e}_i = \\gamma_i\\,e_i + \\beta_i,\\quad \\hat{y} = w^\\top \\mathrm{LN}(\\tilde{e})$$",
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "32", "role": "shared scalar MLP width", "learnable": false},
+      {"name": "γ-init", "value": "1.0", "role": "bias of MLP output[0] (identity start)", "learnable": false},
+      {"name": "β-init", "value": "0.0", "role": "bias of MLP output[1] (zero shift)", "learnable": false},
+      {"name": "head", "value": "Linear(1280→1) + LN", "role": "prediction head", "learnable": false},
+      {"name": "learning_rate", "value": "1e-3", "role": "AdamW LR override", "learnable": false},
+      {"name": "weight_decay", "value": "1e-4", "role": "AdamW WD override", "learnable": false}
+    ],
+    "init_recovers": "Linear head on LayerNorm(e) at init (γ≡1, β≡0).",
+    "diff_from_baseline": "Adds a shared scalar-to-affine MLP that converts each Δᵢ into a per-dimension (γᵢ,βᵢ) modulation of the mutant embedding before a single linear head — ridge uses a flat Linear(Δ→1) with no modulation, MLP uses one hidden layer on Δ alone.",
+    "confidence": "high"
+  }
+]

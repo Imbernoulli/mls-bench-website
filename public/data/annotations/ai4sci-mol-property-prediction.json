@@ -1,0 +1,194 @@
+[
+  {
+    "model": "claude-opus-4-6",
+    "name": "Uni-Mol + multi-view readout",
+    "tagline": "Replaces the [CLS]-only pooler of Uni-Mol with a fused readout over [CLS], attention pooling, and pair-representation summaries.",
+    "kind": "hybrid",
+    "formula": "$$h = \\mathrm{LN}\\big(\\,[\\,h_{\\text{CLS}}\\;\\Vert\\;\\sum_i \\alpha_i h_i\\;\\Vert\\;\\phi(\\bar p_{\\text{CLS}})\\;\\Vert\\;\\phi(\\bar p_{\\text{diag}})\\,]\\big),\\quad \\hat y = \\frac{1}{K}\\sum_{k=1}^{K} W_o\\,\\mathrm{Drop}_k(h)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "enc", "label": "Uni-Mol encoder"},
+        {"id": "cls", "label": "[CLS] token"},
+        {"id": "atn", "label": "Attn-pool atoms"},
+        {"id": "pcls", "label": "Pair row [CLS]"},
+        {"id": "pdg", "label": "Pair diagonal"},
+        {"id": "fus", "label": "Fusion + LN"},
+        {"id": "drop", "label": "Multi-sample dropout"},
+        {"id": "out", "label": "Task head"}
+      ],
+      "edges": [
+        {"from": "enc", "to": "cls"},
+        {"from": "enc", "to": "atn"},
+        {"from": "enc", "to": "pcls"},
+        {"from": "enc", "to": "pdg"},
+        {"from": "cls", "to": "fus"},
+        {"from": "atn", "to": "fus"},
+        {"from": "pcls", "to": "fus"},
+        {"from": "pdg", "to": "fus"},
+        {"from": "fus", "to": "drop"},
+        {"from": "drop", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "K", "value": "8", "role": "multi-sample dropout copies averaged at training", "learnable": false},
+      {"name": "p_drop", "value": "max(pooler_dropout, 0.1)", "role": "dropout rate inside each multi-sample copy", "learnable": false},
+      {"name": "d_pair", "value": "64", "role": "compressed pair-feature dim per pair view", "learnable": false},
+      {"name": "encoder", "value": "15 layers, 512 dim, 64 heads, 2048 FFN", "role": "Uni-Mol base architecture (unchanged, weights loaded)", "learnable": true}
+    ],
+    "init_recovers": "Uni-Mol [CLS] head when attention-pool and pair branches are zeroed.",
+    "diff_from_baseline": "Keeps the Uni-Mol pretrained encoder verbatim but swaps the simple dropout+linear ClassificationHead for a four-view fusion ([CLS], attention-weighted atom pool, [CLS]-row pair summary, diagonal pair summary) followed by multi-sample dropout averaging.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Uni-Mol + D-MPNN cross-attention",
+    "tagline": "Fuses Uni-Mol [CLS] with a parallel D-MPNN bond branch and RDKit descriptors via a residually-gated cross-modal attention readout.",
+    "kind": "hybrid",
+    "formula": "$$\\alpha = \\mathrm{softmax}\\!\\left(\\frac{(W_q h_{\\mathrm{CLS}})(W_k[\\,h^{\\text{UM}}\\Vert h^{\\text{DMP}}])^\\top}{\\sqrt{d_b}}\\right),\\;\\; c = \\gamma\\,\\mathrm{LN}\\!\\big(\\alpha\\, W_v[\\,h^{\\text{UM}}\\Vert h^{\\text{DMP}}]\\big),\\;\\; \\hat y = W_o[\\,h_{\\mathrm{CLS}}\\Vert c\\Vert\\tilde r_{\\text{RDKit}}]$$",
+    "diagram": {
+      "nodes": [
+        {"id": "um", "label": "Uni-Mol encoder"},
+        {"id": "dmp", "label": "D-MPNN encoder"},
+        {"id": "rdkit", "label": "RDKit 17-d feats"},
+        {"id": "cls", "label": "[CLS] (query)"},
+        {"id": "kv", "label": "[atoms || dmpnn] (KV)"},
+        {"id": "xattn", "label": "Cross-attn + γ"},
+        {"id": "head", "label": "Linear out"}
+      ],
+      "edges": [
+        {"from": "um", "to": "cls"},
+        {"from": "um", "to": "kv"},
+        {"from": "dmp", "to": "kv"},
+        {"from": "cls", "to": "xattn"},
+        {"from": "kv", "to": "xattn"},
+        {"from": "xattn", "to": "head"},
+        {"from": "rdkit", "to": "head"},
+        {"from": "cls", "to": "head"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "d_unimol", "value": "512", "role": "Uni-Mol embed dim", "learnable": false},
+      {"name": "d_dmpnn", "value": "128", "role": "D-MPNN bond hidden dim", "learnable": false},
+      {"name": "depth_dmpnn", "value": "3", "role": "D-MPNN message-passing steps", "learnable": false},
+      {"name": "d_b", "value": "128", "role": "cross-attention bottleneck dim", "learnable": false},
+      {"name": "gamma", "value": "0.0 (init)", "role": "residual gate on cross-attn context (zero-init)", "learnable": true},
+      {"name": "RDKit feat dim", "value": "17", "role": "MolWt / LogP / TPSA etc.", "learnable": false}
+    ],
+    "init_recovers": "Uni-Mol + RDKit logistic head when γ=0.",
+    "diff_from_baseline": "Adds a parallel chemprop-style D-MPNN bond branch and cross-modal attention from the Uni-Mol [CLS] query to the concatenated atom-token / D-MPNN keys, then concatenates RDKit 2D normalized descriptors with the gated context for the final linear head.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Geometry-gated GNN with disagreement gating",
+    "tagline": "Two-branch GNN with RBF-distance-gated message passing and a per-task disagreement gate that mixes graph and geometry logits.",
+    "kind": "hybrid",
+    "formula": "$$g_e = \\sigma\\!\\big(W_g(\\phi_e(e_{ij}) + W_d\\,\\mathrm{RBF}(\\lVert p_i - p_j\\rVert))\\big),\\;\\; \\hat y = \\mathrm{sig}\\!\\big(W_m[\\,h_g\\Vert h_{\\text{geo}}\\Vert |y_g-y_{\\text{geo}}|]\\big)\\odot y_g + (1-\\cdot)\\odot y_{\\text{geo}}$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Atom feats"},
+        {"id": "ggn", "label": "GeoEdgeGated conv x4"},
+        {"id": "mp", "label": "Mean+Max pool"},
+        {"id": "geo", "label": "Per-atom radial geom"},
+        {"id": "yg", "label": "Graph head"},
+        {"id": "ye", "label": "Geometry head"},
+        {"id": "gate", "label": "Disagreement gate"},
+        {"id": "out", "label": "Mixed logits"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ggn"},
+        {"from": "ggn", "to": "mp"},
+        {"from": "mp", "to": "yg"},
+        {"from": "x", "to": "geo"},
+        {"from": "geo", "to": "ye"},
+        {"from": "yg", "to": "gate"},
+        {"from": "ye", "to": "gate"},
+        {"from": "gate", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "192", "role": "node embed dim", "learnable": false},
+      {"name": "num_layers", "value": "4", "role": "GeoEdgeGated conv layers", "learnable": false},
+      {"name": "num_rbf", "value": "16", "role": "radial basis functions in [0, 6] Å", "learnable": false},
+      {"name": "rbf_gamma", "value": "1.5", "role": "RBF inverse-bandwidth", "learnable": false},
+      {"name": "dropout", "value": "max(pooler_dropout, 0.1)", "role": "dropout in conv and heads", "learnable": false},
+      {"name": "activation", "value": "SiLU", "role": "all MLPs", "learnable": false}
+    ],
+    "init_recovers": "Pure geometry head when gate→0; pure graph head when gate→1.",
+    "diff_from_baseline": "Replaces the GIN starter with a geometry-gated edge convolution (RBF over interatomic distances modulating bond messages) and adds a parallel geometry pathway over per-atom radial features; the final logits are a sigmoid mixture whose gate sees the absolute disagreement between the two heads.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "D-MPNN with 3D-distance gating",
+    "tagline": "Distance-aware D-MPNN whose bond messages are scaled by a Gaussian of pairwise 3D distance, with multi-head attention readout and RDKit fusion.",
+    "kind": "hybrid",
+    "formula": "$$w_{ij} = \\exp\\!\\big(-\\tfrac{\\lVert p_i - p_j\\rVert^2}{2\\sigma^2}\\big),\\;\\; h^{(t+1)}_{ij} = \\mathrm{ReLU}\\!\\big(h^{(0)}_{ij} + W_h\\big(\\sum_{k\\to i} w_{ki}\\, h^{(t)}_{ki} - h^{(t)}_{ji}\\big)\\big)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Atom + bond feats"},
+        {"id": "dmp", "label": "Dist-gated D-MPNN"},
+        {"id": "sum", "label": "Sum pool"},
+        {"id": "atn", "label": "Multi-head attn pool"},
+        {"id": "rd", "label": "RDKit (running-norm)"},
+        {"id": "head", "label": "MLP head"}
+      ],
+      "edges": [
+        {"from": "x", "to": "dmp"},
+        {"from": "dmp", "to": "sum"},
+        {"from": "dmp", "to": "atn"},
+        {"from": "sum", "to": "head"},
+        {"from": "atn", "to": "head"},
+        {"from": "rd", "to": "head"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "300", "role": "D-MPNN bond hidden dim", "learnable": false},
+      {"name": "depth", "value": "3", "role": "directed message-passing steps", "learnable": false},
+      {"name": "σ", "value": "2.0", "role": "Å bandwidth of the 3D distance Gaussian gate", "learnable": false},
+      {"name": "num_heads", "value": "4", "role": "attention heads in graph readout", "learnable": false},
+      {"name": "RDKit feat dim", "value": "17", "role": "RDKit 2D descriptors fused at readout", "learnable": false},
+      {"name": "global_query", "value": "Parameter(d)", "role": "learnable readout query for attention pooling", "learnable": true}
+    ],
+    "init_recovers": "Chemprop D-MPNN + RDKit features when σ→∞ (uniform gate).",
+    "diff_from_baseline": "On top of the D-MPNN baseline, multiplies each directed bond message by a Gaussian of the 3D distance between the source and destination atoms, replaces sum readout with a learned-query multi-head attention pool, and concatenates both pooled vectors with RDKit features for the head.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "GeoGIN + Uni-Mol token + RDKit",
+    "tagline": "GIN whose messages carry an edge-type-conditioned distance gate, augmented by frozen Uni-Mol token embeddings and an RDKit descriptor branch.",
+    "kind": "hybrid",
+    "formula": "$$w_{ij} = \\sigma\\!\\big(W_w\\,\\phi_d(d_{ij}, t_{ij})\\big),\\;\\; h_v' = \\mathrm{MLP}\\!\\big((1+\\varepsilon)h_v + \\sum_{u\\to v} w_{uv}\\,(h_u + W_e e_{uv})\\big),\\;\\; \\hat y = W_o[\\,\\bar h \\Vert W_r \\tilde r_{\\text{RDKit}}]$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Atom feats"},
+        {"id": "tok", "label": "Uni-Mol embed (frozen)"},
+        {"id": "cat", "label": "Concat node feats"},
+        {"id": "ggn", "label": "GeoGIN x4"},
+        {"id": "pool", "label": "Mean pool"},
+        {"id": "rd", "label": "RDKit branch"},
+        {"id": "head", "label": "MLP head"}
+      ],
+      "edges": [
+        {"from": "x", "to": "cat"},
+        {"from": "tok", "to": "cat"},
+        {"from": "cat", "to": "ggn"},
+        {"from": "ggn", "to": "pool"},
+        {"from": "pool", "to": "head"},
+        {"from": "rd", "to": "head"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "300", "role": "primary GIN width", "learnable": false},
+      {"name": "unimol_embed_dim", "value": "75 (=hidden/4)", "role": "frozen Uni-Mol token embedding slice", "learnable": false},
+      {"name": "num_layers", "value": "4", "role": "GeoGIN message-passing steps", "learnable": false},
+      {"name": "distance_dim", "value": "32", "role": "edge-type+distance encoding width", "learnable": false},
+      {"name": "num_edge_types", "value": "400", "role": "atom_type x atom_type x bond_type bins", "learnable": false},
+      {"name": "RDKit feat dim", "value": "17", "role": "RDKit 2D descriptors fused at readout", "learnable": false}
+    ],
+    "init_recovers": "Plain GIN + RDKit when the distance gate w→1.",
+    "diff_from_baseline": "Extends the GIN starter with an edge-type-conditioned distance encoder that gates each message via sigmoid, concatenates a frozen slice of the pretrained Uni-Mol token embedding to the atom features, and fuses an RDKit 2D descriptor branch at readout.",
+    "confidence": "medium"
+  }
+]

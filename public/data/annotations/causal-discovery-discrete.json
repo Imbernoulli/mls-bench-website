@@ -1,0 +1,78 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "GES + size-gated G-test pruning",
+    "tagline": "Run GES with BDeu, then on graphs with more than 20 variables drop edges that pass a chi-squared CI test conditioned on safe-cardinality neighbour subsets.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. $G \\leftarrow \\mathrm{GES}(X,\\,\\text{BDeu})$\n// 2. if $p \\le 20$ return $G$\n// 3. for each edge $(i,j) \\in G$:\n// 4.   $\\mathcal{N} \\leftarrow \\mathrm{adj}(i) \\cup \\mathrm{adj}(j) \\setminus \\{i,j\\}$\n// 5.   build candidate sep-sets $\\mathcal{S} = \\{\\emptyset, \\{k\\}_{k\\in\\mathcal{N}}, \\mathcal{N}\\}$\n// 6.   keep only $S$ with $r_i\\,r_j\\,\\prod_{k\\in S} r_k \\le n/5$\n// 7.   if $\\exists S$ with G-test p-value $> 0.01$, remove edge $(i,j)$\n// 8. return $G$",
+    "key_hyperparams": [
+      {"name": "size_gate", "value": "20", "role": "skip pruning when p <= 20", "learnable": false},
+      {"name": "alpha", "value": "0.01", "role": "G-test independence threshold", "learnable": false},
+      {"name": "card_budget", "value": "n/5", "role": "max joint cardinality for valid CI test", "learnable": false}
+    ],
+    "init_recovers": "Plain GES on small graphs",
+    "diff_from_baseline": "Starts from the GES baseline but adds a post-hoc G-test (gsq) edge-pruning pass restricted to neighbourhood-only conditioning sets and only triggered for large graphs.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "GES + DAG-space refinement",
+    "tagline": "Convert the GES CPDAG into a DAG by BDeu-comparing each undirected edge, break cycles, then run two passes of greedy add/delete/reverse refinement before CPDAG conversion.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. $G_{\\text{GES}} \\leftarrow \\mathrm{GES}(X,\\,\\text{BDeu})$\n// 2. for each undirected edge $(i,j)$: keep $i\\to j$ if $\\mathrm{BDeu}(j\\mid i) > \\mathrm{BDeu}(i\\mid j) + 0.01$ else $j\\to i$ (else leave both)\n// 3. while cycles exist: DFS-detect and reverse one offending edge\n// 4. for $t = 1..2$:\n// 5.   while improved: try ADD, DELETE, REVERSE on every $(i,j)$ keeping acyclic, accept move maximizing $\\Delta\\mathrm{BDeu} < -10^{-8}$\n// 6. $G \\leftarrow \\mathrm{dag2cpdag}(\\mathrm{adj})$",
+    "key_hyperparams": [
+      {"name": "tie_margin", "value": "0.01", "role": "BDeu margin for orienting CPDAG undirected edges", "learnable": false},
+      {"name": "improve_eps", "value": "1e-8", "role": "minimum delta for accepting hill-climbing move", "learnable": false},
+      {"name": "refinement_passes", "value": "2", "role": "outer hill-climbing passes", "learnable": false}
+    ],
+    "init_recovers": "GES baseline before refinement",
+    "diff_from_baseline": "Wraps the GES baseline with a DAG-space hill-climbing refinement (add/delete/reverse) seeded from a BDeu-oriented CPDAG, recovering edges that pure CPDAG-space search misses.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "MI-restricted permutation BDeu search",
+    "tagline": "Restrict each node's parent candidates to its top-15 mutual-information neighbours, then optimise permutation order with multi-start best-insert search before a local DAG hill-climb.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. compute pairwise MI matrix from histograms; let $\\mathcal{N}_i$ = top-15 MI neighbours\n// 2. cache $\\mathrm{score}(i,\\mathrm{Pa})$; for each candidate set keep best $|\\mathrm{Pa}| \\le 4$\n// 3. for restart $r = 1..6$ with seed 42:\n// 4.   shuffle order $\\pi$; while improved try every \"pop $\\pi[i]$, insert at $j$\" move, accept best\n// 5. project best $\\pi$ to a DAG using cached best parents (in $\\mathcal{N}_i \\cap \\mathrm{predecessors}$)\n// 6. greedy DAG hill-climb (add/del/reverse) with $\\delta > 10^{-5}$\n// 7. return $\\mathrm{dag2cpdag}(\\text{DAG})$",
+    "key_hyperparams": [
+      {"name": "K", "value": "min(N-1, 15)", "role": "MI neighbour set size", "learnable": false},
+      {"name": "max_pa", "value": "4", "role": "max parents per node in cached subset search", "learnable": false},
+      {"name": "NUM_RESTARTS", "value": "6", "role": "random permutation restarts", "learnable": false},
+      {"name": "delta_eps", "value": "1e-5", "role": "DAG hill-climb improvement threshold", "learnable": false},
+      {"name": "seed", "value": "42", "role": "RNG seed", "learnable": false}
+    ],
+    "diff_from_baseline": "A custom permutation-based discoverer in the BOSS/GRaSP family: replaces the library implementation with an MI-pruned, BDeu-scored best-insert order search over multiple restarts followed by a DAG hill-climb.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Reliability-adaptive PC ∩ GES",
+    "tagline": "Choose alpha by sample-complexity, run PC and GES, intersect their skeletons, keep only consensus arrows plus reliable PC v-structures, then close under Meek.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. $\\bar r \\leftarrow \\mathrm{mean}_j |\\mathrm{vals}(X_{:,j})|$;  $c \\leftarrow \\log n / \\bar r$\n// 2. $\\alpha \\leftarrow 0.10$ if $p\\le 10$ else $0.03/0.02/0.01$ as $c > 2.2/1.6/\\text{else}$\n// 3. PC-skeleton with chi-sq, UC-sepset, Meek $\\to$ $G_{PC}$\n// 4. $G_{\\text{GES}} \\leftarrow \\mathrm{GES}(X,\\,\\text{BDeu})$\n// 5. skeleton intersect: keep edge $(i,j)$ if in both ($p\\le 8$: in either)\n// 6. orient $i\\to j$ when both PC and GES agree on the arrow\n// 7. recover PC v-structures $X\\to Y\\leftarrow Z$ surviving the hybrid skeleton\n// 8. return $\\mathrm{Meek}(G)$",
+    "key_hyperparams": [
+      {"name": "alpha_small", "value": "0.10", "role": "alpha for p ≤ 10", "learnable": false},
+      {"name": "alpha_high_complexity", "value": "0.03 / 0.02 / 0.01", "role": "alpha for sample-complexity bins", "learnable": false},
+      {"name": "small_safeguard", "value": "p ≤ 8", "role": "use union (not intersection) of PC and GES skeletons", "learnable": false}
+    ],
+    "init_recovers": "PC ∩ GES with fixed alpha; degenerates toward PC at small p",
+    "diff_from_baseline": "Hybrid of PC and GES baselines: instead of running either alone, this proposal intersects their skeletons with a sample-size-adaptive alpha and only orients edges where both methods agree (or PC v-structures are reliable).",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Multi-alpha skeleton + BDeu hill-climb",
+    "tagline": "Take the union of three PC skeletons at alpha in {0.005, 0.01, 0.05}, then greedily search a DAG (add/delete/reverse) restricted to that skeleton with BDeu scoring.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for $\\alpha \\in \\{0.005, 0.01, 0.05\\}$:  PC-skeleton$(\\alpha,\\,\\mathrm{chi}^2)$\n// 2. $S \\leftarrow$ union of skeletons (boolean OR)\n// 3. init empty DAG, cache BDeu local scores\n// 4. while improved (cap $2N^2$ iters):\n// 5.   for each pair $(i,j)$ in $S$ try ADD/DELETE/REVERSE keeping acyclic\n// 6.   accept best $\\Delta\\mathrm{BDeu} > 10^{-6}$\n// 7. return $\\mathrm{dag2cpdag}(\\text{DAG})$",
+    "key_hyperparams": [
+      {"name": "alphas", "value": "[0.005, 0.01, 0.05]", "role": "PC alphas for stability-selected skeleton", "learnable": false},
+      {"name": "improve_eps", "value": "1e-6", "role": "minimum delta to accept move", "learnable": false},
+      {"name": "max_iter", "value": "2 * N^2", "role": "outer hill-climb cap", "learnable": false}
+    ],
+    "init_recovers": "Empty DAG (no improving move accepted)",
+    "diff_from_baseline": "Hybrid PC+HC: uses the union of multi-alpha PC skeletons as a hard constraint for an HC-style BDeu hill-climber, intersecting the PC skeleton baseline with the HC search baseline.",
+    "confidence": "high"
+  }
+]

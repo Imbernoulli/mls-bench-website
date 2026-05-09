@@ -1,0 +1,155 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Dual-stream LSTM/Transformer + IC loss + LGBM ensemble",
+    "tagline": "Adaptively-gated features feed parallel LSTM and Transformer streams; gated fusion + IC-regularized loss; final score blends with LightGBM.",
+    "kind": "hybrid",
+    "formula": "$$\\hat y = w_{\\mathrm{nn}}\\,\\mathrm{zscore}(\\hat y_{\\mathrm{NN}}) + (1-w_{\\mathrm{nn}})\\,\\mathrm{zscore}(\\hat y_{\\mathrm{LGBM}})$$ $$\\mathcal{L} = \\mathrm{MSE}(\\hat y_{\\mathrm{NN}}, y) - \\lambda\\,\\mathrm{Pearson}(\\hat y_{\\mathrm{NN}}, y),\\;\\;\\lambda=0.15$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Alpha360 -> [N, 60, 6]"},
+        {"id": "gate", "label": "AdaptiveFeatureGate"},
+        {"id": "proj", "label": "Linear+LN"},
+        {"id": "lstm", "label": "2-layer LSTM (last hidden)"},
+        {"id": "trf", "label": "2-layer TransformerEncoder + temporal attn pool"},
+        {"id": "fuse", "label": "Softmax(2) gated fusion"},
+        {"id": "head", "label": "MLP head -> y_NN"},
+        {"id": "lgbm", "label": "LightGBM y_LGBM"},
+        {"id": "out", "label": "0.5 zscore mix"}
+      ],
+      "edges": [
+        {"from": "x", "to": "gate"},
+        {"from": "gate", "to": "proj"},
+        {"from": "proj", "to": "lstm"},
+        {"from": "proj", "to": "trf"},
+        {"from": "lstm", "to": "fuse"},
+        {"from": "trf", "to": "fuse"},
+        {"from": "fuse", "to": "head"},
+        {"from": "head", "to": "out"},
+        {"from": "lgbm", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_size", "value": "128", "role": "shared LSTM/Transformer width", "learnable": false},
+      {"name": "num_layers", "value": "2", "role": "depth of both streams", "learnable": false},
+      {"name": "nhead", "value": "4", "role": "transformer heads", "learnable": false},
+      {"name": "dropout", "value": "0.15", "role": "regularization", "learnable": false},
+      {"name": "lr / weight_decay", "value": "5e-4 / 1e-3", "role": "AdamW + cosine to 1e-6", "learnable": false},
+      {"name": "ic_loss_weight", "value": "0.15", "role": "Pearson IC term in loss", "learnable": false},
+      {"name": "ensemble_weight", "value": "0.5", "role": "NN/LGBM blend on z-scored predictions", "learnable": false},
+      {"name": "n_epochs / early_stop", "value": "150 / 15", "role": "training schedule", "learnable": false},
+      {"name": "LGBM params", "value": "official Alpha360 (lr=0.0421, leaves=210, l1=205.7, l2=580.98)", "role": "ensemble member", "learnable": false}
+    ],
+    "init_recovers": "qlib LSTM baseline if transformer stream and IC term are removed and ensemble_weight=1",
+    "diff_from_baseline": "Hybrid of LSTM and Transformer baselines plus the LGBM baseline. Inputs are filtered through a sigmoid AdaptiveFeatureGate, projected/LN, then run through both an LSTM (last hidden state) and a TransformerEncoder with learned temporal-attention pooling; softmax-gated fusion produces y_NN. Loss combines MSE with a differentiable Pearson IC regularizer (lambda=0.15). At predict time NN and LightGBM (official Alpha360 hyperparameters) are z-scored and averaged 50/50.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "GRU + learned-query attention + IC-regularized MSE",
+    "tagline": "GRU encodes the 60-day sequence; a single learned query attends over time and the head is trained with MSE - 0.3*Pearson IC.",
+    "kind": "hybrid",
+    "formula": "$$\\alpha_t = \\mathrm{softmax}_t\\!\\Big(\\frac{\\langle q, h_t\\rangle}{\\sqrt{H}}\\Big),\\;\\;c=\\sum_t \\alpha_t h_t,\\;\\;\\hat y = W_o\\,\\mathrm{drop}(c)$$ $$\\mathcal{L} = \\mathrm{MSE}(\\hat y, y) - \\lambda\\,\\mathrm{Pearson}(\\hat y, y),\\;\\;\\lambda=0.3$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "[N, 60, 6]"},
+        {"id": "gru", "label": "2-layer GRU H=64"},
+        {"id": "ln", "label": "LayerNorm"},
+        {"id": "attn", "label": "learned-query attention"},
+        {"id": "out", "label": "Linear head"}
+      ],
+      "edges": [
+        {"from": "x", "to": "gru"},
+        {"from": "gru", "to": "ln"},
+        {"from": "ln", "to": "attn"},
+        {"from": "attn", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_size", "value": "64", "role": "GRU width", "learnable": false},
+      {"name": "num_layers", "value": "2", "role": "GRU depth", "learnable": false},
+      {"name": "dropout", "value": "0.3", "role": "regularization", "learnable": false},
+      {"name": "query", "value": "Parameter(1, 1, 64) ~ N(0, 0.05)", "role": "learnable temporal query", "learnable": true},
+      {"name": "lr / wd", "value": "5e-4 / 1e-4", "role": "AdamW", "learnable": false},
+      {"name": "ic_lambda", "value": "0.3", "role": "Pearson IC term in loss", "learnable": false},
+      {"name": "n_epochs / early_stop", "value": "100 / 20", "role": "training schedule", "learnable": false},
+      {"name": "batch_size", "value": "1024", "role": "minibatch", "learnable": false}
+    ],
+    "init_recovers": "qlib LSTM baseline at lambda=0 (modulo GRU vs LSTM and attention pool)",
+    "diff_from_baseline": "Replaces the qlib LSTM baseline with a 2-layer GRU + LayerNorm and inserts a learned-query attention pool over time (replaces last-hidden read-out); training loss is MSE - 0.3 * differentiable Pearson IC. AdamW with weight decay 1e-4 and 100 epochs.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "10-seed LightGBM bag + Ridge blend",
+    "tagline": "Average ten Alpha360 LightGBMs over different seeds and convex-combine with a Ridge(alpha=100) prediction (0.8 LGBM + 0.2 Ridge).",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. nan_to_num train/valid/test feature matrices\n// 2. ridge ← Ridge(alpha=100).fit(x_train, y_train)\n// 3. for seed in {42, 1024, 2023, 888, 999, 123, 456, 789, 111, 222}:\n//      params ← official Alpha360 LightGBM kwargs ∪ {seed, feature_fraction_seed, bagging_seed, drop_seed, data_random_seed}\n//      m ← lgb.train(params, ds_train, valid_sets=[train, valid], early_stopping=50, num_boost_round=1000)\n//      models.append(m)\n// 4. lgbm_pred ← mean_m m.predict(x_test)\n// 5. ridge_pred ← ridge.predict(x_test)\n// 6. final ← 0.8 · lgbm_pred + 0.2 · ridge_pred",
+    "key_hyperparams": [
+      {"name": "n_seeds", "value": "10", "role": "LightGBM bag size", "learnable": false},
+      {"name": "ridge_alpha", "value": "100", "role": "ridge regression L2", "learnable": false},
+      {"name": "blend", "value": "0.8 LGBM + 0.2 Ridge", "role": "final mix", "learnable": false},
+      {"name": "lgbm params", "value": "official Alpha360 (lr=0.0421, leaves=210, l1=205.7, l2=580.98)", "role": "per-seed config", "learnable": false},
+      {"name": "early_stopping_rounds", "value": "50", "role": "per LightGBM", "learnable": false},
+      {"name": "num_boost_round", "value": "1000", "role": "max trees", "learnable": false}
+    ],
+    "init_recovers": "lgbm baseline at n_seeds=1 and Ridge weight 0",
+    "diff_from_baseline": "Extends the lgbm baseline by bagging 10 LightGBMs with different random seeds (and feature/bagging/drop/data seeds) and convex-combining the average with a Ridge(alpha=100) on the same Alpha360 features. Replaces missing/inf features with 0. NOTE: as written the params dict has a misplaced self.ridge = Ridge(alpha=1000) inside the dict literal, so the file may not import.",
+    "confidence": "medium"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Cold-init LSTM + Plateau LR (CPU)",
+    "tagline": "Same LSTM as the qlib LSTM baseline but with Xavier/orthogonal/forget-bias=1 init, AdamW(lr=1e-3, wd=1e-5), ReduceLROnPlateau, 20 epochs, on CPU.",
+    "kind": "hybrid",
+    "formula": "$$\\hat y = W\\,h_T,\\quad \\mathcal{L} = \\frac{1}{|S|}\\sum_{(i,t)\\in S}(\\hat y_{i,t}-y_{i,t})^2,\\;\\;S=\\{i: y_i\\;\\text{finite}\\}$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "[N, 60, 6]"},
+        {"id": "lstm", "label": "2-layer LSTM H=64 (Xavier IH / orth HH / forget bias = 1)"},
+        {"id": "head", "label": "Linear (Xavier)"},
+        {"id": "y", "label": "scalar"}
+      ],
+      "edges": [
+        {"from": "x", "to": "lstm"},
+        {"from": "lstm", "to": "head"},
+        {"from": "head", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_size", "value": "64", "role": "LSTM width (matches baseline)", "learnable": false},
+      {"name": "num_layers", "value": "2", "role": "LSTM depth", "learnable": false},
+      {"name": "dropout", "value": "0.0", "role": "no dropout", "learnable": false},
+      {"name": "lr / wd", "value": "1e-3 / 1e-5", "role": "Adam (no AdamW)", "learnable": false},
+      {"name": "scheduler", "value": "ReduceLROnPlateau(factor=0.5, patience=1, min_lr=1e-5)", "role": "validation-loss adaptive LR", "learnable": false},
+      {"name": "n_epochs / early_stop", "value": "20 / 5", "role": "much shorter than baseline (200/20)", "learnable": false},
+      {"name": "batch_size", "value": "512", "role": "minibatch", "learnable": false},
+      {"name": "device", "value": "torch.device('cpu')", "role": "explicitly forces CPU training", "learnable": false},
+      {"name": "init", "value": "weight_ih: Xavier; weight_hh: orthogonal; forget bias = 1", "role": "warm-start LSTM gates", "learnable": false},
+      {"name": "RobustZScoreNorm", "value": "removed from infer_processors", "role": "yaml edit (handler) keeps only Fillna", "learnable": false}
+    ],
+    "init_recovers": "qlib LSTM baseline at default torch init, Adam (no scheduler), 200 epochs, GPU",
+    "diff_from_baseline": "Same LSTM architecture as the qlib LSTM baseline but with explicit Xavier/orthogonal/forget-bias=1 LSTM init, ReduceLROnPlateau LR schedule, 20-epoch training with patience=5, batch_size=512, device pinned to CPU, and no AdamW (uses Adam with wd=1e-5). The accompanying yaml edit also drops the RobustZScoreNorm feature processor, leaving only Fillna.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "LightGBM + cross-sectional z-score features",
+    "tagline": "Augments each Alpha360 feature with its per-day z-score (720-dim feature vector) and fits LightGBM with magnitude-tilted sample weights.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for each trading day t in {train, valid, test}:\n//      X_t ← features for day t\n//      X_cs_t ← (X_t - nanmean(X_t)) / max(nanstd(X_t), 1e-8)         // per-day z-score\n//      X_aug_t ← concat([X_t, X_cs_t], axis=1)                         // 720-dim features\n// 2. weights_i = min(1 + |y_i| / median(|y|), 3)                        // emphasise extreme returns\n// 3. ds = lgb.Dataset(X_aug, label=y, weight=weights)\n// 4. model = lgb.train(params, ds, valid=[train, valid], early_stopping=50, num_boost_round=1000)\n// 5. predict(X_test): apply same per-day z-score augmentation, then model.predict",
+    "key_hyperparams": [
+      {"name": "feature dim", "value": "360 + 360 = 720", "role": "raw + per-day z-score", "learnable": false},
+      {"name": "weight rule", "value": "min(1 + |y| / median(|y|), 3)", "role": "per-sample sample_weight", "learnable": false},
+      {"name": "lr", "value": "0.05", "role": "LightGBM learning rate (vs baseline 0.0421)", "learnable": false},
+      {"name": "num_leaves", "value": "256", "role": "vs baseline 210", "learnable": false},
+      {"name": "lambda_l1, lambda_l2", "value": "100.0, 200.0", "role": "much smaller than baseline (205.7 / 580.98)", "learnable": false},
+      {"name": "min_child_samples", "value": "100", "role": "tree leaf size floor", "learnable": false},
+      {"name": "colsample_bytree, subsample", "value": "0.9, 0.9", "role": "feature/row sampling", "learnable": false},
+      {"name": "early_stopping_rounds / num_boost_round", "value": "50 / 1000", "role": "training schedule", "learnable": false}
+    ],
+    "init_recovers": "lgbm baseline if cross-sectional features and sample weights are dropped",
+    "diff_from_baseline": "Same LightGBM training loop and Alpha360 inputs as the lgbm baseline, but doubles the feature width by concatenating per-day cross-sectional z-scores, sets sample weights to min(1 + |y|/median|y|, 3) to emphasise extreme returns, and retunes hyperparameters (lr=0.05, num_leaves=256, smaller L1/L2, min_child_samples=100). The workflow yaml is unchanged from the LightGBM baseline.",
+    "confidence": "high"
+  }
+]

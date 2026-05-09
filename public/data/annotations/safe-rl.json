@@ -1,0 +1,96 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Adaptive PID-Lag with asymmetric advantage",
+    "tagline": "PID Lagrangian targeting 80% of the cost limit, with violation-quadratic gain scheduling, anti-windup integral, predictive lookahead, and 1.5x cost penalty on cost-increasing actions.",
+    "kind": "pseudocode",
+    "pseudocode": "// Per epoch:\n// 1. $\\delta = J_c - 0.8\\,c_{\\lim}$;\\;$v = \\max(0, \\delta/c_{\\lim})$\n// 2. gain scale $\\sigma = 1+3v+2v^2$;\\;$k_p\\!=\\!0.15\\sigma,\\;k_i\\!=\\!0.02\\sigma,\\;k_d\\!=\\!0.015$\n// 3. EMA smoothed $\\bar\\delta \\leftarrow 0.85\\bar\\delta + 0.15\\delta$\n// 4. integral: if $\\delta>0$ add $k_i\\delta$ else add $0.33 k_i \\delta$;\\;clip $[0, 10]$\n// 5. EMA cost $\\bar J \\leftarrow 0.85\\bar J + 0.15 J_c$;\\;$d = \\max(0, \\bar J - \\bar J_{-10})$\n// 6. predictive trend $p = 0.03\\max(0, \\bar J - \\bar J_{-5})$\n// 7. $\\lambda = \\max(0, k_p\\bar\\delta + I + k_d d + p)$\n// 8. $A = (A_r - \\lambda(1+0.5\\,\\mathbb{1}[A_c>0])\\,A_c)/(1+\\lambda)$",
+    "key_hyperparams": [
+      {"name": "kp_base", "value": "0.15", "role": "PID proportional gain", "learnable": false},
+      {"name": "ki_base", "value": "0.02", "role": "PID integral gain", "learnable": false},
+      {"name": "kd_base", "value": "0.015", "role": "PID derivative gain", "learnable": false},
+      {"name": "safety_margin", "value": "0.8 * cost_limit", "role": "effective limit (20% margin)", "learnable": false},
+      {"name": "integral_max", "value": "10.0", "role": "anti-windup cap", "learnable": false},
+      {"name": "windup_asymmetry", "value": "1.0 / 0.33", "role": "fast wind-up vs slow wind-down", "learnable": false},
+      {"name": "ema_alpha", "value": "0.85 / 0.15", "role": "delta and cost EMA coefficients", "learnable": false},
+      {"name": "predict_weight", "value": "0.03", "role": "lookahead trend penalty", "learnable": false},
+      {"name": "asymmetry", "value": "0.5", "role": "extra cost weight on adv_c > 0", "learnable": false}
+    ],
+    "init_recovers": "PID-Lag baseline at violation_ratio=0 and asymmetry=0",
+    "diff_from_baseline": "Extends the pid_lag baseline with violation-quadratic gain scheduling targeting 80% of the cost limit, asymmetric integral (fast up, slow down), a predictive trend term, and an asymmetric cost-advantage combination.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Adaptive-step-size Lagrangian",
+    "tagline": "Plain projected gradient ascent on the Lagrangian, but the step size scales with the absolute EMA of the constraint violation, capped to [1e-5, 0.1]; cost advantage is clipped before mixing.",
+    "kind": "formula",
+    "formula": "$$\\bar\\delta \\leftarrow 0.9\\bar\\delta + 0.1(J_c-c_{\\lim}),\\;\\eta_t = \\mathrm{clip}\\big(\\eta_0(1+0.1|\\bar\\delta|), 10^{-5}, 10^{-1}\\big),\\;\\lambda \\leftarrow [\\lambda + \\eta_t(J_c-c_{\\lim})]_+,\\;A = \\frac{A_r - \\lambda\\,\\mathrm{clip}(A_c,\\pm 10)}{1+\\lambda}$$",
+    "key_hyperparams": [
+      {"name": "ema_beta", "value": "0.9", "role": "smoothing factor for constraint violation EMA", "learnable": false},
+      {"name": "alpha", "value": "0.1", "role": "scaling on |EMA delta| in adaptive step", "learnable": false},
+      {"name": "lr_min / lr_max", "value": "1e-5 / 0.1", "role": "step size bounds", "learnable": false},
+      {"name": "clip_adv_c", "value": "10.0", "role": "max |adv_c| before mixing", "learnable": false}
+    ],
+    "init_recovers": "naive when alpha=0 and lr_max small; ppo_lag when alpha=0",
+    "diff_from_baseline": "Replaces the ppo_lag baseline's Adam-driven Lagrangian with a manual projected gradient ascent whose learning rate adapts to the EMA of the constraint violation, plus per-batch cost-advantage clipping in the surrogate.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Log-PI Lagrangian",
+    "tagline": "PI controller for the log-multiplier (instead of the raw multiplier), with strict log-space anti-windup bounds; lambda = exp(nu).",
+    "kind": "formula",
+    "formula": "$$\\nu_I \\leftarrow \\mathrm{clip}(\\nu_I + k_i\\delta,\\,\\nu_{\\min},\\nu_{\\max}),\\;\\nu = \\mathrm{clip}(\\nu_I + k_p\\delta,\\,\\nu_{\\min},\\nu_{\\max}),\\;\\lambda = e^\\nu,\\;A = (A_r - \\lambda A_c)/(1+\\lambda)$$",
+    "key_hyperparams": [
+      {"name": "kp", "value": "0.05", "role": "log-space proportional gain", "learnable": false},
+      {"name": "ki", "value": "0.05", "role": "log-space integral gain", "learnable": false},
+      {"name": "nu_min / nu_max", "value": "log(0.01) / log(20)", "role": "log-multiplier bounds", "learnable": false},
+      {"name": "lambda_init", "value": "max(init, 0.01)", "role": "minimum starting multiplier", "learnable": false}
+    ],
+    "init_recovers": "PPO-Lag baseline at the equilibrium where the log multiplier is 0",
+    "diff_from_baseline": "Replaces the ppo_lag baseline's linear Adam update with a PI controller acting in *log-space* (so the multiplier is always positive and bounded), with hard log-space anti-windup.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Predictive integral barrier",
+    "tagline": "Lagrangian target is built from current EMA violation, half the upward cost velocity and half the integral; multiplier rises fast and decays slowly toward the target; surrogate uses a one-sided cost-advantage mix.",
+    "kind": "pseudocode",
+    "pseudocode": "// Per epoch:\n// 1. $\\delta_n = (J_c - c_{\\lim})/c_{\\lim}$,  $v_n = (J_c - J_c^{-})/c_{\\lim}$\n// 2. EMA: $\\bar\\delta_n,\\,\\bar{|\\delta_n|},\\,I = \\max(0, I + \\bar\\delta_n)$\n// 3. predictive: $p = \\bar\\delta_n + 0.5\\max(v_n, 0)$\n// 4. target $\\tau = \\mathrm{clip}(\\max(0,p) + 0.5 I - 0.25\\max(0,-\\bar\\delta_n),\\;0,\\;20)$\n// 5. rise $r = \\min(1,\\eta(2 + 4\\max(\\bar\\delta_n,0)))$, decay $d = \\min(1, 0.5\\eta)$;  mix $= r$ if $\\tau>\\lambda$ else $d$\n// 6. $\\lambda \\leftarrow (1-\\text{mix})\\lambda + \\text{mix}\\,\\tau$;  clip $[0,20]$\n// 7. center+scale $A_c$, take risky $= \\mathrm{ReLU}(A_c) + 0.25\\min(A_c,0)$\n// 8. $A = (A_r - \\lambda\\,\\text{risky})/(1+\\lambda)$",
+    "key_hyperparams": [
+      {"name": "lambda_lr", "value": "config.lambda_lr (0.035)", "role": "base step size for rise/decay rates", "learnable": false},
+      {"name": "ema_beta", "value": "0.9", "role": "EMA smoothing for normalized delta", "learnable": false},
+      {"name": "rise_scale", "value": "2 + 4*max(delta, 0)", "role": "violation-proportional rise rate", "learnable": false},
+      {"name": "decay_scale", "value": "0.5", "role": "fixed slow decay rate", "learnable": false},
+      {"name": "predict_w", "value": "0.5", "role": "weight on cost velocity", "learnable": false},
+      {"name": "integral_w", "value": "0.5", "role": "weight on integral term", "learnable": false},
+      {"name": "release_w", "value": "0.25", "role": "weight on negative-violation release", "learnable": false},
+      {"name": "lambda_cap", "value": "20.0", "role": "max multiplier", "learnable": false},
+      {"name": "below_avg_cost_w", "value": "0.25", "role": "discount on below-average cost advantages", "learnable": false}
+    ],
+    "init_recovers": "ppo_lag-like behaviour when predictive/integral terms are 0 and risky=adv_c",
+    "diff_from_baseline": "Builds a custom predictive-integral controller (not Adam, not PID) that tracks a target made of EMA violation + half cost velocity + half integral, with rise/decay asymmetry, and replaces the standard cost-advantage mix with a centered, scaled, one-sided risky combination.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Adaptive PID with cost-EMA + scale-balanced advantage",
+    "tagline": "PID controller on EMA cost with violation-proportional kp and asymmetric integral; surrogate rescales adv_c to match adv_r magnitude before mixing.",
+    "kind": "pseudocode",
+    "pseudocode": "// Per epoch:\n// 1. EMA $\\bar J \\leftarrow 0.9\\bar J + 0.1 J_c$;\\;$\\delta = \\bar J - c_{\\lim}$;\\;$\\rho = \\delta/(c_{\\lim}+1)$\n// 2. $k_p = 0.3 + \\max(0,\\rho)$;\\;$k_i = 0.15$;\\;$k_d = 0.1$\n// 3. integral: if $\\delta>0$ add $k_i\\delta$ (cap 15) else $-0.1$ floor 0\n// 4. $d = \\max(0, \\bar J - \\bar J^{-})$;\\;$\\lambda = \\min(20, \\max(0, k_p\\max(0,\\delta) + I + k_d d))$\n// 5. surrogate: $\\tilde A_c = A_c \\cdot \\mathbb{E}|A_r|/\\mathbb{E}|A_c|$;\\;$A = (A_r - \\lambda \\tilde A_c)/(1+\\lambda)$",
+    "key_hyperparams": [
+      {"name": "kp_base / kp_scale", "value": "0.3 + 1.0*max(0, rel_violation)", "role": "violation-proportional proportional gain", "learnable": false},
+      {"name": "ki", "value": "0.15", "role": "integral gain", "learnable": false},
+      {"name": "kd", "value": "0.1", "role": "derivative gain", "learnable": false},
+      {"name": "integral_cap", "value": "15.0", "role": "anti-windup ceiling", "learnable": false},
+      {"name": "integral_decay_step", "value": "0.1", "role": "integral release per epoch when below limit", "learnable": false},
+      {"name": "ema_beta", "value": "0.9 / 0.1", "role": "EMA cost smoothing", "learnable": false},
+      {"name": "lambda_cap", "value": "20.0", "role": "max multiplier", "learnable": false},
+      {"name": "init_lambda", "value": "max(1, J_c0 / 5)", "role": "initial multiplier from epoch-0 violation", "learnable": false}
+    ],
+    "init_recovers": "PID-Lag baseline at kp_scale=0",
+    "diff_from_baseline": "Modifies the pid_lag baseline by running PID on a smoothed cost EMA, scaling kp with the relative violation, asymmetric integral release, and—critically—rescaling the cost advantage to the magnitude of the reward advantage before mixing in the surrogate.",
+    "confidence": "high"
+  }
+]

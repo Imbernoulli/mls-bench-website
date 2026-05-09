@@ -1,0 +1,87 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "PSFCAE: per-sample flooding + adaptive entropy",
+    "tagline": "Per-sample loss flooding plus a confidence-adaptive entropy bonus that targets only overconfident predictions, with a flood level that ramps over the first 80 epochs.",
+    "kind": "formula",
+    "formula": "$$b(t) = b_{\\mathrm{start}} + (b_{\\mathrm{end}}-b_{\\mathrm{start}})\\,\\min(t/T_r, 1)$$\n$$\\mathcal{L} = \\frac{1}{B}\\sum_i\\bigl(|\\mathrm{CE}_i - b(t)| + b(t)\\bigr) - \\lambda_e\\,\\frac{1}{B}\\sum_i w_i H_i,\\quad w_i = \\mathrm{clip}(1 + 2\\,\\mathrm{ReLU}(\\max p_i - 1/K),\\, \\le 5)$$",
+    "key_hyperparams": [
+      {"name": "flood_start (b_start)", "value": "0.1", "role": "initial flood level", "learnable": false},
+      {"name": "flood_end (b_end)", "value": "0.5", "role": "final flood level", "learnable": false},
+      {"name": "ramp_epochs (T_r)", "value": "80", "role": "linear ramp horizon", "learnable": false},
+      {"name": "entropy_weight (C=10)", "value": "0.12", "role": "entropy bonus for ≤10 classes", "learnable": false},
+      {"name": "entropy_weight (C=100)", "value": "0.08", "role": "entropy bonus for ≥100 classes", "learnable": false},
+      {"name": "w_clip", "value": "5.0", "role": "max overconfidence-weight cap", "learnable": false}
+    ],
+    "init_recovers": "ERM at b→0 and λ_e=0",
+    "diff_from_baseline": "Builds on confidence_penalty (entropy bonus) by making the entropy weight per-sample and tied to overconfidence (max-prob > 1/K), and on RelaxLoss by replacing the alternating CE-target trick with smooth per-sample flooding |CE_i − b(t)| + b(t).",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "ACR: confidence-gated temp + entropy",
+    "tagline": "Per-sample temperature scaling (rises from 1 to 3 with confidence) plus a sigmoid-gated entropy bonus, both ramped in over the first 50 epochs.",
+    "kind": "formula",
+    "formula": "$$\\tau_i = 1 + 2\\,\\mathrm{clip}\\!\\left(\\tfrac{c_i - 0.65}{0.98 - 0.65}, 0, 1\\right),\\quad g_i = \\sigma(12\\,(c_i - 0.55)),\\ c_i = \\max p_i$$\n$$\\mathcal{L} = \\mathrm{CE}\\!\\left(\\tfrac{z}{\\tau},y\\right) - r(t)\\,\\lambda_e\\,\\mathbb{E}[g_i\\,H(p_i)],\\quad r(t) = \\min(1, (t+1)/50)$$",
+    "key_hyperparams": [
+      {"name": "temp_max", "value": "3.0", "role": "max per-sample temperature", "learnable": false},
+      {"name": "conf_low / conf_high", "value": "0.65 / 0.98", "role": "linear interp window for τ", "learnable": false},
+      {"name": "entropy_weight", "value": "0.15", "role": "entropy bonus weight", "learnable": false},
+      {"name": "gate_thresh / slope", "value": "0.55 / 12.0", "role": "sigmoid gate parameters", "learnable": false},
+      {"name": "ramp_epochs", "value": "50", "role": "regularization warmup horizon", "learnable": false}
+    ],
+    "init_recovers": "ERM at τ=1 and λ_e=0",
+    "diff_from_baseline": "Beyond confidence_penalty (single global entropy weight) and label_smoothing baselines, this temperature-scales the CE per sample by current confidence and gates the entropy bonus through a sharp sigmoid in confidence — both ramped in by training progress.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Smooth RelaxLoss (CE/entropy gate)",
+    "tagline": "Per-sample sigmoid in (target_CE − CE_i) routes between CE descent (hard samples) and entropy maximisation (easy samples).",
+    "kind": "formula",
+    "formula": "$$w_i = \\sigma\\!\\bigl(10\\,(\\mathrm{target} - \\mathrm{CE}_i)\\bigr).\\mathrm{detach}()$$\n$$\\mathcal{L} = \\mathbb{E}\\bigl[(1-w_i)\\,\\mathrm{CE}_i - w_i\\,H(p_i)\\bigr],\\qquad \\mathrm{target} = \\begin{cases}0.5 & K=100\\\\ 1.0 & \\text{else}\\end{cases}$$",
+    "key_hyperparams": [
+      {"name": "target_CE (K=10)", "value": "1.0", "role": "RelaxLoss-style target loss level", "learnable": false},
+      {"name": "target_CE (K=100)", "value": "0.5", "role": "target loss level for CIFAR-100", "learnable": false},
+      {"name": "gate_slope", "value": "10.0", "role": "sigmoid steepness", "learnable": false}
+    ],
+    "init_recovers": "ERM at w_i=0 (CE > target everywhere)",
+    "diff_from_baseline": "Reformulates the relaxloss baseline's discrete even/odd epoch alternation as a smooth detached sigmoid gate per sample — same per-class targets but a continuous, gradient-friendly routing of CE descent vs entropy maximisation.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "CCME: gated entropy + margin compression",
+    "tagline": "Mild label smoothing plus an entropy bonus and a top-1−top-2 margin penalty, both gated by target confidence and ramped via a logistic schedule.",
+    "kind": "formula",
+    "formula": "$$g_i = \\mathrm{clip}\\!\\left(\\tfrac{p_{y,i} - 0.7}{0.3}, 0, 1\\right).\\mathrm{detach}(),\\qquad r(t) = \\sigma\\!\\bigl((t-35)/12\\bigr)$$\n$$\\mathcal{L} = \\overline{\\mathrm{CE}_{\\mathrm{LS}(0.05)}} - r(t)\\,\\lambda_e\\,\\overline{g_i\\,H_i/\\log K} + r(t)\\,\\lambda_m\\,\\overline{g_i\\,(z_{(1)} - z_{(2)})_i^2}$$",
+    "key_hyperparams": [
+      {"name": "label_smoothing", "value": "0.05", "role": "calibration smoothing", "learnable": false},
+      {"name": "conf_threshold", "value": "0.70", "role": "gate activation threshold", "learnable": false},
+      {"name": "entropy_weight", "value": "0.08", "role": "entropy bonus", "learnable": false},
+      {"name": "margin_weight", "value": "0.04", "role": "(top1 − top2)² penalty", "learnable": false},
+      {"name": "ramp_center / scale", "value": "35 / 12", "role": "logistic ramp-in schedule", "learnable": false}
+    ],
+    "init_recovers": "Label smoothing only at ramp r(t)=0",
+    "diff_from_baseline": "On top of the label_smoothing/confidence_penalty baselines, restricts both regularisers to high-confidence samples via a detached gate and adds a quadratic margin compression on the top-1 vs top-2 logit gap; class-count normalisation makes terms comparable across CIFAR-10/100/FMNIST.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "ASER: temp entropy floor + conf ceiling",
+    "tagline": "After 30-epoch warm-up, uses temperature-3 softmax to enforce a normalised-entropy floor (ramped 0.40→0.75) and a true-class probability ceiling (0.85→0.50).",
+    "kind": "formula",
+    "formula": "$$p = \\mathrm{softmax}(z/T),\\ H_n(p) = -\\tfrac{1}{\\log K}\\sum p\\log p,\\ \\rho = \\min(t/300, 1)$$\n$$\\mathcal{L} = \\mathrm{CE}_{\\mathrm{LS}(0.05)}(z,y) + (0.5+2.5\\rho)\\,\\overline{\\mathrm{ReLU}(0.40+0.35\\rho - H_n)} + (0.5+3\\rho)\\,\\overline{\\mathrm{ReLU}(p_y - (0.85-0.35\\rho))^2}$$",
+    "key_hyperparams": [
+      {"name": "temperature", "value": "3.0", "role": "softmax temp for the regularisers", "learnable": false},
+      {"name": "label_smoothing", "value": "0.05", "role": "constant LS in main CE", "learnable": false},
+      {"name": "warmup_epochs", "value": "30", "role": "pure label-smoothed CE before regularisers fire", "learnable": false},
+      {"name": "entropy_target", "value": "0.40 → 0.75", "role": "normalised-entropy floor (ramps with progress)", "learnable": false},
+      {"name": "conf_ceiling", "value": "0.85 → 0.50", "role": "true-class prob ceiling", "learnable": false},
+      {"name": "w_entropy / w_conf", "value": "0.5+2.5ρ / 0.5+3ρ", "role": "ramped weights", "learnable": false}
+    ],
+    "init_recovers": "Label-smoothed CE during warmup",
+    "diff_from_baseline": "Uses temperature-3 softmax (none of the four baselines do) and replaces the global entropy bonus / RelaxLoss alternation with two hinge penalties — one pushing normalised entropy above a floor and one capping the correct-class probability — both with linearly-scheduled targets and weights.",
+    "confidence": "high"
+  }
+]

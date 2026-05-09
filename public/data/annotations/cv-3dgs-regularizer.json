@@ -1,0 +1,99 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Scale + Opa + Soft Aniso + SH + Entropy",
+    "tagline": "Stacks scale/opacity L1, soft anisotropy + erank, higher-order SH L2, and opacity binary-entropy with staggered warmups.",
+    "kind": "formula",
+    "formula": "$$ \\mathcal{L}_{\\text{reg}} = \\lambda_s\\,\\overline{e^{S}} + \\lambda_o\\,\\overline{\\sigma(O)} + w_a(t)\\lambda_a\\big(\\overline{(\\mathrm{ReLU}(\\log\\tfrac{s_{\\max}}{s_{\\min}}-\\log r_{\\max}))^2} + \\overline{\\mathrm{ReLU}(1.5-\\mathrm{erank})} + \\overline{s_{\\min}}\\big) $$\n$$ + w_{sh}(t)\\lambda_{sh}\\,\\overline{\\|\\text{shN}\\|^2} + w_e(t)\\lambda_e\\,\\overline{H_2(\\sigma(O))} $$",
+    "key_hyperparams": [
+      {"name": "λ_scale", "value": "1e-2", "role": "L1 weight on exp(scales)", "learnable": false},
+      {"name": "λ_opacity", "value": "1e-2", "role": "L1 weight on sigmoid(opa)", "learnable": false},
+      {"name": "λ_aniso", "value": "2e-3", "role": "soft anisotropy + erank weight", "learnable": false},
+      {"name": "aniso_warmup", "value": "[3000, 8000]", "role": "linear ramp window for anisotropy term", "learnable": false},
+      {"name": "max_aspect_ratio", "value": "10.0", "role": "soft cap on s_max/s_min", "learnable": false},
+      {"name": "λ_sh", "value": "1e-3", "role": "L2 on higher-order SH coefficients", "learnable": false},
+      {"name": "sh_warmup_start", "value": "5000", "role": "step at which SH penalty turns on (linear over 5k)", "learnable": false},
+      {"name": "λ_opa_entropy", "value": "5e-4", "role": "binary-entropy push on opacity", "learnable": false},
+      {"name": "opa_entropy_warmup", "value": "10000", "role": "step at which opacity entropy turns on (linear over 5k)", "learnable": false}
+    ],
+    "init_recovers": "scale_opa baseline before step 3000",
+    "diff_from_baseline": "Beyond scale_opa's two L1 terms it adds (a) soft log-ratio anisotropy + ReLU-erank + s_min penalties with linear warmup, (b) L2 on higher-order SH coefficients gated by step, and (c) binary-entropy minimization on opacities to push them toward {0,1}.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Half-strength Erank + Linear Ramp",
+    "tagline": "Same as erank_opa but with the log-barrier weight halved and a 5k-step linear ramp after the warmup.",
+    "kind": "formula",
+    "formula": "$$ \\mathcal{L}_{\\text{reg}} = 10^{-2}\\,\\overline{e^{S}} + 10^{-2}\\,\\overline{\\sigma(O)} + 5\\!\\times\\!10^{-3}\\,r(t)\\,\\overline{\\max(0, -\\log(\\mathrm{erank}-1+10^{-5}))} $$\n$$ \\mathrm{erank} = \\exp\\Big(-\\sum_k \\tfrac{s_k^2}{\\sum_j s_j^2}\\log\\tfrac{s_k^2}{\\sum_j s_j^2}\\Big), \\quad r(t)=\\min\\!\\big(1, \\tfrac{t-7000}{5000}\\big)\\,\\mathbb{1}[t>7000] $$",
+    "key_hyperparams": [
+      {"name": "λ_scale", "value": "1e-2", "role": "L1 on exp(scales)", "learnable": false},
+      {"name": "λ_opa", "value": "1e-2", "role": "L1 on sigmoid(opa)", "learnable": false},
+      {"name": "λ_erank", "value": "5e-3", "role": "halved erank log-barrier weight", "learnable": false},
+      {"name": "erank_warmup", "value": "7000", "role": "step at which barrier turns on", "learnable": false},
+      {"name": "ramp_steps", "value": "5000", "role": "linear ramp length after warmup", "learnable": false},
+      {"name": "ε", "value": "1e-5", "role": "log-barrier offset", "learnable": false}
+    ],
+    "init_recovers": "scale_opa for t < 7000; erank_opa with halved weight at full ramp",
+    "diff_from_baseline": "Identical to the erank_opa baseline except the log-barrier coefficient is reduced from 1e-2 to 5e-3 and a 5k-step linear ramp is applied; the s_min term is dropped.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Scale-aware Erank Barrier",
+    "tagline": "erank_opa-style barrier reweighted by s_max/scene_scale so only large needles are penalised, preserving fine spokes.",
+    "kind": "formula",
+    "formula": "$$ \\mathcal{L}_{\\text{reg}} = \\lambda_s\\,\\overline{e^{S}} + \\lambda_o\\,\\overline{\\sigma(O)} + \\mathbb{1}[t\\!\\geq\\!7000]\\Big(\\lambda_{\\min}\\,\\overline{s_{\\min}} + \\lambda_n \\overline{\\max(0, -\\log(\\mathrm{erank}-1+\\varepsilon))\\cdot \\tfrac{s_{\\max}}{\\text{scene\\_scale}}}\\Big) $$",
+    "key_hyperparams": [
+      {"name": "SCALE_REG", "value": "1e-2", "role": "L1 on exp(scales)", "learnable": false},
+      {"name": "OPACITY_REG", "value": "1e-2", "role": "L1 on sigmoid(opa)", "learnable": false},
+      {"name": "SMIN_REG", "value": "1e-2", "role": "weight on mean s_min", "learnable": false},
+      {"name": "NEEDLE_REG", "value": "0.5", "role": "weight on the scale-aware barrier", "learnable": false},
+      {"name": "warmup_step", "value": "7000", "role": "needle/s_min term turn-on step", "learnable": false},
+      {"name": "ε", "value": "1e-5", "role": "log-barrier offset", "learnable": false}
+    ],
+    "init_recovers": "scale_opa for t < 7000",
+    "diff_from_baseline": "Keeps the erank_opa structure (scale L1, opa L1, post-7k log-barrier and s_min) but multiplies the per-Gaussian erank barrier by $s_{\\max}/\\text{scene\\_scale}$, so the penalty scales with absolute needle size rather than uniformly.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Opacity-gated Floater Shape Reg",
+    "tagline": "Compactness + smoothstep-warmed shape penalties (aspect ratio, erank, thin floor) all weighted by (1-opacity)^3.",
+    "kind": "formula",
+    "formula": "$$ w_f = (1-\\sigma(O))^3, \\quad w(t) = \\mathrm{smoothstep}\\!\\big(\\tfrac{t-5000}{7000}\\big) $$\n$$ \\mathcal{L}_{\\text{reg}} = 10^{-2}\\overline{e^{S}} + 10^{-2}\\overline{\\sigma(O)} + w(t)\\Big(3\\!\\cdot\\!10^{-3}\\overline{w_f\\,\\mathrm{ReLU}(\\tfrac{s_{\\max}}{s_{\\min}}\\!-\\!2.2)} + 4\\!\\cdot\\!10^{-3}\\overline{w_f\\,\\max(0,-\\log(\\mathrm{erank}-1+10^{-4}))} + 10^{-3}\\overline{\\mathrm{ReLU}(1.5\\!\\times\\!10^{-4} - \\tfrac{s_{\\min}}{\\text{scene\\_scale}})}\\Big) $$",
+    "key_hyperparams": [
+      {"name": "λ_scale", "value": "1e-2", "role": "L1 on exp(scales)", "learnable": false},
+      {"name": "λ_opa", "value": "1e-2", "role": "L1 on sigmoid(opa)", "learnable": false},
+      {"name": "λ_aniso", "value": "3e-3", "role": "ratio penalty above 2.2", "learnable": false},
+      {"name": "λ_erank", "value": "4e-3", "role": "log-barrier weight (eps=1e-4)", "learnable": false},
+      {"name": "λ_thin_floor", "value": "1e-3", "role": "min-axis / scene_scale floor", "learnable": false},
+      {"name": "warmup_window", "value": "[5000, 12000]", "role": "smoothstep warmup", "learnable": false},
+      {"name": "ratio_thresh", "value": "2.2", "role": "soft cap on s_max/s_min", "learnable": false},
+      {"name": "thin_floor", "value": "1.5e-4", "role": "scaled min-axis floor", "learnable": false},
+      {"name": "floater_exp", "value": "3", "role": "exponent on (1-σ(O))", "learnable": false}
+    ],
+    "init_recovers": "scale_opa baseline for t < 5000",
+    "diff_from_baseline": "Replaces the erank_opa hard-step warmup with a smoothstep ramp and gates ALL shape terms by an opacity floater-weight $(1-\\sigma(O))^3$, so high-opacity surface splats are exempt; also adds a normalised thin-axis floor $s_{\\min}/\\text{scene\\_scale} < 1.5\\!\\times\\!10^{-4}$.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Adaptive-coefficient Erank",
+    "tagline": "Scale_opa plus a softer erank barrier whose weight self-adjusts to the batch-mean effective rank.",
+    "kind": "formula",
+    "formula": "$$ c(t) = \\mathrm{clip}\\Big(\\lambda_e\\,\\exp\\!\\big(\\tfrac{S^* - \\overline{\\mathrm{erank}}}{S^*}\\big),\\,0.1\\lambda_e,\\,2\\lambda_e\\Big) $$\n$$ \\mathcal{L}_{\\text{reg}} = \\lambda_s\\overline{e^{S}} + \\lambda_o\\overline{\\sigma(O)} + \\mathbb{1}[t\\!\\geq\\!7000]\\,c(t)\\,\\Big(\\overline{\\max(0,-\\log(\\mathrm{erank}-1+0.3))} + \\overline{\\mathrm{ReLU}(0.01-s_{\\min})}\\Big) $$",
+    "key_hyperparams": [
+      {"name": "SCALE_REG", "value": "1e-2", "role": "L1 on exp(scales)", "learnable": false},
+      {"name": "OPACITY_REG", "value": "1e-2", "role": "L1 on sigmoid(opa)", "learnable": false},
+      {"name": "ERANK_REG_BASE", "value": "1e-2", "role": "base erank weight, adaptively rescaled", "learnable": false},
+      {"name": "ERANK_WARMUP", "value": "7000", "role": "step at which erank turns on", "learnable": false},
+      {"name": "ERANK_SCALE_PARAM", "value": "1.5", "role": "S* in adaptive coefficient exp((S*-erank)/S*)", "learnable": false},
+      {"name": "barrier_eps", "value": "0.3", "role": "softening offset inside log-barrier", "learnable": false},
+      {"name": "s_min_thresh", "value": "0.01", "role": "ReLU threshold on minimum scale", "learnable": false}
+    ],
+    "init_recovers": "scale_opa for t < 7000",
+    "diff_from_baseline": "Keeps erank_opa's structure but (a) softens the log-barrier offset from 1e-5 to 0.3, (b) replaces the constant ERANK_REG with an exponentially-adaptive coefficient driven by the batch-mean erank (clipped to 0.1x-2x base), and (c) replaces the unconditional s_min term with a ReLU floor at 0.01.",
+    "confidence": "high"
+  }
+]

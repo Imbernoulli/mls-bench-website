@@ -1,0 +1,68 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "PowerSGD with two power iterations",
+    "tagline": "Per-2D-tensor low-rank PQ approximation with warm-started Q, two power iterations and a QR re-orthogonalization, plus error feedback; small/1D tensors bypass compression.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. if numel<256 or ndim<2: return tensor unchanged\n// 2. $M \\leftarrow \\mathrm{reshape}(g + R_{name},\\; [d_0,-1])$ where $R$ is the residual\n// 3. $r \\leftarrow \\max(4, \\lfloor 3\\,\\rho\\,d_0 d_1/(d_0+d_1)\\rfloor)$ with $\\rho$ = compress_ratio\n// 4. $Q \\leftarrow Q_{\\text{warm}}$ or random; for 2 power steps:  $P \\leftarrow \\mathrm{QR}(MQ)$; $Q \\leftarrow M^\\top P$\n// 5. $Q_{\\text{warm}} \\leftarrow \\mathrm{QR}(Q)$;  send $(P, Q)$\n// 6. $R_{name} \\leftarrow M - PQ^\\top$\n// 7. decompress: $M \\approx P Q^\\top$",
+    "key_hyperparams": [
+      {"name": "compress_ratio", "value": "0.01 (100x)", "role": "target compression ratio", "learnable": false},
+      {"name": "rank_formula", "value": "max(4, 3*ratio*d0*d1/(d0+d1))", "role": "per-tensor rank for low-rank approximation", "learnable": false},
+      {"name": "min_numel", "value": "256", "role": "skip compression below this size", "learnable": false},
+      {"name": "n_power_iter", "value": "2", "role": "power iterations for subspace refinement", "learnable": false}
+    ],
+    "init_recovers": "topk_ef baseline at rank=1 (for trivially low ratios) and identity for small tensors",
+    "diff_from_baseline": "Replaces the topk_ef baseline's element-wise sparsifier with a PowerSGD-style low-rank projector: 2 power iterations, warm-started Q, QR orthogonalization, residual error feedback, and bypass for small/1D tensors.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "TopK + 8-bit stochastic quantization",
+    "tagline": "Top-k sparsification with 1.33x more elements (because retained values are 8-bit), stochastic-rounding quantization to int8, and momentum-based error feedback.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. $g' \\leftarrow g + R_{name}$ (error feedback)\n// 2. $k \\leftarrow \\max(1, \\lfloor n\\cdot \\rho \\cdot 1.33\\rfloor)$\n// 3. select top-$k$ by $|g'|$;\\;values $v$, indices $I$\n// 4. scale $s = 127/\\max(|v|, 10^{-8})$;\\;$x = sv$;\\;stochastic round $\\hat v_{\\text{int8}} \\sim \\lfloor x\\rfloor + \\mathbb{1}[U<x-\\lfloor x\\rfloor]$;\\;clamp $[-127,127]$\n// 5. transmit $(\\hat v_{\\text{int8}}, I, s)$\n// 6. dequantize $v' = \\hat v_{\\text{int8}}/s$;\\;scatter into zeros\n// 7. $R_{name} \\leftarrow 0.9\\,R_{name} + (g - \\text{recon})$",
+    "key_hyperparams": [
+      {"name": "compress_ratio", "value": "0.01", "role": "TopK base ratio", "learnable": false},
+      {"name": "extra_factor", "value": "1.33", "role": "extra TopK fraction allowed by 8-bit values", "learnable": false},
+      {"name": "ef_beta", "value": "0.9", "role": "EF momentum (residual smoothing)", "learnable": false},
+      {"name": "n_levels", "value": "127", "role": "int8 quantization levels per side", "learnable": false},
+      {"name": "min_abs", "value": "1e-8", "role": "scale safety floor", "learnable": false}
+    ],
+    "init_recovers": "topk_ef baseline at extra_factor=1, n_levels→∞, ef_beta=0",
+    "diff_from_baseline": "Combines the topk_ef baseline with QSGD-style 8-bit stochastic quantization on the retained values (allowing 1.33x more entries within the same bit budget) and a momentum-decayed error feedback buffer.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "AdaSQ-EF with factorized momentum",
+    "tagline": "Per-layer adaptive top-k budget allocated by EMA error magnitude, 8-bit stochastic quantization on the values, masked local momentum, and a server-side momentum-override decompressor.",
+    "kind": "pseudocode",
+    "pseudocode": "// State: local momentum $M_n$, error buffer $E_n$, server cumulator $C_n$, score $s_n$\n// 1. $M_n \\leftarrow 0.9 M_n + g$;\\; $E_n \\leftarrow E_n + M_n$\n// 2. $s_n \\leftarrow 0.9 s_n + 0.1\\sum |E_n|$\n// 3. global budget $B = \\sum_n |E_n|\\cdot 0.015$;  per-layer $k_n = \\lfloor B s_n/\\sum s\\rfloor$\n// 4. select top-$k_n$ of $E_n$;\\; stochastic 8-bit quantize values with scale $\\max|v|/127$\n// 5. transmit $(\\hat v_{\\text{int8}}, I_{\\text{int32}}, \\max|v|)$;\\;update $E_n \\leftarrow E_n - \\mathrm{recon}$;\\;$M_n[I] \\leftarrow 0$\n// 6. server: $C_n \\leftarrow$ scatter dequant; pseudo-grad $= C_n - 0.9\\,C_{n-1}$",
+    "key_hyperparams": [
+      {"name": "compress_ratio", "value": "0.01", "role": "base sparsity ratio", "learnable": false},
+      {"name": "effective_ratio", "value": "1.5 * compress_ratio", "role": "extra elements allowed by 8-bit values", "learnable": false},
+      {"name": "momentum", "value": "0.9", "role": "local + server momentum", "learnable": false},
+      {"name": "score_ema", "value": "0.9 / 0.1", "role": "score EMA coefficients", "learnable": false},
+      {"name": "n_levels", "value": "127", "role": "int8 quantization levels", "learnable": false}
+    ],
+    "init_recovers": "topk_ef baseline when adaptive budget falls back to per-layer k and quantization is disabled",
+    "diff_from_baseline": "Major extension of topk_ef: replaces fixed per-layer k with EMA-error-driven adaptive budget across layers, adds 8-bit stochastic quantization, locally masks the momentum on transmitted entries, and uses a momentum-override decompressor that turns the compressed cumulator into a pseudo-gradient.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Channel-balanced row-wise TopK + EF",
+    "tagline": "Reshape weights to [out_dim, *] and TopK per output row instead of globally; small/prediction layers go dense; residuals are clipped to ≤ 4x of the gradient norm.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. $g' \\leftarrow g + R_{name}$\n// 2. if $|g'|\\le 8192$ or 1D or ($d_0\\le 128$ and $|g'|\\le 65536$): send dense, $R \\leftarrow 0$\n// 3. else $M \\leftarrow \\mathrm{reshape}(g', [d_0, -1])$;\\; $k_{\\text{row}} = \\max(1, \\lfloor c \\rho\\rfloor)$\n// 4. per-row top-$k$: $I, v \\leftarrow \\mathrm{topk}(|M|, k_{\\text{row}}, \\dim=1)$\n// 5. recon $\\leftarrow$ scatter; residual $r = M - \\mathrm{recon}$\n// 6. if $\\|r\\| > 4\\|M\\|$: $r \\leftarrow r\\,(4\\|M\\|/\\|r\\|)$;  $R_{name} \\leftarrow r$\n// 7. flatten indices $I + d_1 \\cdot \\mathrm{rowidx}$;  send $(v, I_{\\text{flat}})$",
+    "key_hyperparams": [
+      {"name": "compress_ratio", "value": "0.01", "role": "per-row TopK fraction", "learnable": false},
+      {"name": "dense_threshold", "value": "8192", "role": "numel below which compression is bypassed", "learnable": false},
+      {"name": "prediction_threshold", "value": "65536", "role": "numel cap for keeping prediction-layer dense", "learnable": false},
+      {"name": "residual_clip", "value": "4.0 * tensor.norm()", "role": "max EF residual norm relative to gradient norm", "learnable": false}
+    ],
+    "init_recovers": "topk_ef baseline when compression is global rather than per-row",
+    "diff_from_baseline": "Refines the topk_ef baseline by sparsifying *per output channel* (no class/filter starvation under 100x), bypassing compression on tiny or prediction layers, and norm-clipping the error-feedback residual.",
+    "confidence": "high"
+  }
+]

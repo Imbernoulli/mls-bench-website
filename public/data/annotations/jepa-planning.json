@@ -1,0 +1,105 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "AR-Noise Coarse-to-Fine MPPI",
+    "tagline": "Multi-restart MPPI with AR(1) temporally smooth noise, downsampled-then-full-T action grids, exploration injection, and warm starts.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. shifted warm-start mean from previous plan; restart 0 uses warm, others = $1.2\\,(\\cos\\theta_r, \\sin\\theta_r)$ + AR noise\n// 2. for restart r in [0..n_restarts):\n// 3.   resolutions = [T/3, T] (downsample → full); split iters across stages\n// 4.   for each resolution K, n_its iterations:\n// 5.     exploit = $\\mu + \\sigma \\odot \\mathrm{AR}(1; 0.3)$;  explore = $1.5\\cdot \\mathrm{AR}(1; 0.3)$  // 20% explore frac\n// 6.     interp K→T; clip $\\|a_t\\| \\le 2.45$;  $w \\propto \\exp((\\min c - c)/\\tau)$,  $\\tau = 0.5$\n// 7.     update $\\mu, \\sigma \\leftarrow$ weighted mean/std on elites (top 1/8); track best-so-far\n// 8. return best action across all restarts; cache $\\mu$ for next step shift",
+    "key_hyperparams": [
+      {"name": "num_samples", "value": "max(N, 512)", "role": "samples per iteration", "learnable": false},
+      {"name": "n_iters", "value": "max(n, 30)", "role": "total iterations", "learnable": false},
+      {"name": "n_restarts", "value": "4", "role": "directionally diverse restarts", "learnable": false},
+      {"name": "ar_coeff", "value": "0.3", "role": "AR(1) temporal smoothing", "learnable": false},
+      {"name": "explore_frac", "value": "0.2", "role": "broad-prior diversity injection", "learnable": false},
+      {"name": "MPPI temperature", "value": "0.5", "role": "softmax weight scale", "learnable": false},
+      {"name": "max_std", "value": "1.5", "role": "initial sampling sigma", "learnable": false},
+      {"name": "min_std", "value": "0.05", "role": "lower bound on sigma", "learnable": false},
+      {"name": "max_norm", "value": "2.45", "role": "per-step action norm cap", "learnable": false}
+    ],
+    "init_recovers": "MPPI when n_restarts=1, explore_frac=0, ar_coeff=0, single resolution.",
+    "diff_from_baseline": "Adds three orthogonal pieces on top of MPPI: AR(1) temporally correlated noise (vs. white Gaussian), a coarse→fine 2-stage resolution schedule with linear interpolation, and 4 directionally diverse restarts with warm-start carry-over — none of CEM/MPPI/iCEM combine restarts with downsampled-then-full action grids.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini/gemini-3.1-pro-preview",
+    "name": "Gradient-Augmented MPPI",
+    "tagline": "MPPI with one Adam-free gradient step on each sample using JEPA's differentiable rollout, then exponentially weighted update.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. enable model.train() to expose gradients of the JEPA unroll\n// 2. mean = 0, std = 1.5; for n_iters=15 iterations:\n// 3.   sample noise with per-step AR-style smoothing α=0.7; normalise per-time std\n// 4.   $a = \\mu + \\sigma \\odot \\mathrm{noise}$, requires_grad=True; clip $\\|a_t\\| \\le 2.45$\n// 5.   $c \\leftarrow$ cost_function(a, obs);  $g = \\nabla_a \\sum_b c_b$  // through JEPA\n// 6.   $a' = a - 0.5\\,g/\\max(\\|g\\|,1)$; clip;  recompute cost $c'$\n// 7.   $w \\propto \\exp(-0.05\\,(c' - \\min c'))$;  $\\mu = \\sum w\\,a'$,  $\\sigma = \\sqrt{\\sum w(a'-\\mu)^2}$ clamped to ≥0.1\n// 8. return best-cost trajectory seen across iterations",
+    "key_hyperparams": [
+      {"name": "num_samples", "value": "200", "role": "MPPI samples", "learnable": false},
+      {"name": "n_iters", "value": "15", "role": "iterations", "learnable": false},
+      {"name": "gd_lr", "value": "0.5", "role": "gradient step on action sequences", "learnable": false},
+      {"name": "MPPI temperature", "value": "0.05", "role": "softmax weight scale", "learnable": false},
+      {"name": "noise_alpha", "value": "0.7", "role": "AR-style smoothing of sampling noise", "learnable": false},
+      {"name": "max_norm", "value": "2.45", "role": "per-step action cap", "learnable": false},
+      {"name": "init std", "value": "1.5", "role": "initial sigma", "learnable": false},
+      {"name": "min std", "value": "0.1", "role": "post-update sigma floor", "learnable": false}
+    ],
+    "init_recovers": "MPPI with noise_alpha=0 when gd_lr=0.",
+    "diff_from_baseline": "Adds an explicit gradient step through the JEPA world model on every sampled trajectory before the standard MPPI exponential-weight update — none of the named baselines backpropagate through the unroll.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Frontier Beam with Progress Shaping",
+    "tagline": "Receding-horizon beam search over short-prefix latent rollouts, scored by terminal+discounted+progress objective with a diversity penalty.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. beam ← {empty}; segment length = 5; for each stage start in [0, 5, 10, ...]:\n// 2.   for each prefix in beam:\n// 3.     macro = clip( N(0, 1.4²) ) repeated piecewise-constant over segment\n// 4.     local = AR-smoothed N(0, 0.35²) anchored at last action\n// 5.     candidates = prefix ++ {macro, local}; pad to T\n// 6.   per-step costs $c_{1..T}$ from JEPA unroll\n// 7.   $\\mathrm{score} = 0.55\\,c_T + 0.20\\sum_t \\gamma^t c_t + 0.25\\,\\bar{c} - 0.45\\,\\mathrm{ReLU}(c_0 - \\min_t c_t)$\n// 8.   prefix-cost $0.65\\,c_{frontier} + 0.35\\,\\mathrm{score}$ minus 0.05·diversity (top-3 mean cdist)\n// 9. keep top beam_width=7 with min separation > 1; final local repair around survivors then pick best",
+    "key_hyperparams": [
+      {"name": "beam_width", "value": "7", "role": "frontier beam size", "learnable": false},
+      {"name": "stage_horizon", "value": "5", "role": "segment length per beam expansion", "learnable": false},
+      {"name": "keep_top", "value": "12", "role": "top-K candidates kept per stage", "learnable": false},
+      {"name": "macro_samples", "value": "max(64, N/2)", "role": "piecewise-constant proposals", "learnable": false},
+      {"name": "local_samples", "value": "max(16, N/8)", "role": "smooth local perturbations", "learnable": false},
+      {"name": "γ", "value": "0.97", "role": "per-step discount", "learnable": false},
+      {"name": "score weights", "value": "(0.55 term, 0.20 discounted, 0.25 mean)", "role": "shaped objective mix", "learnable": false},
+      {"name": "progress_coef", "value": "0.45", "role": "subtracts ReLU(c_0 − min c_t)", "learnable": false},
+      {"name": "diversity_coef", "value": "0.05", "role": "subtract from score", "learnable": false},
+      {"name": "max_norm", "value": "2.45", "role": "per-step action cap", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces flat CEM/MPPI/iCEM resampling with a staged beam search that grows action prefixes one segment of 5 at a time using a shaped objective (terminal + discounted + progress + diversity) over per-step JEPA latent costs — none of the baselines reuse per-step latent costs or use beam expansion.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Diverse-Init Gradient + CEM Refine",
+    "tagline": "Two-phase planner: SGD+momentum on diverse structured initial trajectories through the JEPA model, then CEM around the best.",
+    "kind": "pseudocode",
+    "pseudocode": "// Phase 1 (gradient):\n// 1. seed N≥256 trajectories with one of {const-velocity, accel ramp, sinusoid, step}\n// 2. SGD(lr=0.08, momentum=0.9) for n_iters≥50 on $\\sum_b c_b$ via JEPA unroll\n// 3.   clip per-trajectory grad norm ≤ 0.5; clip actions to [−2.45, 2.45]; lr ×= 0.97\n// 4. track best-cost trajectory across all iters\n// Phase 2 (CEM refine):\n// 5. seed mean = best gradient trajectory; std = 0.3\n// 6. for cem_iters=10:\n// 7.   sample $a = \\mu + \\sigma\\,\\epsilon$, force $a_0 = \\mu$; clip norms ≤2.45\n// 8.   pick top elites (top 1/8); update $\\mu \\leftarrow \\mathrm{mean}(\\mathrm{elites})$;  $\\sigma \\leftarrow 0.7\\,\\sigma$ (clamped ≥ 0.01)\n// 9. return best-cost action sequence across both phases",
+    "key_hyperparams": [
+      {"name": "num_samples (grad)", "value": "max(N, 256)", "role": "parallel gradient seeds", "learnable": false},
+      {"name": "grad_lr", "value": "0.08", "role": "SGD step size", "learnable": false},
+      {"name": "grad_decay", "value": "0.97", "role": "lr decay per iter", "learnable": false},
+      {"name": "max_grad_norm", "value": "0.5", "role": "grad clipping", "learnable": false},
+      {"name": "n_iters (grad)", "value": "max(n, 50)", "role": "phase 1 iters", "learnable": false},
+      {"name": "cem_iters", "value": "10", "role": "phase 2 CEM iters", "learnable": false},
+      {"name": "cem_std_init", "value": "0.3", "role": "phase 2 starting σ", "learnable": false},
+      {"name": "cem_std_decay", "value": "0.7", "role": "geometric σ decay", "learnable": false},
+      {"name": "num_elites", "value": "max(32, N/8)", "role": "CEM elite pool size", "learnable": false},
+      {"name": "init strategies", "value": "const-vel, accel, sinusoid, step", "role": "diverse start templates", "learnable": false}
+    ],
+    "diff_from_baseline": "Combines first-order optimisation (SGD+momentum through the JEPA unroll on structured initial trajectories) with a CEM-style refinement around the best gradient solution — CEM/MPPI/iCEM are sampling-only with no gradients and no structured init templates.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "Adaptive Basis CEM (AB-CEM)",
+    "tagline": "Run CEM in a low-dimensional Fourier+polynomial basis over actions with warm-started coefficients and elite-variance σ adaptation.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. precompute basis $\\Phi \\in \\mathbb{R}^{T \\times B}$: 5 (sin/cos at frequencies 0.1..1) + polynomial fillers; normalise unit std\n// 2. if not t0 and prev_actions exist: shift, $c_0 = \\Phi^+ \\,\\mathrm{shift}$, $\\sigma \\leftarrow 0.5\\sigma$\n// 3. for n_iters CEM iterations:\n// 4.   sample $C \\in \\mathbb{R}^{S \\times B \\times A}$ from $\\mathcal{N}(\\mu, \\sigma^2)$;  $a = \\Phi C$\n// 5.   clip $\\|a_t\\| \\le 2.45$;  $c \\leftarrow$ cost_function(a, obs)\n// 6.   pick top elites; if elite cost variance <0.01 inflate $\\sigma\\!\\times\\!1.2$, if >1.0 deflate $\\times 0.8$, clamp $\\sigma\\in[0.1,3]$\n// 7.   $\\mu \\leftarrow \\mathrm{mean}(C_{\\mathrm{elite}})$;  $\\sigma \\leftarrow \\mathrm{std}(C_{\\mathrm{elite}})$\n// 8. final: sample 50 coeff sets from the converged dist, return best action; cache for next step warm start",
+    "key_hyperparams": [
+      {"name": "num_basis", "value": "5", "role": "Fourier+poly basis dim per action coord", "learnable": false},
+      {"name": "var_scale (init σ)", "value": "1.5", "role": "initial coefficient std", "learnable": false},
+      {"name": "num_elites", "value": "max(10, N/10)", "role": "CEM elite count", "learnable": false},
+      {"name": "warm-start σ scale", "value": "0.5×", "role": "shrink σ on warm start", "learnable": false},
+      {"name": "σ adaptation", "value": "×1.2 if var_e<0.01, ×0.8 if >1.0, clamp [0.1, 3.0]", "role": "elite-variance feedback", "learnable": false},
+      {"name": "frequencies", "value": "linspace(0.1, 1.0, 3) → sin+cos", "role": "Fourier basis", "learnable": false},
+      {"name": "max_norm", "value": "2.45", "role": "per-step action cap", "learnable": false},
+      {"name": "final resample", "value": "50 coeff samples", "role": "post-CEM best-of pick", "learnable": false}
+    ],
+    "init_recovers": "Plain CEM in time domain when Φ = I (basis=identity).",
+    "diff_from_baseline": "CEM is moved from the per-step action space ℝᵀ into a 5-dim Fourier+polynomial coefficient space (Φ-projection enforces smooth trajectories), with warm-started coefficients via Φ⁺·shift and an elite-variance-driven σ rescaling — none of CEM/MPPI/iCEM optimise in a basis or vary σ from elite cost variance.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,91 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Temperature x per-class isotonic blend",
+    "tagline": "Per-class isotonic on temperature-scaled probs, blended with the temperature-scaled prediction by a CV-optimized weight under NLL+Brier+5·ECE.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. logits ← log(probs);  T* ← argmin_T NLL(softmax(logits/T)),  T∈[0.01, 20]\n// 2. tp ← softmax(logits / T*)\n// 3. 5-fold CV over tp: per-class fit IsotonicRegression(out_of_bounds='clip', y∈[1e-4, 1-1e-4])\n//    obtain out-of-fold isotonic probs `oof`\n// 4. for α ∈ linspace(0, 1, 21):\n//      bl ← normalize(α·oof + (1-α)·tp)\n//      L(α) = NLL(bl) + Brier(bl) + 5·ECE_15(bl)\n//    α* ← argmin L(α)\n// 5. final per-class isotonic refit on full tp\n// 6. predict: bl(p) = normalize(α*·iso(softmax(log p / T*)) + (1-α*)·softmax(log p / T*))",
+    "key_hyperparams": [
+      {"name": "T (temperature)", "value": "argmin NLL ∈ [0.01, 20]", "role": "global temperature scaling", "learnable": false},
+      {"name": "α (blend)", "value": "argmin over [0, 1] @ 21 grid points", "role": "isotonic-vs-temperature mixing weight", "learnable": false},
+      {"name": "L combine", "value": "NLL + Brier + 5·ECE_15", "role": "objective for blend selection", "learnable": false},
+      {"name": "n_folds", "value": "5", "role": "out-of-fold isotonic for blend selection", "learnable": false},
+      {"name": "isotonic clip", "value": "[1e-4, 1-1e-4]", "role": "y_min/y_max in IsotonicRegression", "learnable": false}
+    ],
+    "init_recovers": "Temperature scaling at α=0; per-class isotonic at α=1.",
+    "diff_from_baseline": "Composes the temperature_scaling and isotonic_regression baselines: applies temperature first, then per-class isotonic on the temperature-scaled probabilities, with a CV-tuned convex blend weight selected against a tri-objective (NLL + Brier + 5·ECE).",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Temperature + monotonic PCHIP spline",
+    "tagline": "Temperature scaling, then a per-class monotonic PCHIP spline over 20 quantile bins, with cumulative-max enforcement and identity fallback.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. logits ← log(probs);  T* ← argmin_T NLL(softmax(logits/T)),  T∈[0.01, 20]\n// 2. scaled ← softmax(logits / T*)\n// 3. for each class c (or whole vector if binary):\n//    a) bins ← 20 quantile edges of scaled[:, c] (force endpoints 0, 1)\n//    b) per-bin: x_i = median(scaled[:, c] in bin), y_i = mean(label==c)\n//    c) NaN bins ← linear-interp from valid neighbors\n//    d) y ← np.maximum.accumulate(y) clip [0, 1]  (force monotone)\n//    e) PchipInterpolator(unique x, monotone y)  (identity fallback if <2 unique)\n// 4. predict_proba: apply spline per class then renormalize",
+    "key_hyperparams": [
+      {"name": "T (temperature)", "value": "argmin NLL ∈ [0.01, 20]", "role": "global temperature scaling", "learnable": false},
+      {"name": "n_bins", "value": "20", "role": "quantile bin count for spline knots", "learnable": false},
+      {"name": "monotonicity", "value": "np.maximum.accumulate then PCHIP", "role": "ensures monotone-non-decreasing mapping", "learnable": false},
+      {"name": "fallback", "value": "identity if <2 unique x", "role": "guards against degenerate bins", "learnable": false}
+    ],
+    "init_recovers": "Temperature scaling alone if every spline degenerates to identity (e.g., very small calibration set).",
+    "diff_from_baseline": "Two-stage: first the temperature-scaling baseline, then a per-class PCHIP monotonic spline (median-of-bin x, mean-label y) — closer to spline_calibration than to isotonic_regression because it uses fixed quantile bins and PCHIP smoothing rather than PAV.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Entropy-conditioned Dirichlet calibration",
+    "tagline": "Multinomial logistic over [log p, H·log p, H, 1] with separate diag/off-diag L2 priors, label-smoothing, and a NLL+½·Brier objective.",
+    "kind": "formula",
+    "formula": "$$Z = X W^\\top + (X H) U^\\top + v\\,H + b,\\;\\; \\hat P = \\mathrm{softmax}(Z),\\;\\; H = -\\tfrac{1}{\\log K}\\sum_k P_k \\log P_k,\\;\\; X = \\log P$$",
+    "key_hyperparams": [
+      {"name": "α_ls (label smoothing)", "value": "0.001", "role": "soft target = (1-α)·1_y + α/K", "learnable": false},
+      {"name": "λ_W diag prior σ", "value": "1.0 (around I)", "role": "L2 toward identity diag of W", "learnable": false},
+      {"name": "λ_W off-diag prior σ", "value": "0.2 (around 0)", "role": "L2 on off-diagonal of W", "learnable": false},
+      {"name": "λ_U diag prior σ", "value": "0.5 (around 0)", "role": "L2 on entropy-modulated diag of U", "learnable": false},
+      {"name": "λ_U off-diag prior σ", "value": "0.05 (around 0)", "role": "L2 on entropy-modulated off-diag of U", "learnable": false},
+      {"name": "λ_v / λ_b prior σ", "value": "0.5 / 1.0", "role": "L2 on entropy-bias and constant-bias", "learnable": false},
+      {"name": "objective", "value": "CE(label-smoothed) + 0.5·Brier + ridge(W,U,v,b)", "role": "training loss", "learnable": false},
+      {"name": "L-BFGS-B maxiter", "value": "500", "role": "optimizer cap", "learnable": false}
+    ],
+    "init_recovers": "Identity Dirichlet (W=I, U=0, v=0, b=0) → vanilla temperature-1 mapping at init.",
+    "diff_from_baseline": "Departs from all three shipped baselines: a full Dirichlet-calibration matrix W on log-probs plus an entropy-modulated matrix U·(X·H), entropy bias v·H and constant b, with sample-size-scaled L2 priors that pull W diagonally toward I, plus a label-smoothed CE+0.5·Brier objective.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "BIC-selected temperature/beta mixture",
+    "tagline": "Confidence-gated mixture of temperature and per-class beta-style logistic; BIC then picks among id / temp / beta / mix per fit.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. T* ← argmin NLL(softmax(log p / T)),  T = exp(x), x∈[-3, 3]\n// 2. per-class beta calibrator: LogisticRegression(C=0.7) on features [log p, log(1-p)] vs (label==c)\n// 3. mixture: w_i = σ(a·(conf_i - 0.5) + b);  q_i = (1-w_i)·t_i + w_i·b_i\n//    fit (a, b) by minimizing NLL of q\n// 4. score each candidate by BIC ≈ NLL + 0.5·df·log(N)/N, df = {0, 1, 3K, 3K+3}\n// 5. mode ← argmin BIC (id, temp, beta, mix); for tiny binary (N<200), prefer id vs temp+1/N",
+    "key_hyperparams": [
+      {"name": "T (temperature)", "value": "exp(argmin NLL), x∈[-3, 3]", "role": "global temperature", "learnable": false},
+      {"name": "C (LR strength)", "value": "0.7", "role": "L2 strength on per-class beta logistic", "learnable": false},
+      {"name": "mix gate", "value": "(a, b) optimizing NLL on σ(a·(conf-0.5)+b)", "role": "confidence-dependent gating", "learnable": false},
+      {"name": "BIC penalty", "value": "0.5·df·log(N)/N, df ∈ {0, 1, 3K, 3K+3}", "role": "structural risk to pick mode", "learnable": false},
+      {"name": "small-N rule", "value": "binary, N<200: only id vs temp+1/N", "role": "guards against overfitting", "learnable": false}
+    ],
+    "init_recovers": "Identity calibration when BIC-selected mode = 'id'.",
+    "diff_from_baseline": "Builds on temperature + Platt baselines but adds a confidence-gated mixture between them and uses a BIC-style structural-risk score to pick the simplest model that beats identity, especially on small calibration sets.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Regularized beta calibration",
+    "tagline": "Per-class beta calibration σ(a·logit(p) + b·log(1−p) + c) with L2 prior toward (1, 0), 5 init seeds, monotonicity penalty, and temperature fallback.",
+    "kind": "formula",
+    "formula": "$$\\hat p_c = \\sigma\\!\\big(a\\,\\mathrm{logit}(p_c) + b\\,\\log(1-p_c) + c\\big),\\quad \\mathcal L(a,b,c) = \\mathrm{BCE}(y, \\hat p) + \\lambda\\,((a-1)^2 + b^2),\\;\\; \\lambda = \\max(0.5, 10/\\max(N, 50))$$",
+    "key_hyperparams": [
+      {"name": "λ (reg)", "value": "max(0.5, 10/max(N, 50))", "role": "L2 prior toward (a=1, b=0) i.e. Platt", "learnable": false},
+      {"name": "monotonicity penalty", "value": "10·max(0, b - a)", "role": "soft constraint a ≥ b", "learnable": false},
+      {"name": "init grid", "value": "5 init seeds for (a, b, c)", "role": "diverse L-BFGS-B starts", "learnable": false},
+      {"name": "bounds", "value": "a ∈ [0.1, 3], b ∈ [-2, 2], c ∈ [-5, 5]", "role": "L-BFGS-B bounds", "learnable": false},
+      {"name": "c init", "value": "log(n_pos / n_neg)", "role": "balanced-class log-prior bias", "learnable": false},
+      {"name": "fallback", "value": "Temperature scaling if any test prob in [0.01, 0.99]^c violation", "role": "robust degenerate-fit guard", "learnable": false},
+      {"name": "predict clip (binary)", "value": "[0.001, 0.999]", "role": "guards extreme outputs", "learnable": false}
+    ],
+    "init_recovers": "Platt scaling at (a, b) = (1, 0); temperature scaling at (a, b) = (1/T, 0).",
+    "diff_from_baseline": "A regularized beta calibration with per-class application — strictly more general than the platt_scaling and temperature_scaling baselines (which it nests at b=0) — plus an L2 anchor toward Platt, monotonicity penalty, multi-init L-BFGS-B, and an automatic temperature fallback when fits look extreme.",
+    "confidence": "high"
+  }
+]

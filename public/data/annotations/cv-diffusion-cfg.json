@@ -1,0 +1,80 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Cosine Warmup + Divergence-Gated CFG",
+    "tagline": "Replaces zeroinit's hard skip with a smooth cosine warmup and an adaptive gate driven by std(noise_c-noise_uc)/std(noise_uc).",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for step i, t in timesteps do\n// 2.   $\\Delta = n_c - n_{uc}$, warmup $= \\tfrac{1}{2}(1-\\cos(\\pi\\,\\min(i/W,1)))$\n// 3.   gate $= \\tanh\\big(\\mathrm{std}(\\Delta)/(\\mathrm{std}(n_{uc})+\\epsilon)/0.5\\big)$\n// 4.   $w_{\\text{eff}} = w \\cdot \\text{warmup} \\cdot \\text{gate}$\n// 5.   $\\hat n = n_{uc} + w_{\\text{eff}}\\,\\Delta$\n// 6.   Imagen rescale: $\\hat n \\leftarrow \\phi\\,\\hat n\\,\\sigma_c/(\\sigma_{\\hat n}+\\epsilon) + (1-\\phi)\\hat n$\n// 7.   $z_0 = (z_t - \\sqrt{1-\\alpha_t}\\,\\hat n)/\\sqrt{\\alpha_t}$\n// 8.   $z_t \\leftarrow \\sqrt{\\alpha_{t-1}}\\,z_0 + \\sqrt{1-\\alpha_{t-1}}\\,\\hat n$  (renoise with $\\hat n$)",
+    "key_hyperparams": [
+      {"name": "W (warmup_steps)", "value": "3.0", "role": "cosine ramp window in steps", "learnable": false},
+      {"name": "φ (rescale_phi)", "value": "0.7", "role": "Imagen rescale mix", "learnable": false},
+      {"name": "div_gate scale", "value": "0.5", "role": "tanh denominator for divergence ratio", "learnable": false},
+      {"name": "cfg_guidance", "value": "7.5 default", "role": "base CFG strength", "learnable": false}
+    ],
+    "init_recovers": "Approaches standard CFG when warmup and div_gate saturate to 1",
+    "diff_from_baseline": "Vs CFG/CFG++/zeroinit: replaces zeroinit's binary step skip with a continuous half-cosine warmup, multiplies guidance by an adaptive tanh gate computed from per-step std ratio of the conditional/unconditional residual, then applies Imagen-style rescale and renoises with noise_pred (CFG-style, not noise_uc).",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Std-Normalized Residual + Power Rescale",
+    "tagline": "Divides the conditional residual by its std before adding it, then rescales the prediction by the power-φ ratio of the unconditional std.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for each timestep t do\n// 2.   $r = n_c - n_{uc}$\n// 3.   $\\tilde r = r / (\\mathrm{std}(r)+\\epsilon)$\n// 4.   $\\hat n = n_{uc} + w \\cdot \\tilde r$\n// 5.   power rescale: $\\hat n \\leftarrow \\hat n \\cdot \\big(\\sigma_{uc}/\\sigma_{\\hat n}\\big)^{\\phi}$\n// 6.   $z_0 = (z_t - \\sqrt{1-\\alpha_{t-1}}\\,\\hat n)/\\sqrt{\\alpha_{t-1}}$\n// 7.   $z_t \\leftarrow \\sqrt{\\alpha_t}\\,z_0 + \\sqrt{1-\\alpha_t}\\,n_{uc}$  (CFG++ renoise)",
+    "key_hyperparams": [
+      {"name": "w (cfg_guidance)", "value": "3.5", "role": "guidance strength after std normalization", "learnable": false},
+      {"name": "φ (power)", "value": "0.7", "role": "exponent on std ratio rescale", "learnable": false},
+      {"name": "renoise term", "value": "noise_uc", "role": "CFG++ on-manifold renoise", "learnable": false}
+    ],
+    "init_recovers": "Reduces toward CFG++ when w·std(r) ≈ |c-uc| and φ=0",
+    "diff_from_baseline": "Vs CFG++: normalizes the (c-uc) direction by its std before applying guidance and rescales the predicted noise by (σ_uc/σ_pred)^φ instead of an additive Imagen-rescale; keeps CFG++'s noise_uc renoise step. Note: also swaps α_t and α_{t-1} indices, so the tweedie/renoise pair differs from the canonical schedule.",
+    "confidence": "medium"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Negative-Perp Guidance + 2-Step Warmup",
+    "tagline": "First two steps use n_c only; thereafter subtracts the perpendicular component of the unconditional onto the conditional with Imagen rescaling.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for step i, t in timesteps do\n// 2.   if $i < 2$: $\\hat n = n_c$\n// 3.   else: project $n_{uc}^{\\parallel} = (\\langle n_{uc},n_c\\rangle / \\|n_c\\|^2)\\,n_c$\n// 4.        $n_{uc}^{\\perp} = n_{uc} - n_{uc}^{\\parallel}$\n// 5.        $\\hat n = n_c + (w-1)\\cdot(-n_{uc}^{\\perp})$\n// 6.        Imagen rescale with $\\phi=0.7$ using $\\sigma_c$\n// 7.   $z_0 = (z_t - \\sqrt{1-\\alpha_t}\\,\\hat n)/\\sqrt{\\alpha_t}$\n// 8.   $z_t \\leftarrow \\sqrt{\\alpha_{t-1}}\\,z_0 + \\sqrt{1-\\alpha_{t-1}}\\,\\hat n$",
+    "key_hyperparams": [
+      {"name": "warmup_steps", "value": "2", "role": "use only n_c for first K steps", "learnable": false},
+      {"name": "w (cfg_guidance)", "value": "7.5", "role": "guidance strength after warmup", "learnable": false},
+      {"name": "φ (rescale)", "value": "0.7", "role": "Imagen rescale mix", "learnable": false}
+    ],
+    "init_recovers": "Approaches standard CFG when removing the projection step",
+    "diff_from_baseline": "Vs CFG/zeroinit: keeps zeroinit's 2-step idea but instead of skipping uses pure conditional noise; afterwards reformulates guidance as n_c minus the unconditional's perpendicular component (projected away from n_c) with Imagen rescaling, and renoises with noise_pred.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Tri-Phase Projected Guidance",
+    "tagline": "Splits sampling into zero-init / mid / tail phases with different scales and decomposes (c-uc) into perpendicular and damped-parallel components.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. progress $p_i = i/(N-1)$, $\\Delta = n_c - n_{uc}$\n// 2. if $i < 2$: $w_g = 0$\n// 3. elif $p_i \\in [0.2,0.8]$: $w_g = w$\n// 4. else: $w_g = 0.75\\,w$\n// 5. project $\\Delta_{\\parallel} = \\frac{\\langle \\Delta,n_{uc}\\rangle}{\\|n_{uc}\\|^2}\\,n_{uc}$, $\\Delta_{\\perp}=\\Delta-\\Delta_{\\parallel}$\n// 6. $\\hat n = n_{uc} + w_g (\\Delta_{\\perp} + 0.5\\,\\Delta_{\\parallel})$\n// 7. Imagen rescale by $\\sigma_c/\\sigma_{\\hat n}$ with $\\phi=0.7$\n// 8. tweedie + renoise with $n_{uc}$ (CFG++)",
+    "key_hyperparams": [
+      {"name": "zero_init_steps", "value": "2", "role": "leading no-guidance steps", "learnable": false},
+      {"name": "mid_start, mid_end", "value": "0.2, 0.8", "role": "fractional window for full-strength guidance", "learnable": false},
+      {"name": "tail/early scale", "value": "0.75", "role": "guidance multiplier outside mid window", "learnable": false},
+      {"name": "parallel_suppress", "value": "0.5", "role": "weight on parallel component", "learnable": false},
+      {"name": "base_guidance", "value": "7.5", "role": "max CFG scale", "learnable": false},
+      {"name": "rescale_phi", "value": "0.7", "role": "Imagen rescale mix", "learnable": false}
+    ],
+    "init_recovers": "Approaches CFG++ when parallel_suppress=1 and all phases use w",
+    "diff_from_baseline": "Vs CFG++/zeroinit: keeps the on-manifold noise_uc renoise but combines a 3-phase guidance schedule (zero / 0.75w / w) with a perpendicular-vs-parallel decomposition where the parallel part is damped by 0.5; followed by Imagen-style σ rescale.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Sine-Scheduled Perp-CFG",
+    "tagline": "Adds the perpendicular component of (n_c - n_{uc}) wrt n_{uc} weighted by a half-sine schedule that vanishes at endpoints.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for step i, t in timesteps do\n// 2.   $\\Delta = n_c - n_{uc}$\n// 3.   $\\Delta_{\\perp} = \\Delta - \\frac{\\langle n_{uc},\\Delta\\rangle}{\\|n_{uc}\\|^2}\\,n_{uc}$\n// 4.   $w(i) = w \\cdot \\sin(\\pi\\,i/(N-1))$\n// 5.   $\\hat n = n_{uc} + w(i)\\,\\Delta_{\\perp}$\n// 6.   $z_0 = (z_t - \\sqrt{1-\\alpha_t}\\,\\hat n)/\\sqrt{\\alpha_t}$\n// 7.   $z_t \\leftarrow \\sqrt{\\alpha_{t-1}}\\,z_0 + \\sqrt{1-\\alpha_{t-1}}\\,\\hat n$",
+    "key_hyperparams": [
+      {"name": "w (cfg_guidance)", "value": "5.0", "role": "peak guidance scale at midpoint", "learnable": false},
+      {"name": "schedule", "value": "sin(π·i/(N-1))", "role": "half-sine guidance schedule", "learnable": false}
+    ],
+    "init_recovers": "Reduces to plain CFG-style renoise at i=N/2 when schedule peaks",
+    "diff_from_baseline": "Vs CFG: replaces (n_c-n_{uc}) with its perpendicular-to-n_{uc} component (Perp-CFG) and modulates guidance by a half-sine schedule that is zero at first/last step; renoise uses noise_pred (CFG-style).",
+    "confidence": "high"
+  }
+]

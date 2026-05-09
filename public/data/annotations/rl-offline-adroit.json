@@ -1,0 +1,59 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Scale-Adaptive IQL (BC -> IQL Curriculum)",
+    "tagline": "IQL with safe advantage normalization (std lower-bounded by 1) and a cosine-warmup beta from 0.01 -> 3.0 over 200k steps; expectile tau auto-set to 0.9 on cloned datasets.",
+    "kind": "formula",
+    "formula": "$$L_V = \\mathrm{Exp}_\\tau(Q_{\\text{tgt}} - V),\\ \\tau = 0.9\\text{ if cloned else }0.8$$\n$$L_Q = \\mathrm{MSE}\\bigl(Q,\\, r+(1-d)\\gamma V(s')\\bigr)$$\n$$\\hat{A} = \\frac{A - \\bar{A}}{\\max(\\mathrm{std}(A), 1.0)},\\ \\beta_t = 0.01 + \\tfrac{1}{2}(3-0.01)(1-\\cos(\\pi\\,\\min(t/T,1)))$$\n$$L_\\pi = -\\mathbb{E}\\bigl[\\log\\pi(a|s)\\,\\min(e^{\\beta_t \\hat{A}},\\,100)\\bigr]$$",
+    "key_hyperparams": [
+      {"name": "iql_tau", "value": "0.9 (cloned) / 0.8 (else)", "role": "expectile for V loss", "learnable": false},
+      {"name": "beta range", "value": "[0.01, 3.0]", "role": "advantage temperature schedule", "learnable": false},
+      {"name": "warmup_steps", "value": "200000", "role": "BC->IQL cosine annealing length", "learnable": false},
+      {"name": "exp_adv_max", "value": "100", "role": "weight clip", "learnable": false},
+      {"name": "adv_min_std", "value": "1.0", "role": "lower bound on adv std for normalization", "learnable": false},
+      {"name": "grad clip (V/Q/actor)", "value": "10 / 10 / 1", "role": "stability", "learnable": false}
+    ],
+    "init_recovers": "Approximately BC at t=0; standard IQL after warmup",
+    "diff_from_baseline": "Two changes vs the iql baseline: a safe (std-lower-bounded) per-batch advantage normalization, and a cosine BC->IQL beta curriculum from 0.01 to 3.0 over 200k steps; per-env iql_tau is bumped to 0.9 on cloned datasets.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "IQL + Critic-BC + Actor-BC Hybrid",
+    "tagline": "IQL value/critic/actor losses augmented with a ReBRAC-style critic BC penalty in the Bellman target and an MSE BC term on the deterministic actor; per-env (tau, beta, bc_coef) presets.",
+    "kind": "formula",
+    "formula": "$$L_V = \\mathrm{Exp}_{\\tau}(Q_{\\min}^{\\text{tgt}} - V),\\ Q_{\\min}^{\\text{tgt}}=\\min(Q_1^{\\text{tgt}},Q_2^{\\text{tgt}})$$\n$$y = r + (1-d)\\gamma\\bigl(V(s') - \\lambda_{\\text{cbc}}\\,\\Vert\\pi_\\theta^{-}(s') - a'\\Vert_2^{2}\\bigr)$$\n$$L_Q = \\mathrm{MSE}(Q_1, y) + \\mathrm{MSE}(Q_2, y)$$\n$$L_\\pi = -\\mathbb{E}\\bigl[\\log\\pi(a|s)\\,e^{\\beta(Q_{\\min}^{\\text{tgt}}-V)}\\bigr] + \\lambda_{\\text{abc}}\\,\\Vert\\pi_\\theta^{\\text{det}}(s) - a\\Vert_2^{2}$$",
+    "key_hyperparams": [
+      {"name": "iql_tau (pen/hammer/door)", "value": "0.8 / 0.7 / 0.9", "role": "per-env expectile", "learnable": false},
+      {"name": "beta (pen/hammer/door)", "value": "3.0 / 5.0 / 2.0", "role": "advantage temperature", "learnable": false},
+      {"name": "bc_coef (pen/hammer/door)", "value": "0.1 / 0.01 / 0.2", "role": "actor MSE BC weight", "learnable": false},
+      {"name": "critic_bc_coef (pen/hammer/door-cloned)", "value": "0.5 / 0.5 / 0.1", "role": "critic next-action BC penalty", "learnable": false},
+      {"name": "exp_adv_max", "value": "100", "role": "weight clip", "learnable": false},
+      {"name": "grad_clip", "value": "1.0", "role": "global grad clip", "learnable": false},
+      {"name": "target actor", "value": "soft-updated copy of actor", "role": "for critic BC penalty target", "learnable": false}
+    ],
+    "init_recovers": "iql baseline at bc_coef=critic_bc_coef=0",
+    "diff_from_baseline": "Combines iql baseline (V expectile, Q Bellman, AWR actor) with a ReBRAC-style critic BC penalty (-lambda*||pi_target(s')-a'||^2) baked into the Bellman target, and an additional MSE BC term on the deterministic actor; per-env hyperparameters set differently for pen, hammer, and door.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Manifold-Augmented Deterministic IQL",
+    "tagline": "Deterministic-actor IQL with state/action Gaussian augmentation: V/Q losses fit on the union of clean and noised batches; AWR-MSE actor loss averaged over both views, no advantage standardization.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. $\\tilde{s} = s + \\mathcal{N}(0, \\sigma_s^2)$, $\\tilde{a} = \\mathrm{clip}(a + \\mathcal{N}(0, \\sigma_a^{2}), \\pm a_{\\max})$\n// 2. cat_states=[s, $\\tilde{s}$], cat_actions=[a, $\\tilde{a}$], cat_next=[s', s'], etc.\n// 3. $L_V = \\mathrm{Exp}_{0.8}(\\min(Q_1^{\\text{tgt}}, Q_2^{\\text{tgt}}) - V)$ on cat batch\n// 4. $L_Q = \\mathrm{MSE}(Q_i, r + \\gamma(1-d)V(s'))$ on cat batch\n// 5. clean adv $A = \\min(Q_1^{\\text{tgt}}, Q_2^{\\text{tgt}}) - V$, $w = \\min(e^{\\beta A}, 100)$ (no standardization)\n// 6. $L_\\pi = \\mathbb{E}\\bigl[w\\,\\tfrac{1}{2}(\\mathrm{MSE}(\\pi(s), a) + \\mathrm{MSE}(\\pi(\\tilde{s}), a))\\bigr]$\n// 7. Adam (actor wd=1e-4); soft-update critic target (no V or actor target)",
+    "key_hyperparams": [
+      {"name": "iql_tau", "value": "0.8", "role": "expectile", "learnable": false},
+      {"name": "beta", "value": "5.0", "role": "advantage temperature", "learnable": false},
+      {"name": "state_noise (sigma_s)", "value": "0.05", "role": "state-manifold augmentation", "learnable": false},
+      {"name": "action_noise (sigma_a)", "value": "0.01 (clipped to 10% max_action)", "role": "action augmentation", "learnable": false},
+      {"name": "actor weight decay", "value": "1e-4", "role": "L2 on actor params", "learnable": false},
+      {"name": "exp_adv_max", "value": "100", "role": "weight clip", "learnable": false},
+      {"name": "actor type", "value": "deterministic (3x256 + tanh)", "role": "AWR-MSE on point estimate", "learnable": false},
+      {"name": "CONFIG_OVERRIDES", "value": "{normalize: True, actor_lr: 3e-4, critic_lr: 3e-4}", "role": "training config", "learnable": false}
+    ],
+    "init_recovers": "Awac/IQL-style AWR with deterministic MSE actor when sigma_s=sigma_a=0",
+    "diff_from_baseline": "Compared to iql/awac baselines: deterministic actor optimized by AWR-MSE rather than log-prob; state and action Gaussian augmentation doubles the V/Q batch and mixes clean+noised actor MSE; explicit removal of per-batch advantage standardization (commented out).",
+    "confidence": "high"
+  }
+]

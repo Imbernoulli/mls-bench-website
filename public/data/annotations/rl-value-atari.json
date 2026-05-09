@@ -1,0 +1,77 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "QR-DQN + Double + Non-crossing",
+    "tagline": "QR-DQN with a Double-Q target and a soft penalty on quantile crossing across all actions.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\frac{1}{N}\\sum_{i,j} \\rho_\\kappa^{\\hat\\tau_i}\\!\\bigl(y_j - \\theta_i(s,a)\\bigr) + \\lambda_c \\,\\mathbb{E}\\bigl[\\,\\mathrm{ReLU}(\\theta_{i}(s,a') - \\theta_{i+1}(s,a'))^2\\,\\bigr]$$$$y_j = r + \\gamma\\,\\theta_j\\bigl(s', \\arg\\max_{a'} \\bar{Q}_{\\mathrm{tgt}}(s', a')\\bigr)$$",
+    "key_hyperparams": [
+      {"name": "n_quantiles", "value": "200", "role": "QR-DQN head size", "learnable": false},
+      {"name": "κ (Huber)", "value": "1.0", "role": "Huber threshold for quantile loss", "learnable": false},
+      {"name": "cross_coef λ_c", "value": "0.01", "role": "weight on non-crossing penalty (sum over all actions)", "learnable": false},
+      {"name": "Double-Q", "value": "online next-state argmax, target net evaluates", "role": "fixes overestimation", "learnable": false},
+      {"name": "target update", "value": "hard, every target_network_frequency", "role": "matches QR-DQN", "learnable": false}
+    ],
+    "init_recovers": "QR-DQN baseline at λ_c=0 (drops the non-crossing term).",
+    "diff_from_baseline": "On top of the QR-DQN baseline, adds a quadratic ReLU penalty on adjacent-quantile inversions (across all actions, not just the chosen one) and switches the target-action selection to Double-Q (online net argmax) instead of target-net argmax.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "IQN + TD-Weighted Latent Smoothing",
+    "tagline": "Implicit Quantile Networks with cosine τ-embedding and an extra TD-weighted MSE between current and next-state encoder features.",
+    "kind": "formula",
+    "formula": "$$\\phi_\\tau = \\mathrm{ReLU}\\bigl(W_\\phi\\,[\\cos(i\\pi\\tau)]_{i=1}^{32}\\bigr),\\quad q_\\tau(s,a) = W_o(\\phi(s) \\odot \\phi_\\tau)_a$$$$\\mathcal{L} = \\mathcal{L}_{\\mathrm{QR}}(\\tau, \\tau') + \\lambda_l\\,\\mathbb{E}\\bigl[\\,e^{-|\\delta|}\\;\\|\\,\\phi(s) - \\mathrm{sg}\\,\\phi(s')\\,\\|_2^2\\,\\bigr]$$",
+    "key_hyperparams": [
+      {"name": "quantile_embed_dim", "value": "32", "role": "cosine basis size", "learnable": false},
+      {"name": "N (current samples)", "value": "16", "role": "τ samples for online net", "learnable": false},
+      {"name": "N′ (target samples)", "value": "16", "role": "τ' samples for target net", "learnable": false},
+      {"name": "κ (Huber)", "value": "1.0", "role": "Huber threshold", "learnable": false},
+      {"name": "λ_latent", "value": "0.001", "role": "weight on TD-confidence latent MSE", "learnable": false},
+      {"name": "weighting", "value": "exp(−|TD|)", "role": "high weight where TD is small (confident)", "learnable": false},
+      {"name": "target update", "value": "soft (τ·θ + (1−τ)·θ̄) every freq", "role": "Polyak-style update via args.tau", "learnable": false}
+    ],
+    "init_recovers": "Vanilla IQN at λ_latent=0.",
+    "diff_from_baseline": "Replaces QR-DQN's fixed quantile head with an IQN cosine-embedded head and adds a per-sample TD-confidence latent regulariser exp(−|δ|)·‖φ(s)−φ(s')‖² that smooths consecutive-state encoder features only when the value estimate is reliable.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "IQN with Double Action Selection",
+    "tagline": "Cosine-embedded Implicit Quantile Network with Double-IQN target (online net selects, target net evaluates the quantile).",
+    "kind": "formula",
+    "formula": "$$\\phi_\\tau = \\mathrm{ReLU}\\bigl(W_\\phi\\,[\\cos(i\\pi\\tau)]_{i=1}^{n_{cos}}\\bigr),\\quad q_\\tau(s,a) = W_o\\bigl(\\phi(s) \\odot \\phi_\\tau\\bigr)_a$$$$\\mathcal{L} = \\frac{1}{N}\\sum_{i=1}^{N}\\sum_{j=1}^{N'} \\rho_1^{\\tau_i}\\!\\bigl(r + \\gamma\\,q^{\\bar\\theta}_{\\tau'_j}\\!\\bigl(s', \\arg\\max_{a'} \\bar Q^{\\theta}(s', a'; K)\\bigr) - q^{\\theta}_{\\tau_i}(s, a)\\bigr)$$",
+    "key_hyperparams": [
+      {"name": "n_cos", "value": "64", "role": "cosine basis dimension", "learnable": false},
+      {"name": "N", "value": "64", "role": "τ samples for current quantiles", "learnable": false},
+      {"name": "N'", "value": "64", "role": "τ' samples for target quantiles", "learnable": false},
+      {"name": "K", "value": "32", "role": "τ samples used for Double action selection", "learnable": false},
+      {"name": "κ (Huber)", "value": "1.0", "role": "Huber threshold", "learnable": false},
+      {"name": "target update", "value": "soft (τ_update Polyak) every target_network_frequency", "role": "Polyak update", "learnable": false},
+      {"name": "Double action selection", "value": "online net argmax", "role": "fixes overestimation", "learnable": false},
+      {"name": "Adam eps", "value": "0.01 / batch_size", "role": "QR-DQN-style epsilon", "learnable": false}
+    ],
+    "init_recovers": "Plain IQN when next_actions are taken from the target network.",
+    "diff_from_baseline": "Compared to QR-DQN baseline, switches the head to an IQN cosine-embedded quantile network and adds Double-IQN target action selection (argmax via online net, evaluation via target-net quantiles); uses larger N=N'=64.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Adaptive Risk-Tempered QR-DQN",
+    "tagline": "QR-DQN where target action is chosen by a TD-uncertainty-driven mix of mean and lower-tail CVaR, plus mean-quantile self-distillation.",
+    "kind": "formula",
+    "formula": "$$g = \\frac{\\overline{|\\delta|}_{\\mathrm{ema}}}{\\overline{|\\delta|}_{\\mathrm{ema}} + 1},\\quad a^* = \\arg\\max_{a'}\\bigl[(1-g)\\,\\bar{q}(s',a') + g\\,\\mathrm{CVaR}_{0.2}(q(s',a'))\\bigr]$$$$\\mathcal{L} = \\mathcal{L}_{\\mathrm{QR}\\text{-}\\mathrm{Huber}} + 0.15\\cdot \\mathrm{SmoothL1}\\bigl(\\bar{q}^\\theta(s,a),\\;\\overline{r + \\gamma\\,q^{\\bar\\theta}(s', a^*)}\\bigr)$$",
+    "key_hyperparams": [
+      {"name": "n_quantiles", "value": "151", "role": "QR-DQN head size", "learnable": false},
+      {"name": "cvar_frac", "value": "0.2", "role": "lower-tail fraction for CVaR (k=⌈0.2·N⌉)", "learnable": false},
+      {"name": "consistency_coef", "value": "0.15", "role": "mean-quantile self-distillation weight", "learnable": false},
+      {"name": "ema_momentum", "value": "0.995", "role": "EMA on mean |TD| → risk_gate", "learnable": false},
+      {"name": "κ (Huber)", "value": "1.0", "role": "Huber threshold", "learnable": false},
+      {"name": "grad clip", "value": "10.0", "role": "L2 clip on Q-net params", "learnable": false},
+      {"name": "target update", "value": "hard every target_network_frequency", "role": "QR-DQN style", "learnable": false}
+    ],
+    "init_recovers": "Standard QR-DQN at gate g=0 and consistency_coef=0.",
+    "diff_from_baseline": "Compared to QR-DQN, the next-state action used to form Bellman targets blends expectation and lower-tail CVaR with weight g(t) driven by an EMA of recent TD errors (cautious early, greedy once stable), and adds a 0.15·SmoothL1 self-distillation between current mean Q and target-mean — neither QR-DQN, C51, nor Double DQN tempers risk by TD uncertainty.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,85 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "SEACR: log-det entropy + VICReg",
+    "tagline": "VICReg's invariance/variance/covariance terms plus a negative log-determinant of each view's covariance to maximize Gaussian entropy.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\lambda_{\\mathrm{inv}}\\,\\mathrm{MSE}(z_1, z_2) + \\lambda_{\\det}\\sum_{v}\\bigl(-\\tfrac{1}{D}\\log\\det(\\Sigma_v + \\varepsilon I)\\bigr) + \\lambda_{\\mathrm{var}}\\sum_v V(z_v) + \\lambda_{\\mathrm{cov}}\\sum_v C(z_v)$$\n$$V(z) = \\frac{1}{D}\\sum_d \\max(0, 1-\\sigma_d), \\qquad C(z) = \\frac{1}{D}\\sum_{i\\ne j}\\Sigma_{ij}^2$$",
+    "key_hyperparams": [
+      {"name": "inv_coeff", "value": "1.0", "role": "MSE invariance weight", "learnable": false},
+      {"name": "logdet_coeff", "value": "1.0", "role": "log-det entropy weight", "learnable": false},
+      {"name": "var_coeff", "value": "1.0", "role": "VICReg variance hinge weight", "learnable": false},
+      {"name": "cov_coeff", "value": "10.0", "role": "off-diagonal covariance weight", "learnable": false},
+      {"name": "eps", "value": "1e-4", "role": "log-det jitter", "learnable": false},
+      {"name": "std_margin", "value": "1.0", "role": "variance hinge margin", "learnable": false},
+      {"name": "proj_output_dim", "value": "128", "role": "projector dim (full-rank covariance)", "learnable": false}
+    ],
+    "init_recovers": "VICReg at λ_det=0",
+    "diff_from_baseline": "Augments the VICReg baseline with a log-det-of-covariance term that, unlike the hinged variance, retains nonzero gradient as eigenvalues shrink; uses a smaller 128-d projector so the covariance is full rank for slogdet.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini/gemini-3.1-pro-preview",
+    "name": "FeatNCE: feature-axis InfoNCE",
+    "tagline": "Standard MSE invariance plus an InfoNCE on the feature axis (column-normalized z), with all four pairings (within and across views) and a hinged variance term.",
+    "kind": "formula",
+    "formula": "$$L_{\\mathrm{NCE}}(A, B) = -\\frac{1}{D}\\sum_{d=1}^{D} \\log \\frac{\\exp(A_{:,d}^\\top B_{:,d}/\\tau)}{\\sum_{d'} \\exp(A_{:,d}^\\top B_{:,d'}/\\tau)}$$\n$$\\mathcal{L} = \\mathrm{MSE}(z_1,z_2) + \\lambda_v V(z_1,z_2) + \\lambda_{\\mathrm{nce}}\\,\\tfrac{1}{4}(L_{12}+L_{21}+L_{11}+L_{22})$$",
+    "key_hyperparams": [
+      {"name": "tau", "value": "0.1", "role": "InfoNCE temperature", "learnable": false},
+      {"name": "std_coeff", "value": "1.0", "role": "VICReg-style hinge variance weight", "learnable": false},
+      {"name": "nce_coeff", "value": "1.0", "role": "feature-NCE weight", "learnable": false},
+      {"name": "proj_output_dim", "value": "256", "role": "projector dim (= NCE softmax classes)", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces VICReg's quadratic off-diagonal covariance penalty with a feature-axis InfoNCE that drives the embedding columns toward an orthogonal frame, including auto-similarity (z₁z₁ᵀ, z₂z₂ᵀ) terms — a shape used by neither VICReg nor Barlow Twins baselines.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Spectral cross-correlation regularizer",
+    "tagline": "Pulls eigenvalues of the cross-view correlation Gram (CᵀC) toward 1 to keep many directions active across views, plus VICReg-style covariance and MSE invariance.",
+    "kind": "formula",
+    "formula": "$$C = \\frac{1}{B}\\,\\tilde z_1^\\top \\tilde z_2,\\qquad \\{\\lambda_k\\} = \\mathrm{eigvalsh}(C^\\top C)$$\n$$\\mathcal{L} = \\lambda_{\\mathrm{inv}}\\mathrm{MSE}(z_1,z_2) + \\lambda_s\\,\\frac{1}{D}\\sum_k(\\lambda_k - 1)^2 + \\lambda_c\\sum_v \\mathrm{OffDiag}(\\tilde z_v^\\top \\tilde z_v)^2$$",
+    "key_hyperparams": [
+      {"name": "inv_coeff", "value": "25.0", "role": "MSE invariance weight", "learnable": false},
+      {"name": "spec_coeff", "value": "1.0", "role": "spectral (λ-1)² weight", "learnable": false},
+      {"name": "cov_coeff", "value": "1.0", "role": "VICReg covariance weight", "learnable": false},
+      {"name": "eps", "value": "1e-4", "role": "standardization jitter", "learnable": false},
+      {"name": "proj_output_dim", "value": "128", "role": "projector dim (CᵀC eigvals)", "learnable": false}
+    ],
+    "diff_from_baseline": "Targets collapse as a low-rank failure: pushes singular values of the Barlow-style cross-correlation toward 1 explicitly via slogdet eigvalsh, instead of Barlow Twins' on/off-diagonal squared error; adds a VICReg-style decorrelation, but no variance hinge.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "SCD: hyperspherical uniform decorrelation",
+    "tagline": "Operates entirely on L2-normalized embeddings: cosine alignment for invariance, Gaussian-potential uniformity, and an off-diagonal correlation penalty.",
+    "kind": "formula",
+    "formula": "$$\\hat z_v = z_v/\\|z_v\\|,\\qquad U(\\hat z) = \\frac{1}{N(N-1)}\\sum_{i\\ne j}\\exp(-t\\,\\|\\hat z_i - \\hat z_j\\|^2)$$\n$$\\mathcal{L} = \\mathbb{E}[1 - \\langle \\hat z_1, \\hat z_2\\rangle] + \\lambda_u\\sum_v U(\\hat z_v) + \\lambda_d\\sum_v \\frac{1}{D(D-1)}\\sum_{i\\ne j}\\rho_{ij}^2$$",
+    "key_hyperparams": [
+      {"name": "uniformity_coeff", "value": "5.0", "role": "Gaussian-potential uniformity weight", "learnable": false},
+      {"name": "decorrelation_coeff", "value": "25.0", "role": "off-diagonal correlation weight", "learnable": false},
+      {"name": "t", "value": "2.0", "role": "Gaussian potential bandwidth", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces VICReg's MSE invariance + std-hinge with cosine invariance and a hyperspherical uniformity penalty (Wang & Isola style), then keeps a normalized off-diagonal-correlation decorrelation similar to Barlow Twins; never uses raw embeddings — always projects to the unit sphere.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "VICReg + cosine uniformity (HUR)",
+    "tagline": "Standard VICReg invariance/variance/covariance objective with an additional squared-cosine off-diagonal uniformity penalty on each view.",
+    "kind": "formula",
+    "formula": "$$U(z) = \\frac{1}{B(B-1)}\\sum_{i\\ne j} \\langle \\hat z_i, \\hat z_j\\rangle^2,\\quad \\hat z = z/\\|z\\|$$\n$$\\mathcal{L} = \\lambda_i\\mathrm{MSE}(z_1,z_2) + \\lambda_v V + \\lambda_c C + \\lambda_u\\,(U(z_1)+U(z_2))$$",
+    "key_hyperparams": [
+      {"name": "inv_weight", "value": "1.0", "role": "MSE invariance weight", "learnable": false},
+      {"name": "var_weight", "value": "1.0", "role": "variance hinge weight", "learnable": false},
+      {"name": "cov_weight", "value": "100.0", "role": "off-diagonal covariance weight", "learnable": false},
+      {"name": "uni_weight", "value": "100.0", "role": "squared-cosine uniformity weight", "learnable": false},
+      {"name": "var_margin", "value": "1.0", "role": "VICReg hinge margin", "learnable": false},
+      {"name": "temp", "value": "2.0", "role": "(unused) uniformity temperature", "learnable": false},
+      {"name": "proj_output_dim", "value": "1024", "role": "projector dim", "learnable": false}
+    ],
+    "init_recovers": "VICReg at λ_uni=0",
+    "diff_from_baseline": "Adds a squared-cosine pairwise uniformity penalty on top of the VICReg baseline; conceptually similar to SCD/HUR uniformity but kept on raw (unnormalized only inside the new term) embeddings, while VICReg's variance/covariance terms stay intact.",
+    "confidence": "high"
+  }
+]

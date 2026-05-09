@@ -1,0 +1,81 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Sparse-Cube + Strong WD + Up-scaled Init",
+    "tagline": "Train on the 2^K cube of secret bits with all non-secret features zeroed; Kaiming first-layer init scaled by sqrt(N/K); AdamW lr=0.01, wd=0.3.",
+    "kind": "pseudocode",
+    "pseudocode": "// init_model:\n// 1. W_1 ← Kaiming-normal(fan_in='relu'); W_1 *= sqrt(N/K); b_1 ← 0\n// 2. W_2 ← N(0, 1/sqrt(H)); b_2 ← 0   // does not depend on the secret\n// make_dataset:\n// 3. for each secret pattern $b \\in \\{0,1\\}^K$:\n// 4.   create rep = max(4, 4096/2^K) copies with x[secret idx] = b, x[non-secret] = 0\n// 5. y = parity(x; secret)            // returns ~4096 samples\n// optimizer:\n// 6. AdamW(lr=0.01, wd=0.3, betas=(0.9, 0.95))",
+    "key_hyperparams": [
+      {"name": "lr", "value": "0.01", "role": "AdamW learning rate (10x default)", "learnable": false},
+      {"name": "wd", "value": "0.3", "role": "AdamW weight decay (30x default) → drives non-secret W to 0", "learnable": false},
+      {"name": "beta1", "value": "0.9", "role": "Adam β₁", "learnable": false},
+      {"name": "beta2", "value": "0.95", "role": "Adam β₂", "learnable": false},
+      {"name": "first_layer_scale", "value": "sqrt(N/K)", "role": "compensates Kaiming for K active inputs", "learnable": false},
+      {"name": "data_size", "value": "max(4, 4096/2^K) * 2^K", "role": "exhaustive cube of secret patterns", "learnable": false},
+      {"name": "non_secret_features", "value": "fixed at 0", "role": "uses secret to mask out distractor bits", "learnable": false}
+    ],
+    "init_recovers": "default xavier+xavier init under uniform random data when scale=1 and wd=1e-2",
+    "diff_from_baseline": "Uses the secret to construct a 'feature isolation' dataset that zeros all non-secret features and enumerates the 2^K secret cube; couples this with Kaiming first-layer init scaled by sqrt(N/K) and AdamW lr/wd raised to 0.01/0.3 so non-secret weights decay to zero.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Cube + 80% Zero Background + Mild WD",
+    "tagline": "Enumerate secret cube on a 20k-example dataset with 80% zero-background / 20% random non-secret bits and 10% fully random; Kaiming init.",
+    "kind": "pseudocode",
+    "pseudocode": "// init_model:\n// 1. W_1 ← Kaiming-uniform('relu'); b_1 = 0.01 (avoid dead ReLU)\n// 2. W_2 ← Xavier(gain=0.1); b_2 = 0\n// make_dataset (target ~20k):\n// 3. enumerate $b \\in \\{0,1\\}^K$ × 'repeats' copies; y = parity(b)\n// 4. for each example draw bg ~ Bernoulli(0.8): if 1 → non-secret bits = 0, else random\n// 5. append 10% extra fully-random {0,1}^N examples with parity labels\n// 6. shuffle\n// optimizer:\n// 7. AdamW(lr=5e-4, wd=1e-3, betas=(0.9, 0.999))",
+    "key_hyperparams": [
+      {"name": "lr", "value": "5e-4", "role": "halved AdamW lr", "learnable": false},
+      {"name": "wd", "value": "1e-3", "role": "10x lower than default", "learnable": false},
+      {"name": "beta1", "value": "0.9", "role": "Adam β₁", "learnable": false},
+      {"name": "beta2", "value": "0.999", "role": "Adam β₂", "learnable": false},
+      {"name": "dataset_target", "value": "20000", "role": "moderate size for multi-epoch reuse", "learnable": false},
+      {"name": "p_zero_bg", "value": "0.8", "role": "fraction of cube examples with non-secret bits zeroed", "learnable": false},
+      {"name": "p_random_extra", "value": "0.1", "role": "fully-random {0,1}^N examples appended", "learnable": false},
+      {"name": "first_layer_bias_init", "value": "0.01", "role": "small positive bias to keep ReLU alive", "learnable": false},
+      {"name": "second_layer_gain", "value": "0.1", "role": "Xavier gain reduced", "learnable": false}
+    ],
+    "diff_from_baseline": "Combines the multi_epoch baseline's smaller dataset (here 20k) with a structured generator that enumerates the 2^K secret cube under an 80/20 zero-vs-random non-secret background and a 10% fully-random tail; tunes Kaiming first layer + small Xavier second layer and slightly lowers lr to 5e-4 with wd 1e-3.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Balanced Cube + Skewed (p=0.1) Mixture",
+    "tagline": "1M balanced cube samples + 2M heavily-skewed (p=0.1 on secret bits, 0 on non-secret) samples; Xavier with sqrt(N/32) gain.",
+    "kind": "pseudocode",
+    "pseudocode": "// init_model:\n// 1. gain_1 = sqrt(N/32) * sqrt(2); W_1 ← Xavier(gain_1); b_1 ~ N(0,1)\n// 2. W_2 ← Xavier(gain=1); b_2 = 0\n// make_dataset (size ~3M):\n// 3. unif: enumerate full $\\{0,1\\}^K$ cube × 4000 reps, fill non-secret bits randomly\n// 4. skew: draw 2.048M examples, secret bits Bernoulli(0.1), non-secret bits = 0\n// 5. concat unif and skew; y = parity(x; secret)\n// optimizer:\n// 6. AdamW(lr=5e-3, wd=2e-2, betas=(0.9, 0.999))",
+    "key_hyperparams": [
+      {"name": "lr", "value": "5e-3", "role": "5x default", "learnable": false},
+      {"name": "wd", "value": "2e-2", "role": "2x default", "learnable": false},
+      {"name": "beta1", "value": "0.9", "role": "Adam β₁", "learnable": false},
+      {"name": "beta2", "value": "0.999", "role": "Adam β₂", "learnable": false},
+      {"name": "uniform_repeats", "value": "4000", "role": "balanced cube replication (1M)", "learnable": false},
+      {"name": "skewed_size", "value": "2048000", "role": "heavily skewed examples to give gradient signal", "learnable": false},
+      {"name": "skewed_p", "value": "0.1", "role": "Bernoulli rate on secret bits in skewed set", "learnable": false},
+      {"name": "first_layer_gain", "value": "sqrt(N/32) * sqrt(2)", "role": "Xavier gain scaled to N=32 reference", "learnable": false},
+      {"name": "first_layer_bias_init", "value": "N(0,1)", "role": "non-zero bias to break ReLU symmetry", "learnable": false}
+    ],
+    "diff_from_baseline": "Uses the secret only inside make_dataset to build a balanced 2^K-cube subset (1M) plus a skewed 2M subset where secret bits are Bernoulli(0.1) and non-secret bits zero; init scales first layer by sqrt(N/32)*sqrt(2) and uses N(0,1) bias; AdamW lr/wd bumped to 5e-3 / 2e-2.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Antithetic Init + Cube + Anchored Nuisances",
+    "tagline": "Antithetic ±W initialization with biases set so all ReLUs are open at zero, dataset = secret cube × small set of (zero, all-ones, e_i) non-secret anchors.",
+    "kind": "pseudocode",
+    "pseudocode": "// init_model:\n// 1. base ~ N(0, 0.25/sqrt(N)) of size H/2 x N\n// 2. W_1 = [base; -base]   // antithetic pairs (mean 0 by construction)\n// 3. b_1 = 0.10 - 0.5 * sum_j W_{1,ij}        // ReLU 'open at x=0'\n// 4. W_2 ~ N(0, 1/sqrt(H)); b_2 = 0\n// make_dataset:\n// 5. enumerate $b \\in \\{0,1\\}^K$ secret-bit cube; y = parity(b)\n// 6. anchors over the d non-secret coords: row 0 = 0, row 1 = 1, rows 2.. = e_1..e_d\n// 7. cross product: rep cube_pattern × anchor; total = (d+2) * 2^K rows\n// optimizer:\n// 8. AdamW(lr=2e-3, wd=1e-2, betas=(0.9, 0.99))",
+    "key_hyperparams": [
+      {"name": "lr", "value": "2e-3", "role": "2x default", "learnable": false},
+      {"name": "wd", "value": "1e-2", "role": "default", "learnable": false},
+      {"name": "beta1", "value": "0.9", "role": "Adam β₁", "learnable": false},
+      {"name": "beta2", "value": "0.99", "role": "Adam β₂ (lower than default)", "learnable": false},
+      {"name": "init_std", "value": "0.25/sqrt(N)", "role": "small antithetic Gaussian for W_1", "learnable": false},
+      {"name": "antithetic_pairs", "value": "H/2", "role": "stack base and -base for variance balance", "learnable": false},
+      {"name": "bias_init_rule", "value": "0.10 - 0.5 * sum_j W_1[i,j]", "role": "ReLU open at zero", "learnable": false},
+      {"name": "second_layer_std", "value": "1/sqrt(H)", "role": "small output projection", "learnable": false},
+      {"name": "anchors", "value": "{0, 1, e_1, ..., e_d}", "role": "low-complexity nuisance interventions", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces Xavier with antithetic ±W_1 pairs of std 0.25/sqrt(N) and a bias rule that pre-activates every ReLU at zero; replaces random data with the cross product of the 2^K secret cube and a (d+2)-row anchor set on non-secret bits (zero, all-ones, single-bit e_i); AdamW lr=2e-3, β₂=0.99.",
+    "confidence": "high"
+  }
+]

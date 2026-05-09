@@ -1,0 +1,74 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Resolution-Tuned Cross-Attn",
+    "tagline": "Pure cross-attention conditioning with 8 heads at large channel counts and 4 heads at small ones; no time-path coupling.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. emb $\\leftarrow$ time_emb (class info NOT added to time)\n// 2. for each block with channels $C$:\n// 3.   $H_{\\text{heads}} = 8$ if $C \\geq 128$ else $4$\n// 4.   $h \\leftarrow h + W_o\\,\\mathrm{Attn}(W_q\\,\\mathrm{GN}(h),\\,W_k\\,c,\\,W_v\\,c)$\n// 5. (out_proj zero-init keeps initial conditioning at zero)",
+    "key_hyperparams": [
+      {"name": "num_heads", "value": "8 if channels>=128 else 4", "role": "more heads at higher capacity blocks", "learnable": false},
+      {"name": "out_proj init", "value": "0", "role": "zero-init residual", "learnable": true}
+    ],
+    "init_recovers": "cross-attn baseline (with default heads=4 case)",
+    "diff_from_baseline": "Same cross-attention conditioning as the cross-attn baseline, but doubles head count from 4 to 8 in blocks with channels >= 128.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Self-Gated AdaLN-Zero + Time Add",
+    "tagline": "AdaLN-Zero modulation gated by a per-channel sigmoid computed from the feature map itself, on top of a concat-FiLM time path.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{emb} = \\mathrm{temb} + c$$\n$$y = \\mathrm{AdaLN\\text{-}Zero}(h, c)$$\n$$g = \\sigma\\bigl(W_g\\,\\mathrm{GAP}(h)\\bigr) \\in [0,1]^{B\\times C\\times 1\\times 1}$$\n$$h' = h + g \\odot (y - h)$$",
+    "key_hyperparams": [
+      {"name": "self_gate conv", "value": "1x1, zero-init", "role": "per-channel gate on AdaLN delta; sigmoid(0)=0.5 at start", "learnable": true},
+      {"name": "AdaLN proj", "value": "Linear(D->3C) zero-init", "role": "scale/shift/gate from class emb", "learnable": true}
+    ],
+    "init_recovers": "concat-FiLM at init (AdaLN gate is zero)",
+    "diff_from_baseline": "Combines concat-FiLM time injection with AdaNorm baseline, then multiplies the AdaLN residual delta by an additional spatial-pooled feature-derived sigmoid gate (data-dependent on h, not just the class embedding).",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "GroupNorm FiLM + Zero Conv",
+    "tagline": "Per-block GN + FiLM (scale/shift from class) followed by SiLU and a zero-initialized 1x1 conv residual; no time-path coupling.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{emb} = \\mathrm{temb}$$\n$$[\\gamma,\\beta] = W\\,\\mathrm{SiLU}(c),\\quad x = (1+\\gamma)\\odot \\mathrm{GN}(h) + \\beta$$\n$$h' = h + W_{\\text{out}}\\,\\mathrm{SiLU}(x),\\ \\ W_{\\text{out}}\\text{ zero-init}$$",
+    "key_hyperparams": [
+      {"name": "proj", "value": "Linear(D->2C) zero-init", "role": "produces scale and shift", "learnable": true},
+      {"name": "out_proj", "value": "Conv2d(C,C,1) zero-init", "role": "post-modulation residual projection", "learnable": true},
+      {"name": "GroupNorm groups", "value": "32", "role": "normalization granularity", "learnable": false}
+    ],
+    "init_recovers": "Identity at init (no class signal)",
+    "diff_from_baseline": "Like AdaNorm baseline but uses GroupNorm(32) instead of GroupNorm(1), drops the per-block gate path, and adds an explicit SiLU + zero-init 1x1 conv residual after FiLM modulation.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Orthogonal Class Add + AdaLN-Zero",
+    "tagline": "Time path receives only the class component orthogonal to time_emb (scaled by 0.35); spatial path uses AdaLN-Zero modulation.",
+    "kind": "formula",
+    "formula": "$$\\hat{t} = \\frac{t}{\\Vert t\\Vert+\\epsilon},\\quad c_\\perp = c - (c\\cdot \\hat{t})\\,\\hat{t}$$\n$$\\mathrm{emb} = t + 0.35\\,\\frac{c_\\perp}{\\Vert c_\\perp\\Vert+\\epsilon}$$\n$$[\\gamma,\\beta,g] = W_p\\,\\mathrm{SiLU}(c),\\ \\ \\hat{h} = (1+\\gamma)\\,\\mathrm{GN}(h) + \\beta$$\n$$h' = h + g\\odot(\\hat{h} - h)$$",
+    "key_hyperparams": [
+      {"name": "alpha", "value": "0.35", "role": "scale on the orthogonal class direction added to temb", "learnable": false},
+      {"name": "epsilon", "value": "1e-6", "role": "norm stabilizer", "learnable": false},
+      {"name": "proj", "value": "Linear(D->3C) zero-init", "role": "AdaLN scale/shift/gate", "learnable": true}
+    ],
+    "init_recovers": "AdaLN-Zero at init for the spatial path",
+    "diff_from_baseline": "Hybrid of concat-FiLM and adanorm baselines: instead of plain emb=t+c, projects class emb onto the unit-vector orthogonal to t, normalizes, scales by 0.35, then adds; the spatial conditioner is exactly AdaLN-Zero.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Concat-FiLM + Cross-Attn (Hybrid)",
+    "tagline": "Adds class to time embedding (concat-FiLM) and additionally cross-attends features to class as key/value after every block.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. $\\mathrm{emb} \\leftarrow t + c$\n// 2. for each UNet block:\n// 3.   $h \\leftarrow \\mathrm{Block}(h,\\,\\mathrm{emb})$ // FiLM via temb\n// 4.   $h \\leftarrow h + W_o\\,\\mathrm{CrossAttn}(W_q\\,\\mathrm{GN}(h),\\,W_k\\,c,\\,W_v\\,c)$\n// 5. heads $=4$, out_proj zero-init",
+    "key_hyperparams": [
+      {"name": "num_heads", "value": "4", "role": "cross-attention heads", "learnable": false},
+      {"name": "out_proj init", "value": "0", "role": "residual zero-init", "learnable": true}
+    ],
+    "init_recovers": "concat-FiLM baseline at init",
+    "diff_from_baseline": "Strict superposition of two baselines: concat-FiLM in the time path AND cross-attn in every spatial block. Identical per-block components to those baselines, just stacked.",
+    "confidence": "high"
+  }
+]

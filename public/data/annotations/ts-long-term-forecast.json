@@ -1,0 +1,133 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "FC-DLinear (DLinear + freq MLP)",
+    "tagline": "RevIN-normalised DLinear backbone with a zero-initialised 2-layer GELU MLP correction in the rFFT domain (concat real/imag → MLP → reconstruct → IFFT to pred_len).",
+    "kind": "hybrid",
+    "formula": "$$\\hat y=\\hat y_{\\text{DLinear}}+\\mathrm{IFFT}\\!\\Big[\\mathrm{cplx}\\big(\\mathrm{MLP}_{\\text{GELU}}([\\Re(\\mathrm{FFT}\\,x),\\Im(\\mathrm{FFT}\\,x)])\\big)\\Big]$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "RevIN(x)"},
+        {"id": "dec", "label": "moving-avg decomp"},
+        {"id": "lin", "label": "trend / season Linears"},
+        {"id": "fft", "label": "rFFT"},
+        {"id": "mlp", "label": "MLP(GELU) [Re, Im]"},
+        {"id": "ifft", "label": "IFFT to pred_len"},
+        {"id": "out", "label": "+ correction → DeRevIN"}
+      ],
+      "edges": [
+        {"from": "x", "to": "dec"},
+        {"from": "dec", "to": "lin"},
+        {"from": "lin", "to": "out"},
+        {"from": "x", "to": "fft"},
+        {"from": "fft", "to": "mlp"},
+        {"from": "mlp", "to": "ifft"},
+        {"from": "ifft", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "moving_avg kernel", "value": "25", "role": "DLinear decomposition window", "learnable": false},
+      {"name": "freq MLP hidden", "value": "n_freq_in (= L/2 + 1)", "role": "GELU layer width", "learnable": false},
+      {"name": "freq MLP output init", "value": "zeros", "role": "starts as exact DLinear+RevIN", "learnable": true},
+      {"name": "freq bins out", "value": "pred_len/2 + 1", "role": "rFFT bins reconstructed", "learnable": false},
+      {"name": "channel mode", "value": "channel-independent", "role": "shared linears across channels", "learnable": false}
+    ],
+    "init_recovers": "DLinear + RevIN at initialisation",
+    "diff_from_baseline": "Adds a non-linear cross-frequency residual MLP on top of DLinear + RevIN with zero-init so it begins as the DLinear baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Multi-scale decomp + transformer/linear fusion",
+    "tagline": "Series_decomp_multi (k=3,5,7,11) splits into seasonal+trend; seasonal goes through a DataEmbedding + standard Transformer encoder, trend through a DLinear projection, fused by learnable scalar weights.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Norm(x)"},
+        {"id": "dec", "label": "decomp_multi (3/5/7/11)"},
+        {"id": "season", "label": "mean → DataEmb → Encoder"},
+        {"id": "trend", "label": "mean → Linear(L→H)"},
+        {"id": "sproj", "label": "Linear(L→H) (d_model)"},
+        {"id": "head", "label": "Linear(d_model → c_out)"},
+        {"id": "fuse", "label": "w_s·ŷ_s + w_t·ŷ_t"},
+        {"id": "out", "label": "DeNorm"}
+      ],
+      "edges": [
+        {"from": "x", "to": "dec"},
+        {"from": "dec", "to": "season"},
+        {"from": "dec", "to": "trend"},
+        {"from": "season", "to": "sproj"},
+        {"from": "sproj", "to": "head"},
+        {"from": "head", "to": "fuse"},
+        {"from": "trend", "to": "fuse"},
+        {"from": "fuse", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "decomp kernels", "value": "[3, 5, 7, 11]", "role": "multi-scale moving averages", "learnable": false},
+      {"name": "encoder layers", "value": "configs.e_layers", "role": "transformer depth on seasonal", "learnable": false},
+      {"name": "trend init", "value": "1/L mean weights", "role": "DLinear-style trend projection init", "learnable": true},
+      {"name": "fusion weights", "value": "ones(1) per branch", "role": "scalar adaptive seasonal/trend mix", "learnable": true},
+      {"name": "embedding", "value": "DataEmbedding(timeF)", "role": "time-feature aware embedding for seasonal", "learnable": false}
+    ],
+    "init_recovers": "Equal-weighted seasonal-transformer + DLinear-trend forecast",
+    "diff_from_baseline": "Replaces single-kernel decomposition with multi-kernel mean (k=3,5,7,11) and combines a Transformer-encoder seasonal branch with a DLinear-trend branch via learnable scalar fusion weights.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "FCM-RLinear (DLinear + freq channel mix)",
+    "tagline": "RevIN + DLinear with an additional zero-initialised cross-channel mixing of the top-k seasonal Fourier modes via complex per-mode matrices.",
+    "kind": "hybrid",
+    "formula": "$$\\tilde S_k=S_k+\\sum_{c'} W^{(k)}_{c',c}\\,S_{k,c'},\\;k=0..K-1,\\;\\hat y=\\mathrm{Linear}_{\\text{season}}(\\mathrm{IFFT}(\\tilde S))+\\mathrm{Linear}_{\\text{trend}}(T)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "RevIN(x)"},
+        {"id": "dec", "label": "moving-avg decomp"},
+        {"id": "fft", "label": "rFFT(season)"},
+        {"id": "mix", "label": "Σ W^{(k)}·S_k (top-k)"},
+        {"id": "ifft", "label": "IFFT"},
+        {"id": "linseason", "label": "Linear season (L→H)"},
+        {"id": "lintrend", "label": "Linear trend (L→H)"},
+        {"id": "out", "label": "+ DeRevIN"}
+      ],
+      "edges": [
+        {"from": "x", "to": "dec"},
+        {"from": "dec", "to": "fft"},
+        {"from": "fft", "to": "mix"},
+        {"from": "mix", "to": "ifft"},
+        {"from": "ifft", "to": "linseason"},
+        {"from": "dec", "to": "lintrend"},
+        {"from": "linseason", "to": "out"},
+        {"from": "lintrend", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "K (modes)", "value": "min(L/2+1, 16)", "role": "low-frequency modes mixed cross-channel", "learnable": false},
+      {"name": "moving_avg", "value": "25", "role": "DLinear kernel", "learnable": false},
+      {"name": "freq_mix_seasonal", "value": "zeros(K, C, C, cfloat)", "role": "complex cross-channel matrices per mode (zero-init)", "learnable": true},
+      {"name": "linear init", "value": "1/L mean weights", "role": "DLinear init for both branches", "learnable": true}
+    ],
+    "init_recovers": "DLinear + RevIN at initialisation (zero freq mix)",
+    "diff_from_baseline": "Adds K complex cross-channel mixing matrices on the top-K seasonal Fourier modes; trend stays per-channel; init exactly equals DLinear+RevIN.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Dual-anchor multi-branch linear",
+    "tagline": "Channel-wise linear forecaster with three normalisation anchors (level/global/bridge) plus a short-window difference branch, fused by a softmax gate over six per-variable motion statistics and a convex persistence/linear-trend anchor.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Normalise: $x^{\\text{lvl}}=(x-x_L)/\\sigma$, bridge $b(t)=x_1+(x_L-x_1)\\,t$, $x^{\\text{br}}=(x-b)/\\sigma$. Smooth $s=\\text{MA}_{25}(x^{\\text{lvl}})$, global residual $r=x^{\\text{lvl}}-s$.\n// 2. Compute four pred-len projections (per channel, 1/L init):\n//    a. local: Linear$(x^{\\text{lvl}}_{-L_s:})$ with $L_s=\\max(8,L/4)$.\n//    b. global: Linear$(r)$.\n//    c. bridge: Linear$(x^{\\text{br}})$.\n//    d. diff: Linear of first differences of the local window.\n// 3. Build six per-channel statistics (recent vol, long vol, trend magnitude, mean shift, acceleration, endpoint gap).\n// 4. Gate: $\\text{softmax}(\\text{Linear}_6 \\to 3\\cdot H)$ → per-step three-branch weights; amplitude $1+0.1\\tanh(\\text{Linear}_6 \\to H)$.\n// 5. Anchor mix: $\\sigma(1.5(\\text{trend\\_mag}/\\text{long\\_vol}-1))$ blends persistence $x_L$ with future bridge.\n// 6. $\\hat y=(g_0(local+0.5\\,diff)+g_1\\,global+g_2\\,bridge)\\cdot\\sigma\\cdot\\text{amp}+\\text{anchor}$.",
+    "key_hyperparams": [
+      {"name": "short_len L_s", "value": "max(8, L/4)", "role": "local window length", "learnable": false},
+      {"name": "moving-avg kernel", "value": "25 (or L if L<25)", "role": "global trend smoothing", "learnable": false},
+      {"name": "branches", "value": "local, global, bridge, diff", "role": "linear forecasters under different anchors", "learnable": true},
+      {"name": "stats dim", "value": "6", "role": "per-variable motion descriptors fed to gate", "learnable": false},
+      {"name": "amplitude scale", "value": "1 + 0.1·tanh(Linear)", "role": "horizon-wise amplitude modulation", "learnable": true},
+      {"name": "anchor switch", "value": "σ(1.5·(trend/long_vol − 1))", "role": "convex blend of persistence vs. linear trend", "learnable": false}
+    ],
+    "init_recovers": "Persistence (x_L) + uniform-mean linear DLinear-style branches when gate is uniform",
+    "diff_from_baseline": "Replaces DLinear's single normalisation+season/trend split with three anchor-normalised linear branches plus a differencing branch, fused by per-step softmax over six channel-wise motion statistics and a convex persistence/bridge anchor.",
+    "confidence": "high"
+  }
+]

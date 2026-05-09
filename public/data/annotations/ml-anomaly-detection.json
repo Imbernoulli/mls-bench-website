@@ -1,0 +1,87 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Diversity-weighted rank-fusion ensemble",
+    "tagline": "Ten detectors (3 IForests + 3 KNNs + HBOS + COPOD + LODA + PCA) reduced to per-detector ranks; weights $\\propto 1/\\bar c_i$ from rank correlations.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. fit detectors $\\{m_1, \\ldots, m_K\\}$ from {IForest$\\times$3, KNN$\\times$3, HBOS, COPOD, LODA, PCA}\n// 2. for each $m_k$:  $s_k(X) \\leftarrow m_k.\\text{decision}(X)$;  store sorted train scores\n// 3. ranks $r_k(x) = \\text{searchsorted}(s_k^{sorted}, s_k(x))/(n+1)$\n// 4. compute pairwise correlation $C_{ij} = |\\mathrm{corr}(r_i, r_j)|$ on train\n// 5. $\\bar c_k = (\\sum_j C_{kj} - 1)/(K - 1)$;  $w_k \\propto 1/(\\bar c_k + 0.1)$;  normalize $\\sum w_k = 1$\n// 6. consensus $= \\sum_k w_k r_k(x)^2$;  sensitivity $= \\max_k r_k(x)$\n// 7. score $= 0.7\\,\\text{consensus} + 0.3\\,\\text{sensitivity}$",
+    "key_hyperparams": [
+      {"name": "fusion mix", "value": "0.7 / 0.3 (consensus / max-rank)", "role": "blend of weighted-quadratic vs OR-style fusion", "learnable": false},
+      {"name": "$\\rho$ floor", "value": "0.1", "role": "diversity-weight regularizer", "learnable": false},
+      {"name": "IForest set", "value": "n_est={300,200,100}, max_samples={n,256,512}, seed={42,7,13}", "role": "diverse IForest configs", "learnable": false},
+      {"name": "KNN set", "value": "k=5/largest, k=20/mean, k=min(50,n/10)/largest", "role": "diverse KNN configs", "learnable": false}
+    ],
+    "init_recovers": "Equal-weight rank average if $\\bar c_k$ all equal",
+    "diff_from_baseline": "Goes beyond a single PyOD detector by stacking 10 diverse detectors and reweighting them by inverse rank correlation; final score combines a weighted quadratic-rank consensus with a max-rank sensitivity term.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Feature-stat adaptive IF/COPOD/KNN",
+    "tagline": "Compute mean $|\\rho|$ and $|\\gamma|$ of $X$, then weight IForest, COPOD, k-NN accordingly and fuse robust z-scores via element-wise max.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. fit IForest, COPOD, KNN with $k = \\min(20, \\sqrt{n})$\n// 2. $\\rho \\leftarrow \\overline{|\\mathrm{corr}(X)|_{i\\ne j}}$;  $\\gamma \\leftarrow \\overline{|\\mathrm{skew}(X_{:,j})|}$;  $\\hat\\gamma = \\min(\\gamma/5, 1)$\n// 3. $w_{cop} = \\rho$;  $w_{iso} = (1-\\rho)(1-\\hat\\gamma)$;  $w_{knn} = \\hat\\gamma$;  normalize $\\sum w = 1$\n// 4. for each detector $d$:  $\\mu_d, \\mathrm{IQR}_d \\leftarrow$ median, IQR of $d.\\text{decision}(X)$\n// 5. at decode:  $z_d(x) = (d.\\text{decision}(x) - \\mu_d)/\\mathrm{IQR}_d$\n// 6. score $= \\max\\big(w_{iso} z_{iso}, w_{cop} z_{cop}, w_{knn} z_{knn}\\big)$",
+    "key_hyperparams": [
+      {"name": "$\\hat\\gamma$ cap", "value": "5", "role": "skewness normalization", "learnable": false},
+      {"name": "$k$ for KNN", "value": "$\\min(20, \\sqrt{n})$", "role": "adaptive neighbor count", "learnable": false},
+      {"name": "fallback weights", "value": "1/3 each", "role": "if $w$ collapses to 0", "learnable": false},
+      {"name": "PyOD contamination", "value": "0.1", "role": "default in IF/COPOD/KNN", "learnable": false}
+    ],
+    "init_recovers": "Equal-weight max-fused z-scores if $\\rho = \\gamma = 0$",
+    "diff_from_baseline": "Adds a data-driven weighting on top of a 3-detector (IF/COPOD/KNN) ensemble using only feature-correlation and feature-skewness statistics, and fuses robust median/IQR-normalized scores by element-wise max.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Train-rank ensemble of IF + ECOD + COPOD",
+    "tagline": "Convert each detector's test scores to its empirical training-rank in $[0,1]$, then combine rank-mean and rank-max as the final anomaly score.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. fit $K=3$ models: IForest(n_est=200), ECOD(), COPOD()\n// 2. for each model $m_k$:  $s_k^{train} \\leftarrow m_k.\\text{decision}(X_{train})$;  store $\\mathrm{sort}(s_k^{train})$\n// 3. at decode:\n// 4.   $r_k(x) = \\mathrm{searchsorted}(\\mathrm{sort}(s_k^{train}),\\, m_k.\\text{decision}(x))/n_{train}$\n// 5.   consensus $= \\overline{r_k}$;  $r_{max} = \\max_k r_k$\n// 6.   score $= (\\text{consensus} + r_{max})/2$",
+    "key_hyperparams": [
+      {"name": "models", "value": "IForest(n_est=200, seed=42), ECOD(), COPOD()", "role": "fixed three-model ensemble", "learnable": false},
+      {"name": "fusion", "value": "$(\\overline{r} + \\max r)/2$", "role": "rank-average + rank-max blend", "learnable": false}
+    ],
+    "init_recovers": "Pure rank-mean if max-rank component is dropped",
+    "diff_from_baseline": "Stacks 3 PyOD detectors via train-empirical rank conversion (search-sort against sorted train scores) and combines the average and max rank, instead of using one detector alone.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Purified copula tail-contrast ensemble",
+    "tagline": "Map features through train ECDF, peel a low-tail core, then combine sparse-vs-dense tail, neighborhood tail-gap, Mahalanobis, PCA-residual and IForest via reliability-weighted z-scores.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. compute per-feature ECDF on train; $U = F(X) \\in [\\epsilon, 1{-}\\epsilon]$;  $Z = \\Phi^{-1}(U)$\n// 2. tail$(U)$: $T_s$ = mean of top-$r$ $|\\log U|$ entries, $T_d$ = $\\overline{|\\log U|}$;  tail $= 0.65 T_s + 0.35 T_d$;  conc $= T_s/T_d$\n// 3. seed $= 0.55\\,\\text{tail} + 0.25\\max|Z| + 0.20\\overline{Z^2}$\n// 4. iterate $\\le 2$ rounds: keep $80 - 4\\log(d)$th percentile by seed as core; fit on core: $k_{small/large}$-NN radii, $\\mu, \\Sigma^{-1}$ (LedoitWolf), PCA(.85 var), IForest($Z$) and IForest($X$)\n// 5. parts vector: [tail, max(0, (tail $-$ neighbor median tail)/MAD), local-NN ratio, $\\Delta z^\\top \\Sigma^{-1} \\Delta z$, $\\overline{(Z - \\mathrm{recon})^2}$, $\\max($IForest$_Z$, IForest$_X)$]\n// 6. robust $z = \\mathrm{clip}(($parts$ - \\tilde\\mu)/(1.4826\\,\\mathrm{MAD}), -5, 20)$;  weight by core-vs-full $P_{95}/P_{80}$ contrast\n// 7. gate $= \\sigma(2.5(\\text{conc} - \\text{conc}_{ref})/\\text{MAD})$;  score $= (1-\\text{gate})\\,\\text{diffuse} + \\text{gate}\\,\\text{sparse} + 0.10\\max z$",
+    "key_hyperparams": [
+      {"name": "keep_pct", "value": "$\\mathrm{clip}(80 - 4\\log(1+d), 64, 78)$", "role": "core purification percentile", "learnable": false},
+      {"name": "core iters", "value": "2", "role": "self-purification rounds", "learnable": false},
+      {"name": "$k_{small}, k_{large}$", "value": "$\\mathrm{clip}(2.5\\log(1+n_c)+4, 6, 20)$ / $(5\\log(1+n_c)+6, 12, 40)$", "role": "two-scale NN radii", "learnable": false},
+      {"name": "ECDF $\\epsilon$", "value": "1e-4", "role": "tail clip", "learnable": false},
+      {"name": "PCA energy", "value": "0.85", "role": "variance kept in residual model", "learnable": false},
+      {"name": "weight floor", "value": "0.25", "role": "min reliability weight per part", "learnable": false},
+      {"name": "gate sigmoid slope", "value": "2.5", "role": "sparse-vs-diffuse switch", "learnable": false},
+      {"name": "max-z bonus", "value": "0.10", "role": "winner-take-all add-on", "learnable": false},
+      {"name": "fallback", "value": "IForest(n_est=200)", "role": "used if pipeline fails", "learnable": false}
+    ],
+    "init_recovers": "Plain IForest fallback when core iteration fails",
+    "diff_from_baseline": "Far beyond a single PyOD baseline: builds a 6-component, copula-domain, self-purified core ensemble with neighborhood tail-contrast, Mahalanobis, PCA-residual, two IForests and concentration-gated convex combination of `sparse' vs `diffuse' anomaly heads.",
+    "confidence": "medium"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "DARE: rank ensemble + GMM density",
+    "tagline": "Rank-fuse ECOD, IForest, COPOD and PCA-space negative GMM log-likelihood, weighted by dataset size and consensus correlation, with a top-half harmonic-mean boost.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. fit ECOD, IForest($n_{tr}$=$\\min$(300,$n$/5), max_samples=$\\min$(256,$n$/4)), COPOD, and GMM on PCA($X$)\n// 2. base weights $w$ by size: $n>5000:\\,[.20,.40,.20,.20]$;  $n>2000:\\,[.25,.30,.25,.20]$;  else $[.30,.25,.30,.15]$\n// 3. on train: compute ranks $r_k$;  consensus $= \\overline{r_k}$;  $w_k \\leftarrow w_k\\,(0.5 + 0.5\\,\\mathrm{corr}(r_k, \\text{consensus}))$;  normalize\n// 4. at decode:  scores $\\to$ ranks $r_k(x)$\n// 5.   weighted_rank $= \\sum_k w_k r_k(x)$\n// 6.   above_med$_k = r_k > 0.5$;  $\\mathrm{HM} = (\\sum 1/r_k\\text{ over above-med}) ^{-1} \\times |\\text{above-med}|$;  normalize HM to [0,1]\n// 7.   score $= $ weighted_rank $+ 0.15\\,\\mathrm{HM}$",
+    "key_hyperparams": [
+      {"name": "size buckets", "value": ">5000 / >2000 / else", "role": "size-based base weights", "learnable": false},
+      {"name": "weight refinement", "value": "$0.5 + 0.5\\,\\mathrm{corr}$", "role": "rescale by consensus agreement", "learnable": false},
+      {"name": "above-median cutoff", "value": "0.5", "role": "filter for harmonic-mean boost", "learnable": false},
+      {"name": "HM weight", "value": "0.15", "role": "agreement-boost coefficient", "learnable": false},
+      {"name": "PCA dim", "value": "$\\min(\\max(2, d/2), d)$", "role": "GMM input dimension", "learnable": false},
+      {"name": "GMM components", "value": "$\\min(\\max(2, n/50), 20)$", "role": "mixture order", "learnable": false}
+    ],
+    "init_recovers": "Equal-weight rank-mean if size buckets and HM boost are removed",
+    "diff_from_baseline": "Combines ECOD/IForest/COPOD with a multi-component GMM density head in PCA space, applying size-bucketed base weights, consensus-corr rescaling, and a top-half harmonic-mean agreement boost.",
+    "confidence": "high"
+  }
+]

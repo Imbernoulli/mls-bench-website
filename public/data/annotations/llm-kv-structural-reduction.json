@@ -1,0 +1,197 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "GLA-DPV: 2-group MLA + dual-path V",
+    "tagline": "MLA with two independent KV latent groups and a per-head sigmoid-gated dual value path mixing the standard up-projection with a direct latent-to-value projection.",
+    "kind": "hybrid",
+    "formula": "$$v_h = (1-g_h)\\,V_b^{(g)}\\!\\big(\\mathrm{RMS}(z_g)\\big)_h + g_h\\,V_d^{(g)}\\!\\big(\\mathrm{RMS}(z_g)\\big)_h,\\;\\;g_h=\\sigma(\\theta_h)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x"},
+        {"id": "qa", "label": "Q LoRA + RMS"},
+        {"id": "kv", "label": "kv_a_proj -> 2 latents + k_rope"},
+        {"id": "norm", "label": "per-group RMSNorm"},
+        {"id": "vb", "label": "kv_b (k_nope, v_main)"},
+        {"id": "vd", "label": "v_dual proj"},
+        {"id": "mix", "label": "sigmoid gate g_h"},
+        {"id": "rope", "label": "+ RoPE rope-slice"},
+        {"id": "y", "label": "SDPA -> o_proj"}
+      ],
+      "edges": [
+        {"from": "x", "to": "qa"},
+        {"from": "x", "to": "kv"},
+        {"from": "kv", "to": "norm"},
+        {"from": "norm", "to": "vb"},
+        {"from": "norm", "to": "vd"},
+        {"from": "vb", "to": "mix"},
+        {"from": "vd", "to": "mix"},
+        {"from": "qa", "to": "rope"},
+        {"from": "kv", "to": "rope"},
+        {"from": "mix", "to": "y"},
+        {"from": "rope", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "n_kv_groups", "value": "2", "role": "independent latent KV groups", "learnable": false},
+      {"name": "heads_per_group", "value": "n_head/2", "role": "queries served by each group", "learnable": false},
+      {"name": "kv_lora_rank", "value": "head_dim", "role": "rank per group (vs head_dim/2 in MLA)", "learnable": false},
+      {"name": "qk_rope_head_dim", "value": "min(64, head_dim) clamped to even >= 16", "role": "shared rotary slice", "learnable": false},
+      {"name": "q_lora_rank", "value": "min(n_embd, 12*head_dim)", "role": "query bottleneck", "learnable": false},
+      {"name": "v_dual_gate", "value": "zeros(n_head)", "role": "per-head sigmoid gate between v_main and v_dual", "learnable": true}
+    ],
+    "init_recovers": "MLA baseline when n_kv_groups=1 and v_dual_gate -> -inf",
+    "diff_from_baseline": "Replaces MLA's single latent stream with two independent latent groups (each of rank head_dim, half the heads) and adds a per-head sigmoid gate that interpolates between the standard up-projected value and a direct lightweight v_dual projection of the latent; query path, RoPE handling, and o_proj are unchanged from the MLA baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "MLA + alternating-layer KV reuse",
+    "tagline": "MLA backbone where odd layers reuse the previous even layer's latent KV (cross-layer sharing) instead of computing their own.",
+    "kind": "hybrid",
+    "formula": "$$\\text{layer}\\;\\ell:\\;\\;z_\\ell = \\begin{cases}\\mathrm{RMS}\\!\\big(W_a^{kv}x\\big), & \\ell\\;\\text{even}\\\\[2pt] z_{\\ell-1}, & \\ell\\;\\text{odd}\\end{cases};\\quad (k,v)_\\ell = \\mathrm{Split}(W_b^{kv}z_\\ell)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x"},
+        {"id": "even", "label": "even layer: kv_a + RMS -> cache"},
+        {"id": "odd", "label": "odd layer: pop cache (no new KV)"},
+        {"id": "kvb", "label": "kv_b -> (k_nope, v)"},
+        {"id": "rope", "label": "RoPE on rope-slice"},
+        {"id": "y", "label": "SDPA -> o_proj"}
+      ],
+      "edges": [
+        {"from": "x", "to": "even"},
+        {"from": "even", "to": "kvb"},
+        {"from": "odd", "to": "kvb"},
+        {"from": "kvb", "to": "y"},
+        {"from": "x", "to": "rope"},
+        {"from": "rope", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "cross_layer_share", "value": "layer_idx % 2 != 0", "role": "odd layers reuse previous even layer's latent", "learnable": false},
+      {"name": "kv_lora_rank", "value": "head_dim*2 (declared); recomputed to int(head_dim*1.5) on the share branch", "role": "latent rank", "learnable": false},
+      {"name": "qk_rope_head_dim", "value": "max(16, head_dim//2) clamped to even", "role": "rotary slice", "learnable": false},
+      {"name": "q_lora_rank", "value": "min(n_embd, 12*head_dim)", "role": "query bottleneck", "learnable": false},
+      {"name": "_shared_kv_cache", "value": "class dict popped per forward", "role": "passes (kv_latent, k_rot) to next odd layer", "learnable": false}
+    ],
+    "init_recovers": "MLA baseline when cross_layer_share returns False",
+    "diff_from_baseline": "Adds cross-layer KV sharing on top of MLA: odd layers skip kv_a_proj and reuse the previous even layer's (kv_latent, k_rot) via a class-level dict, halving realized KV storage; storage_ratio is reported as 0 for reused layers. NOTE: the editable region contains a syntax error (a stray dedented assignment around line 110 plus a missing nn.Linear name), so the file would not import as-is.",
+    "confidence": "medium"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Depth-aware grouped latent KV",
+    "tagline": "n_head/2 KV groups with a depth-decayed latent rank, sigmoid intra-group gates, learnable head/skip biases, and a layer-anchored latent.",
+    "kind": "hybrid",
+    "formula": "$$z_\\ell = W_a^{kv}x + \\tfrac{\\ell+1}{L}\\,a_{\\mathrm{anchor}},\\;\\;k=g\\odot k + (1-g)\\,k_{\\mathrm{skip}},\\;\\;v=g\\odot v + (1-g)\\,\\bar v$$ $$r_\\ell = \\begin{cases}\\,\\mathrm{head\\_dim}/2, & (\\ell+1)/L \\le 1/2\\\\ \\,\\mathrm{head\\_dim}/4, & \\text{else}\\end{cases},\\quad g=\\sigma(\\theta)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x"},
+        {"id": "q", "label": "Q proj * q_group_gain"},
+        {"id": "lat", "label": "kv_a -> n_kv_head x r_ell + anchor"},
+        {"id": "share", "label": "(optional) reuse cached latent"},
+        {"id": "kvb", "label": "kv_b -> 2*group_size*head_dim"},
+        {"id": "gate", "label": "sigmoid kv_gate + kv_skip + mean V"},
+        {"id": "y", "label": "SDPA -> c_proj"}
+      ],
+      "edges": [
+        {"from": "x", "to": "q"},
+        {"from": "x", "to": "lat"},
+        {"from": "lat", "to": "share"},
+        {"from": "share", "to": "kvb"},
+        {"from": "kvb", "to": "gate"},
+        {"from": "q", "to": "y"},
+        {"from": "gate", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "n_kv_head", "value": "max(1, n_head//2) (largest divisor)", "role": "GQA group count", "learnable": false},
+      {"name": "kv_lora_rank", "value": "max(16, head_dim/2) shallow; head_dim/4 when depth_frac>0.5", "role": "depth-decayed latent rank", "learnable": false},
+      {"name": "kv_gate", "value": "fill(n_kv_head, group_size, 1, -0.25)", "role": "per-group/head sigmoid gate", "learnable": true},
+      {"name": "kv_skip", "value": "zeros(n_kv_head,1,1,head_dim)", "role": "static skip bias mixed in via 1-gate", "learnable": true},
+      {"name": "q_group_gain", "value": "ones(n_head,1,1)", "role": "per-head query rescale", "learnable": true},
+      {"name": "latent_anchor", "value": "zeros(1, n_kv_head, 1, kv_lora_rank)", "role": "depth-scaled bias added to latent", "learnable": true},
+      {"name": "use_pos_emb", "value": "True", "role": "uses outer positional embedding (no RoPE)", "learnable": false}
+    ],
+    "init_recovers": "GQA when kv_gate -> +inf and anchor=0, kv_skip=0",
+    "diff_from_baseline": "Replaces MLA's single-head latent + RoPE with a GQA-style design: n_head/2 KV heads each carrying their own depth-decayed latent (rank head_dim/2 shallow, head_dim/4 deep), expanded by kv_b to per-head k,v; intra-group entries are sigmoid-gated against a learnable kv_skip vector and the group-mean of v; queries are rescaled by a learnable per-head gain and the latent gets a depth-fraction-scaled anchor bias. No RoPE (use_pos_emb=True).",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "MLA with kv_lora_rank=56",
+    "tagline": "Vanilla MLA layout (single KV head, RoPE rope-slice, dual LoRA Q/KV) tuned with kv_lora_rank=56 and qk_rope_head_dim=32 to push KV bytes below MQA.",
+    "kind": "hybrid",
+    "formula": "$$\\text{KV bytes/token} = 2\\,(r_{kv}+d_{\\mathrm{rope}}) = 2\\,(56+32) = 176\\;\\;\\text{vs MQA}=256$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x"},
+        {"id": "qa", "label": "Q LoRA r=12*head_dim + RMS"},
+        {"id": "ka", "label": "kv_a_proj 56 + rope 32"},
+        {"id": "rms", "label": "kv_a_layernorm"},
+        {"id": "kb", "label": "kv_b -> n_head*(d_nope+d_v)"},
+        {"id": "rope", "label": "RoPE on rope-slice"},
+        {"id": "y", "label": "SDPA -> o_proj"}
+      ],
+      "edges": [
+        {"from": "x", "to": "qa"},
+        {"from": "x", "to": "ka"},
+        {"from": "ka", "to": "rms"},
+        {"from": "rms", "to": "kb"},
+        {"from": "qa", "to": "rope"},
+        {"from": "ka", "to": "rope"},
+        {"from": "rope", "to": "y"},
+        {"from": "kb", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "kv_lora_rank", "value": "56", "role": "MLA latent rank (vs MLA baseline head_dim/2=32)", "learnable": false},
+      {"name": "qk_rope_head_dim", "value": "32", "role": "fixed (vs MLA baseline min(64, head_dim))", "learnable": false},
+      {"name": "qk_nope_head_dim", "value": "head_dim (=64 at 345M)", "role": "non-rotary key dim", "learnable": false},
+      {"name": "q_lora_rank", "value": "min(n_embd, 12*head_dim)", "role": "query LoRA rank", "learnable": false},
+      {"name": "share_across_layers", "value": "False", "role": "no cross-layer reuse", "learnable": false},
+      {"name": "kv_bytes_per_token", "value": "2*(56+32)=176", "role": "vs MQA=256, GQA=2*4*64=512 at 345M", "learnable": false}
+    ],
+    "init_recovers": "MLA baseline up to the latent-rank/rotary tweaks",
+    "diff_from_baseline": "Same overall MLA control flow as the mla baseline (dual-LoRA Q/KV with RoPE rope-slice) but tunes the two rank knobs: kv_lora_rank=56 (vs head_dim/2=32 in baseline) and a fixed qk_rope_head_dim=32 instead of min(64, head_dim). Aimed at landing KV bytes/token below MQA's 2*head_dim.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "MLA + odd-layer latent reuse",
+    "tagline": "MLA with cross-layer sharing: odd layers pull the previous even layer's (kv_latent, k_rot) so half of the layers report zero KV storage.",
+    "kind": "hybrid",
+    "formula": "$$z_\\ell, k^{\\mathrm{rope}}_\\ell = \\begin{cases}\\,\\mathrm{RMS}(W_a^{kv}x), & \\ell\\;\\text{even}\\\\[2pt] (z_{\\ell-1}, k^{\\mathrm{rope}}_{\\ell-1}), & \\ell\\;\\text{odd}\\end{cases}$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x"},
+        {"id": "even", "label": "even layer: kv_a + RMS -> cache"},
+        {"id": "odd", "label": "odd layer: reuse cache, no new KV bytes"},
+        {"id": "kb", "label": "kv_b -> (k_nope, v)"},
+        {"id": "qa", "label": "Q LoRA r=80 + RMS"},
+        {"id": "rope", "label": "RoPE on 16-dim rope slice"},
+        {"id": "y", "label": "SDPA -> o_proj"}
+      ],
+      "edges": [
+        {"from": "x", "to": "even"},
+        {"from": "even", "to": "kb"},
+        {"from": "odd", "to": "kb"},
+        {"from": "x", "to": "qa"},
+        {"from": "qa", "to": "rope"},
+        {"from": "even", "to": "rope"},
+        {"from": "rope", "to": "y"},
+        {"from": "kb", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "cross_layer_share", "value": "layer_idx % 2 == 1", "role": "odd layers reuse previous layer's latent + k_rot", "learnable": false},
+      {"name": "kv_lora_rank", "value": "max(16, head_dim*5//4) (=80 at head_dim=64)", "role": "MLA latent rank", "learnable": false},
+      {"name": "q_lora_rank", "value": "max(16, head_dim*5//4) (=80)", "role": "query LoRA rank", "learnable": false},
+      {"name": "qk_rope_head_dim", "value": "max(16, head_dim//4) clamped to even (=16)", "role": "smaller rotary slice", "learnable": false},
+      {"name": "_shared_latent_cache", "value": "class-level dict per attention block", "role": "passes (kv_latent, k_rot) between adjacent layers", "learnable": false}
+    ],
+    "init_recovers": "MLA baseline when cross_layer_share is disabled",
+    "diff_from_baseline": "Compared to the mla baseline: cross_layer_share returns True on odd layers, so kv_a_proj/kv_a_layernorm are skipped and the cached (kv_latent, k_rot) is reused; latent ranks are increased to head_dim*5/4=80 for both Q and KV, the rotary slice is shrunk to head_dim/4=16, and storage_ratio is reported as 0 on reused layers.",
+    "confidence": "high"
+  }
+]

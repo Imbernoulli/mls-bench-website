@@ -1,0 +1,78 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "DRAF + parallel/MoE/SFT laws (off-task)",
+    "tagline": "Mis-targets the wrong scaling-law families (parallel/MoE/SFT instead of vocab/lrbsz/dataconstrained), with a dual log+linear residual fitter and a 3-form MoE model selector.",
+    "kind": "pseudocode",
+    "pseudocode": "// Dual-Residual Adaptive Fitter (DRAF):\n// 1. for each candidate init $u_0$ (init plus $r$ Gaussian perturbations) do\n// 2.   minimize $\\,\\sum (\\log(\\hat y/y))^2 + w (\\hat y - y)^2/\\sigma_y^2\\,$ via TRF/soft_l1\n// 3. keep arg min over restarts\n// Family laws (TARGETS WRONG BENCHMARKS):\n// - sld-parallel: $L = L_\\infty + A N^{-\\alpha} P^{-\\gamma}$\n// - sld-moe: pick best of $L_\\infty + A N^{-\\alpha} E^{-\\beta}$, log-linear $\\log L = aN_l + bE_l + cN_lE_l + d$, or $L_\\infty + A(NE^\\delta)^{-\\alpha}$\n// - sld-sft: $L = L_\\infty + A(D + D_0)^{-\\alpha}$",
+    "key_hyperparams": [
+      {"name": "lin_weight w", "value": "0.2-0.25", "role": "balance log-space vs linear-space residuals", "learnable": false},
+      {"name": "n_restarts", "value": "8-12", "role": "TRF multi-start for global optimum", "learnable": false},
+      {"name": "MoE selector", "value": "3 forms (multiplicative / log-linear / effective-N)", "role": "model selection per group", "learnable": false}
+    ],
+    "diff_from_baseline": "The submission redefines the data-loading functions and law families to sld-parallel/sld-moe/sld-sft; for the actual benchmarks (sld-vocab, sld-lrbsz, sld-dataconstrained) it provides no fitter and would error at run time. Only the dual-residual fitter is reusable across families.",
+    "confidence": "medium"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Vocab law + V·D cross term",
+    "tagline": "Per-group nonlinear LSQ with paper-style laws plus an extra V^-c·D^-d cross term for vocab; multiple paper-init restarts for lrbsz; multi-start TRF/soft_l1.",
+    "kind": "formula",
+    "formula": "$$ L_{\\text{vocab}} = E + A N^{-\\alpha} + B V^{-\\beta} + C D^{-\\gamma} + F\\,V^{-\\beta_2}D^{-\\gamma_2} $$ $$ L_{\\text{lrbsz}} = A D^{-\\alpha} + B N^{-\\beta} + C + D_{lr}(\\text{lr} - l_0)^2 + E[\\log b + b_0/b],\\quad l_0 = F N^\\gamma D^\\zeta,\\; b_0 = G D^\\eta $$ $$ L_{\\text{dataconstrained}} = E + A N^{-\\alpha} + B D_{\\text{eff}}^{-\\beta},\\quad D_{\\text{eff}} = U(1-e^{-D/U}) $$",
+    "key_hyperparams": [
+      {"name": "vocab cross-term", "value": "F V^-b8 D^-b9", "role": "added to baseline additive form", "learnable": true},
+      {"name": "lrbsz init set", "value": "3 parameter vectors (paper + 2 data-driven)", "role": "multi-start LSQ", "learnable": false},
+      {"name": "TRF n_restarts", "value": "8 perturbed inits each with shrinking sigma", "role": "multi-start escape from local minima", "learnable": false}
+    ],
+    "init_recovers": "human_exact baseline if F → 0",
+    "diff_from_baseline": "Extends the human_exact baseline's vocab law with an extra V^-c·D^-d cross interaction; reuses the SLDBench Expert-B form for lrbsz with 3 parameter inits and paper-style D_eff for dataconstrained. Linear (not log) residual loss with TRF+soft_l1.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Four-term tensor-power vocab + asymmetric lr/bsz manifold",
+    "tagline": "Treats vocab loss as a sum of four learned N^a·V^b·D^c power tensors; lr/bsz uses an asymmetric exp-penalty manifold with N,D-tied optima; data-constrained adds a second U^-f tail.",
+    "kind": "formula",
+    "formula": "$$ L_{\\text{vocab}} = E + \\sum_{k=1}^{4} A_k\\, N^{a_k} V^{b_k} D^{c_k} \\quad (a_k,b_k,c_k \\in [-5, 5]) $$ $$ L_{\\text{lrbsz}} = E + AN^{-a} + BD^{-b} + C(ND)^{-(a+b)} + K_1[e^{K_a x} - K_a x - 1] + K_2 y^2 + K_3 xy $$ $$ \\text{with }x=\\log\\tfrac{lr}{l_0 N^{g_l} D^{d_l}},\\; y=\\log\\tfrac{bsz}{b_0 N^{g_b} D^{d_b}} $$ $$ L_{\\text{dc}} = E + AN^{-a} + B D_{\\text{eff}}^{-b} + F U^{-f},\\; D_{\\text{eff}} = D / (c_1 r^\\rho + 1)^{1/\\rho} + c_2 D,\\; r = D/U $$",
+    "key_hyperparams": [
+      {"name": "vocab terms", "value": "4 tensor power-law terms (17 params)", "role": "multi-mode mixture for vocab loss", "learnable": true},
+      {"name": "lrbsz manifold", "value": "16 params, 2-phase log/linear fit", "role": "asymmetric exp-style lr penalty + correlated bsz term", "learnable": true},
+      {"name": "n_restarts", "value": "25 + log/linear two-phase warm start", "role": "extensive multi-start TRF", "learnable": false},
+      {"name": "exponent clip", "value": "|a_k| ≤ 5", "role": "stability of power exponents", "learnable": false}
+    ],
+    "diff_from_baseline": "Versus the baseline SLDBench/human_exact laws, the vocab form adds three extra tensor-product power terms (instead of the 3-axis additive form), the lrbsz form uses an asymmetric exp-Bregman lr penalty plus rotated quadratic, and dataconstrained adds a U^-f tail and a soft-OR effective tokens.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Bottleneck-renormalized scaling laws",
+    "tagline": "Vocab dilutes data via D_eff = D/V^φ; lr/bsz uses a coupled (lr*, bsz*) manifold with asymmetric batch penalty; data-constrained uses sublinear repeat utility.",
+    "kind": "formula",
+    "formula": "$$ L_{\\text{vocab}} = E + A N^{-\\alpha} + B (D/V^\\phi)^{-\\beta} + C V^{-\\gamma} $$ $$ L_{\\text{lrbsz}} = E + A N^{-\\alpha} + B D^{-\\beta} + K_{lr}(\\log lr - \\log lr_0 - \\rho \\Delta\\log b)^2 + K_b\\,(x + e^{-x} - 1) $$ $$ \\text{with } \\log lr_0 = \\ell_0 + \\gamma \\log N + \\zeta \\log D,\\; \\log b_0 = m_0 + \\eta\\log N + \\theta\\log D,\\; x = \\log b - \\log b_0 $$ $$ L_{\\text{dc}} = E + A N^{-\\alpha} + B D_{\\text{eff}}^{-\\beta} + C U^{-\\gamma},\\;\\; D_{\\text{eff}} = U\\,((1+D/U)^r - 1)/r $$",
+    "key_hyperparams": [
+      {"name": "phi", "value": "free", "role": "data-renormalization exponent for vocab", "learnable": true},
+      {"name": "rho", "value": "tanh-bounded ∈ (-1, 1)", "role": "lr/batch coupling on the optimizer manifold", "learnable": true},
+      {"name": "K_b batch shape", "value": "x + e^{-x} - 1 (asymmetric)", "role": "underbatching penalized harder than overbatching", "learnable": false},
+      {"name": "r (data repeat)", "value": "sigmoid-bounded ∈ (0, 1)", "role": "sublinear effective-tokens exponent", "learnable": true}
+    ],
+    "init_recovers": "Human/Chinchilla laws when phi→0 (vocab), rho→0 (lrbsz), r→1 (dc)",
+    "diff_from_baseline": "Versus human_exact, replaces vocab's additive V^-β with V-renormalized data D/V^φ, replaces the Expert-B law's independent (lr−l0)^2 + log b + b0/b with a single coupled (log lr, log b) manifold and an asymmetric batch penalty, and replaces saturating effective tokens with a generalized power-law saturation parameter r.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Joint-synergy vocab + lr/bsz bowl with data-tied optima (broken)",
+    "tagline": "Adds N·V cross + saturating data + two power cross-terms for vocab; lr/bsz bowl with D-dependent (lr0, bsz0) and rho coupling; data-constrained adds repetition penalty. Submission has a syntax error and missing ScalingLawModel class.",
+    "kind": "formula",
+    "formula": "$$ L_{\\text{vocab}} = E + A N^{-\\alpha} V^{-\\beta} + B(1 - e^{-D/d_0})^\\gamma + C N^{-a_2} D^{-g_1} + D_c V^{-v_2} D^{-g_2} $$ $$ L_{\\text{lrbsz}} = E + A N^{-\\alpha} + B D^{-\\beta} + \\tfrac{K}{2}(dx^2 + dy^2 + 2\\rho\\, dx\\, dy) $$ $$ \\text{with }dx = \\log lr - (L_1 + L_2 \\log D),\\; dy = \\log b - (B_1 + B_2 \\log D) $$ $$ L_{\\text{dc}} = E + A N^{-\\alpha} + B D_{\\text{eff}}^{-\\beta} + C_2 r^{-E_2},\\;\\; D_{\\text{eff}} = U(1-e^{-D/U})^\\delta / (1 + R\\,(\\max(r-1, 0))^{rp}) $$",
+    "key_hyperparams": [
+      {"name": "vocab terms", "value": "13 params (4 power-cross + 1 saturating-data)", "role": "interaction-rich vocab law", "learnable": true},
+      {"name": "K, rho", "value": "exp-positive K, tanh ρ ∈ (-1, 1)", "role": "lr/bsz quadratic bowl with coupling", "learnable": true},
+      {"name": "L1,L2,B1,B2", "value": "free", "role": "data-tied lr*/bsz* shifts", "learnable": true},
+      {"name": "delta, R, rp", "value": "exp-positive", "role": "saturation + repetition penalty in D_eff", "learnable": true}
+    ],
+    "init_recovers": "human_exact dataconstrained at delta=1, R=0",
+    "diff_from_baseline": "Adds a cross N^-a V^-b term and a saturating data term to the vocab law; uses a correlated (lr, bsz) bowl with optima sliding in log D; adds a multiplicative repetition penalty to D_eff for dataconstrained. The submission is incomplete: _fit_lrbsz contains an unterminated np.array literal and the file no longer defines class ScalingLawModel, so it would fail at import.",
+    "confidence": "medium"
+  }
+]

@@ -1,0 +1,195 @@
+[
+  {
+    "model": "claude-opus-4-6",
+    "name": "GHIA: gated heterogeneous + adaptive fusion",
+    "tagline": "Edge-gated intra conv plus edge-conditioned cross-attention inter conv with sigmoid-gated fusion and dual L->P/P->L heads.",
+    "kind": "hybrid",
+    "formula": "$$h^{\\ell+1}_v = g_v\\,\\mathrm{IntraGate}(h^{\\ell}_v) + (1-g_v)\\,\\mathrm{CrossAttn}(h^{\\ell}_v),\\quad g_v=\\sigma(W[h_{\\mathrm{intra}};h_{\\mathrm{cross}}])$$",
+    "diagram": {
+      "nodes": [
+        {"id": "lig", "label": "ligand h"},
+        {"id": "poc", "label": "pocket h"},
+        {"id": "intra", "label": "edge-gated intra"},
+        {"id": "cross", "label": "edge-bias cross-attn"},
+        {"id": "fuse", "label": "sigmoid fusion"},
+        {"id": "lp", "label": "L->P score - bias"},
+        {"id": "pl", "label": "P->L score - bias"},
+        {"id": "out", "label": "mean(L->P, P->L)"}
+      ],
+      "edges": [
+        {"from": "lig", "to": "intra"},
+        {"from": "poc", "to": "intra"},
+        {"from": "lig", "to": "cross"},
+        {"from": "poc", "to": "cross"},
+        {"from": "intra", "to": "fuse"},
+        {"from": "cross", "to": "fuse"},
+        {"from": "fuse", "to": "lp"},
+        {"from": "fuse", "to": "pl"},
+        {"from": "lp", "to": "out"},
+        {"from": "pl", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "H", "value": "256", "role": "hidden width", "learnable": false},
+      {"name": "num_layers", "value": "3", "role": "stacked HeteroGNN blocks", "learnable": false},
+      {"name": "drop", "value": "0.1", "role": "dropout rate inside conv MLPs", "learnable": false},
+      {"name": "loss_weights", "value": "(1, 1, 1)/3", "role": "MSE(L->P) + MSE(P->L) + consistency MSE", "learnable": false}
+    ],
+    "init_recovers": "EHIGN-style dual head when gate g_v=1",
+    "diff_from_baseline": "Replaces EHIGN's NIGConv (scalar edge-weight gate) with multi-head cross-attention biased by the geometric edge MLP, and adds a sigmoid mixing gate that adaptively chooses intra vs inter signal at every layer; bias correction is collapsed to one MLP and a graph-context branch is added to both heads.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini/gemini-3.1-pro-preview",
+    "name": "GeoGAT pre-norm transformer",
+    "tagline": "4-layer pre-norm Transformer over heterogeneous graph: multi-head GAT with edge-bias attention plus FFN residuals.",
+    "kind": "hybrid",
+    "formula": "$$\\alpha_{ij}^{h}=\\mathrm{softmax}_{j}\\!\\Big(\\tfrac{q_i\\cdot k_j}{\\sqrt{d}}+b_h(e_{ij})\\Big),\\;\\;\\mathrm{msg}_{ij}^{h}=\\alpha_{ij}^{h}(v_j+e_{ij}^{h})$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "node h"},
+        {"id": "ln", "label": "LayerNorm"},
+        {"id": "gat", "label": "4-head GeoGAT (intra+inter)"},
+        {"id": "add", "label": "residual sum"},
+        {"id": "ffn", "label": "LN -> Linear-SiLU-Linear FFN"},
+        {"id": "out", "label": "h + FFN(h)"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ln"},
+        {"from": "ln", "to": "gat"},
+        {"from": "gat", "to": "add"},
+        {"from": "x", "to": "add"},
+        {"from": "add", "to": "ffn"},
+        {"from": "ffn", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "H", "value": "256", "role": "hidden width", "learnable": false},
+      {"name": "num_layers", "value": "4", "role": "transformer blocks", "learnable": false},
+      {"name": "heads", "value": "4", "role": "GAT attention heads", "learnable": false},
+      {"name": "dropout", "value": "0.1", "role": "attention/FFN dropout", "learnable": false},
+      {"name": "global_readout", "value": "Linear(2H,H)->SiLU->Linear", "role": "graph bias added to both heads", "learnable": true}
+    ],
+    "init_recovers": "EHIGN dual-head loss with attention messages",
+    "diff_from_baseline": "Replaces EHIGN's CIG/NIG message passing with multi-head GeoGAT attention (4 heads, edge-conditioned dot-product bias) wrapped in pre-norm + SiLU FFN residual blocks; drops the bias-correction stack in favor of an SiLU-activated dual scoring head plus a global mean-pool readout summed into both directional predictions.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "TriGate cross-gated dual view",
+    "tagline": "Sigmoid src*dst*edge tri-gate messages, attentive interaction-statistics pool, uncertainty-weighted dual heads.",
+    "kind": "hybrid",
+    "formula": "$$g_{ij}=\\sigma\\!\\big(W_s x_i+W_d x_j+W_e e_{ij}\\big),\\quad m_{ij}=g_{ij}\\odot\\mathrm{MLP}([x_i;e_{ij}])$$ $$\\mathcal{L}=\\mathrm{MSE}(\\hat y, y)+0.35\\!\\sum_{k\\in\\{lp,pl\\}}\\!\\Big(\\tfrac{(\\hat y_k-y)^2}{2\\sigma_k^2}+\\log\\sigma_k\\Big)+0.15\\,e^{-(\\sigma_{lp}+\\sigma_{pl})}\\|\\hat y_{lp}-\\hat y_{pl}\\|^2$$",
+    "diagram": {
+      "nodes": [
+        {"id": "src", "label": "src x"},
+        {"id": "dst", "label": "dst x"},
+        {"id": "edge", "label": "edge e"},
+        {"id": "gate", "label": "tri-gate sigmoid"},
+        {"id": "pool", "label": "mean + softmax-attn pool"},
+        {"id": "head", "label": "main MLP head"},
+        {"id": "dual", "label": "dual edge-sum heads"},
+        {"id": "y", "label": "0.7 main + 0.3 sigma-weighted dual"}
+      ],
+      "edges": [
+        {"from": "src", "to": "gate"},
+        {"from": "dst", "to": "gate"},
+        {"from": "edge", "to": "gate"},
+        {"from": "gate", "to": "pool"},
+        {"from": "pool", "to": "head"},
+        {"from": "pool", "to": "dual"},
+        {"from": "head", "to": "y"},
+        {"from": "dual", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "H", "value": "192", "role": "hidden width", "learnable": false},
+      {"name": "L", "value": "3", "role": "stacked TriGate layers", "learnable": false},
+      {"name": "alpha (mix)", "value": "sigmoid(0)", "role": "per-layer residual mixing", "learnable": true},
+      {"name": "main:dual blend", "value": "0.7 / 0.3", "role": "weights at forward output", "learnable": false},
+      {"name": "loss weights", "value": "1.0, 0.35, 0.15", "role": "main MSE / Gaussian NLL / consistency", "learnable": false}
+    ],
+    "init_recovers": "EHIGN-like dual head when sigma_lp = sigma_pl = const",
+    "diff_from_baseline": "Replaces both CIGConv and NIGConv with a single TriGateConv that gates messages by an additive sigmoid of source, destination and edge projections (with degree-sqrt normalization); drops attention-bias-correction in favor of a mean+softmax-attention interaction-statistics readout; loss is heteroscedastic Gaussian NLL with confidence-modulated agreement instead of plain dual-MSE.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "GeoHI: geometric gated inter MP",
+    "tagline": "EHIGN backbone with NIGConv replaced by geometry-gated inter conv; multi-scale graph readout fused with both directional heads.",
+    "kind": "hybrid",
+    "formula": "$$g_{ij}=\\sigma(W_g[h_i;e_{ij}]),\\;m_{ij}=g_{ij}\\odot\\mathrm{MLP}([h_i;e_{ij}]),\\;\\hat y=\\mathrm{Fusion}\\big([\\hat y_{lp},\\hat y_{pl},\\hat y_{\\mathrm{graph}}]\\big)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "lig", "label": "ligand h"},
+        {"id": "poc", "label": "pocket h"},
+        {"id": "cig", "label": "CIGConv intra"},
+        {"id": "geo", "label": "GeoGated inter"},
+        {"id": "ms", "label": "multi-scale pool"},
+        {"id": "lp", "label": "L->P head"},
+        {"id": "pl", "label": "P->L head"},
+        {"id": "fuse", "label": "Linear(3,1) fusion"}
+      ],
+      "edges": [
+        {"from": "lig", "to": "cig"},
+        {"from": "poc", "to": "cig"},
+        {"from": "cig", "to": "geo"},
+        {"from": "geo", "to": "ms"},
+        {"from": "geo", "to": "lp"},
+        {"from": "geo", "to": "pl"},
+        {"from": "ms", "to": "fuse"},
+        {"from": "lp", "to": "fuse"},
+        {"from": "pl", "to": "fuse"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "H", "value": "256", "role": "hidden width", "learnable": false},
+      {"name": "num_layers", "value": "3", "role": "stacked CIG+GeoGated blocks", "learnable": false},
+      {"name": "feat_drop", "value": "0.1", "role": "dropout in inter MP", "learnable": false},
+      {"name": "loss weights", "value": "(1,1,1)/3 + 0.1 consistency", "role": "MSE(L->P), MSE(P->L), MSE(graph), 0.1*MSE(L->P,P->L)", "learnable": false}
+    ],
+    "init_recovers": "Reduces to EHIGN bias-corrected dual head when geometric gate equals scalar edge weight",
+    "diff_from_baseline": "Keeps EHIGN's CIGConv and dual bias-corrected heads but swaps NIGConv for GeoGatedInterLayer that learns sigmoid gates from the full 11-dim geometric edge features; adds a multi-scale graph-readout branch (concatenated layer pools) and a learned 3-way fusion over the L->P, P->L, and graph predictions. NOTE: the editable region contains broken Python (model code is interleaved with re-declaration of self.graph_readout inside _forward_heads using undefined names), so the model would not run as-is.",
+    "confidence": "medium"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "GAIN: geometric attention triple-head",
+    "tagline": "Intra GNN + multi-head inter attention; atom/inter/graph heads fused with auxiliary MSE and consistency losses.",
+    "kind": "hybrid",
+    "formula": "$$\\hat y = W_f[\\hat y_{\\mathrm{atom}};\\hat y_{\\mathrm{inter}};\\hat y_{\\mathrm{graph}}],\\quad \\mathcal{L} = \\mathrm{MSE}(\\hat y,y) + 0.3\\!\\!\\sum_{k}\\mathrm{MSE}(\\hat y_k,y) + 0.1\\!\\!\\sum_{k\\neq k'}\\!\\mathrm{MSE}(\\hat y_k,\\hat y_{k'})$$",
+    "diagram": {
+      "nodes": [
+        {"id": "lig", "label": "ligand"},
+        {"id": "poc", "label": "pocket"},
+        {"id": "intra", "label": "IntraGNN x3 (per molecule)"},
+        {"id": "attn", "label": "multi-head inter attn (L<->P)"},
+        {"id": "atom", "label": "atom-pool head"},
+        {"id": "inter", "label": "edge-pair inter head"},
+        {"id": "graph", "label": "graph-pool head"},
+        {"id": "fuse", "label": "Linear(3,1)"}
+      ],
+      "edges": [
+        {"from": "lig", "to": "intra"},
+        {"from": "poc", "to": "intra"},
+        {"from": "intra", "to": "attn"},
+        {"from": "attn", "to": "atom"},
+        {"from": "attn", "to": "inter"},
+        {"from": "attn", "to": "graph"},
+        {"from": "atom", "to": "fuse"},
+        {"from": "inter", "to": "fuse"},
+        {"from": "graph", "to": "fuse"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "H", "value": "256", "role": "hidden width", "learnable": false},
+      {"name": "num_layers", "value": "3", "role": "intra GNN layers per molecule", "learnable": false},
+      {"name": "num_heads", "value": "4", "role": "inter-attention heads", "learnable": false},
+      {"name": "dropout", "value": "0.1", "role": "head MLPs", "learnable": false},
+      {"name": "loss weights", "value": "1.0, 0.3, 0.1", "role": "main MSE / per-head MSE / pairwise consistency", "learnable": false}
+    ],
+    "init_recovers": "Fused triple-head MLP, no clean baseline degenerate",
+    "diff_from_baseline": "Replaces EHIGN's CIG/NIG message passing with a generic edge-MLP IntraGNN plus a multi-head inter-graph attention for L<->P, then drops bias correction and dual-direction edge scoring; predictions come from three MLP heads (atom-pool, inter-edge, graph-pool) fused by a learned 3->1 linear and trained with weighted auxiliary MSE plus pairwise consistency. NOTE: the proposal references GeometricAttentionLayer but defines InterGraphAttention, so the code would fail at construction.",
+    "confidence": "medium"
+  }
+]

@@ -1,0 +1,22 @@
+[
+  {
+    "model": "gpt-5.4",
+    "name": "Anchored IQL with pessimistic online critic",
+    "tagline": "IQL during offline; on going online, freezes the offline actor and twin critic and uses them for a pessimistic critic target, a Q-overshoot penalty, and a drift-weighted policy anchor.",
+    "kind": "formula",
+    "formula": "$$ \\text{V (always)}: \\; \\mathcal{L}_V = \\mathbb{E}[\\,L_2^\\tau(Q^{\\text{tg}}(s,a) - V(s))\\,],\\;\\; \\tau = 0.7 $$ $$ \\text{Q (offline)}: \\; y = r + \\gamma(1 - d)\\,V(s') $$ $$ \\text{Q (online)}: \\; y = \\min\\!\\big(y_{\\text{Bell}},\\; m\\,y_{\\text{off}} + (1-m)\\,y_{\\text{Bell}}\\big),\\quad y_{\\text{off}} = r + \\gamma(1-d)\\min_k Q^{\\text{off}}_k(s', \\pi(s')) $$ $$ \\mathcal{L}_Q\\,{\\mathrel{+}{=}}\\;\\lambda_{\\text{ovr}}\\,\\mathbb E[\\,(\\min_k Q_k(s,a) - \\min_k Q^{\\text{off}}_k(s,a))_+\\,] $$ $$ \\mathcal{L}_\\pi = -\\mathbb E[\\,e^{\\beta(Q-V)}\\,\\log\\pi(a|s)\\,] + c_a\\,\\mathbb E[\\,e^{-\\kappa\\|\\pi(s) - \\pi^{\\text{anchor}}(s)\\|^2}\\,(-\\log\\pi(a|s))\\,] $$",
+    "key_hyperparams": [
+      {"name": "iql_tau", "value": "0.7", "role": "expectile in V loss", "learnable": false},
+      {"name": "beta", "value": "3.0", "role": "AWR temperature", "learnable": false},
+      {"name": "exp_adv_max (off / on)", "value": "100 / 20", "role": "advantage-weight clip (online tighter)", "learnable": false},
+      {"name": "pessimism_mix m", "value": "0.7", "role": "weight of frozen-offline critic in online target", "learnable": false},
+      {"name": "offline_q_penalty", "value": "1.0", "role": "weight of (Q_cur - Q_off)_+ overshoot penalty", "learnable": false},
+      {"name": "anchor_coef c_a", "value": "0.25", "role": "policy-anchor BC weight online", "learnable": false},
+      {"name": "anchor_temp kappa", "value": "5.0", "role": "drift sensitivity in anchor weight", "learnable": false},
+      {"name": "expl_noise", "value": "0.05*max_action", "role": "online exploration noise", "learnable": false}
+    ],
+    "init_recovers": "Plain IQL during offline phase (anchor and pessimism inactive)",
+    "diff_from_baseline": "Versus the iql baseline, the offline phase is identical IQL but on entering online: (1) the critic target is the min of the standard Bellman target and a (frozen-offline-critic)-anchored bootstrap, (2) a relu(Q_cur - Q_offline) penalty discourages Q overshoot, (3) the actor adds a drift-weighted BC term against a frozen offline policy snapshot; awac/spot-style support constraints are not used.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,183 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "MSSADLinear: multi-scale slope + spectral",
+    "tagline": "DLinear scaled to 4 trend/seasonal scales (k=3,7,13,25), each trend blends a linear head with explicit slope extrapolation; an extra learnable spectral-mask branch combined via softmax weights.",
+    "kind": "hybrid",
+    "formula": "$$\\hat y_i = \\mathrm{Lin}_s^{(i)}(s_i)+\\sigma(\\alpha_i)\\,T^{\\text{slope}}_i+(1-\\sigma(\\alpha_i))\\,\\mathrm{Lin}_t^{(i)}(t_i),\\quad \\hat y_{\\text{freq}}=\\mathrm{Lin}_f\\bigl(\\mathcal{F}^{-1}(\\sigma(m)\\cdot\\mathcal{F}(x))\\bigr)$$ $$\\hat y=\\sum_{j}\\mathrm{softmax}(w)_j\\hat y_j+\\text{de-Norm},\\quad T^{\\text{slope}}_i = t_i[-1]+\\tfrac{t_i[-1]-\\bar t_i^{(W_i)}}{W_i/2}\\cdot[1..H]$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x (RevIN)"},
+        {"id": "dec", "label": "AvgPool k∈{3,7,13,25}"},
+        {"id": "s", "label": "seasonal_i → Lin"},
+        {"id": "t", "label": "trend_i → α·slope+(1-α)·Lin"},
+        {"id": "fft", "label": "rFFT → σ(m) → iFFT"},
+        {"id": "freq", "label": "Lin freq head"},
+        {"id": "mix", "label": "softmax(w) combine"},
+        {"id": "y", "label": "denorm ŷ"}
+      ],
+      "edges": [
+        {"from": "x", "to": "dec"},
+        {"from": "dec", "to": "s"},
+        {"from": "dec", "to": "t"},
+        {"from": "x", "to": "fft"},
+        {"from": "fft", "to": "freq"},
+        {"from": "s", "to": "mix"},
+        {"from": "t", "to": "mix"},
+        {"from": "freq", "to": "mix"},
+        {"from": "mix", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "kernels", "value": "[3, 7, 13, 25]", "role": "moving-average decomposition windows", "learnable": false},
+      {"name": "slope_windows", "value": "[max(3, k/3) for k]", "role": "per-scale slope-estimation horizons", "learnable": false},
+      {"name": "slope_alpha", "value": "0", "role": "per-scale logit blending Lin trend ↔ slope extrap.", "learnable": true},
+      {"name": "freq_filter", "value": "ones·3.0", "role": "logits of per-frequency mask", "learnable": true},
+      {"name": "combine_weights", "value": "zeros (softmax)", "role": "weight per branch (4 scales + freq)", "learnable": true},
+      {"name": "linear init", "value": "1/seq_len mean filter", "role": "DLinear-style initialization", "learnable": false},
+      {"name": "RevIN", "value": "yes", "role": "instance mean/std normalization", "learnable": false}
+    ],
+    "init_recovers": "Average of 4 DLinears with no slope and uniform spectral pass at $\\alpha_i=0,m=3.0,w=0$",
+    "diff_from_baseline": "Replaces DLinear's single $k=25$ avg-pool decomposition with a 4-kernel cascade, adds an explicit local-slope extrapolation head per trend scale and a learnable spectral-mask linear branch — neither DLinear, TimesNet (2D conv on period blocks), PatchTST (patched transformer), nor TimeMixer's down/upsample mixing has both slope continuation and spectral filter combined this way.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Multi-scale decomp + frequency attention",
+    "tagline": "series_decomp_multi at kernels {3,5,7}; per-scale seasonal branch uses softmax frequency-attention over first 16 modes plus DLinear-style head, trend uses DLinear; scales blended by learned softmax weights.",
+    "kind": "hybrid",
+    "formula": "$$x \\xrightarrow{\\text{decomp}_k} (s_k, t_k);\\;\\; \\hat s_k=\\mathrm{Lin}_s\\bigl(\\mathcal{F}^{-1}(\\mathrm{softmax}(\\mathbf{a}_k)\\!\\cdot\\!\\beta_k\\!\\cdot\\!\\mathcal{F}(s_k)|_{:M})\\bigr)$$ $$\\hat y=\\sum_k\\mathrm{softmax}(\\mathbf{u}_s)_k\\hat s_k+\\sum_k\\mathrm{softmax}(\\mathbf{u}_t)_k\\,\\mathrm{Lin}_t(t_k)+\\text{denorm}$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x (RevIN)"},
+        {"id": "dec", "label": "decomp k∈{3,5,7}"},
+        {"id": "s", "label": "seasonal_k"},
+        {"id": "t", "label": "trend_k"},
+        {"id": "fft", "label": "rFFT first 16 modes"},
+        {"id": "att", "label": "softmax attn + scale"},
+        {"id": "lin_s", "label": "Linear seq→pred"},
+        {"id": "lin_t", "label": "Linear seq→pred"},
+        {"id": "mix", "label": "weighted sum (softmax u)"},
+        {"id": "y", "label": "denorm ŷ"}
+      ],
+      "edges": [
+        {"from": "x", "to": "dec"},
+        {"from": "dec", "to": "s"},
+        {"from": "dec", "to": "t"},
+        {"from": "s", "to": "fft"},
+        {"from": "fft", "to": "att"},
+        {"from": "att", "to": "lin_s"},
+        {"from": "t", "to": "lin_t"},
+        {"from": "lin_s", "to": "mix"},
+        {"from": "lin_t", "to": "mix"},
+        {"from": "mix", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "kernels", "value": "[3, 5, 7]", "role": "series_decomp_multi kernel sizes", "learnable": false},
+      {"name": "modes M", "value": "16", "role": "FFT modes kept per channel", "learnable": false},
+      {"name": "attn weights a_k", "value": "0.5·ones(enc_in, M)", "role": "softmax attention over modes per channel", "learnable": true},
+      {"name": "scale β_k", "value": "1.0", "role": "post-softmax scaling", "learnable": true},
+      {"name": "seasonal scale weights", "value": "uniform 1/3", "role": "softmax over scales (seasonal)", "learnable": true},
+      {"name": "trend scale weights", "value": "uniform 1/3", "role": "softmax over scales (trend)", "learnable": true},
+      {"name": "linear init", "value": "1/seq_len", "role": "DLinear-style mean filter", "learnable": false},
+      {"name": "RevIN", "value": "yes", "role": "non-stationary instance norm", "learnable": false}
+    ],
+    "init_recovers": "Multi-scale DLinear when attn=uniform and β=1",
+    "diff_from_baseline": "Augments DLinear with multi-scale (3 kernels) decomposition like TimeMixer, but instead of cross-scale mixing uses learned softmax weights and adds a low-mode FFT attention block on the seasonal stream — TimesNet's 2D period conv and PatchTST's transformer are absent.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Spectral MoE residual stack",
+    "tagline": "DLinear-style trend on a 25-kernel decomposition plus 3 N-BEATS-style residual blocks each containing a 3-expert spectral MoE (FFT amplitude → softmax gate, complex mask, iFFT) with backcast subtraction.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x (RevIN)"},
+        {"id": "dec", "label": "series_decomp(25)"},
+        {"id": "trend", "label": "Linear trend"},
+        {"id": "res", "label": "residual r_0"},
+        {"id": "moe", "label": "Spectral MoE block ×3"},
+        {"id": "exp", "label": "rFFT|·| → gate logits → softmax over 3 experts"},
+        {"id": "fcast", "label": "Σ_k Lin_k forecast"},
+        {"id": "bcast", "label": "Σ_k Lin_k backcast"},
+        {"id": "y", "label": "trend + Σ forecasts + denorm"}
+      ],
+      "edges": [
+        {"from": "x", "to": "dec"},
+        {"from": "dec", "to": "trend"},
+        {"from": "dec", "to": "res"},
+        {"from": "res", "to": "moe"},
+        {"from": "moe", "to": "exp"},
+        {"from": "exp", "to": "fcast"},
+        {"from": "exp", "to": "bcast"},
+        {"from": "bcast", "to": "moe", "label": "r_{n+1}=r_n − backcast"},
+        {"from": "fcast", "to": "y"},
+        {"from": "trend", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "decomp kernel", "value": "25", "role": "series_decomp window", "learnable": false},
+      {"name": "num_blocks", "value": "3", "role": "residual blocks (N-BEATS-style stack)", "learnable": false},
+      {"name": "num_experts", "value": "3", "role": "experts per spectral MoE block", "learnable": false},
+      {"name": "gate hidden", "value": "64", "role": "MLP hidden in MoE gate", "learnable": false},
+      {"name": "gate activation", "value": "GELU + Dropout 0.1", "role": "gate non-linearity", "learnable": false},
+      {"name": "RevIN", "value": "yes", "role": "instance mean/std normalization", "learnable": false}
+    ],
+    "diff_from_baseline": "Differs from DLinear by stacking 3 N-BEATS-style residual blocks on top of the seasonal stream, where each block is a frequency-domain mixture-of-experts (3 experts gated by FFT amplitude); not TimesNet (no 2D period conv), not PatchTST (no patched attention), not TimeMixer (no down/up sampling cross-scale mix).",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "SRTM: feature-gated 4-head mixer",
+    "tagline": "Last-value normalization, adaptive 3-kernel trend selected by residual energy, four DLinear-style heads (trend, residual, mixed, dominant-period repeat) gated by a 7-feature MLP plus a per-horizon learnable gate, with a horizon-decay shrinkage to trend.",
+    "kind": "hybrid",
+    "formula": "$$\\hat y=\\sum_{j=1}^{4} g_j(s,h)\\,B_j(x)\\cdot\\frac{1}{1+0.15h}+B_{\\text{trend\\_combo}}\\cdot\\frac{0.15h}{1+0.15h}$$ $$g(s,h)=\\mathrm{softmax}(\\mathrm{MLP}_7(s))\\odot\\mathrm{softmax}(W_h),\\;\\;B_{\\text{trend}}=\\mathrm{Lin}\\bigl(\\sum_k w_k\\,\\mathrm{AvgPool}_k(x)\\bigr),\\;w=\\mathrm{softmax}(-E+\\theta)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x − last, /σ"},
+        {"id": "ad", "label": "adaptive multi-k trend"},
+        {"id": "bt", "label": "Lin trend"},
+        {"id": "br", "label": "Lin residual"},
+        {"id": "bm", "label": "Lin mix"},
+        {"id": "ll", "label": "local linear extrap."},
+        {"id": "dp", "label": "dominant-period repeat"},
+        {"id": "feat", "label": "7 stats: trend strength, σ_r, σ_diff, σ_curv, peak, period/L, level"},
+        {"id": "gate", "label": "MLP→softmax × horizon gate"},
+        {"id": "mix", "label": "convex 4-mix + horizon decay"},
+        {"id": "y", "label": "+last, ŷ"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ad"},
+        {"from": "ad", "to": "bt"},
+        {"from": "x", "to": "br"},
+        {"from": "x", "to": "bm"},
+        {"from": "ad", "to": "ll"},
+        {"from": "x", "to": "dp"},
+        {"from": "x", "to": "feat"},
+        {"from": "feat", "to": "gate"},
+        {"from": "bt", "to": "mix"},
+        {"from": "br", "to": "mix"},
+        {"from": "bm", "to": "mix"},
+        {"from": "ll", "to": "mix"},
+        {"from": "dp", "to": "mix"},
+        {"from": "gate", "to": "mix"},
+        {"from": "mix", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "kernels", "value": "[3, 5, 7]", "role": "candidate moving-average sizes", "learnable": false},
+      {"name": "hidden", "value": "16", "role": "MLP gate hidden", "learnable": false},
+      {"name": "kernel_logits", "value": "[0,0,0]", "role": "bias on energy-based decomp weights", "learnable": true},
+      {"name": "seasonal_scale", "value": "1.0", "role": "weight on dominant-period repeat", "learnable": true},
+      {"name": "slope_scale", "value": "0.5", "role": "weight on local-linear slope head", "learnable": true},
+      {"name": "horizon_gate", "value": "zeros (P×4)", "role": "softmax per-step head bias", "learnable": true},
+      {"name": "linear init", "value": "1/seq_len", "role": "trend / mix / resid Lin init", "learnable": false},
+      {"name": "horizon decay", "value": "1/(1+0.15h)", "role": "shrinkage to trend at long horizons", "learnable": false}
+    ],
+    "init_recovers": "Equal mixture of trend/residual/mix DLinear heads when gates are uniform and slope/seasonal scales=0",
+    "diff_from_baseline": "Differs from DLinear by adding three more heads (mixed-DLinear, local linear extrapolation, dominant-period FFT repeat) with feature-gated mixture, last-value anchoring, and horizon-aware shrinkage; lighter than TimesNet's 2D periodic conv, PatchTST's patched transformer, and TimeMixer's PDM blocks but introduces explicit signal-stat-driven gating not present in any baseline.",
+    "confidence": "high"
+  }
+]

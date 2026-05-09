@@ -1,0 +1,80 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "5-Level Per-Channel BitLinear",
+    "tagline": "Quantizes weights to {-1,-1/2,0,1/2,1} with per-output-row absmax scaling, drops activation quantization entirely, and rescales after the matmul.",
+    "kind": "formula",
+    "formula": "$$s_o = \\max_i |W_{o,i}|,\\quad u_{o,i} = W_{o,i}/s_o$$\n$$\\hat{W}_{o,i} = \\tfrac{1}{2}\\,\\mathrm{round}(2\\,\\mathrm{clip}(u_{o,i}, -1, 1)) \\in \\{-1,-\\tfrac{1}{2},0,\\tfrac{1}{2},1\\}$$\n$$y_o = s_o \\cdot \\sum_i \\hat{W}_{o,i}\\,x_i + b_o\\quad(\\text{STE on round})$$",
+    "key_hyperparams": [
+      {"name": "levels", "value": "{-1,-0.5,0,0.5,1}", "role": "5-level grid (~2.32 bits)", "learnable": false},
+      {"name": "scale type", "value": "per-row absmax", "role": "one scale per output channel", "learnable": false},
+      {"name": "activation quant", "value": "off", "role": "x kept full precision", "learnable": false}
+    ],
+    "init_recovers": "binary_sign-like behavior at heavy clipping; no clean baseline equivalent",
+    "diff_from_baseline": "Differs from int2_uniform (4 levels, absmean per-tensor + activation quant) by using 5 levels with per-row absmax scaling and removing 8-bit activation quantization altogether.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Per-Channel Ternary + Clipped STE",
+    "tagline": "BitNet b1.58 with per-output-channel absmean scaling and a custom autograd masking gradients of weights outside the [-1,1] normalized range.",
+    "kind": "formula",
+    "formula": "$$s_o = \\mathrm{mean}_i\\,|W_{o,i}|,\\ u_{o,i} = W_{o,i}/s_o,\\ \\hat{W}_{o,i} = \\mathrm{round}(\\mathrm{clip}(u_{o,i}, -1, 1))$$\n$$y = (W_q\\,x_q)\\odot (s\\cdot s_x),\\quad \\nabla_W \\mathcal{L} = \\nabla_{W_q}\\mathcal{L}\\,\\cdot\\,\\frac{\\mathbb{1}[|u|\\le 1]}{s}$$\n$$\\text{(activations: per-tensor int8 absmax + STE round)}$$",
+    "key_hyperparams": [
+      {"name": "scale", "value": "per-row absmean", "role": "one scale per output channel", "learnable": false},
+      {"name": "STE clip", "value": "|u|<=1", "role": "zero gradient outside normalized range", "learnable": false},
+      {"name": "activation bits", "value": "8 (per-tensor absmax)", "role": "BitNet-style int8 activations", "learnable": false}
+    ],
+    "init_recovers": "ternary_158bit baseline up to per-channel scale and clipped STE",
+    "diff_from_baseline": "Two changes vs ternary_158bit: per-output-channel absmean scaling instead of per-tensor, and a custom autograd Function whose backward zeros gradients on weights with |W/s|>1 (no straight-through past the clipping rail).",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "L2-Optimal Ternary + Token-LSQ Activations",
+    "tagline": "Mean-centred per-channel ternary weights with a least-squares-fitted scale per row, paired with int8 activations whose per-token scale is also LSQ-optimal; trained without weight decay.",
+    "kind": "formula",
+    "formula": "$$\\tilde{W}_{o,i} = W_{o,i} - \\mu_o,\\ s_o^{(0)} = \\mathrm{mean}_i|\\tilde{W}_{o,i}|$$\n$$\\hat{W}_{o,i} = \\mathrm{round}(\\mathrm{clip}(\\tilde{W}_{o,i}/s_o^{(0)}, -1, 1)) \\in \\{-1,0,1\\}$$\n$$s_o^* = \\frac{\\sum_i \\tilde{W}_{o,i}\\,\\hat{W}_{o,i}}{\\sum_i \\hat{W}_{o,i}^{2}}\\quad(\\text{LSQ scale})$$\n$$\\text{Activations: }\\hat{x}_t = \\mathrm{round}(\\mathrm{clip}(x_t/(s_t^{(0)}/Q), \\pm Q)),\\ s_t^* = \\frac{\\langle x_t,\\hat{x}_t\\rangle}{\\Vert\\hat{x}_t\\Vert^2}$$",
+    "key_hyperparams": [
+      {"name": "weight grid", "value": "{-1,0,1}", "role": "ternary", "learnable": false},
+      {"name": "weight scale", "value": "per-row LSQ", "role": "row-wise least-squares scale (post round)", "learnable": false},
+      {"name": "activation bits", "value": "8 (per-token LSQ)", "role": "per-token int8 with LSQ scale", "learnable": false},
+      {"name": "weight_decay (override)", "value": "0.0", "role": "disable AdamW weight decay", "learnable": false}
+    ],
+    "init_recovers": "ternary_158bit when LSQ scale equals absmean and centering is zero",
+    "diff_from_baseline": "Centers each output row before quantization, replaces absmean scale with a per-row LSQ-optimal scale that minimizes ||W - s*Q||^2, and applies the same LSQ idea per-token to int8 activations. Also disables AdamW weight decay.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Groupwise Ternary + RMS-Clipped Activations",
+    "tagline": "Centered, group-of-64 ternary weights with adaptive dead-zone tau and a 0.6 LSQ + 0.4 variance-match row scale; activations clipped between 0.7*absmax and 2.8*RMS before int8.",
+    "kind": "formula",
+    "formula": "$$\\tau = \\mathrm{clip}\\bigl(0.42 + 0.18(\\mathrm{rms}/\\overline{|w|}-1),\\,0.30,\\,0.75\\bigr)$$\n$$\\hat{W}_{g} = \\begin{cases} +1 & u_{g}>\\tau\\\\ -1 & u_{g}<-\\tau\\\\ 0 & |u_{g}|\\le \\tau\\end{cases},\\quad u = (W-\\mu_o)/\\overline{|w|}$$\n$$s = 0.6\\,|s_{\\text{LSQ}}| + 0.4\\,(\\mathrm{rms}_W/\\mathrm{rms}_{\\hat W})$$\n$$\\text{clip}_x = \\max\\bigl(0.7\\,|x|_{\\max},\\,\\min(|x|_{\\max},\\,2.8\\,\\mathrm{rms}_x)\\bigr)$$",
+    "key_hyperparams": [
+      {"name": "group_size", "value": "64", "role": "input-channel grouping for tau", "learnable": false},
+      {"name": "tau base", "value": "0.42", "role": "dead-zone center (b1.58 default ≈ 0.5)", "learnable": false},
+      {"name": "tau slope", "value": "0.18", "role": "scales (rms/mean_abs - 1)", "learnable": false},
+      {"name": "tau range", "value": "[0.30, 0.75]", "role": "clamp on dead-zone", "learnable": false},
+      {"name": "row scale mix", "value": "0.6 LSQ + 0.4 RMS-match", "role": "blend of LSQ and variance-matching scales", "learnable": false},
+      {"name": "act clip range", "value": "[0.7*absmax, min(absmax, 2.8*rms)]", "role": "per-token int8 clip", "learnable": false}
+    ],
+    "init_recovers": "ternary_158bit when tau=0.5 and groups span the full row",
+    "diff_from_baseline": "Replaces the single global absmean threshold of ternary_158bit with row-centered, group-of-64 ternary with adaptive dead-zone tau driven by rms/mean ratio, a blended (LSQ + variance-match) row scale, and per-token int8 activations whose clip is RMS-aware rather than pure absmax.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "RMS-Scaled Ternary BitLinear",
+    "tagline": "BitNet b1.58 with per-tensor RMS scale (sqrt(mean(W^2))) instead of absmean; activations stay 8-bit absmax.",
+    "kind": "formula",
+    "formula": "$$s = \\sqrt{\\mathrm{mean}(W^{2})},\\ u = W/s$$\n$$\\hat{W} = \\mathrm{round}(\\mathrm{clip}(u, -1, 1)) \\in \\{-1, 0, +1\\}$$\n$$y = s\\,s_x \\cdot (\\hat{W}\\,\\hat{x}) + b,\\ \\hat{x} = \\mathrm{round}(\\mathrm{clip}(x\\,Q_b/|x|_{\\max},\\pm Q_b))$$",
+    "key_hyperparams": [
+      {"name": "scale", "value": "per-tensor RMS", "role": "L2-aligned scale (sigma for Gaussian W)", "learnable": false},
+      {"name": "Qb", "value": "127", "role": "int8 activation range", "learnable": false}
+    ],
+    "init_recovers": "ternary_158bit (matches it modulo absmean -> RMS factor of ~sqrt(pi/2))",
+    "diff_from_baseline": "Single-line change to ternary_158bit: replaces the per-tensor absmean scale (E[|W|]) with the per-tensor RMS scale (sqrt(E[W^2])); the rest of the pipeline (ternary {-1,0,1}, int8 absmax activations, STE) is unchanged.",
+    "confidence": "high"
+  }
+]

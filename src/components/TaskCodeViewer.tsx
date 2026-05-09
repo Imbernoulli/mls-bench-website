@@ -5,6 +5,7 @@ import { diffLines, type Change } from "diff";
 import type { TaskFile, BaselineOp, StandardModel } from "@/lib/types";
 import AnnotatedCodeBlock, { applyBaselineOps } from "./AnnotatedCodeBlock";
 import { resolveCanonicalModel } from "@/lib/display";
+import ProposalAnnotation, { type Annotation } from "./ProposalAnnotation";
 
 /** model_name → { filename → content } */
 type Proposals = Record<string, Record<string, string>>;
@@ -43,6 +44,8 @@ interface Props {
   baselinesCode?: Record<string, BaselineOp[]>;
   proposals?: Proposals | null;
   models: StandardModel[];
+  /** Standardized human-readable annotations, keyed by raw proposal key. */
+  annotations?: Annotation[];
 }
 
 type ViewKind = "source" | "baseline" | "agent";
@@ -190,22 +193,44 @@ export default function TaskCodeViewer({
   baselinesCode,
   proposals,
   models,
+  annotations,
 }: Props) {
   const baselineNames = Object.keys(baselinesCode || {});
   // Filter agent proposals to the 5 canonical models from models.json,
-  // and label each with the formal display name (e.g. "Claude Opus 4.6").
-  const agentEntries = Object.keys(proposals || {})
-    .map((rawKey) => {
-      const canonical = resolveCanonicalModel(rawKey, models);
-      return canonical ? { rawKey, label: canonical.name } : null;
-    })
-    .filter((e): e is { rawKey: string; label: string } => e != null)
-    // Stable order matching models.json (canonical paper order).
-    .sort((a, b) => {
-      const ai = models.findIndex((m) => m.name === a.label);
-      const bi = models.findIndex((m) => m.name === b.label);
-      return ai - bi;
-    });
+  // dedupe so each canonical model has at most one tab (some tasks have
+  // both `claude-opus-4.6` and `anthropic/claude-opus-4.6` keys; we prefer
+  // a key that has a matching annotation, then the one whose name equals
+  // the canonical id, then the alphabetically-first remaining one), and
+  // label each tab with the formal display name (e.g. "Claude Opus 4.6").
+  const annotatedKeys = new Set(annotations?.map((a) => a.model) ?? []);
+  const annotationByModel = new Map<string, Annotation>(
+    (annotations ?? []).map((a) => [a.model, a]),
+  );
+  const byCanonical = new Map<
+    string,
+    { rawKey: string; label: string; canonicalId: string }
+  >();
+  for (const rawKey of Object.keys(proposals || {})) {
+    const canonical = resolveCanonicalModel(rawKey, models);
+    if (!canonical) continue;
+    const candidate = { rawKey, label: canonical.name, canonicalId: canonical.id };
+    const existing = byCanonical.get(canonical.id);
+    if (!existing) {
+      byCanonical.set(canonical.id, candidate);
+      continue;
+    }
+    // Prefer: (1) keys that have annotations, (2) canonical-id-equals-key, (3) alphabetical
+    const score = (k: string) =>
+      (annotatedKeys.has(k) ? 4 : 0) + (k === canonical.id ? 2 : 0) + (k < existing.rawKey ? 1 : 0);
+    if (score(rawKey) > score(existing.rawKey)) {
+      byCanonical.set(canonical.id, candidate);
+    }
+  }
+  const agentEntries = Array.from(byCanonical.values()).sort((a, b) => {
+    const ai = models.findIndex((m) => m.id === a.canonicalId);
+    const bi = models.findIndex((m) => m.id === b.canonicalId);
+    return ai - bi;
+  });
 
   const [activeView, setActiveView] = useState<string>("source");
   const [diffMode, setDiffMode] = useState(false);
@@ -324,6 +349,23 @@ export default function TaskCodeViewer({
           </button>
         )}
       </div>
+
+      {/* Annotation card (only when an agent tab is active and we have an annotation for it) */}
+      {!diffMode && activeEntry.kind === "agent" && activeEntry.name && (() => {
+        const ann = annotationByModel.get(activeEntry.name);
+        if (!ann) return null;
+        const canonical = resolveCanonicalModel(activeEntry.name, models);
+        const color = canonical?.color ?? "var(--muted-foreground)";
+        return (
+          <div className="mb-4">
+            <ProposalAnnotation
+              annotation={ann}
+              modelName={activeEntry.label}
+              modelColor={color}
+            />
+          </div>
+        );
+      })()}
 
       {/* Code display */}
       <div className="space-y-4">

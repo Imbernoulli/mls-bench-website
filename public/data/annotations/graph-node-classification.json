@@ -1,0 +1,103 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "GAT with averaged 8-head output",
+    "tagline": "Vanilla GATv1 attention but the final layer averages 8 heads (instead of 1) under tuned dropout/LR settings.",
+    "kind": "hybrid",
+    "formula": "$$\\alpha_{ij}^{(h)}=\\mathrm{softmax}_j\\!\\bigl(\\mathrm{LeakyReLU}\\bigl(\\mathbf{a}_s^{(h)\\top}\\mathbf{W}^{(h)}x_i+\\mathbf{a}_d^{(h)\\top}\\mathbf{W}^{(h)}x_j\\bigr)\\bigr),\\quad h_i^{(h)}=\\sum_{j\\in\\mathcal{N}(i)\\cup\\{i\\}}\\alpha_{ij}^{(h)}\\mathbf{W}^{(h)}x_j$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "node feats x"},
+        {"id": "L1", "label": "GAT 8-head, concat"},
+        {"id": "elu", "label": "ELU + dropout 0.6"},
+        {"id": "L2", "label": "GAT 8-head, mean"},
+        {"id": "y", "label": "logits"}
+      ],
+      "edges": [
+        {"from": "x", "to": "L1"},
+        {"from": "L1", "to": "elu"},
+        {"from": "elu", "to": "L2"},
+        {"from": "L2", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "heads (output)", "value": "8 (averaged)", "role": "final-layer head count, no concat", "learnable": false},
+      {"name": "attn_dropout", "value": "0.5", "role": "edge attention dropout", "learnable": false},
+      {"name": "feature dropout", "value": "0.6", "role": "feature dropout between layers", "learnable": false},
+      {"name": "negative_slope", "value": "0.2", "role": "LeakyReLU slope on attention logits", "learnable": false},
+      {"name": "custom_lr", "value": "0.005", "role": "Adam LR override", "learnable": false},
+      {"name": "att_src", "value": "Xavier", "role": "per-head source attention vector", "learnable": true},
+      {"name": "att_dst", "value": "Xavier", "role": "per-head destination attention vector", "learnable": true}
+    ],
+    "init_recovers": "Standard GAT baseline with single-head readout when heads=1 at output",
+    "diff_from_baseline": "Same GATv1 mechanism as the GAT baseline, but the output layer now averages 8 heads instead of 1, attention dropout drops to 0.5, feature dropout rises to 0.6, and learning rate is halved to 0.005 — no changes to message construction or aggregation.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "GCN + per-channel neighbor scale + skip",
+    "tagline": "GCN aggregation with a learnable per-channel scaling vector on the neighbor sum and an explicit self residual.",
+    "kind": "formula",
+    "formula": "$$h_i = W x_i \\;+\\; \\boldsymbol{\\gamma}\\odot\\!\\!\\sum_{j\\in\\tilde{\\mathcal{N}}(i)}\\!\\!\\frac{1}{\\sqrt{\\tilde{d}_i\\tilde{d}_j}}\\,W x_j \\;+\\; b,\\qquad \\boldsymbol{\\gamma}\\in\\mathbb{R}^{C_{\\text{out}}}$$",
+    "key_hyperparams": [
+      {"name": "γ (neigh_scale)", "value": "ones(out_channels)", "role": "learnable per-channel weight on neighbor aggregate", "learnable": true},
+      {"name": "bias", "value": "zeros(out_channels)", "role": "additive bias", "learnable": true}
+    ],
+    "init_recovers": "GCN with extra residual when γ=1 (no scaling)",
+    "diff_from_baseline": "Adds a learnable per-channel scaling vector on the GCN neighbor aggregate plus a self-residual term `x + γ⊙agg`, departing from the GAT baseline (no attention) and from vanilla GCN (no residual or per-channel gating).",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "GATv2 + per-head structural prior",
+    "tagline": "GATv2 with separate src/dst projections and an additive per-head $\\beta\\log\\text{norm}_{ij}$ structural prior in the attention logits.",
+    "kind": "hybrid",
+    "formula": "$$\\alpha_{ij}^{(h)}=\\mathrm{softmax}_j\\!\\Bigl(\\mathbf{a}^{(h)\\top}\\mathrm{LeakyReLU}(\\mathbf{W}_s^{(h)}x_j+\\mathbf{W}_d^{(h)}x_i)+\\beta^{(h)}\\log\\!\\bigl(d_i^{-1/2}d_j^{-1/2}\\bigr)\\Bigr)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x"},
+        {"id": "ws", "label": "W_src x_j"},
+        {"id": "wd", "label": "W_dst x_i"},
+        {"id": "att", "label": "GATv2 attn"},
+        {"id": "deg", "label": "log(d^{-½}d^{-½})"},
+        {"id": "comb", "label": "+ β log·prior"},
+        {"id": "agg", "label": "weighted sum"},
+        {"id": "y", "label": "h_i"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ws"},
+        {"from": "x", "to": "wd"},
+        {"from": "ws", "to": "att"},
+        {"from": "wd", "to": "att"},
+        {"from": "deg", "to": "comb"},
+        {"from": "att", "to": "comb"},
+        {"from": "comb", "to": "agg"},
+        {"from": "agg", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "heads", "value": "8", "role": "attention heads in hidden layers", "learnable": false},
+      {"name": "negative_slope", "value": "0.2", "role": "LeakyReLU slope", "learnable": false},
+      {"name": "attn_dropout", "value": "0.6", "role": "dropout on attention coefficients", "learnable": false},
+      {"name": "struct_beta", "value": "ones(1, heads)", "role": "per-head weight on log-degree prior", "learnable": true},
+      {"name": "custom_lr", "value": "0.005", "role": "Adam LR override", "learnable": false}
+    ],
+    "init_recovers": "GATv2 (with $\\beta=0$); GCN-flavored bias dominates as $\\beta\\to\\infty$",
+    "diff_from_baseline": "Switches GAT baseline's GATv1 attention to GATv2 (separate $W_{src},W_{dst}$, attention applied after non-linearity) and injects an additive learnable log-degree structural prior into the logits — neither GAT, GCN, nor GraphSAGE include this hybrid term.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "GCN + sigmoid per-channel edge gate",
+    "tagline": "GCN normalization scaled by a per-edge $1+\\sigma(\\alpha\\odot Wx_j)$ gate, no extra projections.",
+    "kind": "formula",
+    "formula": "$$h_i=\\sum_{j\\in\\tilde{\\mathcal{N}}(i)}\\frac{1}{\\sqrt{\\tilde d_i\\tilde d_j}}\\Bigl(1+\\sigma(\\boldsymbol{\\alpha}\\odot Wx_j)\\Bigr)\\odot Wx_j+b,\\qquad \\boldsymbol{\\alpha}\\in\\mathbb{R}^{C_{\\text{out}}}$$",
+    "key_hyperparams": [
+      {"name": "α (att)", "value": "zeros(1, out_channels)", "role": "learnable per-channel gate scale", "learnable": true},
+      {"name": "bias", "value": "zeros(out_channels)", "role": "additive bias", "learnable": true}
+    ],
+    "init_recovers": "GCN with $1.5\\times$ message scaling at $\\alpha=0$ (since $\\sigma(0)=0.5$)",
+    "diff_from_baseline": "Stays with GCN-style symmetric normalization but multiplies each edge message by a per-channel sigmoid gate $1+\\sigma(\\alpha\\odot Wx_j)$ — a feature-conditioned edge weighting that GAT replaces with full softmax attention and GraphSAGE/GCN do not have at all.",
+    "confidence": "high"
+  }
+]

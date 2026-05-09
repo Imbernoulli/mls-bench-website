@@ -1,0 +1,201 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Spatial-conditioned Transolver + LayerScale",
+    "tagline": "Transolver with raw 3D coordinates added as a per-head MLP bias to slice logits, plus per-block CaiT-style learnable layer scales on residual branches.",
+    "kind": "hybrid",
+    "formula": "$$s_{b,h,n,g} = \\frac{(W_{slice}\\,x_{mid})_{b,h,n,g}}{\\tau_h} + \\big[\\mathrm{MLP}_{spatial}(\\mathrm{coords}_{b,n})\\big]_{h,g},\\quad \\alpha_{b,h,n,g} = \\mathrm{softmax}_g(s),\\quad x \\leftarrow x + \\gamma_\\ell \\odot \\mathrm{Attn}(\\mathrm{LN}_1 x, \\mathrm{coords}),\\;\\gamma_\\ell \\sim 10^{-2}$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "(coords, fx)"},
+        {"id": "enc", "label": "Preprocess MLP"},
+        {"id": "blk", "label": "EnhancedTransolverBlock x L"},
+        {"id": "attn", "label": "SpatialSliceAttention"},
+        {"id": "spat", "label": "spatial-bias MLP"},
+        {"id": "ls", "label": "LayerScale γ"},
+        {"id": "mlp2", "label": "Linear out_dim (last block)"}
+      ],
+      "edges": [
+        {"from": "x", "to": "enc"},
+        {"from": "enc", "to": "blk"},
+        {"from": "blk", "to": "attn"},
+        {"from": "x", "to": "spat", "label": "raw (x,y,z)"},
+        {"from": "spat", "to": "attn", "label": "+slice bias"},
+        {"from": "attn", "to": "ls"},
+        {"from": "ls", "to": "blk", "label": "residual"},
+        {"from": "blk", "to": "mlp2"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "slice_num", "value": "32 (CONFIG override)", "role": "physics slices per head", "learnable": false},
+      {"name": "n_hidden", "value": "256 (CONFIG override)", "role": "model width override", "learnable": false},
+      {"name": "spatial_bias_mlp", "value": "Linear(3, dim_head) - GELU - Linear(dim_head, heads*slice_num)", "role": "coord -> per-head slice bias", "learnable": true},
+      {"name": "temperature", "value": "0.5 (init)", "role": "softmax temperature on slice logits, per head", "learnable": true},
+      {"name": "layer_scale_init", "value": "1e-2", "role": "init for per-channel residual scaler", "learnable": true},
+      {"name": "slice_init", "value": "orthogonal", "role": "init of slice projection", "learnable": false}
+    ],
+    "init_recovers": "Transolver when spatial_bias=0 and layer_scale=1",
+    "diff_from_baseline": "Extends the Transolver baseline by adding a coordinate-conditioned bias to slice assignment logits (so slice membership becomes spatially aware) and CaiT-style learnable per-channel residual scales (init 1e-2) on attention and MLP branches.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Geom-aware physics attention + SwiGLU",
+    "tagline": "Transolver-style slice attention augmented with slice-centroid + std embedding, relative-position bias on slice attention, output sigmoid gate, and SwiGLU FFN.",
+    "kind": "hybrid",
+    "formula": "$$\\mu_g = \\sum_n w_{n,g}\\,p_n / \\sum_n w_{n,g},\\quad \\sigma_g = \\sqrt{\\sum_n w_{n,g}\\,p_n^2/\\sum_n w_{n,g} - \\mu_g^2},\\quad t_g \\leftarrow t_g + \\mathrm{MLP}([\\mu_g; \\sigma_g]),\\quad A_{ij} = q_i k_j^\\top + \\mathrm{MLP}(\\mu_i - \\mu_j)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "(x, fx)"},
+        {"id": "norm", "label": "z-score raw coords"},
+        {"id": "enc", "label": "Preprocess MLP"},
+        {"id": "blk", "label": "Custom_Block x L"},
+        {"id": "slice", "label": "physics slicing + geom emb"},
+        {"id": "attn", "label": "slice attn + relpos bias"},
+        {"id": "gate", "label": "sigmoid gate (out * gate)"},
+        {"id": "swi", "label": "SwiGLU FFN"}
+      ],
+      "edges": [
+        {"from": "x", "to": "norm"},
+        {"from": "x", "to": "enc"},
+        {"from": "enc", "to": "blk"},
+        {"from": "norm", "to": "slice"},
+        {"from": "slice", "to": "attn"},
+        {"from": "attn", "to": "gate"},
+        {"from": "gate", "to": "swi"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "slice_num", "value": "32 (CONFIG override)", "role": "physics slices", "learnable": false},
+      {"name": "n_hidden", "value": "256 (CONFIG override)", "role": "model width", "learnable": false},
+      {"name": "geom_emb", "value": "Linear(2*space_dim, dim_head) - GELU - Linear(dim_head, dim_head)", "role": "(centroid, std) per slice", "learnable": true},
+      {"name": "rel_pos_mlp", "value": "Linear(space_dim, 16) - GELU - Linear(16, 1)", "role": "delta-centroid bias on inter-slice attention", "learnable": true},
+      {"name": "gate_proj", "value": "Linear(d, 16) - GELU - Linear(16, d)", "role": "per-token sigmoid gate on attention output", "learnable": true},
+      {"name": "ffn", "value": "SwiGLU(mlp_ratio=4)", "role": "replaces baseline MLP block", "learnable": true},
+      {"name": "coord_norm", "value": "z-score by mean and per-batch std", "role": "passed as 'pos' to attention", "learnable": false}
+    ],
+    "init_recovers": "Transolver when geom_emb / rel_pos_mlp output 0 and gate output ~ 1 and SwiGLU width matches",
+    "diff_from_baseline": "Extends Transolver's physics attention with weighted per-slice centroid+std geometric embeddings added to slice tokens, an MLP relative-position bias on slice-level attention, a per-token sigmoid output gate, SwiGLU FFN, and z-score-normalized coordinates.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Local SAGE + global slice + gate fusion",
+    "tagline": "Per-block hybrid of local SAGEConv and global Physics-Attention slicing fused by a learned per-channel gate, with a coord+feature gate and global mean+max projection up front.",
+    "kind": "hybrid",
+    "formula": "$$z \\leftarrow z + g\\,\\mathrm{SAGE}(\\mathrm{LN}_l z) + (1-g)\\,\\mathrm{Attn}_{phys}(\\mathrm{LN}_g z),\\quad g = \\sigma(W[\\mathrm{SAGE}(\\cdot);\\mathrm{Attn}(\\cdot)]),\\quad z \\leftarrow z(1+\\sigma(W_{gf}[z; x; fx])) + W_{gp}[\\overline z; \\max z]$$",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "x, fx"},
+        {"id": "enc", "label": "Encoder MLP"},
+        {"id": "cgate", "label": "coord+feat gate"},
+        {"id": "gp", "label": "global mean+max proj"},
+        {"id": "blk", "label": "HybridGeoPhysicsBlock x L"},
+        {"id": "loc", "label": "SAGEConv (local)"},
+        {"id": "gl", "label": "Physics_Attention (global)"},
+        {"id": "gate", "label": "sigmoid gate alpha"},
+        {"id": "ffn", "label": "FFN"}
+      ],
+      "edges": [
+        {"from": "in", "to": "enc"},
+        {"from": "enc", "to": "cgate"},
+        {"from": "cgate", "to": "gp"},
+        {"from": "gp", "to": "blk"},
+        {"from": "blk", "to": "loc"},
+        {"from": "blk", "to": "gl"},
+        {"from": "loc", "to": "gate"},
+        {"from": "gl", "to": "gate"},
+        {"from": "gate", "to": "ffn"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "n_hidden", "value": "192 (CONFIG override)", "role": "model width", "learnable": false},
+      {"name": "slice_num", "value": "24 (CONFIG override, lower-bounded by 8)", "role": "physics slices for global attention", "learnable": false},
+      {"name": "mlp_ratio_per_block", "value": "max(1, args.mlp_ratio // 2)", "role": "halved FFN expansion", "learnable": false},
+      {"name": "fusion_gate", "value": "sigmoid MLP on concat(local, global)", "role": "per-channel local/global mix", "learnable": true},
+      {"name": "input_gate", "value": "sigmoid MLP on concat(z, x, fx)", "role": "boosts encoder output", "learnable": true},
+      {"name": "global_proj", "value": "MLP on concat(mean, max) over points", "role": "broadcasts global stats to every point", "learnable": true},
+      {"name": "edge_index_fallback", "value": "radius_graph(r=args.radius, max_neigh=64)", "role": "constructs edges if geo not provided", "learnable": false}
+    ],
+    "diff_from_baseline": "Combines GraphSAGE-style local message passing with Transolver's irregular-mesh physics attention inside every block, fusing them with a per-channel sigmoid gate; adds an input coord+feature gate and global mean+max broadcast on top of the encoder.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Fourier coords + SAGE/slice gated hybrid",
+    "tagline": "Fourier-feature coordinate encoding feeding hybrid blocks that gate per-block SAGEConv (local) against Transolver-style slice attention (global).",
+    "kind": "hybrid",
+    "formula": "$$\\mathrm{FF}(x) = [\\sin(2\\pi B x), \\cos(2\\pi B x)] W_{\\mathrm{FF}}\\;,\\quad z_{\\mathrm{fused}} = g\\,\\mathrm{SAGE}(z) + (1-g)\\,\\mathrm{Attn}_{phys}(z),\\quad g = \\sigma(W[\\,z_{loc};\\,z_{glob}\\,])$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "coords"},
+        {"id": "ff", "label": "FourierFeatureEmbed"},
+        {"id": "fx", "label": "fx (features)"},
+        {"id": "enc", "label": "Encoder MLP"},
+        {"id": "blk", "label": "HybridBlock x L"},
+        {"id": "loc", "label": "SAGEConv local"},
+        {"id": "phys", "label": "PhysicsSliceAttn global"},
+        {"id": "gate", "label": "Linear -> sigmoid gate"},
+        {"id": "mlp", "label": "MLP residual"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ff"},
+        {"from": "ff", "to": "enc"},
+        {"from": "fx", "to": "enc"},
+        {"from": "enc", "to": "blk"},
+        {"from": "blk", "to": "loc"},
+        {"from": "blk", "to": "phys"},
+        {"from": "loc", "to": "gate"},
+        {"from": "phys", "to": "gate"},
+        {"from": "gate", "to": "mlp"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "num_freqs", "value": "8 (FourierFeatureEmbed)", "role": "Gaussian frequencies for sin/cos coord encoding", "learnable": false},
+      {"name": "fourier_B", "value": "2*pi*N(0, 1) buffer of shape (space_dim, num_freqs)", "role": "fixed random projection", "learnable": false},
+      {"name": "slice_num", "value": "args.slice_num", "role": "physics slices in PhysicsSliceAttn", "learnable": false},
+      {"name": "temperature", "value": "0.5 init, clamp to [0.1, 5]", "role": "slice softmax temperature, per head", "learnable": true},
+      {"name": "fusion_gate", "value": "Linear(2d, 1) -> sigmoid (scalar per token)", "role": "local/global blend", "learnable": true},
+      {"name": "CONFIG_OVERRIDES_effective", "value": "{}", "role": "second redefinition wipes the n_hidden=192/slice_num=32 override", "learnable": false}
+    ],
+    "diff_from_baseline": "Encodes coordinates with Fourier features before the encoder, then in each block fuses SAGEConv local message passing with Transolver-style slice attention via a learned scalar gate. (Note: CONFIG_OVERRIDES is overwritten by an empty dict at the bottom of the file, so n_hidden and slice_num fall back to defaults.)",
+    "confidence": "medium"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "Two SAGEConvs then physics attention",
+    "tagline": "Two stacked SAGEConv+BatchNorm+GELU layers for local mesh structure, followed by one Transolver Physics-Attention block (LN, attn, LN, MLP) before the decoder.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "(x, fx)"},
+        {"id": "enc", "label": "Encoder MLP"},
+        {"id": "g1", "label": "SAGEConv1 + BN + GELU"},
+        {"id": "g2", "label": "SAGEConv2 + BN + GELU"},
+        {"id": "ln1", "label": "LN"},
+        {"id": "phys", "label": "Physics_Attention_Irregular_Mesh"},
+        {"id": "ln2mlp", "label": "LN + MLP residual"},
+        {"id": "dec", "label": "Decoder MLP"}
+      ],
+      "edges": [
+        {"from": "in", "to": "enc"},
+        {"from": "enc", "to": "g1"},
+        {"from": "g1", "to": "g2"},
+        {"from": "g2", "to": "ln1"},
+        {"from": "ln1", "to": "phys"},
+        {"from": "phys", "to": "ln2mlp"},
+        {"from": "ln2mlp", "to": "dec"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "n_hidden", "value": "256 (CONFIG override)", "role": "model width", "learnable": false},
+      {"name": "slice_num", "value": "32 (CONFIG override)", "role": "Transolver slices", "learnable": false},
+      {"name": "n_graph_layers", "value": "2", "role": "stacked SAGEConv layers (fixed)", "learnable": false},
+      {"name": "graph_norm", "value": "BatchNorm1d (track_running_stats=False)", "role": "BN per graph layer", "learnable": true},
+      {"name": "physics_block", "value": "1", "role": "single Transolver block", "learnable": false},
+      {"name": "edge_index_required", "value": "true", "role": "raises if geo is None", "learnable": false}
+    ],
+    "diff_from_baseline": "Stacks two SAGEConv graph layers (with BatchNorm + GELU) before a single Transolver-style physics-attention block; combines the GraphSAGE and Transolver baselines into one model with a fixed depth of 2+1.",
+    "confidence": "high"
+  }
+]

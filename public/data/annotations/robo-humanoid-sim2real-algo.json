@@ -1,0 +1,99 @@
+[
+  {
+    "model": "claude-opus-4-6",
+    "name": "Robust-transfer PPO (LN + Huber + smoothness)",
+    "tagline": "LayerNorm-MLP actor/critic with orthogonal init, plus PPO with Huber value loss, per-minibatch advantage renorm, action-magnitude penalty, and tighter adaptive-KL.",
+    "kind": "pseudocode",
+    "pseudocode": "// Actor / Critic: 3x [Linear → LayerNorm → ELU] then linear head;\n//   orthogonal init √2 hidden; head gain 0.01 (actor) / 1.0 (critic).\n// PPO update (per minibatch):\n// 1. compute ratio = exp(logπ - logπ_old)\n// 2. adaptive KL: lr ×/÷ 1.5 if KL ≷ 1.5·desired_kl  (tighter than 2.0)\n// 3. per-minibatch advantage renormalization (mean/std of THIS batch)\n// 4. surrogate = max(ratio·-A, clip(ratio, 1±ε)·-A).mean()\n// 5. value loss: clipped Huber (δ = 10) on (V − R) and (V_clipped − R), max\n// 6. action smoothness: + α·μ². α = 3e-4\n// 7. loss = surrogate + c_v · value_loss − c_e · entropy + α · ‖μ‖²\n// 8. Adam(lr, eps=1e-5), clip grad-norm to max_grad_norm",
+    "key_hyperparams": [
+      {"name": "actor/critic hidden", "value": "[256, 256, 256] (default kept)", "role": "MLP widths", "learnable": false},
+      {"name": "hidden norm", "value": "LayerNorm after each Linear", "role": "feature normalization for sim2real", "learnable": false},
+      {"name": "init", "value": "orthogonal √2 hidden, head 0.01 / 1.0", "role": "scaled output init", "learnable": false},
+      {"name": "value loss δ (Huber)", "value": "10.0", "role": "clipped Huber on V residual", "learnable": false},
+      {"name": "action_reg_coef α", "value": "3e-4 (file ends in 3e-4)", "role": "L2 penalty on μ", "learnable": false},
+      {"name": "adaptive-KL bounds", "value": "1.5·desired_kl / desired_kl/1.5", "role": "tighter than the 2.0 baseline", "learnable": false},
+      {"name": "Adam eps", "value": "1e-5", "role": "Adam numerical eps", "learnable": false},
+      {"name": "PPO lr / γ / λ", "value": "1e-5 / 0.994 / 0.9 (final block in cfg)", "role": "tuned PPO hyperparams", "learnable": false},
+      {"name": "heading_command", "value": "False", "role": "uses raw ang_vel_yaw target (matches MuJoCo eval)", "learnable": false}
+    ],
+    "diff_from_baseline": "Vs default PPO: adds LayerNorm to every actor/critic hidden, replaces squared value loss with clipped Huber (δ=10), re-normalizes advantages per minibatch, adds an L2 penalty on action means, tightens the adaptive-KL trigger to 1.5×, and turns heading_command off in the env config.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Residual MLP + smooth-L1 + action-rate",
+    "tagline": "ResNet-style actor/critic with LayerNorm, observation Gaussian noise during training, smooth-L1 value loss, and L2+rate action smoothness penalties.",
+    "kind": "pseudocode",
+    "pseudocode": "// Actor / Critic: Linear → LN → activation → 2x ResidualBlock → Linear;\n//   orthogonal init gain 1, head 0.01\n// Forward: in train mode, add 0.02·N(0,I) Gaussian noise to obs and critic_obs\n// Rollout: include prev_actions in mini_batch_generator\n// PPO update:\n// 1. KL adaptive lr: ×/÷ 1.5 at KL > 1.5·desired_kl / < desired_kl/1.5\n// 2. surrogate clipped\n// 3. value: clipped smooth_L1(V, R)\n// 4. + 2e-4·‖μ‖² + 1e-3·‖μ - μ_prev‖²   (action-rate penalty using prev action from rollout)\n// 5. Adam(lr=1e-4, weight_decay=1e-5)\n// 6. clip grad norm; entropy_coef = 0.01; epochs = 4; mini_batches = 4",
+    "key_hyperparams": [
+      {"name": "MLP backbone", "value": "[Linear→LN→act] + 2×ResidualBlock", "role": "ResNet actor/critic", "learnable": false},
+      {"name": "obs noise σ", "value": "0.02 (training only)", "role": "input perturbation for sim2real", "learnable": false},
+      {"name": "lr", "value": "1e-4", "role": "Adam learning rate", "learnable": false},
+      {"name": "weight_decay", "value": "1e-5", "role": "Adam L2", "learnable": false},
+      {"name": "entropy_coef", "value": "0.01", "role": "exploration bonus", "learnable": false},
+      {"name": "num_learning_epochs", "value": "4", "role": "PPO epochs per rollout", "learnable": false},
+      {"name": "num_mini_batches", "value": "4", "role": "minibatch count", "learnable": false},
+      {"name": "value loss", "value": "smooth_L1 (clipped)", "role": "Huber-style critic loss", "learnable": false},
+      {"name": "action L2 / rate", "value": "2e-4 ‖μ‖² + 1e-3 ‖μ-μ_prev‖²", "role": "energy + smoothness penalties", "learnable": false}
+    ],
+    "diff_from_baseline": "Vs default: replaces the plain MLP with a 2-block residual MLP + LN, adds Gaussian observation noise during training, switches the value loss to smooth-L1, augments the rollout with prev_actions and adds a (μ - μ_prev) rate penalty plus a μ² energy penalty, and bumps the lr/epochs/entropy default schedule.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Tanh-bounded PPO + reward squashing + sym-clip",
+    "tagline": "tanh-squashed actions with std clamp + rsample, three-way symmetric/asymmetric clip surrogate, KL+behavior-clone aux losses, tanh-squashed rewards in storage.",
+    "kind": "pseudocode",
+    "pseudocode": "// Actor / Critic: build_backbone Linear → LN → SiLU; orthogonal √2; head gain 0.01 actor / 1.0 critic\n// update_distribution: μ = mean_scale·tanh(MLP(obs));  σ = clamp(self.std, 0.05, 1.5)\n// act: clamp(rsample(N(μ, σ)), -1, 1)   ;   evaluate clamps actions and recomputes log-prob\n// Storage:\n//   r̃ = tanh(reward · 0.1) / 0.1   (reward squashing)\n//   GAE with λ_mix = λ·(0.95 + 0.05·(1 - done))   (slightly more truncation at terminal)\n//   advantage clamp to [-4, 4] then per-rollout standardize\n// PPO update:\n// 1. ratio = exp(logπ - logπ_old)\n// 2. surrogate = max(\n//      -A·ratio, -A·clip(ratio, 1±ε), -A·(1 + clip(ratio-1, ±sym_clip))\n//   ).mean()\n// 3. value loss: clipped smooth_L1 with β = critic_huber_delta\n// 4. behavior_loss = ‖μ - μ_old‖² · 1[ratio < 1+ε]\n// 5. loss = surrogate + c_v·value + kl_coef·KL + behavior_coef·behavior - c_e·entropy/(1 + 0.5·KL)\n// 6. clip grad-norm; adaptive-KL adjusts lr by 1.5",
+    "key_hyperparams": [
+      {"name": "activation", "value": "SiLU", "role": "MLP nonlinearity", "learnable": false},
+      {"name": "norm", "value": "LayerNorm after every hidden", "role": "feature normalization", "learnable": false},
+      {"name": "std clamp", "value": "[0.05, 1.5]", "role": "policy std bounds", "learnable": false},
+      {"name": "mean_scale", "value": "1.0", "role": "tanh squash scale", "learnable": false},
+      {"name": "reward squash", "value": "tanh(r·0.1)/0.1", "role": "reward magnitude clamp", "learnable": false},
+      {"name": "λ_mix coef", "value": "λ·(0.95 + 0.05·(1-done))", "role": "GAE λ slightly modulated by terminal", "learnable": false},
+      {"name": "advantage clamp", "value": "[-4, 4]", "role": "clip standardized advantages", "learnable": false},
+      {"name": "sym_clip_param", "value": "configured (extra 3rd surrogate term)", "role": "symmetric ratio-1 cap", "learnable": false},
+      {"name": "behavior_coef", "value": "configured", "role": "weight on (μ - μ_old)² when ratio<1+ε", "learnable": false},
+      {"name": "kl_coef", "value": "configured", "role": "explicit KL penalty weight", "learnable": false},
+      {"name": "critic_huber_delta", "value": "configured", "role": "smooth_L1 β for value loss", "learnable": false}
+    ],
+    "diff_from_baseline": "A heavily redesigned PPO: tanh-squashed actions with rsample and clamp, SiLU+LN MLP, a third symmetric-clip surrogate term, KL penalty + behavior-cloning auxiliary loss, KL-down-weighted entropy, tanh-squashed rewards in the rollout buffer, slightly truncation-modulated GAE λ, and Huber clipped value loss.",
+    "confidence": "medium"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Wide LN-MLP + Huber + per-dim adv norm",
+    "tagline": "Wider asymmetric actor [512,256,128] / critic [768,256,128] with LN, Huber value loss, optional per-dim advantage normalization.",
+    "kind": "pseudocode",
+    "pseudocode": "// Actor: Linear[obs→512] → LN → ELU → ... → [128→a]; head gain 0.01\n// Critic: Linear[critic_obs→768] → LN → ELU → ... → [128→1]; head gain 1.0\n// PPO update:\n// 1. adaptive KL lr: ×/÷ 1.5 at KL > 2·desired_kl / < desired_kl/2 (default thresholds)\n// 2. if norm_advantages_per_dim:  Â = (A - μ_d)/σ_d  per dim;  else flatten standardize\n// 3. surrogate = clipped (standard PPO)\n// 4. value loss = clipped Huber (δ) on (V - R) and (V_clipped - R)\n// 5. loss = surrogate + c_v·value - c_e·entropy",
+    "key_hyperparams": [
+      {"name": "actor hidden", "value": "[512, 256, 128]", "role": "asymmetric wider actor", "learnable": false},
+      {"name": "critic hidden", "value": "[768, 256, 128]", "role": "wider critic for value estimation", "learnable": false},
+      {"name": "norm", "value": "LayerNorm after each hidden", "role": "feature normalization", "learnable": false},
+      {"name": "value Huber", "value": "smooth-L1-style with δ", "role": "Huber-style value loss", "learnable": false},
+      {"name": "advantage norm", "value": "per-dim standardize (toggleable)", "role": "robust advantage normalization", "learnable": false},
+      {"name": "actor head gain", "value": "0.01", "role": "small initial outputs", "learnable": false}
+    ],
+    "diff_from_baseline": "Vs default: widens the actor to [512,256,128] and critic to [768,256,128] with LayerNorm everywhere; replaces the squared value loss with clipped Huber and switches to per-dim advantage standardization; keeps the original 2.0× adaptive-KL lr schedule.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "LN-MLP + Huber + entropy decay + priority replay",
+    "tagline": "Wider LN actor/critic with episode-decayed action noise, Huber value loss, decaying entropy coef, and TD-error-priority minibatch sampling.",
+    "kind": "pseudocode",
+    "pseudocode": "// Actor / Critic: Linear → LN → ELU stacks at widths [512,256,128] / [768,256,128]; head 0.01 gain\n// On done: noise_scale ← 0.9995·noise_scale  (per-episode decay)\n// Rollout buffer: store TD-errors |δ_t| as priorities = sqrt(|δ| + 1e-6)\n//   compute_returns: GAE; advantages standardized then clamped to [-10, 10]\n//   mini_batch_generator: sample by p_t = priorities_t / Σ priorities  (prioritized replay)\n// PPO update:\n// 1. adaptive KL lr: ×/÷ 1.5 at KL > 2·desired_kl / < desired_kl/2\n// 2. surrogate clipped\n// 3. value loss: clipped Huber (δ)\n// 4. entropy_coef ← max(0.001, entropy_coef · entropy_decay)\n// 5. loss = surrogate + c_v·value − c_e·entropy",
+    "key_hyperparams": [
+      {"name": "actor hidden", "value": "[512, 256, 128]", "role": "asymmetric wider actor", "learnable": false},
+      {"name": "critic hidden", "value": "[768, 256, 128]", "role": "asymmetric wider critic", "learnable": false},
+      {"name": "noise_decay", "value": "0.9995 per done", "role": "episode-driven exploration decay", "learnable": false},
+      {"name": "value Huber δ", "value": "configured (clipped Huber)", "role": "Huber value-loss cutoff", "learnable": false},
+      {"name": "entropy decay", "value": "multiplicative, floor 1e-3", "role": "anneal exploration bonus", "learnable": false},
+      {"name": "advantage clamp", "value": "[-10, 10]", "role": "limit exploding standardized advantages", "learnable": false},
+      {"name": "priority", "value": "p ∝ √(|δ| + 1e-6)", "role": "prioritized minibatch sampling", "learnable": false}
+    ],
+    "diff_from_baseline": "Vs default: widens the actor/critic with LayerNorm, adds episode-decayed action noise, replaces squared value loss with clipped Huber, decays entropy_coef multiplicatively (floor 1e-3), and modifies the rollout buffer to store TD-errors and sample minibatches with prioritized probability — a PER-style PPO variant.",
+    "confidence": "high"
+  }
+]

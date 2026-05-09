@@ -1,0 +1,86 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Momentum-IHT in weight space",
+    "tagline": "Recover g_w from chain rule, EMA-denoise it, take a gradient step on w, hard-threshold to top-k, then map back to (u, v).",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. w ← u^2 - v^2,  s ← u^2 + v^2\n// 2. g_w ← (u·grad_u - v·grad_v) / (2s + 1e-30)        // chain-rule recovered linear gradient\n// 3. m_w ← β m_w + (1-β) g_w,  m̂ ← m_w / (1 - β^min(t, 1000))   // EMA + bias correction\n// 4. w' ← w - lr · m̂\n// 5. idx ← topk(|w'|, k);  w_new[i] ← w'[i] if i ∈ idx else 0    // hard-threshold to k-sparse\n// 6. u ← √(max(w_new, 0) + ε_s);  v ← √(max(-w_new, 0) + ε_s)    // minimal (u, v) representation",
+    "key_hyperparams": [
+      {"name": "lr", "value": "0.5", "role": "step size on w", "learnable": false},
+      {"name": "beta", "value": "0.9", "role": "momentum/EMA on g_w", "learnable": false},
+      {"name": "sparsity k", "value": "task sparsity (passed-through hyperparameter)", "role": "hard-threshold size", "learnable": false},
+      {"name": "eps_s", "value": "1e-10", "role": "floor for sqrt to keep u,v defined", "learnable": false},
+      {"name": "bias correction cap", "value": "min(t, 1000)", "role": "freezes EMA bias correction after step 1000", "learnable": false}
+    ],
+    "init_recovers": "Plain GD on w when beta=0 and k=d (no thresholding)",
+    "diff_from_baseline": "Replaces all four (S)GD/AdaGrad/Adam baselines with iterative hard thresholding in the recovered linear-weight space: extract g_w via the diagonal-net chain rule, momentum-denoise, GD step, top-k hard threshold, then re-encode into the minimal (u, v) representation each step. Sparsity k is read directly from the task config.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "SignSim-gated SGD with momentum",
+    "tagline": "Momentum SGD with per-coordinate LR boosted when sign(grad_u) and sign(grad_v) disagree (sparsity-promoting) and shrunk when they agree.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. clip g_u, g_v to [-clip, clip]\n// 2. ss ← sign(g_u) · sign(g_v)                       // ∈ {-1, 0, +1}\n// 3. lr_scale ← boost  if ss < 0 else (reduce if ss > 0 else 1)\n// 4. v_u ← μ v_u + lr · lr_scale · g_u\n// 5. v_v ← μ v_v + lr · lr_scale · g_v\n// 6. u ← u - v_u,  v ← v - v_v",
+    "key_hyperparams": [
+      {"name": "lr", "value": "0.05", "role": "base step size", "learnable": false},
+      {"name": "momentum", "value": "0.9", "role": "heavy-ball EMA", "learnable": false},
+      {"name": "boost_factor", "value": "2.0", "role": "lr multiplier when sign(g_u) ≠ sign(g_v)", "learnable": false},
+      {"name": "reduce_factor", "value": "0.5", "role": "lr multiplier when sign(g_u) = sign(g_v)", "learnable": false},
+      {"name": "clip_value", "value": "1.0", "role": "elementwise gradient clip", "learnable": false}
+    ],
+    "init_recovers": "Plain SGD-momentum when boost = reduce = 1 and clip → ∞",
+    "diff_from_baseline": "Compared to the SGD baseline, adds heavy-ball momentum and a sign-similarity gate: when sign(g_u_i) and sign(g_v_i) disagree the step is doubled (this configuration drives w_i = u^2 - v^2 to grow), when they agree it is halved; gradients are pre-clipped to ±1 to handle Rademacher label noise.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "EMA-denoised w-space gradient flow",
+    "tagline": "Recover g_w from the chain rule, EMA-denoise with beta=0.995, reconstruct grad_u, grad_v from m_hat and take a vanilla GD step.",
+    "kind": "formula",
+    "formula": "$$g_w = \\frac{u\\,\\nabla_u L - v\\,\\nabla_v L}{2(u^2+v^2)+\\epsilon},\\;\\; m_t = \\beta m_{t-1} + (1-\\beta)g_w,\\;\\; \\hat m_t = \\frac{m_t}{1-\\beta^t}$$ $$u \\leftarrow u - \\eta\\,(2u\\,\\hat m_t),\\quad v \\leftarrow v - \\eta\\,(-2v\\,\\hat m_t)$$",
+    "key_hyperparams": [
+      {"name": "lr", "value": "0.1", "role": "GD step on (u, v)", "learnable": false},
+      {"name": "beta", "value": "0.995", "role": "EMA on recovered linear gradient", "learnable": false},
+      {"name": "epsilon", "value": "1e-16", "role": "denominator floor in chain-rule division", "learnable": false}
+    ],
+    "init_recovers": "Plain SGD on (u, v) when beta=0",
+    "diff_from_baseline": "Compared to the SGD baseline, derives g_w analytically from grad_u, grad_v, applies a slow EMA with bias correction (beta=0.995 to suppress label noise), then re-projects through the chain rule (2u m_hat, -2v m_hat) so the gradient flow stays in the diagonal-net parameterization. No second-moment accumulator and no hard thresholding.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Multiplicative mirror on (p, q) with sign gate",
+    "tagline": "Mirror-style multiplicative update on (u^2, v^2) using Adam moments of g_w, gated by sign-consistency EMA, with floor-aware equal-mass pruning.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. p ← u^2,  q ← v^2,  g_w ← (u·grad_u - v·grad_v) / (2(p+q) + ε)\n// 2. m ← β1 m + (1-β1) g_w,  s ← β2 s + (1-β2) g_w^2,  c ← β_c c + (1-β_c) sign(g_w)\n// 3. m̂ ← m/(1-β1^t),  ŝ ← s/(1-β2^t)\n// 4. gate ← 0.25 + 0.75 |c|        // sign-consistency throttle\n// 5. z ← clip · tanh(gate · m̂ / (√ŝ + ε) / clip)\n// 6. p_new ← p · exp(-lr z),  q_new ← q · exp(+lr z)        // mirror update\n// 7. shared ← clamp(min(p_new, q_new) - floor, ≥0) · prune · |c|\n// 8. p_new, q_new ← clamp(p_new - shared, ≥ floor), clamp(q_new - shared, ≥ floor)\n// 9. u ← √p_new,  v ← √q_new",
+    "key_hyperparams": [
+      {"name": "lr", "value": "0.06 / (1 + delta) · (1 + 0.1 min(1, 50 k/d))", "role": "noise- and density-aware base step", "learnable": false},
+      {"name": "beta1, beta2", "value": "0.9, 0.99", "role": "Adam-style moments on g_w", "learnable": false},
+      {"name": "beta_c", "value": "0.95", "role": "EMA on sign(g_w)", "learnable": false},
+      {"name": "clip", "value": "2.5", "role": "tanh-style step magnitude bound", "learnable": false},
+      {"name": "prune", "value": "0.18", "role": "equal-mass cancellation rate", "learnable": false},
+      {"name": "floor", "value": "mean(u^2) at init", "role": "clamp keeps p, q above the init scale", "learnable": false},
+      {"name": "eps", "value": "1e-12", "role": "denominator floor", "learnable": false}
+    ],
+    "init_recovers": "Adam on g_w in the (log p, log q) reparameterization when c, prune, clip, gate are disabled",
+    "diff_from_baseline": "Compared to all (S)GD/AdaGrad/Adam baselines, runs Adam in the recovered linear-gradient space and applies the update multiplicatively on the squared parameters p=u^2, q=v^2 with opposite signs (mirror descent on KL geometry). Adds a sign-consistency EMA c that throttles steps in noisy coordinates and uses |c| to shave equal mass from u^2 and v^2 (suppresses cancellation). lr is scaled by 1/(1+delta) and a sparsity-density factor.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Coupled Adam with reverse-adaptive scaling",
+    "tagline": "Adam-style with shared second moment over both u and v gradients and an inverted scale (sqrt(s) instead of 1/sqrt(s)) plus 100-step linear warmup.",
+    "kind": "formula",
+    "formula": "$$s_t = \\beta_2 s_{t-1} + (1-\\beta_2)(g_u^2 + g_v^2),\\;\\; m_{u,t} = \\beta_1 m_{u,t-1} + (1-\\beta_1)g_u,\\;\\; \\text{(same for } m_v)$$ $$\\sigma = \\frac{\\sqrt{s_t+\\epsilon}}{\\overline{\\sqrt{s_t+\\epsilon}}+\\epsilon},\\;\\; u \\leftarrow u - \\eta\\,\\rho_t\\,m_{u,t}\\,\\sigma,\\;\\; v \\leftarrow v - \\eta\\,\\rho_t\\,m_{v,t}\\,\\sigma$$",
+    "key_hyperparams": [
+      {"name": "lr", "value": "0.1", "role": "base step size", "learnable": false},
+      {"name": "beta1, beta2", "value": "0.9, 0.99", "role": "first/second moment EMAs (second moment shared across u, v)", "learnable": false},
+      {"name": "warmup_steps", "value": "100", "role": "linear ramp lr_scale rho_t", "learnable": false},
+      {"name": "eps", "value": "1e-6", "role": "denominator floor", "learnable": false}
+    ],
+    "init_recovers": "Adam-momentum SGD with no second-moment scaling when sigma is mean-normalized to 1",
+    "diff_from_baseline": "Differs from the adam baseline in three ways: (1) second moment s is accumulated from g_u^2 + g_v^2 jointly (preserving u<->v symmetry); (2) the per-coordinate scale is mean-normalized sqrt(s) (multiplied, not divided), so active coordinates take larger steps and inactive ones smaller — meant to amplify diagonal-net sparsity bias; (3) a 100-step linear warmup throttles lr.",
+    "confidence": "high"
+  }
+]

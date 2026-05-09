@@ -1,0 +1,98 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Confidence + logit-norm + margin",
+    "tagline": "Cosine-decayed entropy bonus, fixed L2 on logits, and a hinge that penalizes correct-class logits above 10.",
+    "kind": "formula",
+    "formula": "$$\\mathcal R = -0.1\\,c\\,H(p) + 5\\!\\times\\!10^{-4}\\,\\overline{z^2} + 10^{-3}\\,c\\,\\overline{(z_y - 10)_+},\\quad c = \\tfrac{1}{2}(1 + \\cos(\\pi\\,t/T)),\\;\\; H(p) = -\\sum_k p_k \\log p_k$$",
+    "key_hyperparams": [
+      {"name": "λ_conf", "value": "0.1", "role": "weight on cosine-scheduled negative entropy", "learnable": false},
+      {"name": "λ_norm", "value": "5e-4", "role": "weight on mean-square logit", "learnable": false},
+      {"name": "λ_margin", "value": "1e-3", "role": "weight on cosine-scheduled correct-class hinge", "learnable": false},
+      {"name": "margin threshold", "value": "10.0", "role": "hinge cap on correct-class logit", "learnable": false},
+      {"name": "schedule", "value": "0.5(1+cos(πt/T))", "role": "annealed weight on conf and margin terms", "learnable": false}
+    ],
+    "diff_from_baseline": "Beyond the confidence-penalty baseline, adds an unscheduled L2 logit penalty and a cosine-scheduled hinge that caps the correct-class logit at 10 to discourage logit explosion.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Conv-weight smoothness penalty",
+    "tagline": "Tiny L2 penalty on horizontal/vertical first differences of every conv kernel, ramped up over the first 10 epochs.",
+    "kind": "formula",
+    "formula": "$$\\mathcal R = \\lambda(t)\\,\\frac{1}{|\\mathcal C|}\\sum_{W \\in \\mathcal C}\\!\\left[\\overline{(W_{\\cdot,\\cdot,\\cdot,1:} - W_{\\cdot,\\cdot,\\cdot,:-1})^2} + \\overline{(W_{\\cdot,\\cdot,1:,\\cdot} - W_{\\cdot,\\cdot,:-1,\\cdot})^2}\\right]$$",
+    "key_hyperparams": [
+      {"name": "λ_base", "value": "1e-6", "role": "asymptotic regularization strength", "learnable": false},
+      {"name": "warmup_epochs", "value": "10", "role": "linear ramp from 0 to λ_base", "learnable": false},
+      {"name": "filter set", "value": "all 4-D conv weights", "role": "applied to every Conv2d.weight", "learnable": false}
+    ],
+    "init_recovers": "No regularization for the first 10 epochs and at very small λ_base.",
+    "diff_from_baseline": "A 1e-6-scale conv-kernel total-variation penalty (mean squared first differences along H and W of W) — replaces the entropy/orthogonality/dropblock baselines with a weight-smoothness prior.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Logit-L2 + depth-scaled hyperspherical + manifold mixup",
+    "tagline": "Sums logit L2, a depth-weighted off-diagonal cosine penalty on conv filters, and a temperature-2 mixup distillation against the model's own predictions.",
+    "kind": "formula",
+    "formula": "$$\\mathcal R = 10^{-4}\\,\\overline{z^2} + 10^{-3}\\sum_{\\ell}\\big(1+\\tfrac{\\ell}{L-1}\\big)\\frac{\\lVert \\hat W_\\ell \\hat W_\\ell^\\top - I\\rVert_F^2}{C_\\ell} + w(t)\\,T^2\\,\\mathrm{KL}\\!\\big(\\mathrm{soft}_T(z)_{\\lambda} \\,\\Vert\\, \\mathrm{soft}_T(f(\\tilde x))\\big)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "z", "label": "logits z"},
+        {"id": "l2", "label": "logit L2"},
+        {"id": "wt", "label": "Conv W (per layer)"},
+        {"id": "ortho", "label": "depth-scaled cos²"},
+        {"id": "mix", "label": "mixup x̃"},
+        {"id": "kd", "label": "T=2 distill"}
+      ],
+      "edges": [
+        {"from": "z", "to": "l2"},
+        {"from": "wt", "to": "ortho"},
+        {"from": "z", "to": "kd"},
+        {"from": "mix", "to": "kd"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "λ_logit", "value": "1e-4", "role": "L2 on raw logits", "learnable": false},
+      {"name": "λ_ortho", "value": "1e-3", "role": "weight on depth-scaled cosine off-diagonal penalty", "learnable": false},
+      {"name": "depth_scale", "value": "1 + ℓ/(L-1)", "role": "linear depth scaling for conv layer ℓ", "learnable": false},
+      {"name": "T", "value": "2.0", "role": "softmax temperature for mixup distillation", "learnable": false},
+      {"name": "Beta α", "value": "1.0", "role": "Beta(1,1) mixup λ (uniform)", "learnable": false},
+      {"name": "warmup_epochs", "value": "max(1, 0.1·T_total)", "role": "linear warmup for mixup term", "learnable": false}
+    ],
+    "diff_from_baseline": "Combines three distinct regularizers — logit-spectral decoupling, an orthogonal-reg variant that uses cosine similarity (after row-normalize) and a 1+ℓ/(L−1) depth scaling, and a self-distilled mixup KL term using T²-scaled soft labels at temperature 2.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Confidence-gated rival smoothing + head ortho",
+    "tagline": "Smooths only the renormalized non-target distribution for already-confident samples, plus a normalized off-diagonal Gram penalty on every linear head.",
+    "kind": "formula",
+    "formula": "$$\\tilde p_{k\\ne y} = \\frac{p_k}{\\sum_{j\\ne y}p_j},\\;\\; H_r = -\\sum_{k\\ne y}\\tilde p_k\\log\\tilde p_k / \\log(C-1),\\;\\; g = (p_y - \\tau)_+,\\;\\; \\mathcal R = s(t)\\!\\left[0.02\\,\\overline{g\\cdot(1-H_r)} + 2\\!\\times\\!10^{-4}\\,\\overline{(\\hat W \\hat W^\\top - I)^2}\\right]$$",
+    "key_hyperparams": [
+      {"name": "λ_rival", "value": "0.02", "role": "weight on confidence-gated rival smoothing", "learnable": false},
+      {"name": "λ_head", "value": "2e-4", "role": "weight on normalized linear head Gram off-diagonal", "learnable": false},
+      {"name": "τ (conf floor)", "value": "0.30 + 0.10·log₁₀(C) + 0.15·t/T", "role": "ramped confidence gate threshold", "learnable": false},
+      {"name": "schedule s(t)", "value": "sin(π·max((t/T-0.15)/0.75, 0))", "role": "mid-training bell weighting", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces the global confidence-penalty baseline with a per-sample gated rival-distribution entropy (only when p_target exceeds a class-count-aware threshold), and adds a normalized-row Gram off-diagonal penalty on every nn.Linear instead of conv-only orthogonal reg.",
+    "confidence": "medium"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Entropy + logit-variance + filter decorrelation",
+    "tagline": "Maximizes entropy, hinges logit variance below 0.1·C, and averages off-diagonal squared cosine across all conv filters; ramps over the first 15% of training.",
+    "kind": "formula",
+    "formula": "$$\\mathcal R = s(t)\\!\\left[0.12\\,(\\log C - H(p)) + 0.08\\,(\\mathrm{Var}_k z_k - 0.1\\,C)_+ + 0.04\\,\\overline{\\sum_{i\\ne j}(\\hat W_i\\!\\cdot\\!\\hat W_j)^2}\\right],\\quad s(t) = \\min(t/0.15T, 1)$$",
+    "key_hyperparams": [
+      {"name": "λ_conf", "value": "0.12", "role": "weight on (log C − H(p)) entropy gap", "learnable": false},
+      {"name": "λ_logit", "value": "0.08", "role": "weight on logit-variance hinge", "learnable": false},
+      {"name": "λ_decor", "value": "0.04", "role": "weight on conv filter cosine-decorrelation", "learnable": false},
+      {"name": "target_var", "value": "0.1·C", "role": "logit-variance hinge threshold", "learnable": false},
+      {"name": "warmup", "value": "15% of total epochs", "role": "linear ramp for the entire term", "learnable": false},
+      {"name": "min out_channels", "value": "8", "role": "skips conv layers below this width", "learnable": false}
+    ],
+    "diff_from_baseline": "A summed three-term loss that fuses (i) the confidence-penalty baseline using (log C − H(p)) as a positive form, (ii) a relu hinge on logit variance with a 0.1·C target, and (iii) a row-normalized cosine off-diagonal penalty on conv weights (similar to but normalized differently from the orthogonal_reg baseline).",
+    "confidence": "high"
+  }
+]

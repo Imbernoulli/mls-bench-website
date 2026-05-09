@@ -1,0 +1,182 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Depth-adaptive GLA",
+    "tagline": "GatedLinearAttention with per-layer key expansion ratio that grows from 0.5 in the first layer to 1.0 in the last (snapped to {0.5, 0.625, 0.75, 0.875, 1.0}).",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x"},
+        {"id": "ln", "label": "LayerNorm"},
+        {"id": "gla", "label": "GLA(expand_k=f(l))"},
+        {"id": "mlp", "label": "MLP"},
+        {"id": "out", "label": "block out"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ln"},
+        {"from": "ln", "to": "gla", "label": "expand_k = round((0.5+0.5·l/L)·8)/8"},
+        {"from": "gla", "to": "mlp"},
+        {"from": "mlp", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "expand_k(l)", "value": "0.5 → 1.0", "role": "key-expansion ratio that snaps to {0.5,0.625,0.75,0.875,1.0} across depth", "learnable": false},
+      {"name": "expand_v", "value": "1.0", "role": "value-expansion ratio", "learnable": false},
+      {"name": "conv_size", "value": "4", "role": "short-conv kernel (constant across depth)", "learnable": false},
+      {"name": "use_output_gate", "value": "True", "role": "swish output gate", "learnable": false},
+      {"name": "use_pos_emb", "value": "False", "role": "no learned absolute positions", "learnable": false}
+    ],
+    "init_recovers": "GLA baseline at expand_k=0.5 for all layers",
+    "diff_from_baseline": "Identical to GLA baseline except expand_k linearly increases with layer depth (0.5 in early layers → 1.0 deep), rounded to multiples of 1/8.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "DeltaNet + decay-gated skip blend",
+    "tagline": "DeltaNet sequence mixer with a per-head sigmoid decay scale and a token-wise sigmoid gate that linearly blends the DeltaNet output with the input residual.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x"},
+        {"id": "delta", "label": "DeltaNet"},
+        {"id": "decay", "label": "·sigmoid(decay_h)"},
+        {"id": "gate", "label": "g = σ(W_g x)"},
+        {"id": "blend", "label": "g·delta + (1-g)·x"},
+        {"id": "proj", "label": "Linear + dropout"}
+      ],
+      "edges": [
+        {"from": "x", "to": "delta"},
+        {"from": "delta", "to": "decay"},
+        {"from": "decay", "to": "blend"},
+        {"from": "x", "to": "gate"},
+        {"from": "gate", "to": "blend"},
+        {"from": "blend", "to": "proj"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "decay_h", "value": "zeros(num_heads)", "role": "per-head learnable scale (sigmoid)", "learnable": true},
+      {"name": "gate_proj", "value": "Linear(C,C)", "role": "token-wise sigmoid gate parameters", "learnable": true},
+      {"name": "DeltaNet conv_size", "value": "4", "role": "short-conv inside DeltaNet", "learnable": false},
+      {"name": "qk_activation / qk_norm", "value": "silu / l2", "role": "DeltaNet feature map and norm", "learnable": false}
+    ],
+    "init_recovers": "DeltaNet baseline when decay_h → ∞ and gate → 1",
+    "diff_from_baseline": "Wraps DeltaNet output with a learnable per-head sigmoid decay and a token-wise sigmoid gate that linearly mixes the mixer output with the layer input.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Split-channel GLA + DeltaNet hybrid",
+    "tagline": "Channel-split sequence mixer: half the channels go through GLA, half through DeltaNet, recombined with a depthwise causal-conv silu gate.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x"},
+        {"id": "in", "label": "Linear in_proj"},
+        {"id": "split", "label": "split d/2 + d/2"},
+        {"id": "gla", "label": "GLA(d/2, h/2)"},
+        {"id": "dn", "label": "DeltaNet(d/2, h/2)"},
+        {"id": "cat", "label": "concat"},
+        {"id": "gate", "label": "silu(W·DWConv1d(x))"},
+        {"id": "out", "label": "·gate → Linear"}
+      ],
+      "edges": [
+        {"from": "x", "to": "in"},
+        {"from": "in", "to": "split"},
+        {"from": "split", "to": "gla"},
+        {"from": "split", "to": "dn"},
+        {"from": "gla", "to": "cat"},
+        {"from": "dn", "to": "cat"},
+        {"from": "x", "to": "gate"},
+        {"from": "cat", "to": "out"},
+        {"from": "gate", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "GLA expand_k / expand_v", "value": "0.5 / 1.0", "role": "GLA branch on first half of channels", "learnable": false},
+      {"name": "DeltaNet conv_size", "value": "4", "role": "short-conv inside DeltaNet branch", "learnable": false},
+      {"name": "gate_conv kernel", "value": "3 (groups=C, padding=2)", "role": "depthwise causal gate conv", "learnable": true},
+      {"name": "gate Linear", "value": "Linear(C,C)", "role": "post-conv gate projection (silu)", "learnable": true},
+      {"name": "use_pos_emb", "value": "False", "role": "no learned positions", "learnable": false}
+    ],
+    "init_recovers": "GLA baseline if DeltaNet half is zeroed and gate=1",
+    "diff_from_baseline": "Replaces the single GLA mixer with a parallel GLA + DeltaNet pair on disjoint channel halves, fused via a depthwise causal-conv silu gate.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Cumulative SiLU-feature-map GLA",
+    "tagline": "Custom O(T·D²) linear attention: SiLU+1 feature map on Q/K, exact prefix-sum normalised KV state, sigmoid output gate plus a learnable depthwise-conv local branch and 0.5 residual scaling.",
+    "kind": "hybrid",
+    "formula": "$$y_t=\\text{gate}_t\\!\\left(\\frac{\\phi(q_t)^\\top S_t}{\\phi(q_t)^\\top z_t+\\varepsilon}+\\sigma(\\alpha)\\!\\odot\\text{DWConv4}(x)_t\\right),\\;S_t=\\!\\sum_{s\\le t}\\!\\phi(k_s)v_s^\\top,\\;z_t=\\!\\sum_{s\\le t}\\!\\phi(k_s),\\;\\phi(\\cdot)=\\text{SiLU}(\\cdot)+1$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x"},
+        {"id": "qkv", "label": "Linear Q,K,V"},
+        {"id": "phi", "label": "SiLU+1"},
+        {"id": "cs", "label": "cumsum(K⊗V), cumsum(K)"},
+        {"id": "g", "label": "gate σ(W_g x)"},
+        {"id": "loc", "label": "DWConv1d(x, k=4)"},
+        {"id": "mix", "label": "global + σ(α)·local"},
+        {"id": "out", "label": "Linear + dropout"}
+      ],
+      "edges": [
+        {"from": "x", "to": "qkv"},
+        {"from": "qkv", "to": "phi"},
+        {"from": "phi", "to": "cs"},
+        {"from": "cs", "to": "mix"},
+        {"from": "x", "to": "loc"},
+        {"from": "loc", "to": "mix"},
+        {"from": "x", "to": "g"},
+        {"from": "g", "to": "out"},
+        {"from": "mix", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "feature map", "value": "φ(x)=SiLU(x)+1", "role": "positive feature map for linear attention", "learnable": false},
+      {"name": "scale", "value": "1/√d_h", "role": "Q scaling before φ", "learnable": false},
+      {"name": "local α", "value": "init -1.5 per channel", "role": "sigmoid mixing weight on depthwise local branch", "learnable": true},
+      {"name": "local conv", "value": "Conv1d(C,C,k=4,groups=C)", "role": "depthwise causal local mixer", "learnable": true},
+      {"name": "res_scale", "value": "0.5", "role": "residual scaling on attn and mlp branches", "learnable": false},
+      {"name": "use_pos_emb", "value": "True", "role": "keeps learned absolute positions", "learnable": false},
+      {"name": "denominator eps", "value": "1e-6", "role": "stability constant for normalization", "learnable": false}
+    ],
+    "init_recovers": "Pure prefix-sum linear attention when σ(α)→0",
+    "diff_from_baseline": "Hand-rolled positive-feature-map linear attention with prefix-sum normalisation (no fla layer), augmented by a sigmoid output gate, depthwise-conv local branch, and 0.5 residual scaling.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Dual-DeltaNet (conv vs no-conv) gate",
+    "tagline": "Two parallel DeltaNet branches — one with short conv (local), one without (long range) — combined via a token-wise sigmoid gate, plus learnable per-branch residual scales.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x"},
+        {"id": "short", "label": "DeltaNet conv=4"},
+        {"id": "long", "label": "DeltaNet no conv"},
+        {"id": "gate", "label": "g = σ(W_g x)"},
+        {"id": "mix", "label": "g·short + (1-g)·long"},
+        {"id": "proj", "label": "Linear o_proj"}
+      ],
+      "edges": [
+        {"from": "x", "to": "short"},
+        {"from": "x", "to": "long"},
+        {"from": "x", "to": "gate"},
+        {"from": "short", "to": "mix"},
+        {"from": "long", "to": "mix"},
+        {"from": "gate", "to": "mix"},
+        {"from": "mix", "to": "proj"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "short conv_size", "value": "4", "role": "short-term DeltaNet kernel", "learnable": false},
+      {"name": "long use_short_conv", "value": "False", "role": "long-range DeltaNet without conv", "learnable": false},
+      {"name": "qk_activation / qk_norm", "value": "silu / l2", "role": "shared between branches", "learnable": false},
+      {"name": "res_scale_attn / res_scale_mlp", "value": "1.0 (init)", "role": "per-block learnable residual scalars", "learnable": true},
+      {"name": "gate_proj", "value": "Linear(C,C, bias=False)", "role": "token-wise sigmoid gate", "learnable": true}
+    ],
+    "init_recovers": "Half-and-half mix of conv and no-conv DeltaNet at gate=0.5",
+    "diff_from_baseline": "Doubles the DeltaNet baseline into a conv/no-conv pair fused by a token-wise sigmoid gate, and adds learnable per-block residual scaling on both attention and MLP branches.",
+    "confidence": "high"
+  }
+]

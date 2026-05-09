@@ -1,0 +1,79 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Hybrid CG + CFG (jointly trained)",
+    "tagline": "Trains a return-conditioned diffusion model and a CumRew classifier together; sampling combines CFG and CG additively, then re-ranks candidates by classifier log-prob.",
+    "kind": "pseudocode",
+    "pseudocode": "// Training:\n// 1. nn_condition = MLPCondition(in_dim=1, dropout=0.25) for CFG\n// 2. nn_classifier = HalfJannerUNet1d for CG\n// 3. for each batch (obs, act, val):\n// 4.   diffusion: agent.update(x, val/return_scale)  (CFG: label-dropout return conditioning)\n// 5.   if step ≤ classifier_gradient_steps: classifier.update(x, val_raw)\n//\n// Inference:\n// 6. condition = $\\tau\\,$target_return  with $\\tau = 0.9$ for hopper/walker/halfcheetah\n// 7. sample with both w_cfg and w_cg active; w_cfg ∈ {3, 4, 2} depending on env\n// 8. sample $K$ candidates per env; select argmax of classifier log-prob\n// 9. take action[0] from chosen trajectory",
+    "key_hyperparams": [
+      {"name": "label_dropout", "value": "0.25", "role": "CFG dropout for the return token", "learnable": false},
+      {"name": "w_cfg (hopper/walker/cheetah)", "value": "3.0 / 4.0 / 2.0", "role": "CFG strength per env", "learnable": false},
+      {"name": "w_cg", "value": "0.3 / 0.007 / 0.0001", "role": "CG strength (= default)", "learnable": false},
+      {"name": "target_return_scale", "value": "0.9", "role": "fraction of optimal return", "learnable": false},
+      {"name": "num_candidates", "value": "args.num_candidates", "role": "candidates per env (re-ranked)", "learnable": false}
+    ],
+    "diff_from_baseline": "Unlike the cfg baseline (CFG only, no classifier) or the default (CG only) baseline, trains both heads jointly and combines them at sampling time, then keeps the default's classifier-based candidate re-ranking — and tunes per-env w_cfg.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini/gemini-3.1-pro-preview",
+    "name": "CFG+CG diffuser with rescaled w_cg",
+    "tagline": "CFG-style return-conditioning + CG classifier active simultaneously, with the CG weight implicitly multiplied by the return scale.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Build agent with both nn_condition (MLPCondition, dropout=label_dropout) and CumRewClassifier\n// 2. Training: agent.update(x, val/return_scale) every step; classifier trained on val/return_scale\n// 3. At inference: condition = target_return broadcast to (num_envs * num_candidates, 1)\n// 4. compute $w_{\\text{cg,eff}} = w_{\\text{cg}} \\cdot \\text{return\\_scale}$  (rescales CG to undo the value normalisation)\n// 5. agent.sample(prior.repeat(K), w_cfg=w_cfg, w_cg=w_cg_eff, condition_cfg=condition)\n// 6. select best per env via classifier log-prob (logp.argmax)",
+    "key_hyperparams": [
+      {"name": "label_dropout", "value": "args.label_dropout", "role": "CFG dropout (= config)", "learnable": false},
+      {"name": "w_cfg", "value": "args.task.w_cfg", "role": "from task config", "learnable": false},
+      {"name": "w_cg_eff", "value": "w_cg · return_scale", "role": "rescaled to match raw value head", "learnable": false},
+      {"name": "classifier_label", "value": "val/return_scale", "role": "classifier trained on normalized returns", "learnable": false}
+    ],
+    "diff_from_baseline": "Adds CFG conditioning on top of the default CG baseline (default has no MLPCondition); also normalises the classifier target by the env return scale and undoes the scaling on w_cg at sample time — neither cfg nor decision_diffuser baselines do this rescale.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "HEDGE: RTG-tracked CFG + CG ensemble",
+    "tagline": "Hybrid CFG + CG with online return-to-go tracking, candidate-spread sampling around the running RTG, and softmax-weighted action averaging across elite plans.",
+    "kind": "pseudocode",
+    "pseudocode": "// Training: CFG (return-conditioning, dropout ≥ 0.25) + CG classifier on raw rewards;\n//          diffusion target = clamp(val/return_scale, ≥ 0)\n// Inference per step:\n// 1. $\\mathrm{RTG}_t = \\mathrm{clip}(\\text{target\\_return} - \\sum r/\\text{return\\_scale},\\, 0.05,\\, 1.25\\cdot\\text{target\\_return})$\n// 2. spread $= 0.25\\,\\max(0.35, 1 - t/1000)$;  scale_grid $= \\{1-\\text{spread}, 1, 1+\\text{spread}\\}$\n// 3. duplicate prior over scale_grid → candidate count varies per scale\n// 4. condition = clip(RTG · scale, …);  call agent.sample with $w_{\\mathrm{cfg}}, w_{\\mathrm{cg}}$\n// 5. score = classifier logp + 0.05·condition;  select top-4\n// 6. weights = softmax(top4_scores / 2);  $a = \\sum_k w_k\\,a_k^{(0)}$  (elite-weighted action)",
+    "key_hyperparams": [
+      {"name": "cond_dropout", "value": "max(0.25, label_dropout)", "role": "CFG dropout floor", "learnable": false},
+      {"name": "w_cfg", "value": "max(1.5, task.w_cfg)", "role": "CFG strength floor", "learnable": false},
+      {"name": "w_cg", "value": "max(1e-4, task.w_cg)", "role": "CG strength floor", "learnable": false},
+      {"name": "rtg_clip", "value": "[0.05, 1.25·target_return]", "role": "running RTG bounds", "learnable": false},
+      {"name": "scale_grid_spread", "value": "0.25 · max(0.35, 1-t/1000)", "role": "candidate spread schedule", "learnable": false},
+      {"name": "elite_top_k", "value": "4", "role": "elite trajectories softmax-averaged", "learnable": false},
+      {"name": "elite_softmax_temp", "value": "2.0", "role": "softmax temperature for elite weights", "learnable": false}
+    ],
+    "diff_from_baseline": "Compared to the cfg baseline (single fixed return target, classifier=None) and decision_diffuser (state-only DiT, no CG), this keeps both CG and CFG and adds (i) online RTG bookkeeping, (ii) a return-spread bracket of candidates and (iii) softmax-weighted action averaging across the top-4 elite trajectories.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "CG diffuser (default; no real change)",
+    "tagline": "Essentially the default classifier-guided pipeline: MLPCondition is imported but never wired into the diffusion model.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. nn_diffusion = JannerUNet1d on (obs, act);  nn_classifier trained on val\n// 2. agent = DiscreteDiffusionSDE(nn_diffusion, None, classifier=…)\n// 3. Inference: prior + classifier guidance only;  no condition_cfg passed\n// 4. select best of K candidates by classifier log-prob (= default behaviour)\n// 5. Note: imports MLPCondition but `nn_condition` is never instantiated → effectively no CFG",
+    "key_hyperparams": [
+      {"name": "w_cg", "value": "args.task.w_cg", "role": "from task config (= default)", "learnable": false},
+      {"name": "w_cfg", "value": "0", "role": "CFG never engaged", "learnable": false},
+      {"name": "num_candidates", "value": "args.num_candidates", "role": "default per-env candidate count", "learnable": false}
+    ],
+    "diff_from_baseline": "Practically identical to the `default` baseline: imports CFG primitives but never instantiates an MLPCondition, so the diffusion model is built with `None` condition net and only CG is active at inference; no algorithmic change vs. CG.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "CG diffuser (default; near no-op)",
+    "tagline": "Effectively reproduces the default CG baseline: no CFG conditioning, no candidate-selection change, only minor import shuffling.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. nn_diffusion = JannerUNet1d on (obs, act);  classifier = CumRewClassifier(HalfJannerUNet1d)\n// 2. agent = DiscreteDiffusionSDE(nn_diffusion, None, classifier=classifier)\n// 3. train: agent.update(x); update_classifier(x, val) when step ≤ classifier_gradient_steps\n// 4. inference: agent.sample(prior.repeat(K), w_cg=task.w_cg, no condition_cfg)\n// 5. pick argmax of classifier log-prob over candidates → take action[0]",
+    "key_hyperparams": [
+      {"name": "w_cg", "value": "args.task.w_cg", "role": "from task config (= default)", "learnable": false},
+      {"name": "w_cfg", "value": "0 (never used)", "role": "CFG path absent", "learnable": false},
+      {"name": "num_candidates", "value": "args.num_candidates", "role": "default candidate set size", "learnable": false}
+    ],
+    "diff_from_baseline": "Matches the `default` baseline almost line for line: classifier guidance only, no MLPCondition is created, no inference-time changes; the only deltas are import reordering and an explicit MLPCondition import that is never used.",
+    "confidence": "high"
+  }
+]

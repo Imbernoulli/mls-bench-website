@@ -1,0 +1,82 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "MSA-SimNorm: temp + per-position re-weight",
+    "tagline": "Group-wise softmax with a tanh-bounded learnable temperature in [0.5, 1.5], multiplied by softplus per-position weights, then renormalized to a (scaled) simplex.",
+    "kind": "formula",
+    "formula": "$$T = 1 + 0.5\\tanh(\\theta_T) \\in [0.5, 1.5],\\quad w = \\mathrm{softplus}(\\theta_w + 0.5413)$$ $$y_g = \\frac{\\mathrm{softmax}(x_g/T)\\odot w}{\\sum_d \\mathrm{softmax}(x_g/T)_d\\,w_d + \\epsilon}$$",
+    "key_hyperparams": [
+      {"name": "simnorm_dim", "value": "8 (cfg.simnorm_dim)", "role": "group size", "learnable": false},
+      {"name": "temp_param", "value": "scalar, init 0", "role": "tanh-bounded temperature in [0.5, 1.5]", "learnable": true},
+      {"name": "position_logweight", "value": "vector(dim), init 0", "role": "per-position softplus weight (init ~ 1)", "learnable": true},
+      {"name": "renorm", "value": "divide by sum + 1e-8", "role": "stay on a scaled simplex", "learnable": false}
+    ],
+    "init_recovers": "Standard SimNorm at init (T=1, w_d=1)",
+    "diff_from_baseline": "Adds two learnable knobs to the simnorm baseline: a single bounded temperature (tanh-clipped to [0.5, 1.5]) on the softmax logits, and a softplus per-position weight initialized so weights start near 1; after weighting the output is renormalized so each group remains on a (scaled) simplex.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Adaptive SimNorm: per-dim bias + temperature",
+    "tagline": "Per-position learnable bias added to the logits and exp(log_temp) per-position temperature, then standard group softmax.",
+    "kind": "formula",
+    "formula": "$$y_g = \\mathrm{softmax}\\!\\left(\\frac{x_g + b}{\\max(\\exp(\\theta_{\\log T}), \\epsilon)}\\right)$$",
+    "key_hyperparams": [
+      {"name": "simnorm_dim", "value": "cfg.simnorm_dim", "role": "group size", "learnable": false},
+      {"name": "bias", "value": "vector(dim), init 0", "role": "per-position pre-softmax shift", "learnable": true},
+      {"name": "log_temp", "value": "vector(dim), init 0", "role": "per-position log temperature, exp() before division", "learnable": true},
+      {"name": "eps", "value": "1e-8", "role": "temperature floor", "learnable": false}
+    ],
+    "init_recovers": "Standard SimNorm exactly at init (b=0, T=1)",
+    "diff_from_baseline": "Compared to the simnorm baseline, adds two learnable per-position vectors (length=simnorm_dim) — an additive bias on the logits and a per-position exp(log_temp) divisor — leaving the within-group softmax simplex projection unchanged.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "GatedSimNorm: simplex x sigmoid mean gate",
+    "tagline": "Standard group softmax multiplied elementwise by sigmoid(mean_d(x_g) + 2.0), so each group can be turned off when its average logit is small.",
+    "kind": "formula",
+    "formula": "$$y_g = \\mathrm{softmax}(x_g)\\cdot\\sigma\\!\\big(\\overline{x_g} + b\\big),\\quad b=2.0$$",
+    "key_hyperparams": [
+      {"name": "simnorm_dim", "value": "cfg.simnorm_dim", "role": "group size", "learnable": false},
+      {"name": "gate_bias b", "value": "init 2.0", "role": "starts groups near fully-active sigmoid(2)~0.88", "learnable": true}
+    ],
+    "init_recovers": "Standard SimNorm scaled by ~0.88 at init (when all gates open)",
+    "diff_from_baseline": "Compared to the simnorm baseline, multiplies each group's softmax output by sigmoid(group mean logit + 2.0) so the model can dynamically gate inactive groups; the simplex shape is preserved but each group is no longer constrained to sum to 1.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Entmax-1.5 + spherical mix",
+    "tagline": "Group-wise sparse entmax(alpha=1.5) blended with a per-group L2-normalized centered direction, with the mix gated by a confidence sigmoid.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{simplex}_g = \\mathrm{entmax}_{1.5}(x_g),\\;\\;\\mathrm{sphere}_g = \\frac{x_g - \\overline{x_g}}{\\|x_g - \\overline{x_g}\\|_2 + \\epsilon}$$ $$\\alpha = 0.35\\cdot\\min\\!\\big(\\sigma(1.25\\,(\\max(x_g)-\\overline{x_g})), 1\\big),\\quad y_g = (1-\\alpha)\\,\\mathrm{simplex}_g + \\alpha\\,\\mathrm{sphere}_g$$",
+    "key_hyperparams": [
+      {"name": "simnorm_dim", "value": "cfg.simnorm_dim", "role": "group size", "learnable": false},
+      {"name": "mix", "value": "0.35", "role": "max share of the spherical direction path", "learnable": false},
+      {"name": "conf_scale", "value": "1.25", "role": "sigmoid steepness on (max - mean) confidence", "learnable": false},
+      {"name": "entmax bisection iters", "value": "12", "role": "fixed-iteration entmax tau search", "learnable": false}
+    ],
+    "init_recovers": "Sparse entmax variant of SimNorm when the spherical share alpha = 0",
+    "diff_from_baseline": "Replaces the simnorm baseline's softmax with entmax(alpha=1.5) (sparse simplex) and blends it with a per-group L2-normalized centered direction; the blending weight is a sigmoid of (max-mean) of the group logits scaled by 1.25 and capped at 0.35. No learnable parameters.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Centered hybrid SimNorm + L2 with global norm",
+    "tagline": "Subtract sigmoid-weighted group mean, blend group L2 with temperature-softmax via learnable alpha, multiply per-position weight, then global L2 + scale.",
+    "kind": "formula",
+    "formula": "$$\\tilde x_g = x_g - \\sigma(\\theta_c)\\,\\overline{x_g},\\;\\; T=\\mathrm{clip}(\\theta_T, 0.1, 10),\\;\\;\\alpha=\\sigma(\\theta_\\alpha)$$ $$z_g = w\\odot\\Big[\\alpha\\,\\mathrm{softmax}(\\tilde x_g/T) + (1-\\alpha)\\,\\tfrac{\\tilde x_g}{\\|\\tilde x_g\\|_2}\\Big]$$ $$y = \\theta_s\\,\\frac{z}{\\|z\\|_2}\\quad\\text{(global L2 over the full latent)}$$",
+    "key_hyperparams": [
+      {"name": "simnorm_dim", "value": "cfg.simnorm_dim", "role": "group size", "learnable": false},
+      {"name": "alpha", "value": "scalar, init 0.6 (sigmoid)", "role": "blend simplex vs L2 path", "learnable": true},
+      {"name": "temperature", "value": "scalar, init 1.0 (clipped to [0.1, 10])", "role": "softmax temperature", "learnable": true},
+      {"name": "weight", "value": "vector(dim), init 1", "role": "per-position post-blend gain", "learnable": true},
+      {"name": "scale", "value": "scalar, init 1", "role": "post-global-L2 scale", "learnable": true},
+      {"name": "center_weight", "value": "scalar, init 0.5 (sigmoid)", "role": "fraction of group mean subtracted", "learnable": true}
+    ],
+    "init_recovers": "Approximately a sigmoid(0.6) blend of (centered) SimNorm and group-wise L2, then global L2",
+    "diff_from_baseline": "Replaces the simnorm baseline with a much heavier hybrid: subtract a sigmoid-weighted group mean, run two parallel paths (group-wise L2 and temperature-softmax), blend with a sigmoid alpha, multiply by a per-position weight vector, then apply a global L2 over the full latent and a scalar scale. All five mixing knobs are learnable.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,71 @@
+[
+  {
+    "model": "claude-opus-4-6",
+    "name": "Vectorized greedy + threshold replication",
+    "tagline": "Batch-vectorized LPT bin-packing on GPU plus a binary-search water-filling step that picks replica counts before greedy refinement.",
+    "kind": "pseudocode",
+    "pseudocode": "// balanced_packing (LPT, vectorized over batch B):\n// 1. sort items by weight desc → (sorted_idx, sorted_vals)\n// 2. for j = 0..n−1:\n// 3.   mask packs with count = items_per_pack as ∞\n// 4.   $b^\\star = \\arg\\min_p \\mathrm{loads}[:,p]$;  assign sorted_idx[:,j] to $b^\\star$\n// 5.   loads[:, $b^\\star$] += sorted_vals[:,j], counts[:, $b^\\star$] += 1\n//\n// replicate_experts (threshold + greedy refinement):\n// 6. binary-search T over [1e-12, max(w)] for 50 iters s.t. $\\sum_e \\lceil w_e/T \\rceil \\le N_{\\mathrm{phy}}$\n// 7. logcnt $\\leftarrow \\lceil w/T \\rceil$ (clamp ≥ 1); deficit = $N_{\\mathrm{phy}}$ − Σ logcnt\n// 8. while deficit > 0: top = argmax($w/$logcnt); logcnt[top] += 1\n// 9. build phy2log via scatter_add + cumsum (run-length decode, no batch loop)\n//\n// rebalance_experts: standard 3-stage hierarchical (groups→nodes, replicate, packs→GPUs)",
+    "key_hyperparams": [
+      {"name": "binary_search_iters", "value": "50", "role": "log₂(max_w/1e-12) iterations", "learnable": false},
+      {"name": "T_lo / T_hi", "value": "1e-12 / max(w)+1", "role": "threshold search bounds", "learnable": false},
+      {"name": "min_logcnt", "value": "1", "role": "every expert keeps ≥1 replica", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces greedy baseline's Python item-loop in balanced_packing with a vectorized argmin-of-masked-loads, and replaces sequential per-replica greedy in replicate_experts with binary-search water-filling plus a tiny greedy refinement; preserves DeepSeek's 3-stage hierarchical structure.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Greedy LPT + locality-aware node packing",
+    "tagline": "Vectorized LPT replaces stage-3 greedy bin-packing inside nodes; for stage-2 replicas a streaming locality-preserving pass keeps same-expert replicas together.",
+    "kind": "pseudocode",
+    "pseudocode": "// balanced_packing: vectorized greedy LPT (sort desc, mask full packs, argmin loads)\n// replicate_experts: unchanged baseline greedy ($n^2$ argmax)\n//\n// rebalance_experts (locality-preserving):\n// 1. p2log ← greedy replicate_experts(weight, num_replicas)\n// 2. compute rep_weight = weight / logcnt[p2log], expert_rank = sort(rep_weight desc)\n// 3. sort all replicas by expert_rank stable → packs same expert contiguously\n// 4. streaming sweep over sorted replicas:\n// 5.   if same expert as previous AND current node has capacity AND $\\mathrm{load}+w \\le 1.01\\cdot \\bar L$: keep on current node\n// 6.   else jump to argmin of node loads\n// 7. group sorted replicas by node → run vectorized LPT inside each node to pick GPU\n// 8. build final phy2log/log2phy by inversion + scatter",
+    "key_hyperparams": [
+      {"name": "load_slack", "value": "1.01", "role": "node-load tolerance for keeping locality", "learnable": false},
+      {"name": "ideal_load", "value": "Σw / num_nodes", "role": "balanced-load reference", "learnable": false},
+      {"name": "stable_sort", "value": "true", "role": "preserves replica grouping by expert", "learnable": false}
+    ],
+    "diff_from_baseline": "Beyond the greedy/zigzag baselines, restructures rebalance_experts to first replicate then group same-expert replicas contiguously and place them while monitoring per-node load against an ideal-load slack — explicitly trading a tiny bit of balance for cluster-wide expert locality.",
+    "confidence": "medium"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Multi-start serpentine + capped water-fill",
+    "tagline": "Tensor-only serpentine bin-packing over a small bank of patterns and shifts (no batch loop), plus an expert-specific replica cap derived from sqrt(w/mean).",
+    "kind": "pseudocode",
+    "pseudocode": "// balanced_packing (multi-start serpentine):\n// 1. sort items desc; build base patterns: identity, reverse, snake, reverse-snake\n// 2. for shift s in {0, 1, P/2, P−1}: cand = (pattern + s) mod P\n// 3. compute loads via scatter_add for each (pattern, shift) ⇒ score = max-load per batch\n// 4. select cand minimising max-load PER BATCH (torch.where on `better`)\n//\n// replicate_experts (capped water-filling):\n// 5. mean_target = $\\sum w / N_{\\mathrm{phy}}$;  cap = $\\min(\\lceil \\sqrt{w/\\bar w}\\rceil, \\text{extra}+1)$\n// 6. for i in 1..extra:\n// 7.   eff = $w/\\mathrm{logcnt}$; mask experts where logcnt ≥ cap\n// 8.   top = argmax(masked); fall back to unmasked argmax if no valid expert\n// 9. assign one new replica to top, increment logcnt[top]\n//\n// rebalance_experts: same DeepSeek 3-stage scaffold",
+    "key_hyperparams": [
+      {"name": "shift_set", "value": "{0, 1, P/2, P−1}", "role": "candidate cyclic shifts in serpentine packing", "learnable": false},
+      {"name": "base_patterns", "value": "4", "role": "identity, reverse, snake, reverse-snake", "learnable": false},
+      {"name": "cap_formula", "value": "ceil(sqrt(w / mean))", "role": "soft per-expert replica cap", "learnable": false},
+      {"name": "min_cap", "value": "1", "role": "every expert allowed ≥1", "learnable": false}
+    ],
+    "diff_from_baseline": "Vectorizes packing as a multi-pattern serpentine search (extends the zigzag baseline) and replaces uncapped greedy replication with a square-root-law cap that limits per-expert replicas — both designed to cap heavy-tail blow-up on the stress regime.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Vectorized LPT, expert-level node split",
+    "tagline": "Batch-vectorized LPT replaces the per-batch Python loop everywhere; in stage 1 packs individual experts (rather than groups) directly to nodes.",
+    "kind": "pseudocode",
+    "pseudocode": "// balanced_packing (vectorized LPT):\n// 1. sort items desc; loads, counts ∈ ℝ^{B×P}\n// 2. for j = 0..n−1:\n// 3.   adjusted = where(counts < items_per_pack, loads, +∞)\n// 4.   $b^\\star = \\arg\\min_p$ adjusted; assign and update load/count\n//\n// replicate_experts: identical to greedy baseline\n//\n// rebalance_experts:\n// 5. Stage 1 — pack individual experts (NOT groups) to nodes via balanced_packing(weight, num_nodes)\n// 6. Stage 2 — replicate within each node (greedy)\n// 7. Stage 3 — pack physical replicas to GPUs within each node",
+    "key_hyperparams": [
+      {"name": "stage1_unit", "value": "individual expert", "role": "removes group concept; ignores num_groups", "learnable": false},
+      {"name": "items_per_pack", "value": "E/num_nodes", "role": "forced equal-cardinality at node level", "learnable": false}
+    ],
+    "diff_from_baseline": "Same Python-loop greedy LPT as baseline but vectorized across batch dimension; differs structurally by dropping the group-level pre-packing step (stage 1 packs experts, not groups), so num_groups is effectively unused.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "Greedy LPT + proportional replication",
+    "tagline": "Standard LPT for packing, but allocates extra replicas in proportion to expert weight via floor-then-largest-fractional water-filling.",
+    "kind": "pseudocode",
+    "pseudocode": "// balanced_packing: greedy LPT (sort desc, mask full, argmin loads) — like baseline\n//\n// replicate_experts (proportional water-filling):\n// 1. logcnt ← 1 (every expert keeps one replica)\n// 2. extra = num_phy − num_log\n// 3. fractional = (w / Σw) · extra  (per expert)\n// 4. logcnt += floor(fractional)\n// 5. remaining = extra − Σ floor; for each batch b:\n// 6.   indices = topk(fractional − floor, k=remaining[b])\n// 7.   logcnt[b, indices] += 1\n// 8. assert Σ logcnt = num_phy; build phy2log via per-batch repeat_interleave\n//\n// rebalance_experts: standard 3-stage hierarchical pipeline (unchanged)",
+    "key_hyperparams": [
+      {"name": "min_replicas", "value": "1", "role": "every expert keeps a replica", "learnable": false},
+      {"name": "alloc_rule", "value": "floor(w·extra/Σw) + topk(fractional)", "role": "proportional + largest-remainder", "learnable": false}
+    ],
+    "diff_from_baseline": "Keeps DeepSeek's hierarchical scaffold but swaps greedy max-load replication for a proportional largest-remainder allocator that distributes extras in one shot rather than O(extra) argmax steps; balanced_packing remains the original Python-loop LPT.",
+    "confidence": "high"
+  }
+]

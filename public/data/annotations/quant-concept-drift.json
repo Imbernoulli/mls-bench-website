@@ -1,0 +1,90 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "5-LightGBM ensemble (uniform/exp/dist/x/recent)",
+    "tagline": "Train 5 LightGBM models with uniform, exponential-recency, validation-distribution, multiplicative, and recent-only sample weights; aggregate via daily-IC softmax.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. let dates = sorted unique train timestamps;  $n_d = $ count;  $s_i$ = day index of sample $i$\n// 2. weights:\n//    $w_u = \\mathbf{1}$;  $w_e = \\exp(-(n_d-1-s)\\,\\log 2/(0.35 n_d))$\n//    $w_d = \\exp(-d_q/\\mathrm{med}(d_q))$ where $d_q = \\overline{((\\bar x_q - \\bar x_{val})/\\sigma_{val})^2}$ per quarter\n//    $w_c = w_e \\odot w_d$;  $w_r = \\mathbf{1}_{s \\ge 0.6 n_d} + 0.05\\, \\mathbf{1}_{s < 0.6 n_d}$\n// 3. for each $w \\in \\{w_u, w_e, w_d, w_c, w_r\\}$:  fit LightGBM with sample weight $w$, ES on valid\n// 4. score $\\mathrm{ic}_k$ = mean daily Pearson IC of model-$k$ valid preds vs $y_{val}$\n// 5. ensemble weights $\\alpha_k = \\max(0, \\mathrm{ic}_k)/\\sum_j \\max(0, \\mathrm{ic}_j)$\n// 6. predict $= \\sum_k \\alpha_k\\, m_k(x)$",
+    "key_hyperparams": [
+      {"name": "LGBM params", "value": "lr=0.2, max_depth=8, num_leaves=210, $\\lambda_1=205.7, \\lambda_2=580.98$", "role": "qlib LightGBM benchmark", "learnable": false},
+      {"name": "exp halflife", "value": "$0.35 n_d$", "role": "$w_e$ decay rate", "learnable": false},
+      {"name": "recent cutoff", "value": "$0.6 n_d$, $w=1$ vs $0.05$", "role": "$w_r$ split", "learnable": false},
+      {"name": "ensemble", "value": "$\\propto \\max(0, \\text{daily-IC})$", "role": "model fusion", "learnable": false}
+    ],
+    "init_recovers": "Uniform LGBM if all $\\alpha$ collapse to $w_u$",
+    "diff_from_baseline": "Replaces single LightGBM with a 5-weighting ensemble; new weight schemes are validation-feature-distribution similarity per quarter and the multiplicative time$\\times$distribution scheme; aggregation uses daily-IC-proportional weights.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "TGA-Net: adversarial temporal alignment + experts",
+    "tagline": "MLP encoder with 3 expert heads, gradient-reversal temporal-period discriminator, recency-weighted loss, expert-decorrelation, and inverse-loss expert gating.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. partition train into 3 chronological periods $p_i$;  recency $r_i = \\exp(\\mathrm{linspace}(0, 1.5, n))$\n// 2. assign expert $e_i$ by 3-way chronological split\n// 3. for epoch $= 1\\ldots 80$:\n// 4.   $z = \\mathrm{Enc}(x)$;  $z_{adv} = \\mathrm{GRL}_{0.5}(z)$\n// 5.   $\\hat y_k = \\mathrm{Expert}_k(z)$\n// 6.   $\\mathcal{L}_{pred} = \\frac{1}{3}\\sum_k \\overline{r\\,(0.5 + 0.5\\mathbb{1}[e=k])(\\hat y_k - y)^2}$\n// 7.   $\\mathcal{L}_{adv} = \\mathrm{CE}(\\mathrm{Disc}(z_{adv}), p)$;  $\\mathcal{L}_{div} = \\overline{|\\rho_{ij}|}_{i\\ne j}$\n// 8.   $\\mathcal{L} = \\mathcal{L}_{pred} + 0.05\\,\\mathcal{L}_{adv} + 0.01\\,\\mathcal{L}_{div}$\n// 9.   step Adam (lr=$10^{-3}$, wd=$10^{-5}$); clip $\\|g\\|\\le 5$\n// 10. expert weights $\\alpha = \\mathrm{softmax}(-\\ell_v)$ on validation MSE; predict $\\hat y = \\sum_k \\alpha_k \\mathrm{Expert}_k(\\mathrm{Enc}(x))$",
+    "key_hyperparams": [
+      {"name": "GRL $\\alpha$", "value": "0.5", "role": "gradient-reversal strength", "learnable": false},
+      {"name": "experts", "value": "3", "role": "temporal heads", "learnable": false},
+      {"name": "recency", "value": "$\\exp(\\mathrm{linspace}(0, 1.5, n))$", "role": "sample importance", "learnable": false},
+      {"name": "loss weights", "value": "1.0 / 0.05 / 0.01", "role": "pred / adv / decorr", "learnable": false},
+      {"name": "epochs / batch", "value": "80 / 4096", "role": "training", "learnable": false},
+      {"name": "encoder dim", "value": "158$\\to$128$\\to$32", "role": "MLP encoder shape", "learnable": false}
+    ],
+    "init_recovers": "Vanilla MLP regression at GRL=0, decorr=0, equal-expert weights",
+    "diff_from_baseline": "End-to-end neural model: replaces qlib's LightGBM/TRA with a 3-expert MLP, adds gradient-reversal temporal-domain discriminator and softmax-of-negative-loss expert gating; recency-weighted MSE objective.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Regime-routed LightGBM mixture",
+    "tagline": "Train one global LightGBM plus 6 chronological-regime LightGBMs; at test, per-month softmax over Euclidean distances to regime feature centroids.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. partition train into 6 consecutive temporal regimes\n// 2. fit global LightGBM on all train (300 rounds)\n// 3. for $k = 1\\ldots 6$:  fit LGBM-$k$ on regime-$k$ data (150 rounds);  store centroid $c_k = \\mathrm{median}(X_k)$\n// 4. at test, group by year-month; for each group $g$:\n// 5.   $\\bar x_g = \\mathrm{median}(X_g)$;  $d_k = \\|\\bar x_g - c_k\\|$\n// 6.   $z_k = (d_k - \\min d)/(\\sigma(d)+\\epsilon)$;  $w_k \\propto \\exp(-\\gamma z_k)$\n// 7.   expert pred $= \\sum_k w_k\\, \\mathrm{LGBM}_k(X_g)$\n// 8.   final $= 0.5\\, \\mathrm{LGBM}_{global}(X_g) + 0.5\\, \\text{expert pred}$",
+    "key_hyperparams": [
+      {"name": "regimes", "value": "6", "role": "chronological partitions", "learnable": false},
+      {"name": "$\\gamma$", "value": "3.0", "role": "softmax temperature on z-distances", "learnable": false},
+      {"name": "global / expert blend", "value": "0.5 / 0.5", "role": "final mixture", "learnable": false},
+      {"name": "boost rounds", "value": "global=300, regime=150", "role": "LightGBM training budgets", "learnable": false},
+      {"name": "LGBM lr / depth / leaves", "value": "0.05 / 8 / 210", "role": "per-tree config", "learnable": false}
+    ],
+    "init_recovers": "Plain global LightGBM if mixture weight collapses onto $\\mathrm{LGBM}_{global}$",
+    "diff_from_baseline": "Adds an explicit temporal-regime mixture: 6 specialist LightGBMs gated at inference by softmax-over-Euclidean-z to median feature centroids of each regime, blended 50/50 with a single global LightGBM.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Two-halflife Ridge+ExtraTrees with shift gate",
+    "tagline": "Long- and short-halflife recency-weighted Ridge+ExtraTrees experts blended per day by a sigmoid gate of feature-distribution drift.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for each expert $\\in \\{\\text{long}, \\text{short}\\}$ with halflife $\\in \\{900, 420\\}$ days:\n// 2.   $w_t = 2^{-\\Delta t / \\text{halflife}}$\n// 3.   fit Ridge($\\alpha=4$) with $w_t$;  $r = y - \\hat y_{base}$\n// 4.   fit ExtraTrees($n=160$, depth=6) on $[X, \\hat y_{base}]$ predicting $r$\n// 5.   $\\hat y_{exp}(X) = \\hat y_{base}(X) + \\hat y_{boost}(X)$\n// 6. on validation: grid search blend $w \\in [0.1, 0.9]$ to maximize daily Spearman IC;  store $w^*$\n// 7. ref drift $= \\overline{|\\bar X_{tr} - \\bar X_{val}|/\\sigma_{tr}}$\n// 8. at test, per day $d$:\n// 9.   $s_d = \\overline{|\\bar X_d - \\bar X_{tr}|/\\sigma_{tr}}$;  $\\rho = \\mathrm{clip}(s_d / s_{ref}, 0.5, 2.5)$\n// 10.  $g = \\sigma(8.0\\,(\\rho - 1.0))$;  $w_{short} = 0.5 w^* + 0.5 g$\n// 11.  pred $= w_{short}\\,\\hat y_{short} + (1 - w_{short})\\,\\hat y_{long}$",
+    "key_hyperparams": [
+      {"name": "halflives", "value": "long=900d, short=420d", "role": "recency-weight scales", "learnable": false},
+      {"name": "Ridge $\\alpha$", "value": "4.0", "role": "base linear model", "learnable": false},
+      {"name": "ExtraTrees", "value": "n=160, depth=6, leaf=40, max_features=0.25", "role": "residual booster", "learnable": false},
+      {"name": "blend grid", "value": "$\\{0.1, \\ldots, 0.9\\}$", "role": "validation blend search", "learnable": false},
+      {"name": "gate $\\alpha$", "value": "8.0", "role": "drift-sigmoid sharpness", "learnable": false},
+      {"name": "drift clip", "value": "[0.5, 2.5]", "role": "$\\rho$ range", "learnable": false}
+    ],
+    "init_recovers": "Single Ridge + ExtraTrees regressor at gate $\\to 0.5$ and blend $w^* = 0.5$",
+    "diff_from_baseline": "Replaces the LightGBM-only pipeline with Ridge+ExtraTrees stacked experts at two recency halflives and an explicit per-day distribution-shift sigmoid gate that mixes them.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Stable / adaptive MLP twin with MMD + fine-tune",
+    "tagline": "Twin MLPs (stable + adaptive) with exp-recency loss, RBF-MMD alignment between past/recent in the adaptive branch, and a recent-only fine-tune.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. recency $r = (\\Delta t - \\min)/(\\max - \\min)$;  $w_t = \\exp(\\lambda_{tew}\\, r)$\n// 2. split features into past / recent at fraction $1 - 0.35$\n// 3. encoders $E_s, E_a$ + heads $P_s, P_a$ (MLP w/ GELU+LN, hidden=128, 2 layers)\n// 4. for epoch $= 1\\ldots 200$ (cosine LR):\n// 5.   $\\mathcal{L}_s = \\overline{w_t (P_s(E_s(x)) - y)^2}$\n// 6.   $\\mathcal{L}_a = \\overline{w_t^{1.5} (P_a(E_a(x)) - y)^2}$\n// 7.   $\\mathcal{L}_{mmd} = \\mathrm{MMD}_{rbf}(E_a(X_{past}), E_a(X_{recent}))$\n// 8.   $\\mathcal{L} = \\mathcal{L}_s + \\mathcal{L}_a + 0.05\\, \\mathcal{L}_{mmd}$;  Adam(5e-4); $\\|g\\|\\le 3$\n// 9. fine-tune adaptive branch on recent-only for 30 epochs at lr$/2$\n// 10. predict $= 0.6\\,P_a(E_a(x)) + 0.4\\,P_s(E_s(x))$",
+    "key_hyperparams": [
+      {"name": "$\\lambda_{tew}$", "value": "0.8", "role": "recency exponent", "learnable": false},
+      {"name": "recency fraction", "value": "0.35", "role": "past/recent split", "learnable": false},
+      {"name": "$\\lambda_{mmd}$", "value": "0.05", "role": "RBF-MMD weight", "learnable": false},
+      {"name": "ensemble $\\alpha$", "value": "0.6", "role": "adaptive vs stable blend", "learnable": false},
+      {"name": "fine-tune", "value": "30 epochs, lr/2", "role": "recent-only adaptation", "learnable": false},
+      {"name": "MLP", "value": "hidden=128, 2 layers, GELU+LayerNorm", "role": "encoder/predictor architecture", "learnable": false},
+      {"name": "epochs / batch", "value": "200 / 4096", "role": "training", "learnable": false}
+    ],
+    "init_recovers": "Single MLP at $\\lambda_{mmd}=0$, $\\alpha=1$, no fine-tune",
+    "diff_from_baseline": "Replaces qlib's LightGBM with a twin-MLP architecture: stable branch on uniform-ish recency, adaptive branch with $w_t^{1.5}$ recency, RBF-MMD between past/recent latent codes, and a 30-epoch recent-only fine-tune of the adaptive head.",
+    "confidence": "high"
+  }
+]

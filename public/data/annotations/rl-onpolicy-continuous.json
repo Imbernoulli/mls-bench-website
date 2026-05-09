@@ -1,0 +1,67 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Asymmetric-clip PPO + plain MSE value",
+    "tagline": "PPO clip with widened upper bound $1+2\\epsilon$ for positive advantages and standard $1\\pm\\epsilon$ for negative; value loss is unclipped MSE.",
+    "kind": "formula",
+    "formula": "$$L^{\\text{pol}}=\\mathbb{E}\\bigl[\\max(-A\\,r,\\,-A\\,\\bar r)\\bigr],\\quad \\bar r=\\begin{cases}\\mathrm{clip}(r,1-\\epsilon,1+2\\epsilon), & A\\ge 0\\\\ \\mathrm{clip}(r,1-\\epsilon,1+\\epsilon), & A<0\\end{cases}$$ $$L^{\\text{val}}=\\tfrac{1}{2}\\,\\mathbb{E}\\bigl[(V_\\theta-R)^2\\bigr]$$",
+    "key_hyperparams": [
+      {"name": "pos_clip_mult", "value": "2.0", "role": "multiplier on upper PPO clip when $A>0$", "learnable": false},
+      {"name": "ent_coef", "value": "args.ent_coef", "role": "unchanged from PPO config", "learnable": false},
+      {"name": "value clipping", "value": "off", "role": "vs PPO baseline which clips value", "learnable": false}
+    ],
+    "init_recovers": "Standard PPO when pos_clip_mult=1",
+    "diff_from_baseline": "Differs from PPO baseline by widening only the upper clip for positive advantages and removing PPO's clipped value loss entirely; not AWR (no exp-advantage weighting) and not PPO-Penalty (no KL penalty).",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Adv-weighted clipped PPO + adaptive KL",
+    "tagline": "Multiplies PPO's clipped surrogate by exp(A/β) AWR weights with auto-tuned β plus an adaptive PPO-penalty KL term and a +0.01 entropy bonus.",
+    "kind": "formula",
+    "formula": "$$w=\\mathrm{normalize}\\bigl(\\exp(\\mathrm{clip}(A,-10,10)/\\beta)\\bigr),\\;\\;L^{\\text{pol}}=\\mathbb{E}\\bigl[\\max(-w A r,\\,-w A\\,\\mathrm{clip}(r,1\\pm\\epsilon))\\bigr]+\\beta_{\\text{KL}}\\,\\overline{\\mathrm{KL}}$$ $$\\beta\\leftarrow 1.05\\,\\beta\\text{ if }\\sigma_w>0.7;\\;\\beta\\leftarrow 0.95\\,\\beta\\text{ if }\\sigma_w<0.3;\\quad\\beta_{\\text{KL}}\\leftarrow 2\\,\\beta_{\\text{KL}}\\text{ if }\\overline{\\mathrm{KL}}>1.5\\,\\overline{\\mathrm{KL}}^*$$",
+    "key_hyperparams": [
+      {"name": "β init", "value": "0.2", "role": "AWR temperature, auto-adapted from weight std", "learnable": false},
+      {"name": "β bounds", "value": "[0.05, 5.0]", "role": "clamp on AWR temperature", "learnable": false},
+      {"name": "β_KL init", "value": "0.5", "role": "PPO-penalty KL coefficient", "learnable": false},
+      {"name": "target_kl", "value": "0.01", "role": "target for adaptive KL beta", "learnable": false},
+      {"name": "adv clip", "value": "[-10, 10]", "role": "advantage clamp before exp", "learnable": false},
+      {"name": "extra entropy", "value": "+0.01", "role": "added to args.ent_coef", "learnable": false},
+      {"name": "value clip", "value": "if args.clip_vloss", "role": "PPO clipped value loss kept", "learnable": false}
+    ],
+    "init_recovers": "PPO (clipped surrogate) when w=1 and β_KL→0",
+    "diff_from_baseline": "Stacks PPO baseline's clipped surrogate, AWR baseline's exp-advantage reweighting, and PPO-Penalty baseline's adaptive KL term into one update; AWR temperature β is auto-tuned to keep weight std around 0.5, which none of the three reference baselines do.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Dual-clip PPO + Huber value",
+    "tagline": "Standard PPO upper clip plus a lower bound on negative-advantage loss at $-3A$ (dual clipping); Huber-2.0 value loss; entropy bonus 0.005.",
+    "kind": "formula",
+    "formula": "$$L^{\\text{pol}}=\\mathbb{E}\\Bigl[\\mathbb{1}_{A<0}\\,\\min\\bigl(\\max(-A r,-A\\,\\mathrm{clip}(r,1\\pm\\epsilon)),\\,-3A\\bigr)+\\mathbb{1}_{A\\ge 0}\\,\\max(-A r,-A\\,\\mathrm{clip}(r,1\\pm\\epsilon))\\Bigr]$$ $$L^{\\text{val}}=\\mathrm{Huber}_{\\delta=2}(V_\\theta, R),\\quad H=0.005\\,\\mathbb{E}[\\mathcal{H}(\\pi)]$$",
+    "key_hyperparams": [
+      {"name": "dual_clip_coef", "value": "3.0", "role": "lower bound on per-sample loss when $A<0$", "learnable": false},
+      {"name": "Huber δ", "value": "2.0", "role": "value-loss transition", "learnable": false},
+      {"name": "ent_coef (override)", "value": "0.005", "role": "fixed entropy coefficient (vs args.ent_coef)", "learnable": false}
+    ],
+    "init_recovers": "PPO baseline (no dual cap, MSE value, args ent) at dual_clip→∞ and δ→∞",
+    "diff_from_baseline": "Adds dual clipping (Ye et al.'s lower bound at $-3A$ for negative-advantage samples) on top of PPO baseline, swaps clipped MSE value for Huber loss, and hard-codes 0.005 entropy; AWR baseline's weighted-regression loss and PPO-Penalty's KL term are absent.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "RAPO: rectified-advantage PPO",
+    "tagline": "Tanh-bounded action mean, sign-split policy loss with quadratic ratio rectifier on bad actions, log-ratio trust penalty, and advantage-magnitude-weighted (clipped) value loss.",
+    "kind": "formula",
+    "formula": "$$\\mu_a=2\\tanh(f_\\theta(s)/2),\\quad L^{\\text{pol}}=\\mathbb{E}\\bigl[-\\min(A_+ r,A_+\\,\\mathrm{clip}(r,1\\pm\\epsilon))+A_- r+2A_-\\,\\mathrm{ReLU}(r-1)^2\\bigr]+\\mathbb{E}\\bigl[0.02\\,A_+\\,\\rho^2+0.08\\,A_-\\,\\mathrm{ReLU}(\\rho)^2\\bigr]$$ $$\\rho=\\log\\!\\bigl(\\pi/\\pi_{\\text{old}}\\bigr),\\quad L^{\\text{val}}=\\tfrac{1}{2}\\mathbb{E}\\bigl[(1+0.5\\,|A|/\\overline{|A|})\\cdot\\max\\bigl((V_\\theta-R)^2,(V_{\\text{clip}}-R)^2\\bigr)\\bigr]$$",
+    "key_hyperparams": [
+      {"name": "neg_rectify", "value": "2.0", "role": "quadratic excess penalty on $r>1$ for negative advantages", "learnable": false},
+      {"name": "trust_pos / trust_neg", "value": "0.02 / 0.08", "role": "log-ratio quadratic trust on $A>0$ / $A<0$", "learnable": false},
+      {"name": "adv_value_scale", "value": "0.5", "role": "weight on $|A|$ in critic loss", "learnable": false},
+      {"name": "action mean cap", "value": "$2\\tanh(\\cdot/2)$", "role": "soft bound on actor mean output", "learnable": false}
+    ],
+    "init_recovers": "PPO when neg_rectify=trust_pos=trust_neg=adv_value_scale=0 and tanh removed",
+    "diff_from_baseline": "Replaces PPO baseline's symmetric clip with a sign-aware loss (positive: PPO-min; negative: linear + quadratic rectifier), adds a sign-asymmetric trust-region term in log-ratio space, weighs the value loss by $|A|$, and bounds the actor mean — none of which appear in PPO, AWR, or PPO-Penalty.",
+    "confidence": "high"
+  }
+]

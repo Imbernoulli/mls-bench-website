@@ -1,0 +1,95 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Opacity-Gated, Annealed Densification",
+    "tagline": "AbsGrad + (avg, max)-blended growth signal with an annealed threshold and an opacity gate; uses revised-opacity split.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for each step, accumulate $g_i \\leftarrow |\\partial L / \\partial \\mu^{2D}_i|$ (AbsGS) → grad2d, grad2d_max\n// 2. every refine_every steps after warmup:\n// 3.   $\\mathrm{combined}_i = 0.65\\,\\overline{g}_i + 0.35\\,\\max g_i$\n// 4.   $\\tau \\leftarrow \\mathrm{grow\\_grad2d}\\,(1.3 - 0.5\\cdot \\mathrm{progress})$  // annealed coarse→fine\n// 5.   high $= (\\mathrm{combined} > \\tau) \\wedge (\\sigma(o_i) > 0.05)$  // opacity gate\n// 6.   duplicate small ∧ high; split large ∧ high with revised_opacity=True\n// 7.   prune $\\sigma(o_i) < 0.005$ or oversized $\\mathrm{scale} > 0.1\\cdot s$\n// 8. reset opacity to $2\\,\\mathrm{prune\\_opa}$ every 3000 steps; stop refining at 19k",
+    "key_hyperparams": [
+      {"name": "grow_grad2d", "value": "5e-4", "role": "base growth threshold (annealed)", "learnable": false},
+      {"name": "avg_weight", "value": "0.65", "role": "blend weight on average gradient", "learnable": false},
+      {"name": "max_weight", "value": "0.35", "role": "blend weight on max gradient", "learnable": false},
+      {"name": "opacity_gate", "value": "0.05", "role": "skip growth when σ(o) ≤ this", "learnable": false},
+      {"name": "anneal range", "value": "[1.3, 0.8] × base", "role": "threshold scaling over training", "learnable": false},
+      {"name": "refine_stop_iter", "value": "19000", "role": "extended densify horizon", "learnable": false},
+      {"name": "reset_every", "value": "3000", "role": "opacity reset cadence", "learnable": false},
+      {"name": "prune_opa", "value": "0.005", "role": "alpha cutoff for pruning", "learnable": false}
+    ],
+    "init_recovers": "Taming-3DGS at progress=0.6, opacity gate off.",
+    "diff_from_baseline": "Adds two pieces on top of the Taming/AbsGS template: (i) a linear time-annealed growth threshold τ(t) = grow_grad2d·(1.3 − 0.5·progress), and (ii) an opacity gate σ(o) > 0.05 that suppresses growth on barely-visible Gaussians; everything else (avg/max blend, revised_opacity split, prune rules) inherits from Taming.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Percentile + Blur-Aware Densification",
+    "tagline": "AbsGS with a sliding-window percentile growth threshold and forced splitting of large screen-space Gaussians.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. each step accumulate AbsGS norms $g_i$; push current $g_i$ into a 100-step ring buffer\n// 2. every refine_every after warmup:\n// 3.   $\\tau \\leftarrow \\mathrm{quantile}_{0.8}(\\bigcup_t g^{(t)})$  // adaptive threshold\n// 4.   high = $(\\overline{g}_i > \\tau)$, small = $\\max(\\exp(s_i)) \\le 0.01\\cdot \\mathrm{scene}$\n// 5.   blurry = mean radii $> 10\\,\\mathrm{px}$\n// 6.   duplicate(high ∧ small);  split((high ∧ ¬small) ∨ (blurry ∧ ¬small))  // forced blur split\n// 7.   prune $\\sigma(o)<0.005$ or oversized\n// 8. opacity reset every 3000 steps; refine_stop=15k (no noise injection used)",
+    "key_hyperparams": [
+      {"name": "grow_grad2d_percentile", "value": "0.8", "role": "percentile of recent grads", "learnable": false},
+      {"name": "blur_split_radius_threshold", "value": "10.0 px", "role": "force-split on screen-space radius", "learnable": false},
+      {"name": "grad_history window", "value": "100 steps", "role": "ring buffer for percentile", "learnable": false},
+      {"name": "refine_stop_iter", "value": "15000", "role": "densify horizon", "learnable": false},
+      {"name": "noise_injection_until", "value": "5000", "role": "declared but unused in code path", "learnable": false},
+      {"name": "noise_scaler", "value": "1e-4", "role": "noise magnitude (declared, unused)", "learnable": false},
+      {"name": "importance_prune_visibility_threshold", "value": "0.01", "role": "declared, unused in this version", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces the fixed grow_grad2d threshold with the running 80th-percentile of per-step gradient norms (adaptive), and adds a blur-aware forced split on Gaussians whose mean screen-space radius exceeds 10 px regardless of gradient — AbsGS keeps a constant threshold and never force-splits on radius.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "AbsGS + Revised-Opacity Split",
+    "tagline": "Plain AbsGS densification with mathematically consistent (revised-opacity) splitting and a slightly lower prune threshold.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. accumulate AbsGS gradient norms per Gaussian → grad2d, count\n// 2. every 100 steps after warmup (500 ≤ step < 15k):\n// 3.   $\\overline{g}_i \\leftarrow \\mathrm{grad2d}_i / \\max(\\mathrm{count}_i,1)$\n// 4.   high $= \\overline{g}_i > 6\\!\\times\\!10^{-4}$\n// 5.   duplicate(high ∧ small);  split(high ∧ ¬small, revised_opacity=True)\n// 6.   prune $\\sigma(o_i) < 0.003$, plus oversized after first reset\n// 7. opacity reset every 3000 steps to value 0.01",
+    "key_hyperparams": [
+      {"name": "prune_opa", "value": "0.003", "role": "lowered to compensate for revised_opacity", "learnable": false},
+      {"name": "grow_grad2d", "value": "6e-4", "role": "growth threshold (AbsGS default)", "learnable": false},
+      {"name": "refine_stop_iter", "value": "15000", "role": "densify horizon", "learnable": false},
+      {"name": "reset_every", "value": "3000", "role": "opacity reset cadence", "learnable": false},
+      {"name": "reset value", "value": "0.01", "role": "absolute α reset, not 2·prune_opa", "learnable": false},
+      {"name": "split mode", "value": "revised_opacity=True", "role": "α-blend-consistent split", "learnable": false}
+    ],
+    "init_recovers": "AbsGS baseline when revised_opacity=False and prune_opa=0.005.",
+    "diff_from_baseline": "Just AbsGS plus the revised_opacity=True split (Rota Bulo et al.); compared to the Taming baseline it drops the avg/max gradient blend and lowers prune_opa from 0.005 to 0.003 with reset value pinned at 0.01.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Rarity-Boosted Densification",
+    "tagline": "Taming (avg/max) blend with a per-Gaussian visibility-rarity multiplier on the growth threshold.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. accumulate AbsGS norms; track grad2d, grad2d_max, vis (#visible steps), age\n// 2. every 100 steps in [500, 18000):\n// 3.   $\\mathrm{combined}_i = 0.7\\,\\overline{g}_i + 0.3\\,\\max g_i$\n// 4.   $\\mathrm{rarity}_i = \\min(1, \\mathrm{vis}_i / 100)$  // higher vis ⇒ higher τ\n// 5.   high $= \\mathrm{combined}_i > \\mathrm{grow\\_grad2d}\\,(1 + 0.5\\,\\mathrm{rarity}_i)$\n// 6.   duplicate(high ∧ small);  split(high ∧ ¬small)  // standard split\n// 7.   prune $\\sigma(o)<0.005$ or oversized; opacity reset every 3000 steps\n// 8. binoms table & late MCMC refresh hooks initialised but never invoked",
+    "key_hyperparams": [
+      {"name": "grow_grad2d", "value": "5e-4", "role": "base growth threshold", "learnable": false},
+      {"name": "avg/max blend", "value": "0.7 / 0.3", "role": "Taming-style gradient blend", "learnable": false},
+      {"name": "rarity multiplier", "value": "1 + 0.5·rarity", "role": "scales τ by visibility frequency", "learnable": false},
+      {"name": "rarity normaliser", "value": "100 (= refine_every)", "role": "denominator for vis count", "learnable": false},
+      {"name": "refine_stop_iter", "value": "18000", "role": "densify horizon", "learnable": false},
+      {"name": "binoms table size", "value": "51×51", "role": "for unused MCMC ops", "learnable": false}
+    ],
+    "init_recovers": "Taming-3DGS-Abs when rarity ≡ 0 (never-visible).",
+    "diff_from_baseline": "Adds a per-Gaussian visibility-rarity reweighting (1 + 0.5·rarity) on the growth threshold so frequently-seen Gaussians need stronger evidence to densify; otherwise mirrors Taming-3DGS-Abs (avg=0.7, max=0.3) with the standard stochastic split (no revised_opacity).",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Curriculum Blend + Growth Cap",
+    "tagline": "AbsGS with a time-rising threshold, time-decreasing max-grad weight, and a hard top-k cap on per-step growth.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. accumulate AbsGS grad2d, grad2d_max, count\n// 2. every refine_every after warmup:\n// 3.   $\\mathrm{progress} = (t - 500) / (20000 - 500)$\n// 4.   $\\tau \\leftarrow \\mathrm{grow\\_grad2d}\\,(1 + \\mathrm{progress})$  // curriculum: more selective late\n// 5.   $w_{\\max} = 0.3(1 - 0.5\\,\\mathrm{progress})$,  $w_{\\mathrm{avg}} = 1 - w_{\\max}$\n// 6.   $\\mathrm{combined} = w_{\\mathrm{avg}}\\overline{g} + w_{\\max}\\max g$\n// 7.   if total_growth > $0.005\\,N$: keep top-k by combined score\n// 8.   duplicate(small ∧ high); split(¬small ∧ high, revised_opacity=True); prune as usual\n// 9. opacity reset every 3000 steps; refine_stop=20k",
+    "key_hyperparams": [
+      {"name": "grow_grad2d", "value": "6e-4", "role": "base growth threshold", "learnable": false},
+      {"name": "curriculum_factor", "value": "1.0", "role": "τ multiplier rises by +1·progress", "learnable": false},
+      {"name": "max-grad weight schedule", "value": "0.3 → 0.15", "role": "linear decay over training", "learnable": false},
+      {"name": "max_grow_ratio", "value": "0.005", "role": "per-step cap on new Gaussians (frac of N)", "learnable": false},
+      {"name": "refine_stop_iter", "value": "20000", "role": "extended densify horizon", "learnable": false},
+      {"name": "split mode", "value": "revised_opacity=True", "role": "α-consistent split", "learnable": false},
+      {"name": "prune_opa", "value": "0.005", "role": "alpha prune cutoff", "learnable": false}
+    ],
+    "init_recovers": "Taming-3DGS-Abs at progress=0 (τ = grow_grad2d, w_max=0.3, no growth cap).",
+    "diff_from_baseline": "Adds a curriculum on top of Taming/AbsGS: linear-in-time growth threshold τ(t) = base·(1+progress), linear decay of the max-gradient blend weight, and a top-k cap that limits per-refinement growth to 0.5% of current Gaussians; uses revised_opacity=True split.",
+    "confidence": "high"
+  }
+]

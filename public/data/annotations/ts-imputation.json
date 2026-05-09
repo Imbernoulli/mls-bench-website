@@ -1,0 +1,127 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "ISST: dual-bias attention + spectral residual",
+    "tagline": "Transformer encoder with per-head distance-decay and observed-position attention biases, mask-projection conditioning, and a learnable rFFT residual head.",
+    "kind": "hybrid",
+    "formula": "$$ \\text{score}^{(h)}_{ij} = \\frac{Q^{(h)}_i K^{(h)\\top}_j}{\\sqrt{d_k}} - s^{(h)}\\,\\log(1 + |i - j|) + b^{(h)}\\,r_j $$ $$ r_j = \\tfrac{1}{C}\\sum_c \\mathrm{mask}_{jc},\\quad h_{\\text{out}} = h + \\mathrm{irFFT}(\\mathrm{rFFT}(h)\\odot W),\\;\\; W = W_r + i\\,W_i\\;\\;(W_r, W_i \\text{ init } 0) $$",
+    "pseudocode": "// 1. mask-aware z-score: subtract observed mean, divide by observed std (per channel)\n// 2. tokens $\\leftarrow$ DataEmbed($x$) + $W_m \\cdot \\mathrm{mask}$\n// 3. for each layer: ImpAttn(Q, K, V) with bias $-s^{(h)}\\log(1+|i-j|) + b^{(h)} r_j$, then PWFFN\n// 4. add complex-valued rFFT residual filter (zero-init)\n// 5. project to $C$ channels, de-normalize",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x_enc"},
+        {"id": "mn", "label": "mask-norm"},
+        {"id": "emb", "label": "DataEmbed + W·mask"},
+        {"id": "blk", "label": "ImpAttn block ×L"},
+        {"id": "spec", "label": "rFFT residual"},
+        {"id": "proj", "label": "Linear proj"},
+        {"id": "y", "label": "x_hat"}
+      ],
+      "edges": [
+        {"from": "x", "to": "mn"},
+        {"from": "mn", "to": "emb"},
+        {"from": "emb", "to": "blk"},
+        {"from": "blk", "to": "spec"},
+        {"from": "spec", "to": "proj"},
+        {"from": "proj", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "mask_bias init", "value": "0.5", "role": "per-head bias toward observed positions", "learnable": true},
+      {"name": "dist_scale init", "value": "0.05", "role": "per-head log-distance decay rate", "learnable": true},
+      {"name": "spectral filter", "value": "(W_r, W_i) zero init, complex shape (1, n_freq, d)", "role": "frequency-domain residual correction", "learnable": true},
+      {"name": "mask_proj", "value": "Linear(C, d) (no bias)", "role": "encode binary mask into embedding space", "learnable": true}
+    ],
+    "init_recovers": "Vanilla transformer encoder (spectral filter is zero-init no-op)",
+    "diff_from_baseline": "Versus timesnet/patchtst this swaps the temporal block for a transformer with two attention biases tied to imputation (log-distance preference and observed-position preference) plus a frequency-domain residual head; mask-aware (z-score on observed entries) normalization is reused.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Per-variable embed + cross-var attention + temporal Tx",
+    "tagline": "Embed each (t, c) scalar separately, mix across variables with attention, run a temporal Conv+Transformer on flattened seq*var tokens, then project per-variable.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x_enc (B,T,C)"},
+        {"id": "ve", "label": "var Linear(1,d)"},
+        {"id": "te", "label": "DataEmbed (broadcast)"},
+        {"id": "mn", "label": "mask-cond LN"},
+        {"id": "tc", "label": "Temporal Conv1d ×2"},
+        {"id": "vi", "label": "Var-attn"},
+        {"id": "tx", "label": "Time Transformer Encoder"},
+        {"id": "y", "label": "Linear→x_hat + 0.1·refine"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ve"},
+        {"from": "x", "to": "te"},
+        {"from": "ve", "to": "mn"},
+        {"from": "te", "to": "mn"},
+        {"from": "mn", "to": "tc"},
+        {"from": "tc", "to": "vi"},
+        {"from": "vi", "to": "tx"},
+        {"from": "tx", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "MaskConditionedNorm", "value": "weight*(1+alpha), bias*(1-alpha), alpha=mean(mask)", "role": "modulate LN affine by mask density", "learnable": true},
+      {"name": "var Linear", "value": "Linear(1, d_model)", "role": "scalar-per-variable embedding", "learnable": true},
+      {"name": "temporal conv", "value": "Conv1d(d→2d→d, k=3) + GELU", "role": "local temporal smoothing per variable", "learnable": true},
+      {"name": "refine weight", "value": "0.1", "role": "residual mix of post-projection refinement", "learnable": false}
+    ],
+    "init_recovers": "Vanilla transformer if conv, var-attn, and refine are zeroed",
+    "diff_from_baseline": "Versus dlinear/timesnet/patchtst this builds a 4D (B, T, C, d) tensor and applies a cross-variable attention plus a temporal Conv+Transformer over flattened (t*c) tokens, with a mask-density-conditioned LN affine.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Mask-aware PatchTST with iterative refinement",
+    "tagline": "Channel-independent PatchTST whose patch embedding concatenates value and mask patches; runs the encoder twice, refilling masked positions with first-pass predictions.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x_enc (norm)"},
+        {"id": "ci", "label": "channel-indep B*C×1×T"},
+        {"id": "pe", "label": "patch + mask concat embed"},
+        {"id": "se", "label": "+ step embedding"},
+        {"id": "tx", "label": "TransformerEncoder"},
+        {"id": "head", "label": "Flatten + Linear(T)"},
+        {"id": "loop", "label": "iterate, refill (1-mask)·x_hat"},
+        {"id": "y", "label": "x_hat denorm"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ci"},
+        {"from": "ci", "to": "pe"},
+        {"from": "pe", "to": "se"},
+        {"from": "se", "to": "tx"},
+        {"from": "tx", "to": "head"},
+        {"from": "head", "to": "loop"},
+        {"from": "loop", "to": "pe"},
+        {"from": "loop", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "patch_len, stride", "value": "16, 8", "role": "patching window", "learnable": false},
+      {"name": "num_iterations", "value": "2", "role": "refill-and-rerun passes during forward", "learnable": false},
+      {"name": "step_embeddings", "value": "Parameter(num_iterations, 1, 1, d_model)", "role": "diffusion-step token added per pass", "learnable": true},
+      {"name": "patch embed in", "value": "concat(x_patch, mask_patch) → 2*patch_len", "role": "mask-aware patch token", "learnable": true}
+    ],
+    "init_recovers": "PatchTST (channel-independent) at num_iterations=1 and zero step embedding",
+    "diff_from_baseline": "Versus the patchtst baseline this concatenates the value patch with a same-shape mask patch before the patch-Linear, adds a learnable step embedding per iteration, and runs the encoder twice with first-pass predictions filling masked entries.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "BMDI: bidirectional fill + tiny refiner",
+    "tagline": "No transformer: forward+backward exponentially smoothed propagation with three sigmoid-decay rates, a softmax-fusion MLP over their outputs and confidences, and a 3-layer MLP residual on missing positions only.",
+    "kind": "formula",
+    "formula": "$$ f_t = m_t x_t + (1 - m_t)((1-\\alpha) f_{t-1} + \\alpha x_t),\\quad b_t = m_t x_t + (1 - m_t)((1-\\alpha) b_{t+1} + \\alpha x_t) $$ $$ v_k = \\tfrac{1}{2}(f^{(\\alpha_k)} + b^{(\\alpha_k)}),\\;\\;\\alpha_k = \\sigma(\\theta_k),\\;\\theta_{\\text{init}} = (0, 0.7, 1.4) $$ $$ w = \\mathrm{softmax}(\\mathrm{MLP}([v_1, v_2, v_3, c_1, c_2, \\bar m])),\\quad \\hat x = \\sum_k w_k v_k + (1-m)\\,\\mathrm{MLP}([\\hat x, v_2, w_2, m, |\\hat x - v_2|]) $$",
+    "key_hyperparams": [
+      {"name": "alpha_raw init", "value": "[0.0, 0.7, 1.4]", "role": "logits → sigmoid decay rates ≈ {0.5, 0.67, 0.80}", "learnable": true},
+      {"name": "fuse MLP", "value": "Linear(6,16)→GELU→Linear(16,3)", "role": "softmax mixer over 3 alpha-runs", "learnable": true},
+      {"name": "refine MLP", "value": "Linear(5,16)→GELU→Linear(16,1)", "role": "per-pixel residual on (1-mask) entries", "learnable": true}
+    ],
+    "init_recovers": "Bidirectional EMA average at uniform mixture weights",
+    "diff_from_baseline": "Versus dlinear/timesnet/patchtst this discards the deep temporal model entirely and instead fits a tiny per-pixel refiner on top of mask-aware mean/std normalization and three learned-rate forward+backward exponential propagations, fused by a softmax MLP. Output keeps observed entries verbatim.",
+    "confidence": "high"
+  }
+]

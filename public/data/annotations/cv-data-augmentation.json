@@ -1,0 +1,93 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Stochastic three-policy router + erasing",
+    "tagline": "Each image is routed at random to TrivialAugmentWide, RandAugment, or identity, then crop/flip/RandomErasing with dataset-tuned probabilities.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. r ~ U(0,1)\n// 2. if r < w_T: img ← TrivialAugmentWide(img)\n// 3. else if r < w_T + w_R: img ← RandAugment(num_ops=2, mag=9)(img)\n// 4. else: leave img unchanged (identity path)\n// 5. img ← RandomCrop(img_size, pad=4) ∘ HFlip(img)\n// 6. img ← ToTensor(img)\n// 7. img ← RandomErasing(p=erase_p, scale=(0.02,0.2))(img)\n// 8. img ← Normalize(mean, std)(img)\n// 9. (w_T,w_R)=(0.5,0.4) and erase_p=0.5 for CIFAR-100; (0.6,0.3) and 0.25 otherwise",
+    "key_hyperparams": [
+      {"name": "weights_cifar10", "value": "[0.6, 0.3, 0.1]", "role": "router probs (Trivial, Rand, identity)", "learnable": false},
+      {"name": "weights_cifar100", "value": "[0.5, 0.4, 0.1]", "role": "router probs", "learnable": false},
+      {"name": "rand_num_ops", "value": "2", "role": "RandAugment ops", "learnable": false},
+      {"name": "rand_magnitude", "value": "9", "role": "RandAugment magnitude", "learnable": false},
+      {"name": "erase_p", "value": "{cifar10:0.25, cifar100:0.5}", "role": "RandomErasing prob", "learnable": false},
+      {"name": "erase_scale", "value": "(0.02, 0.2)", "role": "erasing area range", "learnable": false}
+    ],
+    "diff_from_baseline": "Beyond the cutout/randaugment/trivialaugment baselines, mixes all three with an identity branch via a stochastic router and stacks RandomErasing afterwards, with the routing weights and erase probability tuned per dataset.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Augmentation pyramid + stochastic depth",
+    "tagline": "Multi-stage pipeline that randomly samples augmentation intensity per image and randomly drops entire augmentation blocks, plus channel-wise erasing.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. img ← RandomScale(img, s ∈ scale_range)\n// 2. if rand() < block_drop_prob: skip the augmentation block (stochastic depth)\n// 3. else: img ← RandomCrop ∘ HFlip(img); intensity ~ U(0,1)\n// 4.   if intensity < 0.3: img ← ColorJitter(img)\n// 5.   elif intensity < 0.7: img ← ColorJitter(RandAugment(img, mag~U(low,high)))\n// 6.   else: img ← Grayscale_p ∘ ColorJitter ∘ RandAugment(img)\n// 7.   if intensity > 0.5: rotate; >0.7: perspective; >0.8: affine\n// 8. img ← ToTensor(img); ChannelWiseMask(img, p=mask_p) erases per-channel rect or disc\n// 9. img ← Normalize(img)\n// 10. (scale_range, ra_mag, ra_ops, drop_p, mask_p, persp) selected per dataset",
+    "key_hyperparams": [
+      {"name": "scale_range_cifar10", "value": "(0.85, 1.15)", "role": "random rescale", "learnable": false},
+      {"name": "scale_range_cifar100", "value": "(0.8, 1.2)", "role": "random rescale", "learnable": false},
+      {"name": "scale_range_fmnist", "value": "(0.9, 1.1)", "role": "random rescale", "learnable": false},
+      {"name": "ra_mag_range", "value": "{c10:(8,12), c100:(9,14), fm:(5,9)}", "role": "RandAugment magnitude sampled per init", "learnable": false},
+      {"name": "ra_num_ops", "value": "{c10:2, c100:3, fm:1}", "role": "RandAugment ops", "learnable": false},
+      {"name": "block_drop_prob", "value": "{c10:0.15, c100:0.20, fm:0.10}", "role": "skip-aug probability", "learnable": false},
+      {"name": "channel_mask_prob", "value": "{c10:0.25, c100:0.30, fm:0.20}", "role": "ChannelWiseMask trigger", "learnable": false},
+      {"name": "perspective_distortion", "value": "{c10:0.15, c100:0.20, fm:0.10}", "role": "perspective scale", "learnable": false},
+      {"name": "rotation_max", "value": "15 deg", "role": "rotation magnitude", "learnable": false}
+    ],
+    "diff_from_baseline": "Goes well beyond the cutout/randaugment/trivialaugment baselines: stacks rescaling, intensity-bucketed photometric ops, additional rotation/perspective/affine transforms, then a per-channel masking pass with mixed rectangular/disc shapes.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Self-augment-mix with structured masks",
+    "tagline": "Tensor-space self-mix that blends the original image with a strongly augmented copy through a randomly chosen mask: cutmix patch, coarse grid, stripes, MixUp alpha, or per-channel grid.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. img ← RandomCrop(pad=4) ∘ HFlip(img); img_t ← ToTensor(img)\n// 2. strong ← TrivialAugmentWide(img) with prob 0.5 else RandAugment(2, 12)(img); convert to tensor\n// 3. mode ~ U{0,1,2,3,4}\n// 4. mode 0 (CutMix patch): mask=1 except a random square of side ∈ [H/4, H/2] set to 0\n// 5. mode 1 (coarse grid): sample binary $g\\times g$, $g\\sim U[2,5]$, upsample nearest to HxW (shared across channels)\n// 6. mode 2 (coarse stripes): same but row- or column-only mask\n// 7. mode 3 (MixUp alpha): mask = alpha (constant), alpha ~ Beta(0.5, 0.5) clipped to [0.1, 0.9]\n// 8. mode 4 (channel-grid): per-channel binary $g\\times g$ upsampled to HxW\n// 9. out ← img_t * mask + strong * (1 - mask)\n// 10. out ← Normalize(RandomErasing(p=0.5, value='random')(out))",
+    "key_hyperparams": [
+      {"name": "strong_aug", "value": "TrivialAugmentWide / RandAugment(2, 12)", "role": "two strong aug branches", "learnable": false},
+      {"name": "branch_prob", "value": "0.5", "role": "Trivial vs RandAugment", "learnable": false},
+      {"name": "modes", "value": "5", "role": "patch / grid / stripes / mixup / channel-grid", "learnable": false},
+      {"name": "grid_size", "value": "U[2, 5]", "role": "coarse mask grid", "learnable": false},
+      {"name": "mixup_alpha", "value": "Beta(0.5, 0.5) clipped (0.1, 0.9)", "role": "global blend", "learnable": false},
+      {"name": "erasing", "value": "p=0.5, scale=(0.02,0.25), value='random'", "role": "post-mix RandomErasing", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces single-image cutout/randaugment with a stochastic image-vs-augmented self-mix using five mask shapes (cutmix, coarse multi-grid, stripes, MixUp, channel-decoupled grid) and a final RandomErasing step.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "TrivialAug + mean-patch + erasing",
+    "tagline": "TrivialAugmentWide for semantic perturbation, mean-fill patch occlusion in tensor space, plus a small RandomErasing pass; geometry adapts per dataset.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. img ← RandomCrop(img_size, pad=4, mode='reflect') ∘ TrivialAugmentWide(img)\n// 2. if dataset != 'fmnist': img ← HFlip(img)\n// 3. img ← ToTensor(img)\n// 4. with prob $p_{mp}$: replace a square of side $\\sqrt{f}\\cdot\\min(H,W)$ with channel mean fill, $f \\sim U(\\text{min\\_frac}, \\text{max\\_frac})$\n// 5. img ← RandomErasing(p, scale=(0.02, 0.10), ratio=(0.4, 2.5), value='random')(img)\n// 6. img ← Normalize(mean, std)(img)\n// 7. $(p_{mp}, \\text{min\\_frac}, \\text{max\\_frac})$ chosen per dataset (CIFAR-10/100 vs FMNIST)",
+    "key_hyperparams": [
+      {"name": "mean_patch_p", "value": "{c10:0.55, c100:0.65, fm:0.35}", "role": "MeanPatchOcclusion trigger", "learnable": false},
+      {"name": "min_frac", "value": "{others:0.12, fm:0.10}", "role": "minimum patch area fraction", "learnable": false},
+      {"name": "max_frac", "value": "{others:0.30, fm:0.22}", "role": "maximum patch area fraction", "learnable": false},
+      {"name": "erase_p", "value": "{others:0.35, fm:0.25}", "role": "secondary RandomErasing prob", "learnable": false},
+      {"name": "erase_scale", "value": "(0.02, 0.10)", "role": "erasing area range", "learnable": false},
+      {"name": "erase_ratio", "value": "(0.4, 2.5)", "role": "erasing aspect ratio", "learnable": false},
+      {"name": "padding_mode", "value": "reflect", "role": "RandomCrop padding", "learnable": false}
+    ],
+    "diff_from_baseline": "Goes past the trivialaugment baseline by stacking a mean-fill (rather than zero) patch occlusion before normalization plus a low-area RandomErasing pass, with all triggers tuned per dataset and HFlip disabled for FashionMNIST.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Stochastic multi-scale erasing + RandAug",
+    "tagline": "Cutout-style masks at three scales applied stochastically, layered on dataset-tuned RandAugment plus crop/flip/rotation.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. select dataset-specific recipe (cifar10 / cifar100 / fmnist)\n// 2. if not fmnist: img ← RandAugment(num_ops=2, mag=$m$)(img)\n// 3. img ← RandomCrop(img_size, pad=4) ∘ HFlip ∘ RandomRotation($\\theta$)(img)\n// 4. img ← ToTensor(img)\n// 5. with prob $p$ (else skip): for each (size, n) in zip(sizes, n_holes):\n// 6.   for $i = 1..n$: place a centered square of side `size` at random (y, x) and zero it out\n// 7. img ← Normalize(mean, std)(img)\n// 8. defaults: cifar10 mag=6 sizes=[18,10,5] n=[1,2,3] θ=8 p=0.5\n// 9. cifar100 mag=9 sizes=[20,12,6] n=[1,2,3] θ=10 p=0.5\n// 10. fmnist no RandAug, sizes=[14,8,4] n=[1,1,2] θ=10 p=0.3",
+    "key_hyperparams": [
+      {"name": "rand_num_ops", "value": "2", "role": "RandAugment ops (CIFAR only)", "learnable": false},
+      {"name": "rand_magnitude", "value": "{c10:6, c100:9}", "role": "RandAugment magnitude", "learnable": false},
+      {"name": "rotation_deg", "value": "{c10:8, c100:10, fm:10}", "role": "RandomRotation max angle", "learnable": false},
+      {"name": "erase_prob", "value": "{c10:0.5, c100:0.5, fm:0.3}", "role": "trigger for SMSE", "learnable": false},
+      {"name": "erase_sizes_cifar10", "value": "[18, 10, 5]", "role": "multi-scale square sides", "learnable": false},
+      {"name": "erase_sizes_cifar100", "value": "[20, 12, 6]", "role": "multi-scale square sides", "learnable": false},
+      {"name": "erase_sizes_fmnist", "value": "[14, 8, 4]", "role": "multi-scale square sides", "learnable": false},
+      {"name": "erase_n_holes", "value": "[1, 2, 3] / [1, 1, 2]", "role": "holes per scale (CIFAR / fmnist)", "learnable": false}
+    ],
+    "diff_from_baseline": "Combines RandAugment with a Cutout generalization that applies stochastic masks at three sizes simultaneously and adds a small rotation, with all magnitudes tuned per dataset.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,74 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Cross-GeGLU (Triton)",
+    "tagline": "Splits the 4d hidden in halves and cross-gates each half by a GELU of the other, all fused in Triton with custom backward and activation recompute.",
+    "kind": "formula",
+    "formula": "$$ h = xW_{fc}^\\top,\\; (h_1, h_2) = \\mathrm{split}_2(h) $$ $$ a_1 = \\mathrm{GELU}(h_1)\\odot h_2,\\quad a_2 = \\mathrm{GELU}(h_2)\\odot h_1 $$ $$ \\mathrm{MLP}(x) = [a_1, a_2]\\,W_{proj}^\\top $$",
+    "key_hyperparams": [
+      {"name": "BLOCK_SIZE", "value": "1024", "role": "Triton element-wise tile size", "learnable": false},
+      {"name": "GELU approx", "value": "tanh, fp32", "role": "numerical-stability of GELU inside the kernel", "learnable": false},
+      {"name": "save tensor", "value": "pre-activation h only", "role": "memory savings via activation recompute in backward", "learnable": false}
+    ],
+    "init_recovers": "GeGLU when one half is treated as pure gate",
+    "diff_from_baseline": "Versus the triton_gelu baseline this changes the activation from per-element GELU on the full 4d expansion to a symmetric GeGLU variant that cross-gates the two halves so each contributes both as value and gate. Backward keeps only h via Triton-recomputed activation.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Half-sigmoid GLU concat (PyTorch)",
+    "tagline": "Splits w_fc across rows; outputs concat([h1, h1*sigmoid(h2)]) so the projection sees both raw and sigmoid-gated halves, no Triton.",
+    "kind": "formula",
+    "formula": "$$ h_1 = x W_{fc,1}^\\top,\\; h_2 = x W_{fc,2}^\\top,\\; g = \\sigma(h_2) $$ $$ \\mathrm{MLP}(x) = [\\,h_1\\,;\\, h_1 \\odot g\\,]\\, W_{proj}^\\top $$",
+    "key_hyperparams": [
+      {"name": "split", "value": "row-half on w_fc (4d → 2x 2d)", "role": "value vs gate channels", "learnable": false},
+      {"name": "gate", "value": "sigmoid", "role": "GLU-style multiplicative gating", "learnable": false}
+    ],
+    "init_recovers": "Linear MLP if g→0.5 (constant gate)",
+    "diff_from_baseline": "A pure-PyTorch custom autograd op: replaces the GELU activation with a concatenation [h1, h1·sigmoid(h2)], i.e. a sigmoid-gated GLU but keeping the raw value branch alongside the gated one. No fusion or Triton kernels.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Symmetric SwiGLU (interleaved Triton)",
+    "tagline": "Pairs adjacent hidden channels and computes act_1 = h1*SiLU(h2), act_2 = h2*SiLU(h1) in a fused interleaved Triton kernel.",
+    "kind": "formula",
+    "formula": "$$ \\text{for each pair } (h_1, h_2) \\text{ in } h = xW_{fc}^\\top:\\quad a_1 = h_1 \\cdot \\mathrm{SiLU}(h_2),\\; a_2 = h_2 \\cdot \\mathrm{SiLU}(h_1) $$ $$ \\mathrm{MLP}(x) = a\\, W_{proj}^\\top $$",
+    "key_hyperparams": [
+      {"name": "BLOCK_SIZE", "value": "1024", "role": "Triton tile (in pairs)", "learnable": false},
+      {"name": "pairing", "value": "interleaved (idx, idx+1)", "role": "memory-coalesced layout", "learnable": false}
+    ],
+    "init_recovers": "GLU/SwiGLU when one entry of each pair is treated as pure gate",
+    "diff_from_baseline": "Versus triton_gelu/triton_relu_sq, replaces GELU/ReLU^2 with a Symmetric SwiGLU on adjacent channel pairs; the activation is fully fused in Triton, with a matching analytic SiLU-grad kernel for backward.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "ReLU^2 * GELU GLU (folded proj)",
+    "tagline": "Splits the 4d hidden into two 2d branches, multiplies value=ReLU(a)^2/sqrt(2) by gate=GELU(b), and folds the two halves of w_proj into one summed projection.",
+    "kind": "formula",
+    "formula": "$$ (a, b) = \\mathrm{split}_2(xW_{fc}^\\top),\\; v = \\mathrm{ReLU}(a)^2/\\sqrt{2},\\; g = \\mathrm{GELU}(b) $$ $$ \\mathrm{MLP}(x) = (v \\odot g)\\,(W_{proj,:m} + W_{proj,m:})^\\top $$",
+    "key_hyperparams": [
+      {"name": "value scale", "value": "1/sqrt(2)", "role": "variance-preserve ReLU^2 branch", "learnable": false},
+      {"name": "GELU approx", "value": "tanh, fp32", "role": "stability of cubic in low-precision", "learnable": false},
+      {"name": "w_proj fold", "value": "sum first/second halves", "role": "force tied projection across the gated branches", "learnable": false}
+    ],
+    "init_recovers": "Standard ReLU^2 MLP if g≡1 (no GELU gate)",
+    "diff_from_baseline": "Versus the relu_sq_torch baseline this introduces a multiplicative GELU gate over the second half and rescales the value branch by 1/sqrt(2); it also halves the projection's effective output by summing w_proj's two halves, making both branches share the same readout direction.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Triton SiLU MLP",
+    "tagline": "Replaces GELU with element-wise SiLU implemented as a forward+backward Triton kernel; no GLU split, full 4d width preserved.",
+    "kind": "formula",
+    "formula": "$$ \\mathrm{MLP}(x) = \\mathrm{SiLU}(xW_{fc}^\\top)\\,W_{proj}^\\top,\\quad \\mathrm{SiLU}(z) = z\\,\\sigma(z) $$",
+    "key_hyperparams": [
+      {"name": "BLOCK_SIZE", "value": "min(next_pow2(n), 65536) (≥256)", "role": "Triton tile per program", "learnable": false},
+      {"name": "compute dtype", "value": "fp32 internal", "role": "stability of sigmoid in bf16", "learnable": false}
+    ],
+    "init_recovers": "Standard SiLU FFN (no gating)",
+    "diff_from_baseline": "Versus triton_gelu, this swaps the GELU activation for SiLU in the same fused-elementwise Triton template, retaining the 4d hidden expansion and dense linear-act-linear structure (no GLU branching).",
+    "confidence": "high"
+  }
+]

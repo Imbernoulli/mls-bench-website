@@ -1,0 +1,86 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Dual-Path Polynomial + Residual Gate",
+    "tagline": "Two GPRGNN-style monomial filters (uniform-init + PPR-init) mixed by a learnable scalar, with a sigmoid residual gate to the unfiltered features.",
+    "kind": "formula",
+    "formula": "$$h_1(\\hat A) = \\sum_{k=0}^{K}\\theta^{(1)}_k \\hat A^k,\\quad h_2(\\hat A) = \\sum_{k=0}^{K}\\theta^{(2)}_k \\hat A^k,\\quad \\hat A = D^{-1/2}AD^{-1/2},$$ $$y = (1-\\sigma(g))\\,\\big[\\sigma(w)\\,h_1(\\hat A)x + (1-\\sigma(w))\\,h_2(\\hat A)x\\big] + \\sigma(g)\\,x,$$ with $\\theta^{(1)}_k = 1/(K+1)$ (uniform), $\\theta^{(2)}_k = \\alpha(1-\\alpha)^k$ (PPR).",
+    "key_hyperparams": [
+      {"name": "K", "value": "10", "role": "polynomial order", "learnable": false},
+      {"name": "alpha", "value": "0.1", "role": "PPR teleport for prop2 init", "learnable": false},
+      {"name": "theta^(1)_k", "value": "1/(K+1) (init)", "role": "uniform monomial coeffs (path 1)", "learnable": true},
+      {"name": "theta^(2)_k", "value": "PPR (init)", "role": "geometric monomial coeffs (path 2)", "learnable": true},
+      {"name": "mix_weight w", "value": "0.5 (init)", "role": "logit mixing of two filters", "learnable": true},
+      {"name": "res_gate g", "value": "0.0 (init)", "role": "logit residual to unfiltered x", "learnable": true},
+      {"name": "lr / prop_lr / wd / prop_wd", "value": "0.05 / 0.05 / 5e-4 / 0.0", "role": "GPRGNN-style optimizer split", "learnable": false}
+    ],
+    "init_recovers": "GPRGNN-uniform when σ(w)→1 and σ(g)→0",
+    "diff_from_baseline": "Versus GPRGNN, runs two independent monomial filters in parallel (uniform-init and PPR-init), convex-combines them with one learnable scalar, and adds a sigmoid skip-connection that pulls the output back toward x.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Adaptive D^{-a} A D^{-b} Polynomial",
+    "tagline": "GPRGNN-style monomial filter where the adjacency normalization exponents (a, b) are learned via sigmoid, sliding between GCN-norm (1/2,1/2) and raw adjacency (0,0).",
+    "kind": "formula",
+    "formula": "$$a = \\sigma(\\tilde a),\\ b = \\sigma(\\tilde b),\\quad \\tilde A_{ij} = D_i^{-a}\\,A_{ij}\\,D_j^{-b},\\qquad h(\\tilde A)x = \\sum_{k=0}^{K}\\gamma_k\\,\\tilde A^k x,\\quad \\gamma_k(\\text{init}) = \\tfrac{1}{K+1}.$$",
+    "key_hyperparams": [
+      {"name": "K", "value": "10", "role": "polynomial order", "learnable": false},
+      {"name": "gamma_k", "value": "1/(K+1) (init)", "role": "monomial coefficients", "learnable": true},
+      {"name": "a_raw, b_raw", "value": "0.0 (init) → a=b=0.5", "role": "logit normalization exponents", "learnable": true},
+      {"name": "lr / prop_lr / wd / prop_wd", "value": "0.05 / 0.01 / 5e-4 / 0.0", "role": "split optimizer rates", "learnable": false}
+    ],
+    "init_recovers": "GPRGNN-uniform with GCN normalization when a = b = 0.5",
+    "diff_from_baseline": "Versus GPRGNN, replaces the fixed GCN-norm (a=b=1/2) with two learnable sigmoid-bounded normalization exponents shared across hops, so the model can interpolate to raw-adjacency on heterophilic graphs.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Favard Three-Term Recurrence Filter",
+    "tagline": "Builds an orthonormal polynomial basis on the shifted Laplacian using a learnable three-term recurrence (alpha, beta, gamma), then linearly combines them.",
+    "kind": "formula",
+    "formula": "$$x^{(0)} = \\frac{x}{\\sqrt{\\beta_0}},\\qquad x^{(k+1)} = \\frac{\\tilde L\\,x^{(k)} - \\gamma_k\\,x^{(k)} - \\sqrt{\\beta_k}\\,x^{(k-1)}}{\\sqrt{\\beta_{k+1}}},\\qquad y = \\sum_{k=0}^{K}\\alpha_k\\,x^{(k)},$$ where $\\tilde L = L - I$ and $\\beta_k = \\mathrm{softplus}(\\tilde\\beta_k)$.",
+    "key_hyperparams": [
+      {"name": "K", "value": "10", "role": "polynomial order", "learnable": false},
+      {"name": "alpha_c", "value": "U(0, 1) (init)", "role": "linear combination weights", "learnable": true},
+      {"name": "beta_c", "value": "1.0 (init)", "role": "Favard recurrence beta (softplus)", "learnable": true},
+      {"name": "gamma_c", "value": "0.0 (init)", "role": "Favard recurrence gamma (centering)", "learnable": true}
+    ],
+    "init_recovers": "Initial state matches a perturbed monomial polynomial basis on tilde L (close to GPRGNN with random coeffs)",
+    "diff_from_baseline": "Versus ChebNetII (fixed Chebyshev 3-term recurrence), learns the recurrence coefficients beta and gamma per hop, producing an adaptive orthonormal Favard basis that the alpha weights then combine. NOTE: in the proposed `forward` the final linear-combination output is computed but not explicitly returned (the function ends after the loop), so the implementation looks slightly bugged.",
+    "confidence": "medium"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Parity-Separated Dual-Spectrum Filter",
+    "tagline": "Splits each hop into a low-pass branch (A^k x) and a high-pass branch (x − A^k x), gated per parity (even vs. odd hops) and finally blended with a residual.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{low}_k = \\hat A^k x,\\quad \\mathrm{high}_k = x - \\hat A^k x,\\qquad b_k = \\tanh(\\bar b_k),\\quad w^{lo}_k = \\tfrac{1-b_k}{2},\\ w^{hi}_k = \\tfrac{1+b_k}{2},$$ $$g_e = \\sigma(p_0),\\ g_o = \\sigma(p_1),\\quad o = \\sum_{k=0}^{K} g_{k\\bmod 2}\\,a_k\\,(w^{lo}_k\\mathrm{low}_k + w^{hi}_k\\mathrm{high}_k),\\quad y = (1-\\sigma(r))o + \\sigma(r)x.$$",
+    "key_hyperparams": [
+      {"name": "amp a_k", "value": "PPR-init, a_0=1.0", "role": "per-hop amplitude", "learnable": true},
+      {"name": "band b_k", "value": "even: -0.5; odd: +0.5 (init)", "role": "high vs low mix per hop (tanh)", "learnable": true},
+      {"name": "parity_gate (g_e, g_o)", "value": "[1, 1] (init)", "role": "even / odd hop weights (sigmoid)", "learnable": true},
+      {"name": "res r", "value": "0.0 (init)", "role": "residual to unfiltered x", "learnable": true},
+      {"name": "lr / prop_lr / wd / prop_wd", "value": "0.05 / 0.03 / 5e-4 / 0.0", "role": "split optimizer rates", "learnable": false}
+    ],
+    "init_recovers": "Plain monomial GPRGNN at init when band = 0 and parity gates = 1",
+    "diff_from_baseline": "Versus GPRGNN, every hop produces both a low-pass term (A^k x) and a complementary high-pass term (x − A^k x); per-hop tanh band and per-parity sigmoid gates let even and odd hops adopt different spectral roles, then a sigmoid residual blends the result with x.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Signed ChebNetII + Residual Gate",
+    "tagline": "ChebNetII without the ReLU on interpolation values (so coefficients can be negative, enabling high-pass filters), plus a sigmoid residual gate to the encoded features.",
+    "kind": "formula",
+    "formula": "$$c_i = \\frac{2}{K+1}\\sum_{j=0}^{K}\\theta_j\\,T_i\\!\\big(\\cos\\tfrac{(K-j+0.5)\\pi}{K+1}\\big),\\quad \\theta_j\\,\\text{unconstrained},$$ $$\\mathrm{Filt}(x) = \\frac{c_0}{2}\\,x + \\sum_{i=1}^{K} c_i\\,T_i(\\tilde L)\\,x,\\qquad y = \\sigma(g)\\,x + (1-\\sigma(g))\\,\\mathrm{Filt}(x).$$",
+    "key_hyperparams": [
+      {"name": "K", "value": "10", "role": "polynomial order", "learnable": false},
+      {"name": "theta_j", "value": "1.0 (init)", "role": "Chebyshev interpolation values (signed)", "learnable": true},
+      {"name": "residual_logit g", "value": "0.0 (init)", "role": "sigmoid blend of x and filtered output", "learnable": true},
+      {"name": "lr / prop_lr / wd / prop_wd", "value": "0.05 / 0.01 / 0.0 / 0.0", "role": "optimizer split", "learnable": false}
+    ],
+    "init_recovers": "ChebNetII (un-ReLU'd) when σ(g)→0",
+    "diff_from_baseline": "Versus ChebNetII, removes the ReLU on the interpolation values (so the filter can become high-pass) and adds a sigmoid residual gate that blends the filtered output with the original encoded features.",
+    "confidence": "high"
+  }
+]

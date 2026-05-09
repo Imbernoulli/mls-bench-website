@@ -1,0 +1,90 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Warmup-plateau-power-cosine",
+    "tagline": "Linear warmup, then constant plateau, then a power-cosine decay; warmup, plateau length, and power adapt to architecture and dataset.",
+    "kind": "formula",
+    "formula": "$$\\eta(e) = \\begin{cases} \\eta_{\\min} + (\\eta_0-\\eta_{\\min})\\,\\frac{e+1}{W}, & e < W \\\\ \\eta_0, & W \\le e < P \\\\ \\eta_{\\min} + (\\eta_0-\\eta_{\\min})\\,\\tfrac{1}{2}\\left(1+\\cos\\!\\big(\\pi\\,t^{\\rho}\\big)\\right), & e \\ge P \\end{cases},\\quad t = \\tfrac{e-P}{T-1-P},\\;\\eta_{\\min}=5\\!\\times\\!10^{-4}\\,\\eta_0$$",
+    "key_hyperparams": [
+      {"name": "warmup_resnet56_or_c100", "value": "10", "role": "linear warmup epochs", "learnable": false},
+      {"name": "warmup_other", "value": "5", "role": "linear warmup epochs", "learnable": false},
+      {"name": "plateau_end_resnet56_or_c100", "value": "0.35 T", "role": "fraction of training at base_lr", "learnable": false},
+      {"name": "plateau_end_other", "value": "0.25 T", "role": "fraction of training at base_lr", "learnable": false},
+      {"name": "power_resnet56_or_c100", "value": "1.3", "role": "cosine argument exponent", "learnable": false},
+      {"name": "power_other", "value": "1.2", "role": "cosine argument exponent", "learnable": false},
+      {"name": "eta_min_ratio", "value": "5e-4", "role": "min lr fraction of base_lr", "learnable": false}
+    ],
+    "init_recovers": "warmup_cosine baseline when plateau=0 and power=1",
+    "diff_from_baseline": "Splits the cosine baseline into a three-phase shape (warmup -> plateau -> power-cosine), inserting a constant-LR exploration plateau and replacing standard cosine with cos(pi t^rho), with separate hyperparameters for ResNet56/CIFAR-100 vs. shallower nets.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Adaptive plateau cosine",
+    "tagline": "Linear warmup, hold at base_lr, then cosine decay to base_lr/100; warmup and plateau lengths chosen per architecture and dataset.",
+    "kind": "formula",
+    "formula": "$$\\eta(e) = \\begin{cases} \\eta_0\\,\\tfrac{e+1}{W}, & e < W \\\\ \\eta_0, & W \\le e < W+P \\\\ \\eta_f + \\tfrac{1}{2}(\\eta_0-\\eta_f)\\big(1+\\cos\\pi\\,\\tfrac{e-W-P}{T-W-P}\\big), & e \\ge W+P \\end{cases},\\;\\eta_f = \\eta_0/100$$",
+    "key_hyperparams": [
+      {"name": "warmup_ratio", "value": "{r20:0.03, r56:0.05, mbv2:0.02, vgg:0.04}", "role": "fraction of T linearly warmed", "learnable": false},
+      {"name": "plateau_ratio", "value": "{r20:0.15, r56:0.20, mbv2:0.10, vgg:0.18}", "role": "constant base_lr fraction (clipped to [0.05,0.30])", "learnable": false},
+      {"name": "dataset_scale", "value": "{c100: x1.2, fmnist: x0.8}", "role": "multiplier on plateau_ratio", "learnable": false},
+      {"name": "min_decay_epochs", "value": "10", "role": "guaranteed cosine tail", "learnable": false},
+      {"name": "final_lr_ratio", "value": "1/100", "role": "final lr / base_lr", "learnable": false}
+    ],
+    "init_recovers": "warmup_cosine when plateau_ratio=0 and final_lr_ratio→0",
+    "diff_from_baseline": "Adds an explicit per-arch/per-dataset plateau between warmup and cosine decay (extending warmup_cosine), enforces at least 10 cosine-decay epochs, and decays only down to base_lr/100 instead of zero.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Architecture-aware OneCycle",
+    "tagline": "Cosine warmup to a peak above base_lr, cosine decay back down, then a linear cooldown to a near-zero floor; phase fractions and peak depend on architecture.",
+    "kind": "formula",
+    "formula": "$$\\eta(e) = \\begin{cases} \\eta_i + \\tfrac{1}{2}(\\eta_p-\\eta_i)(1-\\cos\\pi\\,\\tfrac{e}{W}), & e < W \\\\ \\eta_m + \\tfrac{1}{2}(\\eta_p-\\eta_m)(1+\\cos\\pi\\,\\tfrac{e-W}{D}), & W\\le e<W+D \\\\ \\eta_m - (\\eta_m-\\eta_f)\\,\\tfrac{e-W-D}{C}, & e \\ge W+D \\end{cases}$$",
+    "key_hyperparams": [
+      {"name": "pct_start", "value": "{r20:0.2, r56:0.3, mbv2:0.2}", "role": "warmup fraction", "learnable": false},
+      {"name": "pct_cooldown", "value": "{r20:0.15, r56:0.15, mbv2:0.20}", "role": "linear cooldown fraction", "learnable": false},
+      {"name": "max_lr_mult", "value": "{r20:1.5, r56:2.0, mbv2:1.0}", "role": "peak / base_lr", "learnable": false},
+      {"name": "initial_lr", "value": "0.01 base_lr", "role": "warmup start", "learnable": false},
+      {"name": "min_lr", "value": "initial_lr", "role": "end-of-cosine floor", "learnable": false},
+      {"name": "final_lr", "value": "1e-4 base_lr", "role": "post-cooldown floor", "learnable": false}
+    ],
+    "init_recovers": "OneCycle baseline when max_lr_mult=1 and pct_cooldown=0",
+    "diff_from_baseline": "Generalizes one_cycle: cosine (not cosine-from-zero) warmup that overshoots base_lr by 1.5-2x, then cosine decay, then an additional linear cooldown to base_lr*1e-4 instead of base_lr/25.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Tri-phase cosine + late rebound",
+    "tagline": "Linear warmup, slightly-decreasing 'hold' band, then power-cosine decay to a non-zero floor with a small sinusoidal rebound in the last 15% of training.",
+    "kind": "formula",
+    "formula": "$$\\eta(p) = \\begin{cases} 0.2\\eta_0 + 0.8\\eta_0\\,\\tfrac{p}{W}, & p<W \\\\ \\eta_0\\!\\left(1-0.06\\big(1-\\cos\\pi\\tfrac{p-W}{H-W}\\big)\\right), & W\\le p<H \\\\ \\eta_0\\!\\left(\\phi + (1-\\phi)\\cdot\\tfrac{1+\\cos(\\pi t^{\\rho})}{2} + \\mathbf{1}_{t>0.85}\\,r\\,\\phi\\,\\sin^2\\!\\big(\\pi\\,\\tfrac{t-0.85}{0.15}\\big)\\right), & p\\ge H \\end{cases},\\;t = \\tfrac{p-H}{1-H}$$",
+    "key_hyperparams": [
+      {"name": "phases_resnet20_c10", "value": "(W=0.03, H=0.45, phi=0.008, rho=1.6, r=0.06)", "role": "default config", "learnable": false},
+      {"name": "phases_resnet56_or_c100", "value": "(W=0.04, H=0.50, phi=0.012, rho=1.8, r=0.05)", "role": "deep / harder dataset", "learnable": false},
+      {"name": "phases_mbv2_or_fmnist", "value": "(W=0.08, H=0.40, phi=0.06, rho=1.35, r=0.12)", "role": "depthwise / simpler dataset", "learnable": false},
+      {"name": "warmup_start", "value": "0.20 base_lr", "role": "warmup floor", "learnable": false},
+      {"name": "hold_dip", "value": "12% of base_lr", "role": "max dip during hold band", "learnable": false}
+    ],
+    "init_recovers": "warmup + cosine baseline when phi=0, rho=1, r=0 and hold band is removed",
+    "diff_from_baseline": "Generalizes warmup_cosine with a slightly-decaying 'hold' phase, a power-cosine envelope (cos(pi t^rho)) that lands on a non-zero floor phi*base_lr, and adds a late sin^2 rebound in the last 15% of training.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Cosine warmup + hold + cosine decay",
+    "tagline": "Per-architecture three-phase schedule: cosine ramp-up (or short linear), constant base_lr hold, then plain cosine decay to a small floor.",
+    "kind": "formula",
+    "formula": "$$\\eta(e) = \\begin{cases} \\eta_{\\min} + (\\eta_0-\\eta_{\\min})\\,\\tfrac{1-\\cos(\\pi (e+1)/W)}{2}, & e < W \\\\ \\eta_0, & W \\le e < W+H \\\\ \\eta_{\\min} + (\\eta_0-\\eta_{\\min})\\,\\tfrac{1+\\cos(\\pi (e-W-H)/D)}{2}, & e \\ge W+H \\end{cases}$$",
+    "key_hyperparams": [
+      {"name": "config_resnet20", "value": "(W=0.25T, H=0.25T, min_ratio=1e-3)", "role": "cosine warmup, long hold", "learnable": false},
+      {"name": "config_resnet56", "value": "(W=10 epochs, H=0.02T, min_ratio=5e-3)", "role": "fixed-epoch warmup, short hold", "learnable": false},
+      {"name": "config_mobilenetv2", "value": "(W=0.30T, H=0.01T, min_ratio=8e-3)", "role": "longer cosine warmup, higher floor", "learnable": false},
+      {"name": "config_vgg16bn", "value": "(W=8 epochs, H=0.005T, min_ratio=5e-3)", "role": "fixed-epoch warmup", "learnable": false},
+      {"name": "decay_power", "value": "1.0", "role": "always plain cosine (no power)", "learnable": false}
+    ],
+    "init_recovers": "cosine baseline when W=0 and H=0",
+    "diff_from_baseline": "Adds an architecture-specific cosine (or fixed-epoch linear) warmup and a constant-LR hold phase ahead of the plain cosine decay used in the cosine baseline; floor is set per-arch instead of zero.",
+    "confidence": "high"
+  }
+]

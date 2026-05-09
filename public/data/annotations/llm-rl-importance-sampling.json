@@ -1,0 +1,78 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Chunked-Geometric IS + CISPO Recovery",
+    "tagline": "Geometric-mean IS over 16-token chunks with straight-through gradient, dual-clip, and a 50/50 CISPO-style REINFORCE recovery on clipped tokens.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. $\\rho_t = \\log\\pi(a_t) - \\log\\pi_{\\text{old}}(a_t)$, clamp to $[-20,20]$\n// 2. group $t$ into chunks of size $C\\!=\\!16$; chunk mean $\\bar\\rho_c = \\sum_{t\\in c} \\rho_t \\cdot m_t / \\sum m_t$\n// 3. straight-through: $\\hat\\rho_t = \\log\\pi(a_t) - \\mathrm{sg}[\\log\\pi(a_t)] + \\mathrm{sg}[\\bar\\rho_{c(t)}]$, $r_t = e^{\\hat\\rho_t}$\n// 4. PPO clip: $L_t = \\max(-A_t r_t, -A_t\\,\\mathrm{clip}(r_t,1\\!-\\!\\epsilon_-,1\\!+\\!\\epsilon_+))$\n// 5. recovery on clipped $t$: $L^{\\text{rec}}_t = -A_t\\,\\mathrm{sg}[\\bar r]\\cdot(\\log\\pi-\\mathrm{sg}[\\log\\pi_{\\text{old}}])$, clamp to $[-10,10]$\n// 6. blend: if clipped $L_t \\leftarrow 0.5 L_t + 0.5 L^{\\text{rec}}_t$\n// 7. dual-clip on $A_t<0$: $L_t \\leftarrow \\min(-A_t c, L_t)$ with $c=3$\n// 8. aggregate token-mean",
+    "key_hyperparams": [
+      {"name": "C (CHUNK_SIZE)", "value": "16", "role": "tokens per geometric-mean chunk", "learnable": false},
+      {"name": "clip_ratio_c", "value": "3.0", "role": "dual-clip cap for negative advantages", "learnable": false},
+      {"name": "recovery blend", "value": "0.5/0.5", "role": "weight between clipped PPO and CISPO recovery on clipped tokens", "learnable": false},
+      {"name": "recovery clamp", "value": "[-10, 10]", "role": "magnitude bound on recovery loss", "learnable": false},
+      {"name": "log-ratio clamp", "value": "[-20, 20]", "role": "stability bound", "learnable": false}
+    ],
+    "init_recovers": "Token-level PPO when C=1 and recovery blend=0",
+    "diff_from_baseline": "Vs token_level / sequence_level / first_k_tokens: replaces per-token IS with geometric-mean IS over fixed 16-token chunks (intermediate granularity), uses straight-through to keep token-level gradients, and on clipped tokens splices in a CISPO-style REINFORCE recovery term scaled by the detached clipped ratio so clipping never zeros gradient.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "NEPD-IS: Position-Decay Reweighting",
+    "tagline": "Per-token IS multiplied by exp(-γ·t/T) normalized so the sequence mean is 1, then standard PPO clipping.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. $r_t = \\exp(\\rho_t)$ as in vanilla PPO\n// 2. $T_i = \\sum_t m_{i,t}$; relative pos $u_{i,t} = t/T_i$\n// 3. $d_{i,t} = e^{-\\gamma u_{i,t}} \\cdot m_{i,t}$\n// 4. normalize: $\\tilde d_{i,t} = d_{i,t}/\\frac{1}{T_i}\\sum_t d_{i,t}$  (sequence-mean=1)\n// 5. straight-through: $r^{\\text{eff}}_t = r_t\\,\\tilde d_t + \\mathrm{sg}[r_t](1-\\tilde d_t)$\n// 6. PPO clip on $r^{\\text{eff}}_t$, token-mean aggregate",
+    "key_hyperparams": [
+      {"name": "γ", "value": "2.0", "role": "exponential position-decay rate", "learnable": false},
+      {"name": "loss_agg_mode", "value": "token-mean (forced)", "role": "preserves length-proportional sequence weighting", "learnable": false}
+    ],
+    "init_recovers": "Token-level PPO when γ=0 (uniform decay)",
+    "diff_from_baseline": "Vs token_level: replaces uniform IS weighting with a normalized exponential position decay so early reasoning tokens get larger gradients and late tokens are downweighted; gradient is routed via a straight-through estimator on (r·d̃ + sg[r]·(1-d̃)).",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Prefix-Anchored Mixed-Granularity PPO",
+    "tagline": "Each token's log-ratio is interpolated between its own value and the masked-mean of the first 32 tokens, with mix weight increasing with position.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. clamp $\\rho_t = \\log\\pi-\\log\\pi_{\\text{old}}$ to $[-20,20]$\n// 2. anchor: $\\bar\\rho^{pre}_i = \\sum_{t<K} \\rho_{i,t} m_{i,t} / \\sum_{t<K} m_{i,t}$ with $K=32$\n// 3. $\\lambda_t = \\mathrm{clip}(t/H, 0, 1)\\cdot(1-f)+f$ with $H=96, f=0.10$\n// 4. mixed value: $\\rho^{\\text{mix}}_t = (1-\\lambda_t)\\,\\mathrm{sg}[\\rho_t] + \\lambda_t\\,\\mathrm{sg}[\\bar\\rho^{pre}]$\n// 5. straight-through: $\\hat\\rho_t = \\log\\pi - \\mathrm{sg}[\\log\\pi] + \\rho^{\\text{mix}}_t$, $r_t = e^{\\hat\\rho_t}$\n// 6. dual-clip PPO: $L_t = \\max(-A_t r_t, -A_t\\,\\mathrm{clip}(r_t)),\\; \\text{if}\\;A_t<0: L_t \\leftarrow \\min(-A_t c, L_t)$\n// 7. token-mean aggregate",
+    "key_hyperparams": [
+      {"name": "anchor_k (K)", "value": "32", "role": "prefix length used to compute the anchor log-ratio", "learnable": false},
+      {"name": "decay_horizon (H)", "value": "96.0", "role": "position at which late_mix saturates", "learnable": false},
+      {"name": "anchor_floor (f)", "value": "0.10", "role": "minimum prefix-anchor weight", "learnable": false},
+      {"name": "clip_ratio_c", "value": "3.0", "role": "dual-clip cap for negative advantages", "learnable": false}
+    ],
+    "init_recovers": "Token-level PPO at f=1 (no anchor)",
+    "diff_from_baseline": "Vs first_k_tokens: instead of detaching the IS gradient for t≥K, late tokens still receive live gradient but through a forward value that linearly mixes the local log-ratio with a prefix-anchored masked-mean over the first K=32 tokens; the mix weight grows with position toward 1.0 over a 96-token horizon, with floor 0.1.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "PAC-IS: Position-Aware Confidence Blend",
+    "tagline": "Per-token confidence cw=exp(-β·t/T) blends token-level ratio and sequence-level (geometric-mean) ratio; standard dual-clip PPO follows.",
+    "kind": "formula",
+    "formula": "$$r^{\\text{blend}}_{i,t} = e^{-\\beta\\,t/T_i}\\,r^{\\text{tok}}_{i,t} + (1-e^{-\\beta\\,t/T_i})\\,r^{\\text{seq}}_i,\\quad r^{\\text{seq}}_i = \\exp\\!\\left(\\tfrac{1}{T_i}\\sum_t \\rho_{i,t}\\right)$$",
+    "key_hyperparams": [
+      {"name": "β", "value": "2.0", "role": "decay rate of token-level confidence", "learnable": false},
+      {"name": "clip_ratio_c", "value": "3.0", "role": "dual-clip cap for negative advantages", "learnable": false}
+    ],
+    "init_recovers": "Token-level at β=0; sequence-level as β→∞",
+    "diff_from_baseline": "Vs token_level / sequence_level: defines a position-dependent confidence cw(t) = e^{-β·t/T} that smoothly interpolates between per-token IS (early) and per-sequence geometric-mean IS (late); blended ratio enters the standard dual-clip PPO with token-mean aggregation, no straight-through.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "Position-Decayed Token×Segment Mix",
+    "tagline": "Mixes per-token and 16-token segment-mean log-ratios in log-space with weight α=exp(-0.05·t).",
+    "kind": "formula",
+    "formula": "$$\\log r_t = e^{-\\beta t}\\,\\log r^{\\text{tok}}_t + (1-e^{-\\beta t})\\,\\log r^{\\text{seg}}_t,\\quad r^{\\text{seg}}_t = \\exp\\!\\big(\\tfrac{1}{|S(t)|}\\sum_{s\\in S(t)} \\rho_s\\big)$$",
+    "key_hyperparams": [
+      {"name": "SEGMENT_LENGTH", "value": "16", "role": "tokens per segment for masked-mean log-ratio", "learnable": false},
+      {"name": "β (BETA)", "value": "0.05", "role": "exponential decay over absolute position", "learnable": false},
+      {"name": "clip_ratio_c", "value": "3.0", "role": "dual-clip cap for negative advantages", "learnable": false}
+    ],
+    "init_recovers": "Token-level IS at β=0; segment-level IS as β→∞",
+    "diff_from_baseline": "Vs token_level: forms a per-token convex log-space mix between token-level and 16-token-segment masked-mean log-ratios; mixing weight α(t) decays with absolute position (not normalized by sequence length) at exp(-0.05·t), then dual-clip PPO is applied.",
+    "confidence": "high"
+  }
+]

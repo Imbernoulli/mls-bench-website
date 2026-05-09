@@ -1,0 +1,72 @@
+[
+  {
+    "model": "claude-opus-4-6",
+    "name": "V-stabilized advantage DQL",
+    "tagline": "DQL actor with twin Q, but a separate IQL-style V(s) is trained by expectile regression and used both as the critic's TD target and as the inference advantage signal.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. v_loss = $\\mathrm{mean}\\big(|\\tau - \\mathbf{1}[Q_{tgt,\\min}(s,a) - V(s) < 0]|\\,(Q_{tgt,\\min}(s,a) - V(s))^2\\big)$, $\\tau = 0.7$; step v_optim\n// 2. critic TD target: $y = r + (1 - \\text{tml})\\,\\gamma\\,V(s')$ (NO actor sampling for next-state Q)\n// 3. critic_loss = MSE(Q1, y) + MSE(Q2, y); step critic_optim\n// 4. actor: $\\mathcal{L}_{actor} = \\mathrm{BC}(s, a) + \\eta\\,q\\_loss$ where $q\\_loss$ is DQL's normalized $-Q_i / |Q_j|$ (random pick of $i \\in \\{1,2\\}$) on freshly sampled actions\n// 5. polyak update critic_target with rate 0.995; EMA actor after 1000 steps\n// 6. inference: sample N candidates per env; $A(s, a) = Q_{\\mathrm{target,\\min}}(s, a) - V(s)$; $w = \\mathrm{softmax}(A \\cdot \\beta)$; multinomial sample one action per env",
+    "key_hyperparams": [
+      {"name": "iql_tau", "value": "0.7", "role": "expectile for V regression", "learnable": false},
+      {"name": "v_net", "value": "MLP(obs_dim->hidden->hidden->1) with ReLU", "role": "extra state-value network", "learnable": true},
+      {"name": "critic_target", "value": "y = r + (1-tml)*gamma*V(s')", "role": "replaces sampled-action Q-target", "learnable": false},
+      {"name": "actor_loss", "value": "BC + eta * (normalized DQL Q-loss)", "role": "unchanged from DQL baseline", "learnable": false},
+      {"name": "polyak_rate", "value": "0.995", "role": "critic target soft update", "learnable": false},
+      {"name": "ema_warmup", "value": "1000 steps", "role": "EMA actor warmup", "learnable": false},
+      {"name": "inference_score", "value": "Q_target_min - V", "role": "advantage for candidate softmax reranking", "learnable": false}
+    ],
+    "init_recovers": "default DQL when V == 0 (and we use Q-target on sampled next actions)",
+    "diff_from_baseline": "Adds an IDQL-style state-value head trained with expectile regression and uses V(s') as the critic's TD target (so the critic no longer needs to sample next-state actions); inference reranks candidates by Q_target_min - V instead of raw Q.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Confidence-gated advantage DQL",
+    "tagline": "Standard DQL critic + actor, but the actor adds a sigmoid-gated advantage term (twin-Q LCB minus dataset Q) and an MSE anchor back to dataset actions when the gate is low.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. critic: standard DQL — sample next_act with EMA actor, target $y = r + (1-\\text{tml})\\gamma\\,\\min(Q_{tgt,1},Q_{tgt,2})(s', a')$, MSE on Q1, Q2\n// 2. robust score $q\\_score = \\min(Q_1, Q_2) - \\lambda_{lcb}\\,|Q_1-Q_2|$; ref score from dataset action via critic_target\n// 3. value_scale = $\\overline{|q_{ref}|}.\\mathrm{clamp}(\\min{=}1)$; gate $g = \\sigma\\big((q\\_score - q_{ref}) / (\\tau_{gate}\\,\\mathrm{value\\_scale})\\big)$\n// 4. dql_q_loss = standard DQL randomized normalized $-Q_i / |Q_j|$ on sampled action\n// 5. adv_loss = $-\\overline{g \\odot q\\_score} / \\mathrm{value\\_scale}$; anchor_loss = $\\overline{(1-g)\\,\\|new\\_act - act\\|^2}$\n// 6. q_loss = $\\alpha_{blend}\\,dql\\_q\\_loss + (1-\\alpha_{blend})\\,adv\\_loss$\n// 7. actor_loss = $\\mathrm{bc} + \\eta\\,q\\_loss + \\lambda_{anchor}\\,anchor\\_loss$; step actor\n// 8. inference: sample $N\\!\\cdot\\!N_{cand}$ actions per env; rerank with $q\\_score$, softmax-temp multinomial",
+    "key_hyperparams": [
+      {"name": "lcb_penalty", "value": "0.15", "role": "twin-Q gap penalty in robust score", "learnable": false},
+      {"name": "actor_anchor_coef", "value": "0.05", "role": "weight on (1-gate) MSE-to-dataset anchor", "learnable": false},
+      {"name": "gate_temperature", "value": "0.25", "role": "sigmoid temperature on (q_score - q_ref)", "learnable": false},
+      {"name": "dql_blend", "value": "0.7", "role": "DQL vs gated-advantage mix in q_loss", "learnable": false},
+      {"name": "target_update_rate", "value": "0.995", "role": "critic Polyak soft update", "learnable": false},
+      {"name": "inference_score", "value": "min(Q1,Q2) - 0.15 * |Q1 - Q2|", "role": "robust candidate ranking", "learnable": false}
+    ],
+    "init_recovers": "DQL baseline when gate is constant 1 and dql_blend=1",
+    "diff_from_baseline": "Keeps DQL's critic and BC term, but the policy Q-loss becomes a 70/30 blend of DQL's normalized loss and a gated advantage loss using a robust LCB twin-Q score, plus a (1-gate)-weighted MSE anchor back to dataset actions; inference reranks by the same robust score.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "AW-DQL: CQL + expectile-weighted Q",
+    "tagline": "DQL augmented with a CQL penalty on the critic and an expectile-weighted Q maximization on the actor (positive-advantage actions weighted tau, negative weighted 1-tau).",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. critic: standard DQL TD loss + CQL: $\\mathcal{L}_{cql} = (\\overline{Q_1(\\mathrm{rand})} - \\overline{Q_1(s,a)}) + (\\overline{Q_2(\\mathrm{rand})} - \\overline{Q_2(s,a)})$; $\\mathcal{L}_{critic} = \\mathcal{L}_{td} + \\alpha_{cql}\\,\\mathcal{L}_{cql}$\n// 2. random actions: $a_{rand} \\sim U[-1, 1]^{act\\_dim}$\n// 3. actor BC + advantage-weighted Q: $A = Q_{\\min}(s, new\\_act) - \\min(Q_{tgt,1}(s,a), Q_{tgt,2}(s,a))$\n// 4. weight $w = \\tau$ if $A \\ge 0$ else $1-\\tau$\n// 5. q_loss = $-\\overline{w \\odot Q_{\\min}} / (\\overline{|Q_{\\min}|} + 10^{-8})$\n// 6. actor_loss = bc + $\\eta\\,$q_loss; step actor\n// 7. inference (unchanged from DQL): sample N candidates, softmax(Q · weight_temperature), multinomial sample",
+    "key_hyperparams": [
+      {"name": "CQL_ALPHA", "value": "0.5", "role": "weight on CQL regularizer", "learnable": false},
+      {"name": "EXPECTILE_TAU", "value": "0.8", "role": "asymmetric weighting between positive and negative advantage", "learnable": false},
+      {"name": "random_action_distribution", "value": "U[-1, 1]", "role": "action samples for CQL penalty", "learnable": false},
+      {"name": "polyak_rate", "value": "0.995", "role": "critic target soft update", "learnable": false},
+      {"name": "actor_loss", "value": "bc + eta * weighted normalized -Q", "role": "asymmetric Q-max with expectile weights", "learnable": false}
+    ],
+    "init_recovers": "DQL baseline when CQL_ALPHA=0 and EXPECTILE_TAU=0.5",
+    "diff_from_baseline": "Adds a CQL penalty (E[Q(random)] - E[Q(data)]) to the DQL critic loss and replaces the actor's randomized DQL Q-term with an expectile-weighted Q maximisation that down-weights actions whose Q drops below the dataset action's; inference selection unchanged.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "Default DQL (no change)",
+    "tagline": "Submission keeps the default Diffusion Q-Learning template unchanged: BC + DQL Q-loss actor, twin-Q critic, softmax candidate selection at inference.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. critic TD: sample next_act via EMA actor, $y = r + (1-\\text{tml})\\gamma\\min(Q_{tgt,1}, Q_{tgt,2})(s', next\\_act)$\n// 2. critic_loss = MSE(Q1, y) + MSE(Q2, y); step critic_optim\n// 3. actor: bc_loss = $\\text{actor.loss}(a, s)$; sample new_act with grad\n// 4. randomly pick branch: q_loss = $-\\overline{Q_i(s, new\\_act)} / \\overline{|Q_j(s, new\\_act)|}.\\mathrm{detach}()$\n// 5. actor_loss = bc_loss + $\\eta\\,$q_loss; step actor\n// 6. polyak critic_target with rate 0.995; EMA actor after 1000 steps\n// 7. inference: sample $N\\!\\cdot\\!N_{cand}$ candidates per env; softmax($Q \\cdot \\beta$); multinomial sample one action per env",
+    "key_hyperparams": [
+      {"name": "polyak_rate", "value": "0.995", "role": "critic target soft update", "learnable": false},
+      {"name": "ema_warmup", "value": "1000 steps", "role": "EMA actor warmup", "learnable": false},
+      {"name": "branch_prob", "value": "0.5", "role": "random Q1/Q2 branch in actor q-loss", "learnable": false},
+      {"name": "inference_score", "value": "Q_target_min", "role": "candidate softmax", "learnable": false}
+    ],
+    "init_recovers": "Diffusion Q-Learning baseline (this is exactly the template)",
+    "diff_from_baseline": "No real change: the editable region is left identical to the DQL default template (twin-Q critic + BC + DQL Q-loss + softmax candidate selection).",
+    "confidence": "high"
+  }
+]

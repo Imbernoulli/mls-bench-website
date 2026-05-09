@@ -1,0 +1,84 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Adaptive smooth-poly with logit penalty",
+    "tagline": "Cross-entropy with progress-scheduled label smoothing, a Poly-1 correction (heavier for many-class tasks), and a small logit-norm calibration penalty.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\mathrm{CE}_{\\mathrm{LS}(\\varepsilon_t)}(z,y) + w_{\\mathrm{poly}}(C)\\,\\mathbb{E}[1-p_y] + 10^{-3}\\,\\mathbb{E}\\,\\|z\\|^2_2$$\n$$\\varepsilon_t = 0.05 + 0.1\\,t/T, \\qquad w_{\\mathrm{poly}}(C) = \\begin{cases}2 & C>50\\\\ 1 & C\\le 50\\end{cases}$$",
+    "key_hyperparams": [
+      {"name": "eps_min", "value": "0.05", "role": "label smoothing at start", "learnable": false},
+      {"name": "eps_max", "value": "0.15", "role": "label smoothing at end", "learnable": false},
+      {"name": "poly_w_large", "value": "2.0", "role": "Poly-1 weight when C>50", "learnable": false},
+      {"name": "poly_w_small", "value": "1.0", "role": "Poly-1 weight otherwise", "learnable": false},
+      {"name": "logit_pen", "value": "1e-3", "role": "L2 logit calibration weight", "learnable": false}
+    ],
+    "init_recovers": "Poly-1 + label smoothing at progress=0",
+    "diff_from_baseline": "Goes beyond the fixed-eps label smoothing baseline by linearly ramping the smoothing strength with epoch and adding a class-count-aware Poly-1 term plus a small logit-norm penalty for calibration; differs from poly_loss by adding both adaptive smoothing and the logit penalty.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Curriculum poly with temperature anneal",
+    "tagline": "Smoothed cross-entropy plus a Poly-1 correction whose weight decays as (1-progress)^γ, with logits rescaled by an annealed temperature.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\mathrm{CE}_{\\mathrm{LS}(\\varepsilon)}\\!\\left(\\tfrac{z}{\\tau_t},y\\right) + \\varepsilon_t^{\\mathrm{poly}}\\,(1-p_y), \\qquad p_y = \\mathrm{softmax}\\!\\left(\\tfrac{z}{\\tau_t}\\right)_y$$\n$$\\varepsilon_t^{\\mathrm{poly}} = 2(1-t/T)^{1/2}, \\qquad \\tau_t = 1 + 0.5(1-t/T)$$",
+    "key_hyperparams": [
+      {"name": "smoothing_eps", "value": "0.1", "role": "fixed label smoothing", "learnable": false},
+      {"name": "base_epsilon", "value": "2.0", "role": "Poly-1 start weight", "learnable": false},
+      {"name": "gamma", "value": "0.5", "role": "Poly-1 decay exponent", "learnable": false},
+      {"name": "tau", "value": "0.5", "role": "extra temperature at start", "learnable": false}
+    ],
+    "init_recovers": "Label smoothing + Poly-1 at progress=0",
+    "diff_from_baseline": "Generalizes the constant-eps Poly baseline by making the polynomial weight a (1-progress)^γ curriculum and warming up logits with a decaying softmax temperature, so optimization is softer early and sharper late.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "CAMP: curriculum margin + smoothing + poly",
+    "tagline": "Subtracts a growing additive margin from the true-class logit, ramps label smoothing, and adds a Poly-1 hard-example correction.",
+    "kind": "formula",
+    "formula": "$$z_y' = z_y - m_t,\\quad m_t = 1.5\\,t/T,\\qquad \\varepsilon_t = 0.05 + 0.15\\,t/T$$\n$$\\mathcal{L} = \\mathrm{CE}_{\\mathrm{LS}(\\varepsilon_t)}(z',y) + 2\\bigl(1 - e^{-\\mathrm{CE}(z',y)}\\bigr)$$",
+    "key_hyperparams": [
+      {"name": "margin_max", "value": "1.5", "role": "max additive margin at end", "learnable": false},
+      {"name": "ls_min", "value": "0.05", "role": "label smoothing at start", "learnable": false},
+      {"name": "ls_max", "value": "0.20", "role": "label smoothing at end", "learnable": false},
+      {"name": "poly_eps", "value": "2.0", "role": "Poly-1 weight", "learnable": false}
+    ],
+    "init_recovers": "PolyLoss(eps=2) at progress=0",
+    "diff_from_baseline": "Stacks three adaptations on the label-smoothing/poly baselines: an additive logit margin that grows with training, jointly ramped smoothing, and a fixed Poly-1 hard-example term — none used by the three reference baselines individually.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Negative-smoothing CE + ranking margin",
+    "tagline": "Temperature-scaled CE with a softmax-over-non-target distribution as smoothing, plus a Poly-1 correction and a softplus margin penalty between top non-target and true logit.",
+    "kind": "formula",
+    "formula": "$$q = (1-\\varepsilon_t)\\,\\mathbf{1}_y + \\varepsilon_t\\,\\mathrm{softmax}(z/\\tau_t)_{-y}$$\n$$\\mathcal{L} = \\mathrm{CE}(q\\,\\|\\,\\mathrm{softmax}(z/\\tau_t)) + \\eta_t(1-p_y) + \\lambda_t(0.25+(1-p_y))\\,\\mathrm{softplus}(z_{n^\\star} - z_y + \\mu_t)$$",
+    "key_hyperparams": [
+      {"name": "tau_t", "value": "1.12 - 0.12·p", "role": "annealed logit temperature", "learnable": false},
+      {"name": "eps_C>10", "value": "0.02 + 0.12·(1-p)²", "role": "neg-smoothing weight (CIFAR-100)", "learnable": false},
+      {"name": "eps_C=10", "value": "0.05·(1-p)²", "role": "neg-smoothing weight (CIFAR-10)", "learnable": false},
+      {"name": "eta_C>10", "value": "0.20·(0.5+0.5p)", "role": "Poly-1 weight (large C)", "learnable": false},
+      {"name": "lam_C>10", "value": "0.16·p²", "role": "ranking margin weight", "learnable": false},
+      {"name": "mu_t_C>10", "value": "0.28·p^1.5", "role": "softplus margin offset", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces uniform label smoothing with a teacher-style soft target derived from the model's own non-target softmax, then layers a poly correction and a softplus pairwise margin penalty against the hardest negative — none of which appear in the label_smoothing/focal/poly baselines.",
+    "confidence": "medium"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "AFPL: adaptive focal + poly + smoothing",
+    "tagline": "Focal-weighted cross-entropy with class-count-scaled label smoothing, decaying focal γ, and a square-root-progressing Poly-1 term.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = (1-p_y)^{\\gamma_t}\\,\\mathrm{CE}_{\\mathrm{LS}(\\varepsilon_t)}(z,y) + \\eta_t(1-p_y)$$\n$$\\gamma_t = 2(1-t/T)^{1.5}, \\quad \\eta_t = (t/T)^{1/2}, \\quad \\varepsilon_t = 0.05 + (\\varepsilon_0(C)-0.05)(1-t/T)^2$$",
+    "key_hyperparams": [
+      {"name": "gamma_max", "value": "2.0", "role": "max focal exponent at start", "learnable": false},
+      {"name": "poly_eps_max", "value": "1.0", "role": "max Poly-1 weight at end", "learnable": false},
+      {"name": "smoothing_min", "value": "0.05", "role": "label smoothing at end", "learnable": false},
+      {"name": "smoothing_base_C", "value": "0.08 + 0.04·min((C-10)/90, 1)", "role": "C-scaled label smoothing at start", "learnable": false}
+    ],
+    "init_recovers": "Focal(γ=2) + smoothed CE at progress=0",
+    "diff_from_baseline": "Combines the focal_loss and label_smoothing/poly_loss baselines with all three weights scheduled across training: focal γ decays, smoothing decays, and a Poly-1 correction grows — yielding a single loss that morphs from focal-emphasised early to poly-style late.",
+    "confidence": "high"
+  }
+]

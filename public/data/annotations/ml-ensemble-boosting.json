@@ -1,0 +1,89 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "PWN-Boost: progressive winsorization",
+    "tagline": "AdaBoost on classification; for regression, Newton step on residuals that are percentile-clipped at a round-dependent threshold scaled with sqrt(n), plus optional non-compounding residual-focus reweighting.",
+    "kind": "pseudocode",
+    "pseudocode": "// Per-round (regression):\n// 1. $r \\leftarrow y - F_{t-1}(x)$\n// 2. $p_t \\leftarrow \\min(25,\\, p_0(1+g\\,t/T))$  with $p_0 = \\mathrm{clip}(50/\\sqrt{n}-0.3,\\,0,5)$,\\, $g = \\max(0, 3 - n/1000)$\n// 3. $r \\leftarrow \\mathrm{clip}(r,\\,P_{p_t}(r),\\,P_{100-p_t}(r))$\n// 4. fit tree $h_t$ on $r$\n// 5. $\\alpha_t = \\max\\!\\big(0,\\,\\frac{\\langle r,h_t\\rangle}{\\|h_t\\|^2 + \\lambda}\\big),\\quad \\lambda = \\max(1,\\,3-n/500)$\n// 6. (small data only) $w \\leftarrow \\frac{1}{n}(1 + 0.2\\,|y - F_t|/P_{95})$\n// Classification: standard AdaBoost ($w \\leftarrow w \\exp(\\alpha\\mathbb{1}_{\\hat y\\ne y})$).",
+    "key_hyperparams": [
+      {"name": "base_clip_pct", "value": "clip(50/sqrt(n) - 0.3, 0, 5)", "role": "round-0 winsorization percentile", "learnable": false},
+      {"name": "clip_growth", "value": "max(0, 3 - n/1000)", "role": "growth factor on clip pct over rounds", "learnable": false},
+      {"name": "reg_lambda", "value": "max(1, 3 - n/500)", "role": "L2 in Newton step", "learnable": false},
+      {"name": "use_focus", "value": "n < 2000", "role": "enable non-compounding residual focus reweighting", "learnable": false},
+      {"name": "focus_strength", "value": "0.2", "role": "focus weight perturbation amplitude", "learnable": false},
+      {"name": "focus_clip", "value": "[0, 2]", "role": "max scaled normalized residual", "learnable": false}
+    ],
+    "init_recovers": "xgboost_style baseline at base_clip_pct = 0 and use_focus = false",
+    "diff_from_baseline": "Strict superset of the xgboost_style baseline for regression: adds round-progressive percentile-clipping of residuals plus a sample-size-scaled Newton lambda and an optional non-compounding focus reweighting; classification reduces to AdaBoost.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "ASBHW: Newton step + hybrid reweighting",
+    "tagline": "XGBoost-style Newton learner weight, but combined with AdaBoost.R2 reweighting for regression and a temperature-decayed margin/grad confidence reweighting for classification.",
+    "kind": "pseudocode",
+    "pseudocode": "// Targets: $g = y-F$ (reg) or $y-\\sigma(F)$ (clf)\n// Learner weight (Newton with $\\lambda=0.1$):\n//  reg: $\\alpha = \\max(0, \\langle g,h\\rangle/(\\|h\\|^2+\\lambda))$\n//  clf: $\\alpha = \\max(0, \\langle g,h\\rangle/(\\sum p(1-p)h^2+\\lambda))$\n// Update (regression, AdaBoost.R2):\n//  $e = |h - g|/\\max|h-g|$,\\;$\\bar e = \\langle w, e\\rangle$,\\;$\\beta = \\bar e/(1-\\bar e)$,\\;$w \\leftarrow w\\,\\beta^{1-e}$\n// Update (classification, margin-confidence):\n//  $\\tau_t = 1.5 - 0.5\\,t/T$;\\; $s = |g|\\exp(-y_{\\pm}F)/\\max(\\cdot)$;\\; $w \\leftarrow w\\,\\exp(\\tau_t\\,s)$",
+    "key_hyperparams": [
+      {"name": "reg_lambda", "value": "0.1", "role": "L2 in Newton step", "learnable": false},
+      {"name": "temperature_base", "value": "1.5", "role": "starting temp for confidence-weighted classification update", "learnable": false},
+      {"name": "temperature_floor", "value": "1.0", "role": "min temperature at last round", "learnable": false}
+    ],
+    "init_recovers": "xgboost_style baseline at temperature reweighting disabled; AdaBoost.R2 baseline at lambda → ∞",
+    "diff_from_baseline": "Combines the xgboost_style Newton step with the adaboost reweighting families: regression uses AdaBoost.R2 reweighting on top of the Newton alpha; classification uses a margin/gradient confidence-weighted exponential update (decayed temperature) instead of plain AdaBoost.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Bayesian-bootstrap Newton boosting",
+    "tagline": "Replace sample weights with exponential bootstrap noise multiplied by the Hessian; Newton step on (g/h+lambda); classification clamps targets in [-20, 20] and regression scales alpha 2.5x for n>5000.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. if regression and $n<1000$: $\\xi_i \\sim \\mathrm{Exp}(1)$ else $\\xi_i = 1$\n// 2. clf: $p = \\sigma(F)$, $g = y-p$, $h = p(1-p)$, $\\lambda=0.01$\n// 3. reg: $g = y-F$, $h = 1$, $\\lambda = 1.0$ if $n\\le 5000$ else $0$\n// 4. $w \\leftarrow (h+\\lambda)\\,\\xi + 10^{-10}$\n// 5. target $= \\mathrm{clip}(g/(h+\\lambda),\\,-20,20)$ (clf) or $\\mathrm{clip}(g, -200, 200)$ (reg)\n// 6. fit $h_t$ on target with sample weight $w$\n// 7. $\\alpha = \\max(0.01,\\,\\langle g,h_t\\rangle/(\\langle h+\\lambda,\\,h_t^2\\rangle + 10^{-10}))$\n// 8. for large reg ($n>5000$): $\\alpha \\leftarrow 2.5\\,\\alpha$",
+    "key_hyperparams": [
+      {"name": "lambda_clf", "value": "0.01", "role": "Newton L2 (classification)", "learnable": false},
+      {"name": "lambda_reg_small", "value": "1.0", "role": "Newton L2 for small regression", "learnable": false},
+      {"name": "lambda_reg_large", "value": "0.0", "role": "Newton L2 for large regression (n>5000)", "learnable": false},
+      {"name": "alpha_floor", "value": "0.01", "role": "min learner weight", "learnable": false},
+      {"name": "alpha_boost_large_reg", "value": "2.5", "role": "alpha scale for large regression", "learnable": false},
+      {"name": "noise_dist", "value": "Exp(1)", "role": "Bayesian-bootstrap weights for n<1000 regression", "learnable": false},
+      {"name": "target_clip", "value": "[-20, 20] / [-200, 200]", "role": "tree-target clip for clf / reg", "learnable": false}
+    ],
+    "diff_from_baseline": "Goes beyond the xgboost_style baseline by replacing uniform sample weights with Hessian-times-Bayesian-bootstrap weights, clamping targets, and amplifying the Newton step on large regression problems.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Bandpass boosting (margin + trust-region)",
+    "tagline": "AdaBoost classification with margin-bandpass reweighting; small-data regression uses trust-region pseudo-Huber residuals plus a focus-vs-uniform interpolation; large-data regression falls back to plain Newton.",
+    "kind": "pseudocode",
+    "pseudocode": "// Classification:\n// 1. AdaBoost $\\alpha = 0.5\\eta\\log((1-\\bar\\varepsilon)/\\bar\\varepsilon)$\n// 2. $w \\leftarrow w\\,e^{\\alpha\\mathbb{1}_{\\hat y\\ne y}} \\cdot (0.85+0.15 e^{-|m_t|})$\n// Regression (small, $n\\le 5000$):\n// 3. $r = y-F$;\\;$s = \\sqrt{\\langle w,r^2\\rangle}$;\\;$\\delta = s(1.25+1.25\\,p)$\n// 4. target $= r/\\sqrt{1+(r/\\delta)^2}$ (pseudo-Huber)\n// 5. $\\alpha = \\mathrm{clip}\\Big(\\frac{\\sum w r h}{\\sum w h^2 + 1},\\,0,\\,2.5\\Big)$\n// 6. update $w$ as mix: $(1-f)\\,U + f\\,(0.15 + (z/(1+z))e^{-0.15z})$ then $w\\leftarrow 0.75\\,w_{\\text{new}}+0.25\\,w_{\\text{old}}$\n// Regression (large): plain residual fit, Newton step clipped to [0,4], no reweighting",
+    "key_hyperparams": [
+      {"name": "reg_lambda", "value": "1.0", "role": "L2 in Newton step", "learnable": false},
+      {"name": "weight_floor", "value": "0.15", "role": "minimum proportional weight in proposal", "learnable": false},
+      {"name": "weight_memory", "value": "0.25", "role": "EMA decay in weight update (smoothing)", "learnable": false},
+      {"name": "alpha_clip_small", "value": "2.5", "role": "max learner weight (small reg)", "learnable": false},
+      {"name": "alpha_clip_large", "value": "4.0", "role": "max learner weight (large reg)", "learnable": false},
+      {"name": "huber_delta", "value": "s(1.25 + 1.25*progress)", "role": "trust-region scale", "learnable": false},
+      {"name": "bandpass_strength", "value": "0.15", "role": "weight bonus on low-margin classification samples", "learnable": false},
+      {"name": "focus_curve", "value": "0.2 + 0.6 * progress", "role": "interpolation between uniform and informative weights", "learnable": false},
+      {"name": "large_reg_threshold", "value": "n > 5000", "role": "switch to stable Newton fallback", "learnable": false}
+    ],
+    "init_recovers": "AdaBoost classification at bandpass=1; xgboost_style regression at large-data branch",
+    "diff_from_baseline": "Hybrid of AdaBoost (with extra margin-bandpass reweighting), and an xgboost-style Newton step over robust pseudo-Huber residuals with informative-difficulty reweighting; falls back to standard Newton boosting for n>5000.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "AdaBoost-margin clf + Newton-step regression",
+    "tagline": "Classification: AdaBoost alpha then exp(-tanh-margin) reweighting with linearly increasing temperature. Regression: Newton step alpha = <r,h>/(|h|^2 + 1), no reweighting.",
+    "kind": "pseudocode",
+    "pseudocode": "// Per-round:\n// 1. fit tree on $y$ (clf) or residual $r=y-F$ (reg)\n// 2. clf: $\\bar\\varepsilon = w^\\top\\mathbb{1}_{\\hat y\\ne y}$; $\\alpha = \\eta\\,0.5\\log((1-\\bar\\varepsilon)/\\bar\\varepsilon)$\n//    reg: $\\alpha = \\max(0, \\langle r, h\\rangle/(\\|h\\|^2+1))$\n// 3. clf raw scores $S \\leftarrow S + \\alpha(2\\hat y-1)$; margin $m = (2y-1)\\tanh(S)$\n// 4. clf reweight: $w \\leftarrow w\\cdot \\mathrm{clip}(\\exp(-(1+2t/T)\\,m),\\,0.1,\\,20)$\n// 5. reg: $w$ unchanged",
+    "key_hyperparams": [
+      {"name": "reg_lambda", "value": "1.0", "role": "Newton step L2 (regression)", "learnable": false},
+      {"name": "temp_curve", "value": "1 + 2*(t/(T-1))", "role": "linearly increasing temperature for margin reweighting", "learnable": false},
+      {"name": "reweight_clip", "value": "[0.1, 20]", "role": "clamp on per-sample reweight factor", "learnable": false}
+    ],
+    "init_recovers": "AdaBoost at temp=0; gradient_boosting baseline for regression",
+    "diff_from_baseline": "Combines AdaBoost's exponential update with a tanh-margin reweighting whose temperature grows with the round; regression uses the xgboost_style Newton learner-weight formula with lambda=1 and uniform sample weights.",
+    "confidence": "high"
+  }
+]

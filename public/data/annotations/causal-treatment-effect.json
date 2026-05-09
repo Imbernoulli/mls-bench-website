@@ -1,0 +1,91 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Stacked DR + R Pseudo-Outcome Ensemble",
+    "tagline": "Cross-fits stacked outcome / propensity nuisances, then averages four CATE models trained on both DR and R-Learner pseudo-outcomes.",
+    "kind": "formula",
+    "formula": "$$\\hat{\\tau}(x) = \\frac{1}{4}\\sum_{j=1}^{4} g_j(x), \\quad g_j \\in \\{\\mathrm{GBR}, \\mathrm{RF}\\} \\times \\{\\phi^{\\mathrm{DR}}, \\phi^{R}\\}$$ where $$\\phi^{\\mathrm{DR}} = \\hat\\mu_1 - \\hat\\mu_0 + \\frac{T(Y - \\hat\\mu_1)}{\\hat e} - \\frac{(1-T)(Y - \\hat\\mu_0)}{1-\\hat e}, \\quad \\phi^{R} = \\frac{Y - \\hat m}{T - \\hat e}, \\quad w^R = (T - \\hat e)^2.$$",
+    "key_hyperparams": [
+      {"name": "propensity_clip", "value": "0.025", "role": "lower / upper trim of e_hat", "learnable": false},
+      {"name": "DR_clip_percentile", "value": "97", "role": "trim |phi_DR|", "learnable": false},
+      {"name": "R_clip_percentile", "value": "95", "role": "trim |phi_R|", "learnable": false},
+      {"name": "nuisance_stack", "value": "GBR(250,d=4,lr=0.1) + RF(300,sqrt) averaged 1/2-1/2", "role": "mu0/mu1/m/e via stacking", "learnable": false},
+      {"name": "n_splits (cross-fit)", "value": "5", "role": "outer fold count", "learnable": false},
+      {"name": "ensemble_size", "value": "4", "role": "(GBR,RF) x (DR,R) heads", "learnable": false}
+    ],
+    "init_recovers": "DR-Learner if R-arm and RF heads disabled",
+    "diff_from_baseline": "Versus DR-Learner / R-Learner, computes both pseudo-outcomes from a single stacked nuisance estimate (GBR+RF averaged), trains two CATE families per pseudo-outcome, and final-averages all four.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "DR + Variance-Adaptive Trimming + Overlap Weights",
+    "tagline": "DR-Learner with per-sample variance-aware trimming, overlap weighting, and a GBR+RF ensemble final stage.",
+    "kind": "formula",
+    "formula": "$$\\widehat{\\mathrm{Var}}(\\phi_i) \\propto \\Big[\\tfrac{T_i}{\\hat e_i^2} + \\tfrac{1-T_i}{(1-\\hat e_i)^2}\\Big]\\sigma^2,\\quad \\tau_i = \\sqrt{\\widehat{\\mathrm{Var}}(\\phi_i)/\\mathrm{med}(\\widehat{\\mathrm{Var}})}\\in[0.5,2],$$ $$\\tilde\\phi_i = \\mathrm{clip}(\\phi^{\\mathrm{DR}}_i,\\, \\pm q_{95}/\\tau_i),\\qquad w_i = \\hat e_i (1 - \\hat e_i),$$ $$\\hat\\tau(x) = \\tfrac{1}{2}\\big[\\mathrm{GBR}_w(x) + \\mathrm{RF}_w(x)\\big].$$",
+    "key_hyperparams": [
+      {"name": "propensity_clip", "value": "0.05", "role": "trim e_hat", "learnable": false},
+      {"name": "global_trim_percentile", "value": "95", "role": "baseline q for adaptive clip", "learnable": false},
+      {"name": "var_scale_bounds", "value": "[0.5, 2.0]", "role": "tighten / loosen per-sample threshold", "learnable": false},
+      {"name": "ensemble", "value": "GBR(200,d=3,lr=0.05) + RF(300,d=10)", "role": "two CATE heads averaged", "learnable": false}
+    ],
+    "init_recovers": "DR-Learner when var_scale = 1 and overlap weight = constant",
+    "diff_from_baseline": "Versus DR-Learner, replaces the constant percentile clip with a per-sample threshold scaled by sqrt(estimated DR variance), uses overlap weights e(1-e) at the second-stage regression, and averages a GBR + a deeper RF.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Overlap-Weighted Tri-Robust Ensemble (DR + R + X)",
+    "tagline": "Ensembles variance-weighted DR, structural R-Learner, and a propensity-gated X-Learner; outcome models themselves are overlap-weighted.",
+    "kind": "formula",
+    "formula": "$$\\hat\\tau_{\\mathrm{DR}} = \\arg\\min_g \\sum_i \\hat e_i(1-\\hat e_i)\\,\\big(\\phi^{\\mathrm{DR}}_i - g(x_i)\\big)^2,\\qquad \\hat\\tau_R = \\mathrm{GBR}\\big(X,\\, \\tfrac{Y - \\hat m}{T - \\hat e};\\, w=(T-\\hat e)^2\\big),$$ $$\\hat m = \\hat e\\,\\hat\\mu_1 + (1-\\hat e)\\,\\hat\\mu_0,\\qquad \\hat\\tau_X(x) = (1-\\hat e(x))\\,\\hat\\tau_1(x) + \\hat e(x)\\,\\hat\\tau_0(x),$$ $$\\hat\\tau(x) = \\tfrac{1}{3}\\big[\\hat\\tau_{\\mathrm{DR}}(x) + \\hat\\tau_R(x) + \\hat\\tau_X(x)\\big],\\quad \\hat\\mu_1\\,\\text{trained with weight}\\,1-\\hat e,\\ \\hat\\mu_0\\,\\text{with weight}\\,\\hat e.$$",
+    "key_hyperparams": [
+      {"name": "propensity_clip", "value": "0.01", "role": "trim e_hat", "learnable": false},
+      {"name": "DR_R_clip_percentile", "value": "99.5", "role": "trim phi_DR, phi_R, D0, D1", "learnable": false},
+      {"name": "ensemble_weights", "value": "[1/3, 1/3, 1/3]", "role": "DR, R, X averaging", "learnable": false},
+      {"name": "DR_sample_weight", "value": "e(1-e)", "role": "variance-optimal final-stage weight", "learnable": false},
+      {"name": "outcome_weights", "value": "1-e (treated), e (control)", "role": "overlap-weighted nuisance training", "learnable": false}
+    ],
+    "init_recovers": "Plain DR-Learner if R and X arms are dropped and overlap weights set to 1",
+    "diff_from_baseline": "Versus single DR/R baselines, trains the outcome nuisances with overlap weights (1-e for treated, e for control), then averages three different meta-learners (DR weighted by e(1-e), R, X with propensity gate) all built from a shared cross-fit propensity score.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Balanced Orthogonal XDR + Plug-in Shrinkage",
+    "tagline": "Mixes a propensity-gated X-Learner with a DR-Learner using a data-dependent gate, then adds a plug-in T-Learner shrinkage and a global bias correction.",
+    "kind": "formula",
+    "formula": "$$\\hat\\tau_X(x) = (1-\\hat e(x))\\,\\hat\\tau_1(x) + \\hat e(x)\\,\\hat\\tau_0(x),\\quad \\alpha = \\begin{cases}0.35 & \\mathrm{MSE}(\\hat\\tau_X) < \\mathrm{MSE}(\\hat\\tau_{\\mathrm{DR}})\\\\ 0.65 & \\text{otherwise}\\end{cases}$$ $$\\hat\\tau(x) = (1-\\beta)\\big[\\alpha\\,\\hat\\tau_X(x) + (1-\\alpha)\\,\\hat\\tau_{\\mathrm{DR}}(x)\\big] + \\beta\\,\\hat\\tau_{\\mathrm{plug}}(x) - 0.1\\,\\hat b,\\ \\beta = 0.15,$$ where $\\hat b = \\overline{(1-\\beta)\\text{mix} + \\beta\\,\\hat\\tau_{\\mathrm{plug}} - \\phi^{\\mathrm{DR}}}$.",
+    "key_hyperparams": [
+      {"name": "propensity_clip", "value": "0.05", "role": "trim e_hat", "learnable": false},
+      {"name": "n_splits", "value": "3", "role": "cross-fit folds", "learnable": false},
+      {"name": "alpha_low / alpha_high", "value": "0.35 / 0.65", "role": "X-Learner weight when better/worse than DR", "learnable": false},
+      {"name": "beta_plugin", "value": "0.15", "role": "T-Learner plug-in shrinkage", "learnable": false},
+      {"name": "bias_shrinkage", "value": "0.1", "role": "fraction of mean residual subtracted", "learnable": false},
+      {"name": "DR_clip_percentile", "value": "98", "role": "trim phi_DR, D0, D1", "learnable": false},
+      {"name": "DR_sample_weight", "value": "e(1-e)", "role": "variance-optimal weighting", "learnable": false}
+    ],
+    "init_recovers": "DR-Learner when alpha→0, beta→0, b→0",
+    "diff_from_baseline": "Versus DR-Learner, builds an X-Learner-style head (separate tau1, tau0 trained on imputed differences) and a T-Learner plug-in head, then convex-combines all three with weights chosen by comparing OOF MSEs against the DR pseudo-outcome, plus a centered global bias correction.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Y-Normalized DR Stack + Orthogonal Refinement",
+    "tagline": "Standardizes X, normalizes Y, builds DR pseudo-outcomes, NNLS-stacks four CATE learners, then adds a residual refinement model with optimal blending lambda.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. standardize X; normalize Y to zero-mean unit-std (denormalize at predict time)\n// 2. cross-fit (K=5) GBR on X→Y|T=0,1 and GBR-classifier on X→T → mu0, mu1, e\n// 3. clip e ∈ [0.1, 0.9]; compute φ_DR\n// 4. robust MAD-clip φ_DR at ±5·1.4826·MAD\n// 5. base learners {GBR, GBR(deeper), RF, Ridge}; OOF predictions per fold\n// 6. NNLS stacking weights w over OOF columns (coordinate descent, normalize to sum 1)\n// 7. residuals r = φ_DR − Σ w·base_oof; MAD-clip at ±4 MAD; fit refinement models on r\n// 8. λ ← clip(Σ refine_oof·r / Σ refine_oof², [0,1])\n// 9. predict: $\\hat\\tau(x) = (\\sum_j w_j g_j(x) + \\lambda\\,\\bar h(x))\\,\\sigma_Y$",
+    "key_hyperparams": [
+      {"name": "n_splits", "value": "5", "role": "outer cross-fit folds", "learnable": false},
+      {"name": "propensity_clip", "value": "[0.1, 0.9]", "role": "trim e_hat (tight)", "learnable": false},
+      {"name": "MAD_n (DR clip)", "value": "5.0", "role": "robust trim of phi_DR", "learnable": false},
+      {"name": "MAD_n (residual)", "value": "4.0", "role": "robust trim of refinement target", "learnable": false},
+      {"name": "base_learners", "value": "[GBR(d=4), GBR(d=5), RF(d=10), Ridge]", "role": "diverse stack", "learnable": false},
+      {"name": "stack_weights w", "value": "NNLS, sum=1", "role": "OOF-fit blend", "learnable": false},
+      {"name": "refinement λ", "value": "clip(num/den, [0,1])", "role": "residual blend", "learnable": false}
+    ],
+    "init_recovers": "DR-Learner if stack_weights are one-hot on a single GBR and λ=0",
+    "diff_from_baseline": "Versus DR-Learner, normalizes Y (so MAD-clipping is dataset-agnostic), stacks four diverse CATE learners with NNLS weights, then adds a second-stage residual refinement model whose blending weight λ is fit on OOF predictions. Predictions are denormalized by σ_Y.",
+    "confidence": "high"
+  }
+]

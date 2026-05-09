@@ -1,0 +1,91 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Multi-loss APGD + ODI + targeted",
+    "tagline": "15 untargeted restarts cycling CE/DLR/CW with cosine $\\alpha$, ODI init, neighborhood-smoothed momentum, then up to 30 targeted restarts on still-correct samples; keeps best-margin adv per sample.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Track best_adv, best_margin per sample (margin = max non-target logit − target logit).\n// 2. Untargeted phase, $r=1..15$, loss $\\in$ {CE, DLR, CW} cycled:\n//    - $r=1$: clean init; $r\\in[2,5]$: ODI init = $\\mathrm{sign}(\\nabla_x \\langle w_r, f(x)\\rangle\\cdot \\epsilon)$ with random $w_r$; else uniform-ε init.\n//    - 50 PGD steps: $\\alpha_t=\\max(0.05\\epsilon,\\,\\tfrac{0.75\\epsilon}{2}(1+\\cos\\pi t/T))$.\n//    - smoothed grad: average grad over $1+3$ Gaussian-noised copies ($\\sigma=\\epsilon/3$).\n//    - $\\ell_1$-mean normalize; momentum 0.75 then sign step + clip.\n//    - update best_margin every 12 steps and at end.\n// 3. Targeted phase ×2: for samples still correctly classified, take top-$k\\le 15$ alt classes; for each target $\\times 2$ restarts run 60 PGD steps with loss = $-\\mathrm{CE}(f(x_t), t)$ (round 1) or $z_t-z_y$ (round 2), same momentum/cosine-α schedule.\n// 4. return best_adv.",
+    "key_hyperparams": [
+      {"name": "untargeted restarts", "value": "15", "role": "with looped CE/DLR/CW losses", "learnable": false},
+      {"name": "PGD steps (untargeted)", "value": "50", "role": "per restart", "learnable": false},
+      {"name": "α schedule", "value": "cos(0.05ε ↔ 0.75ε)", "role": "step size", "learnable": false},
+      {"name": "smoothing samples", "value": "3, σ=ε/3", "role": "Gaussian neighborhood gradient", "learnable": false},
+      {"name": "momentum decay", "value": "0.75", "role": "MI-FGSM-style momentum", "learnable": false},
+      {"name": "targeted rounds", "value": "2 outer × ≤15 targets × 2 inner", "role": "remaining hard samples", "learnable": false},
+      {"name": "targeted α", "value": "cos(0.03ε ↔ 0.40ε)", "role": "step size", "learnable": false},
+      {"name": "targeted steps", "value": "60", "role": "per (target, restart)", "learnable": false}
+    ],
+    "init_recovers": "MI-FGSM at single-loss, no smoothing, no targeted phase",
+    "diff_from_baseline": "Combines AutoAttack-style multi-loss (CE+DLR+CW) restarts and targeted top-$k$ rounds with MI-FGSM-style smoothed momentum, ODI initialization, and per-sample best-margin tracking — far beyond the single-restart PGD/MI-FGSM/FGSM baselines and unlike the AutoAttack baseline by adding ODI init and Gaussian-smoothed gradients.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Nesterov + CE+CW hybrid + restarts",
+    "tagline": "Nesterov-look-ahead PGD with cosine α, gradient normalized by $\\ell_1$ mean, momentum 0.95, and a CE + 2×CW margin hybrid loss; 4 restarts with per-sample best score.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for restart $r=1..4$:\n//    a. uniform-ε init in $[0,1]$.\n//    b. for $t=0..39$:\n//       i. $\\alpha_t=\\epsilon/16+(\\epsilon/4-\\epsilon/16)\\cdot\\tfrac{1}{2}(1+\\cos\\pi t/T)$.\n//       ii. lookahead $z = x_{adv}+\\alpha_t\\,\\mathrm{sign}(\\text{momentum})$, clip to $[0,1]$.\n//       iii. compute logits at $z$; $\\mathcal{L}=\\mathrm{CE}+2\\,\\mathbb{E}[\\max_{j\\ne y}f_j(z)-f_y(z)]$.\n//       iv. grad $\\to$ normalize by $\\ell_1$ mean; $m\\leftarrow 0.95\\,m+\\hat g$.\n//       v. $x_{adv}\\leftarrow\\Pi_{\\epsilon}(x_{adv}+\\alpha_t\\,\\mathrm{sign}(m))$.\n//    c. score restart by per-sample $\\mathrm{CE}+2\\,\\mathrm{margin}$, update best_adv.\n// 2. return best_adv.",
+    "key_hyperparams": [
+      {"name": "restarts", "value": "4", "role": "random restarts", "learnable": false},
+      {"name": "steps", "value": "40", "role": "PGD iterations per restart", "learnable": false},
+      {"name": "decay", "value": "0.95", "role": "Nesterov-momentum factor", "learnable": false},
+      {"name": "α schedule", "value": "cos(ε/16 ↔ ε/4)", "role": "step size", "learnable": false},
+      {"name": "λ_margin", "value": "2.0", "role": "weight on CW margin in hybrid loss", "learnable": false},
+      {"name": "grad norm", "value": "$\\ell_1$ mean", "role": "MI-FGSM-style normalization", "learnable": false}
+    ],
+    "init_recovers": "Closer to MI-FGSM at λ_margin=0 and decay=1.0; PGD at decay=0",
+    "diff_from_baseline": "Adds Nesterov look-ahead and a hybrid CE + 2×margin loss to MI-FGSM-style momentum-PGD, with cosine-decayed α and 4 random restarts selecting the per-sample maximum — none of these features appear in the FGSM, PGD, MI-FGSM, or AutoAttack baselines individually.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "AutoAttack-style restart cascade (broken)",
+    "tagline": "Plans CE/CW/DLR + 5 targeted-CW + 5 targeted-DLR restarts of cosine-schedule MI-FGSM, but the function references undefined `is_adv` and crashes at runtime.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Compute initial logits, intend top-9 alt targets per sample.\n// 2. Build restart list: ['ce','cw','dlr'] + 5×('targeted_cw',t) + 5×('targeted_dlr',t).\n// 3. For each restart: uniform-ε init in $[0,1]$; for 150 steps: compute selected loss, normalize grad by $\\ell_1$ mean, momentum 0.9, $\\alpha_t=\\alpha_{\\min}+\\tfrac{1}{2}(\\alpha_{\\max}-\\alpha_{\\min})(1+\\cos\\pi t/T)$, sign step, project.\n// 4. (BUG) References `is_adv` before assignment → NameError on first call. Returns clean images, attack always fails on every sample.",
+    "key_hyperparams": [
+      {"name": "restarts", "value": "3 untargeted + 10 targeted", "role": "loss × target combinations", "learnable": false},
+      {"name": "steps per restart", "value": "150", "role": "PGD iterations", "learnable": false},
+      {"name": "α range", "value": "[ε/100, ε/4]", "role": "cosine schedule", "learnable": false},
+      {"name": "momentum", "value": "0.9", "role": "MI-FGSM smoothing", "learnable": false},
+      {"name": "alt_targets", "value": "top-9", "role": "candidate targets per sample", "learnable": false}
+    ],
+    "diff_from_baseline": "Intends an AutoAttack-style cascade (CE+CW+DLR+targeted variants) on top of MI-FGSM-style cosine-α momentum-PGD, but as written the code uses an undefined `is_adv` flag and crashes. In effect it returns the clean images and counts as 0% success, well below FGSM/PGD/MI-FGSM/AutoAttack baselines.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Multi-loss APGD + targeted top-k",
+    "tagline": "Compact APGD-style loop with CE+DLR+log-softmax untargeted phase, then top-$k$ targeted attacks (loss = $1.2\\,(z_t-z_y)/\\text{denom}+0.35\\,\\text{DLR}+0.35\\log p_t$) restarted from best, finishing with a refinement at $\\alpha=\\epsilon/8$.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Untargeted A($x$, $y$, 32 steps, $\\alpha=\\epsilon/5$): random init in $\\pm\\epsilon$, accumulate gradient as plain sum (no decay), sign step + clip; loss = CE + 0.7·DLR + 0.4·logsoftmax of best non-target class. Track best_margin via DLR. Returns best, best_score.\n// 2. for $j=0..k-1$ where $k=5$ (or 6 if n_classes>10): pick still-correctly-classified samples; for each, take the $j$-th top non-target class as target $tg$.\n//    a. Initialize from best via $0.5\\epsilon\\,\\mathrm{sign}(g_{init})+0.5$ uniform; run A with 18 steps, $\\alpha=\\epsilon/6$, targeted loss above.\n//    b. update best when score improves.\n// 3. Final refinement: 16 steps with $\\alpha=\\epsilon/8$ from best; merge.\n// 4. return best.",
+    "key_hyperparams": [
+      {"name": "untargeted steps / α", "value": "32 / ε/5", "role": "phase 1", "learnable": false},
+      {"name": "targeted top-k", "value": "5 (≤10 cls) / 6 (CIFAR-100)", "role": "alt-targets per sample", "learnable": false},
+      {"name": "targeted steps / α", "value": "18 / ε/6", "role": "per target restart", "learnable": false},
+      {"name": "refinement steps / α", "value": "16 / ε/8", "role": "final pass", "learnable": false},
+      {"name": "loss weights (untargeted)", "value": "CE + 0.7 DLR + 0.4 logp_top", "role": "compound loss", "learnable": false},
+      {"name": "loss weights (targeted)", "value": "1.2·(z_t−z_y)/denom + 0.35 DLR + 0.35 logp_t", "role": "compound targeted loss", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces the simple PGD/MI-FGSM single-loss attack with a multi-loss DLR-driven APGD plus a targeted top-$k$ cascade reused from AutoAttack, with custom denominator (sort gap $z_{(1)}-0.5z_{(3)}-0.5z_{(4)}$) and per-sample best tracking — neither FGSM, PGD, MI-FGSM, nor stock AutoAttack uses these compound losses or schedule.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Restart PGD with CE/DLR alternation",
+    "tagline": "6 random restarts × 50-step momentum-PGD that alternates CE and DLR per step, $\\alpha=\\epsilon/4$, picks the per-sample lowest CE-margin adversarial.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for restart $r=1..6$: init = $x+\\mathcal{U}(-\\epsilon,\\epsilon)$ (or near best_adv with $\\pm 0.25\\epsilon$ jitter for $r>1$); project to $[0,1]$.\n// 2. for step $s=0..49$:\n//    a. compute logits; loss = CE if $(r+s)$ even else DLR$=\\frac{z_y-z_{(1)\\setminus y}}{z_{(1)\\setminus y}-z_{(3)\\setminus y}+10^{-6}}$.\n//    b. grad → $\\ell_1$-mean normalize; momentum (decay=1) update.\n//    c. sign step at $\\alpha=\\epsilon/4$, project to $\\ell_\\infty\\le\\epsilon$ and $[0,1]$.\n//    d. evaluate margin = $z_y-\\max_{j\\ne y}z_j$ at the new point and overwrite best_adv where margin decreased.\n// 3. return best_adv.",
+    "key_hyperparams": [
+      {"name": "restarts", "value": "6", "role": "random restarts", "learnable": false},
+      {"name": "steps", "value": "50", "role": "PGD steps per restart", "learnable": false},
+      {"name": "α", "value": "ε/4", "role": "constant step size", "learnable": false},
+      {"name": "momentum decay", "value": "1.0", "role": "MI-FGSM-style accumulation", "learnable": false},
+      {"name": "loss alternation", "value": "CE / DLR (parity)", "role": "rotating loss per step", "learnable": false},
+      {"name": "warm restart jitter", "value": "±0.25ε", "role": "init noise around best_adv after r=1", "learnable": false}
+    ],
+    "init_recovers": "PGD baseline when all restarts use CE only and decay=0",
+    "diff_from_baseline": "Augments PGD baseline with 6 random restarts, MI-FGSM-style normalized momentum, and a CE/DLR alternation per step (DLR is borrowed from AutoAttack's APGD-DLR), which neither vanilla PGD, MI-FGSM, nor FGSM does, and uses a per-sample margin-based best selection.",
+    "confidence": "high"
+  }
+]

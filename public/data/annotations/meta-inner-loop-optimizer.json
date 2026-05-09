@@ -1,0 +1,82 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "MMA-SGD: Momentum + Anchor",
+    "tagline": "Meta-SGD per-parameter LRs combined with per-layer learnable momentum and an elastic pull toward the meta-init.",
+    "kind": "formula",
+    "formula": "$$v^{(t)}_i = \\beta_i v^{(t-1)}_i + g^{(t)}_i,\\quad \\theta^{(t+1)}_i = \\theta^{(t)}_i - \\alpha_i \\odot v^{(t)}_i + \\gamma_i\\,(\\theta^{(0)}_i - \\theta^{(t)}_i),\\quad \\beta_i,\\gamma_i = \\sigma(\\eta_i)$$",
+    "key_hyperparams": [
+      {"name": "α (per-param LR)", "value": "init INNER_LR, shape = θ_i", "role": "Meta-SGD per-param learning rate", "learnable": true},
+      {"name": "β (per-layer momentum)", "value": "logit init −2 → β≈0.12", "role": "EMA on gradient", "learnable": true},
+      {"name": "γ (per-layer anchor)", "value": "logit init −5 → γ≈0.007", "role": "elastic pull to θ⁽⁰⁾", "learnable": true},
+      {"name": "init_params", "value": "θ⁽⁰⁾ snapshot (detached)", "role": "anchor reference", "learnable": false},
+      {"name": "velocity buffer", "value": "0 at adapt() start", "role": "per-task momentum state", "learnable": false}
+    ],
+    "init_recovers": "Meta-SGD when β=γ=0; MAML if also α≡INNER_LR.",
+    "diff_from_baseline": "Augments Meta-SGD's per-parameter LR with two extra meta-learned per-layer scalars: a sigmoid momentum coefficient β (heavy-ball EMA on gradients) and a sigmoid anchoring γ that elastically pulls each parameter back toward the meta-initialization — neither of MAML, Meta-SGD or ANIL has momentum or proximal anchoring.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Factorized Meta-SGD + Step Decay",
+    "tagline": "Per-param LRs as outer × inner channel-factor exp-scales, per-tensor learnable momentum β=σ(b), and a global step-wise LR decay.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for each parameter tensor θ_i:\n// 2.   factor: 1-D → exp(a) ∈ ℝ^{d}; 2-D/4-D → exp(a_out) ⊗ exp(a_in)  (factorized scale)\n// 3.   per-tensor momentum logit b_i (init 2.197 ⇒ β = σ(b)≈0.9)\n// 4. global decay ψ = 0.8 + 0.2·σ(d_raw)  (init 0.9)\n// 5. for inner step t in [0..n_steps):\n// 6.   g_t ← ∇_θ CE(model(x_S), y_S)\n// 7.   v_i ← σ(b_i)·v_i + g_i\n// 8.   η_t ← INNER_LR · ψ^{t}\n// 9.   θ_i ← θ_i − η_t · scale_i ⊙ v_i\n// 10. meta-params: factors, momentum logits, ψ-logit",
+    "key_hyperparams": [
+      {"name": "factor", "value": "1-D → exp(a); ND → outer-product of exp(a_out)·exp(a_in)", "role": "channel-factorized per-param LR scale", "learnable": true},
+      {"name": "β init", "value": "σ(2.197) ≈ 0.9", "role": "per-tensor momentum", "learnable": true},
+      {"name": "ψ (global decay)", "value": "0.8 + 0.2·σ(d), init 0.9", "role": "step-wise LR multiplier ψ^t", "learnable": true},
+      {"name": "INNER_LR (base)", "value": "task default", "role": "scalar base learning rate", "learnable": false}
+    ],
+    "init_recovers": "Vanilla MAML when factors = 1 (a=0), β = 0, ψ = 1.",
+    "diff_from_baseline": "Compared to Meta-SGD's full per-element LR (one tensor per param), the LR is replaced by a memory-efficient factorized exp(a_out) ⊗ exp(a_in) per layer and combined with a learned per-tensor momentum β=σ(b) and a global geometric step-decay ψ^t — none of MAML/Meta-SGD/ANIL factorize LRs or decay them through the inner loop.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Proximal Meta-Momentum (PMM)",
+    "tagline": "Meta-SGD plus per-layer learnable heavy-ball momentum and a softplus-bounded proximal anchor on the meta-init.",
+    "kind": "formula",
+    "formula": "$$v^{(t)}_i = \\sigma(b_i)\\,v^{(t-1)}_i + g^{(t)}_i,\\quad \\theta^{(t+1)}_i = \\theta^{(t)}_i - \\alpha_i \\odot v^{(t)}_i - \\mathrm{softplus}(c_i)\\,(\\theta^{(t)}_i - w^{0}_i)$$",
+    "key_hyperparams": [
+      {"name": "α (per-param LR)", "value": "init INNER_LR, shape = θ_i", "role": "Meta-SGD step-size", "learnable": true},
+      {"name": "b_i (per-layer)", "value": "init −2 → β≈0.12", "role": "sigmoid momentum coefficient", "learnable": true},
+      {"name": "c_i (per-layer)", "value": "init −4 → γ≈softplus(−4)≈0.018", "role": "softplus proximal weight", "learnable": true},
+      {"name": "w⁰", "value": "θ at start of adapt()", "role": "proximal anchor", "learnable": false}
+    ],
+    "init_recovers": "Meta-SGD when β=0, γ=0.",
+    "diff_from_baseline": "Adds two meta-learned per-tensor scalars on top of Meta-SGD: a sigmoid-bounded momentum β=σ(b) for heavy-ball gradient EMA and a softplus-bounded proximal weight γ=softplus(c) that explicitly penalises drift from the meta-initialisation w⁰ — Meta-SGD lacks momentum, ANIL freezes the backbone, MAML has neither.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Layerwise-Gated Meta-SGD",
+    "tagline": "Meta-SGD per-param LRs multiplied by a learned per-tensor sigmoid gate, biased high for the head and low for the backbone.",
+    "kind": "formula",
+    "formula": "$$\\theta^{(t+1)}_i = \\theta^{(t)}_i - \\alpha_i \\odot \\sigma(g_i) \\cdot \\nabla_{\\theta_i} \\mathcal{L}_S,\\quad g_i = \\begin{cases}+2 & i \\in \\text{classifier}\\\\-2 & \\text{else}\\end{cases}\\;\\text{(init)}$$",
+    "key_hyperparams": [
+      {"name": "α (per-param LR)", "value": "init 0.01 if N_SHOT=1 else INNER_LR", "role": "Meta-SGD step-size with shot-aware base", "learnable": true},
+      {"name": "g (per-tensor gate logit)", "value": "+2 for classifier, −2 elsewhere", "role": "shrinks backbone effective LR ≈0.12×, head ≈0.88×", "learnable": true},
+      {"name": "shot-aware base LR", "value": "0.01 (1-shot) / INNER_LR (5-shot)", "role": "stability override", "learnable": false}
+    ],
+    "init_recovers": "ANIL-like behaviour at init (only head adapts effectively); collapses to Meta-SGD if all gates → 1.",
+    "diff_from_baseline": "A soft, fully meta-learned interpolation between Meta-SGD and ANIL: every parameter still has its own LR vector, but each tensor gets one extra learnable sigmoid gate biased to start ANIL-like (head ≈0.88×, backbone ≈0.12×) — Meta-SGD has no gating, ANIL is a hard zero/one mask.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "LAMO: Per-param LR + Norm-Stabilised Momentum",
+    "tagline": "Meta-SGD per-parameter LRs with a fixed-β EMA on direction-normalised gradients, then re-scaled by the original gradient norm.",
+    "kind": "formula",
+    "formula": "$$\\hat{g}_i = g_i / \\|g_i\\|_2,\\quad m^{(t)}_i = 0.9\\,m^{(t-1)}_i + 0.1\\,\\hat{g}^{(t)}_i,\\quad \\theta^{(t+1)}_i = \\theta^{(t)}_i - \\alpha_i \\odot m^{(t)}_i \\cdot \\|g_i\\|_2$$",
+    "key_hyperparams": [
+      {"name": "α (per-param LR)", "value": "init INNER_LR, shape = θ_i", "role": "Meta-SGD step-size", "learnable": true},
+      {"name": "β (momentum)", "value": "0.9 (fixed)", "role": "EMA on normalised gradient direction", "learnable": false},
+      {"name": "normalisation", "value": "÷‖g‖₂ then ×‖g‖₂", "role": "decouples direction (smoothed) from magnitude", "learnable": false},
+      {"name": "buffer init", "value": "0 at adapt() start", "role": "per-task momentum state", "learnable": false}
+    ],
+    "init_recovers": "Meta-SGD at step 0 (m=0 ⇒ update = −α·ĝ·‖g‖ = −α·g).",
+    "diff_from_baseline": "Adds a non-meta-learned momentum (β=0.9) on top of Meta-SGD; the EMA acts only on the gradient direction (g/‖g‖) and the parameter step is then re-scaled by the original ‖g‖, decoupling direction-smoothing from magnitude — Meta-SGD has no momentum, MAML has neither LR vectors nor momentum.",
+    "confidence": "high"
+  }
+]

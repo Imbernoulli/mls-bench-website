@@ -1,0 +1,61 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Karras x log-linear geometric blend",
+    "tagline": "Geometric mean (in σ-space) of a Karras ρ=8 schedule and a log-linear schedule, weighted 0.55 toward Karras.",
+    "kind": "formula",
+    "formula": "$$\\sigma_i = \\sigma^{(K)}_i{}^{w}\\,\\sigma^{(\\log)}_i{}^{1-w},\\quad \\sigma^{(K)}_i = \\big(\\sigma_{\\max}^{1/\\rho} + r_i(\\sigma_{\\min}^{1/\\rho}-\\sigma_{\\max}^{1/\\rho})\\big)^{\\rho},\\quad \\sigma^{(\\log)}_i = \\exp\\!\\big(\\log\\sigma_{\\max} + r_i(\\log\\sigma_{\\min}-\\log\\sigma_{\\max})\\big),\\;\\; r_i = i/n$$",
+    "key_hyperparams": [
+      {"name": "ρ", "value": "8.0", "role": "Karras power-law exponent", "learnable": false},
+      {"name": "w", "value": "0.55", "role": "geometric blend weight on Karras vs log-linear", "learnable": false},
+      {"name": "endpoint clamp", "value": "σ₀ = σ_max, σ_n = σ_min", "role": "exact terminal values", "learnable": false}
+    ],
+    "init_recovers": "Karras (ρ=8) when w=1; log-linear when w=0.",
+    "diff_from_baseline": "Mixes the karras and loglinear baselines via a geometric mean in σ-space (instead of using either alone) and bumps Karras ρ from 7 to 8.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Power-warped linear schedule",
+    "tagline": "Linear interpolation in σ but applied to a concave power ramp r^{0.7}, allocating more steps near t_min.",
+    "kind": "formula",
+    "formula": "$$\\sigma_i = \\sigma_{\\max} + (\\sigma_{\\min} - \\sigma_{\\max})\\,r_i^{p},\\;\\; r_i = i/n,\\;\\; p = 0.7$$",
+    "key_hyperparams": [
+      {"name": "p", "value": "0.7", "role": "ramp warp exponent (concave; p<1 packs steps toward σ_min)", "learnable": false},
+      {"name": "endpoint clamp", "value": "σ_n = σ_min", "role": "exact terminal value", "learnable": false}
+    ],
+    "init_recovers": "Uniform schedule when p=1.",
+    "diff_from_baseline": "Just a single-parameter generalization of the uniform baseline: replaces r with r^0.7 before linearly mapping to σ, so steps cluster near σ_min.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Power-warped logit schedule",
+    "tagline": "Sigmoid (logit) ramp on a polynomially-warped fractional time, then affine-rescaled to [σ_min, σ_max].",
+    "kind": "formula",
+    "formula": "$$\\tilde r_i = (1 - i/n)^{q},\\;\\; \\hat\\sigma_i = \\sigma\\!\\big(s\\,(2\\tilde r_i - 1)\\big),\\;\\; \\sigma_i = \\sigma_{\\min} + (\\sigma_{\\max}-\\sigma_{\\min})\\,\\frac{\\hat\\sigma_i - \\hat\\sigma_n}{\\hat\\sigma_0 - \\hat\\sigma_n}$$",
+    "key_hyperparams": [
+      {"name": "q (power)", "value": "1.3", "role": "polynomial warp on the descending fractional time", "learnable": false},
+      {"name": "s (logit scale)", "value": "6.0", "role": "controls boundary concentration of sigmoid mapping", "learnable": false},
+      {"name": "endpoint clamp", "value": "σ₀ = σ_max, σ_n = σ_min", "role": "exact terminal values", "learnable": false}
+    ],
+    "init_recovers": "Approaches uniform schedule as s→0; cosine-like as q=1, s≈π.",
+    "diff_from_baseline": "Replaces the four shipped schedules with a sigmoid-of-warped-ramp, asymmetric about the midpoint due to the q=1.3 polynomial warp toward t_min, then affine-rescales to the target endpoints.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Sigmoid-Karras hybrid",
+    "tagline": "Builds a normalized sigmoid CDF ramp then feeds it through the Karras ρ=7 inverse-power mapping.",
+    "kind": "formula",
+    "formula": "$$\\rho = 7,\\;\\; r_i = i/n,\\;\\; \\tilde r_i = \\frac{\\sigma(s(r_i-0.5)) - \\sigma(-s/2)}{\\sigma(s/2) - \\sigma(-s/2)},\\;\\; \\sigma_i = \\big(\\sigma_{\\max}^{1/\\rho} + \\tilde r_i(\\sigma_{\\min}^{1/\\rho}-\\sigma_{\\max}^{1/\\rho})\\big)^{\\rho}$$",
+    "key_hyperparams": [
+      {"name": "s (sigmoid slope)", "value": "3.0", "role": "concentration of the sigmoid CDF ramp around 0.5", "learnable": false},
+      {"name": "ρ", "value": "7.0", "role": "Karras inverse-power exponent on the warped ramp", "learnable": false},
+      {"name": "endpoint clamp", "value": "σ₀ = σ_max, σ_n = σ_min", "role": "exact terminal values", "learnable": false}
+    ],
+    "init_recovers": "Karras ρ=7 when s→0 (sigmoid ramp degenerates to linear).",
+    "diff_from_baseline": "Pre-warps the Karras ramp through a normalized sigmoid CDF (slope 3, centered at 0.5) instead of using a linear ramp, concentrating steps in the medium-noise region.",
+    "confidence": "high"
+  }
+]

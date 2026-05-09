@@ -1,0 +1,83 @@
+[
+  {
+    "model": "claude-opus-4-6",
+    "name": "Two-pass Causal + Wide Autotune Sweep",
+    "tagline": "Flash-v3-style two-pass causal kernel with fused log2(e)*scale into Q and an enlarged 19-config autotune sweep across (BLOCK_M, BLOCK_N, num_stages, num_warps).",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. wrapper:  $q \\leftarrow q \\cdot (s\\cdot\\log_2 e)$, then launch autotuned _custom_attn_fwd\n// 2. kernel: each (m_block, head) program loads Q tile once\n// 3. pass 1 — non-causal blocks (no mask, no boundary check):\n//    for $n$ in $[0, \\lfloor m_0/B_N\\rfloor B_N)$:\n//       $S = QK^\\top$;  online-softmax in $\\exp_2$;  acc += PV\n// 4. pass 2 — causal-boundary blocks:\n//    for $n$ in $[\\text{boundary}, (m_0+1)B_M)$:\n//       $S$ ← $\\mathrm{where}(i \\geq j, S, -\\infty)$;  same online-softmax update\n// 5. acc /= l_i;  store O\n// Autotune key = (seqlen, BLOCK_DMODEL, IS_CAUSAL); sweeps BLOCK_M ∈ {16, 32, 64, 128, 256}, BLOCK_N ∈ {32, 64, 128}, num_stages ∈ {2..4}, num_warps ∈ {4, 8}",
+    "key_hyperparams": [
+      {"name": "scale_fusion", "value": "q *= sm_scale * log2(e)", "role": "constant pre-multiply so kernel uses exp2(qk) directly", "learnable": false},
+      {"name": "two_pass_causal", "value": "non-causal full tiles + causal boundary tile", "role": "skip masks for fully-below-diagonal blocks", "learnable": false},
+      {"name": "autotune_configs", "value": "19", "role": "(BLOCK_M, BLOCK_N, num_stages, num_warps) configs", "learnable": false},
+      {"name": "autotune_key", "value": "(seqlen, BLOCK_DMODEL, IS_CAUSAL)", "role": "tuner cache key", "learnable": false},
+      {"name": "BLOCK_DMODEL", "value": "headdim", "role": "fixed at runtime", "learnable": false},
+      {"name": "non_causal_load_mask", "value": "removed", "role": "boundary-check elimination on full pass-1 tiles", "learnable": false}
+    ],
+    "init_recovers": "flash_v3 baseline at the matching autotune choice (default config set is a strict superset)",
+    "diff_from_baseline": "Beyond flash_v3 it removes the per-load boundary mask in pass 1 (full tiles) and roughly doubles the autotune search space, including very large BLOCK_M=256 tiles for hdim=64 and small BLOCK_M ∈ {16, 32} tiles for hdim=256 to manage register pressure.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini/gemini-3.1-pro-preview",
+    "name": "Block-Pointer FA + Cast-down Q",
+    "tagline": "Two-pass causal fused attention using tl.make_block_ptr for Q/K/V/O, with sm_scale pre-multiplied into Q (cast back to Q's dtype) and a 28-config autotune sweep.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. wrapper: scale = sm_scale * log2(e); launch autotuned kernel\n// 2. kernel: build q_block_ptr / k_block_ptr / v_block_ptr / o_block_ptr via $\\mathrm{tl.make\\_block\\_ptr}$\n// 3. q $\\leftarrow$ load(q_block_ptr); $q$ $\\leftarrow$ ($q \\cdot$ scale).to(dtype)  // dtype cast saves register width\n// 4. pass 1 — non-causal blocks:\n//    for n in [0, non_causal_end):\n//      k = load(k_block_ptr); qk = q $\\cdot$ k (note: K stored as $D \\times N$ via order=(0,1))\n//      online-softmax in exp_2; acc += p $\\cdot$ load(v_block_ptr)\n//      advance k_block_ptr, v_block_ptr by BLOCK_N\n// 5. pass 2 — causal-boundary blocks: same loop with where(i $\\geq$ j) mask\n// 6. acc /= l_i; store via o_block_ptr",
+    "key_hyperparams": [
+      {"name": "block_ptr", "value": "tl.make_block_ptr for Q/K/V/O", "role": "structured tile addressing for HW-friendly access", "learnable": false},
+      {"name": "k_layout", "value": "(D, N) order=(0,1)", "role": "K tile loaded transposed so qk = q · k (no tl.trans)", "learnable": false},
+      {"name": "scale_fusion", "value": "q *= sm_scale * log2(e); cast back to Q dtype", "role": "fp16/bf16 storage of pre-scaled Q to keep tensor-core path", "learnable": false},
+      {"name": "autotune_configs", "value": "28", "role": "BLOCK_M ∈ {64,128,256}, BLOCK_N ∈ {32..256}, num_stages ∈ {2..8}", "learnable": false},
+      {"name": "two_pass_causal", "value": "yes", "role": "non-causal vs causal-boundary split", "learnable": false}
+    ],
+    "init_recovers": "flash_v3 baseline at the matching autotune choice",
+    "diff_from_baseline": "Adopts Triton block pointers (tl.make_block_ptr + tl.advance) for all four tensors (eliminating manual mask arithmetic in the inner loops), stores K transposed to drop tl.trans, casts pre-scaled Q back to fp16/bf16 before the loop, and roughly triples the autotune search space.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Shape-aware Split + Small Autotune",
+    "tagline": "Two-pass causal flash attention with a 6-config autotune sweep, plus a fixed (64,32) BLOCK_M/N override for headdim>=256 to reduce register pressure.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. wrapper: $q \\leftarrow q \\cdot (s \\cdot \\log_2 e)$;  o = empty_like(v)\n// 2. if headdim >= 256:\n//      launch with BLOCK_M=64, BLOCK_N=32, num_warps=4, num_stages=4 (override autotune)\n//    else:\n//      launch autotuned (6 configs)\n// 3. kernel: pass 1 over full tiles in [0, full_tiles_end):\n//      $S = QK^\\top$; online softmax in $\\exp_2$; acc += PV\n// 4. pass 2 over tail [full_tiles_end, tail_end):\n//      apply $i \\geq j$ mask if causal else mask out-of-range j; finish updates\n// 5. acc /= l_i; store O",
+    "key_hyperparams": [
+      {"name": "scale_fusion", "value": "q *= sm_scale * log2(e)", "role": "fuse scale and base conversion", "learnable": false},
+      {"name": "autotune_configs", "value": "6", "role": "small sweep (BLOCK_M ∈ {64,128}, BLOCK_N ∈ {32,64,128}, stages ∈ {3,4})", "learnable": false},
+      {"name": "headdim_override", "value": ">=256 → (BLOCK_M=64, BLOCK_N=32, num_warps=4, num_stages=4)", "role": "manual config to dodge autotune misselection", "learnable": false},
+      {"name": "two_pass_causal", "value": "yes", "role": "full + tail loops", "learnable": false}
+    ],
+    "init_recovers": "flash_v3 baseline (same kernel structure, smaller tuner)",
+    "diff_from_baseline": "Compared to flash_v3 it shrinks the autotune sweep to 6 configs and short-circuits the autotuner for headdim >= 256 with a hand-picked (BLOCK_M=64, BLOCK_N=32, num_warps=4, num_stages=4) launch to reduce register pressure on hdim256.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Incomplete kernel (no store, no wrapper)",
+    "tagline": "Two-pass causal kernel body but missing the acc/=l_i normalization, the tl.store, and the entire custom_attention_forward wrapper.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. kernel body computes pass-1 + pass-2 online softmax updates as in FA2\n// 2. (missing) acc /= l_i  — never executed\n// 3. (missing) tl.store(o_ptrs, acc, ...)  — output never written\n// 4. orphaned non-Triton block-size logic appears inside the JIT scope: 'if headdim <= 64: BLOCK_M=128, BLOCK_N=64; ...'\n// 5. (missing) custom_attention_forward Python wrapper — benchmark cannot launch the kernel",
+    "key_hyperparams": [
+      {"name": "two_pass_causal", "value": "yes (in body)", "role": "structurally same FA2 split", "learnable": false},
+      {"name": "scale_fusion", "value": "claimed but no wrapper to apply it", "role": "scale never multiplied in", "learnable": false},
+      {"name": "autotune", "value": "none", "role": "no @triton.autotune decorator", "learnable": false}
+    ],
+    "diff_from_baseline": "The proposal is broken: it deletes the wrapper and the final normalization+store from the FA2 baseline, leaving a kernel that never writes its output, so correctness check (max_diff < 1e-2) fails and the benchmark scores zero.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "Two-pass Causal + Expanded Autotune (incl hdim256)",
+    "tagline": "Same two-pass causal FA2 kernel as flash_v3 with a 19-config autotune sweep adding BLOCK_N ∈ {256} and BLOCK_M=256 entries tuned for headdim=256.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. wrapper: $q \\leftarrow q \\cdot (s\\cdot\\log_2 e)$; launch autotuned kernel\n// 2. kernel pass 1 (non-causal blocks): $S=QK^\\top$, online-softmax in $\\exp_2$, acc += PV (no mask logic on full tiles)\n// 3. kernel pass 2 (causal-boundary blocks): apply $i \\geq j$ mask, same softmax update\n// 4. acc /= l_i; store O\n// Autotune key = (seqlen, BLOCK_DMODEL, IS_CAUSAL); 19 configs sweeping BLOCK_M $\\in$ {64, 128, 256}, BLOCK_N $\\in$ {32, 64, 128, 256}, num_stages $\\in$ {3, 4, 5}, num_warps $\\in$ {4, 8}",
+    "key_hyperparams": [
+      {"name": "scale_fusion", "value": "q *= sm_scale * log2(e)", "role": "pre-multiply so kernel uses exp2 directly", "learnable": false},
+      {"name": "two_pass_causal", "value": "yes", "role": "non-causal vs causal-boundary split (FA2 style)", "learnable": false},
+      {"name": "autotune_configs", "value": "19", "role": "expanded sweep including BLOCK_N=256 and BLOCK_M=256 for hdim256", "learnable": false},
+      {"name": "autotune_key", "value": "(seqlen, BLOCK_DMODEL, IS_CAUSAL)", "role": "tuner cache key", "learnable": false}
+    ],
+    "init_recovers": "flash_v3 baseline at the matching autotune choice",
+    "diff_from_baseline": "Functionally identical kernel to flash_v3; the only material change is enlarging the autotune sweep from 8 to 19 configs, particularly adding BLOCK_N=256, BLOCK_M=256 and num_stages=5 entries aimed at headdim=256.",
+    "confidence": "high"
+  }
+]

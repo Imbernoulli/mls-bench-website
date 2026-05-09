@@ -1,0 +1,64 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Double-optimistic RAIN",
+    "tagline": "Two Popov sub-steps with RAIN's exponentially-weighted anchoring; uses optimistic gradient predictions instead of an extragradient probe.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. state: z, step k, weight_sum S, weighted_flow_sum F, g_prev\n// 2. g₁ ← oracle.grad(z); d₁ ← (k>0 ? 2g₁ - g_prev : g₁)\n// 3. z_mid ← z - τ·d₁ + τλ·(F - S·z) + noise   (sub-step 1, anchored toward weighted historical mean)\n// 4. w₁ ← γ·(1+γ)^(2k+1);  S, F ← S+w₁, F+w₁·z_mid\n// 5. g₂ ← oracle.grad(z_mid); d₂ ← 2g₂ - g₁  (Popov optimism)\n// 6. z_next ← z_mid - τ·d₂ + τλ·(F_new - S_new·z_mid) + noise   (sub-step 2)\n// 7. w₂ ← γ·(1+γ)^(2k+2);  S, F ← S+w₂, F+w₂·z_next; g_prev ← g₂\n// 8. metric iterate: z_next on bilinear, z on delta_nu",
+    "key_hyperparams": [
+      {"name": "τ (bilinear)", "value": "0.1", "role": "step size", "learnable": false},
+      {"name": "τ (delta_nu)", "value": "1.0", "role": "step size", "learnable": false},
+      {"name": "λ (bilinear / delta_nu)", "value": "0.1 / 0.01", "role": "RAIN anchor strength", "learnable": false},
+      {"name": "γ (bilinear / delta_nu)", "value": "5e-4 / 5e-5", "role": "exponential weighting base (halved vs RAIN to match 2x sub-steps)", "learnable": false}
+    ],
+    "init_recovers": "RAIN baseline if d_i = g_i (i.e., g_prev = 0 throughout) and only one anchored step is performed.",
+    "diff_from_baseline": "Replaces RAIN's single extragradient (g, w=z-τg) probe with two Popov / optimistic-gradient updates (d=2gₖ-gₖ₋₁) chained together inside the same call, while still anchoring each sub-step to the running weighted historical mean and updating S, F twice per step.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "RAIN with grad-norm adaptive λ",
+    "tagline": "RAIN where the anchor strength λ is rescaled by the relative growth of the gradient norm between consecutive iterations.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. g ← oracle.grad(z)\n// 2. λ̂ ← λ if k=0 else  λ·(1 + α·‖g‖/(‖g_prev‖+1e-8))\n// 3. anchor_z ← τλ̂ · (F - S·z)\n// 4. w ← z - τ·g + anchor_z + noise\n// 5. g_w ← oracle.grad(w);  anchor_w ← τλ̂ · (F - S·w)\n// 6. z_next ← z - τ·g_w + anchor_w + noise\n// 7. w_k ← γ·(1+γ)^(k+1);  S ← S+w_k, F ← F+w_k·z_next, g_prev ← g\n// 8. metric: z_next on bilinear, z on delta_nu",
+    "key_hyperparams": [
+      {"name": "τ (bilinear / delta_nu)", "value": "0.1 / 1.0", "role": "step size", "learnable": false},
+      {"name": "λ baseline (bilinear / delta_nu)", "value": "0.1 / 0.01", "role": "RAIN anchor strength baseline", "learnable": false},
+      {"name": "γ (bilinear / delta_nu)", "value": "1e-3 / 1e-4", "role": "exponential weighting base (unchanged vs RAIN)", "learnable": false},
+      {"name": "α (adapt)", "value": "0.1 (both)", "role": "scales the gradient-ratio modulation of λ", "learnable": false}
+    ],
+    "init_recovers": "RAIN baseline at α=0.",
+    "diff_from_baseline": "Identical to RAIN except the anchor coefficient λ is multiplied by (1 + α·‖g‖/‖g_prev‖) every step, increasing anchoring when the gradient norm grows between iterations.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "SEAG (no change)",
+    "tagline": "Verbatim copy of the SEAG baseline: extragradient with anchor coefficient 1/(k+3).",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. coeff ← 1 / (k + 3)\n// 2. g ← oracle.grad(z)\n// 3. w ← z - τ·g + coeff·(z₀ - z) + noise\n// 4. g_w ← oracle.grad(w)\n// 5. z_next ← z - τ·g_w + coeff·(z₀ - z) + noise\n// 6. metric: z_next on bilinear, z on delta_nu",
+    "key_hyperparams": [
+      {"name": "τ (bilinear / delta_nu)", "value": "0.1 / 1.0", "role": "step size", "learnable": false},
+      {"name": "anchor coeff", "value": "1/(k+3)", "role": "harmonic anchor decay (SEAG default)", "learnable": false}
+    ],
+    "init_recovers": "SEAG baseline (this is SEAG).",
+    "diff_from_baseline": "No real change — the proposal is bit-equivalent to the shipped seag baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Tikhonov EG + tail averaging",
+    "tagline": "Extragradient on F(z) + λz (zero-centered Tikhonov regularization) with iterate averaging started after `avg_start` steps; λ scales with σ on delta_nu.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. center ← 0\n// 2. g ← oracle.grad(z)\n// 3. if max_sfo ≤ 1: z_next ← z - τ·(g + λ(z - center)) + noise   (single step)\n//    else:\n//       w ← z - τ·(g + λ(z - center)) + noise\n//       g_w ← oracle.grad(w)\n//       z_next ← z - τ·(g_w + λ(w - center)) + noise   (extragradient)\n// 4. if k ≥ avg_start: avg_z ← avg_z + (z_next - avg_z)/(avg_count + 1);  avg_count++\n// 5. metric_iterate ← avg_z if avg_count > 0 else z_next",
+    "key_hyperparams": [
+      {"name": "τ (bilinear / delta_nu)", "value": "0.1 / 1.0", "role": "step size", "learnable": false},
+      {"name": "λ (bilinear)", "value": "5.0", "role": "Tikhonov pull toward 0", "learnable": false},
+      {"name": "λ (delta_nu)", "value": "0.05 + 1.5·σ", "role": "noise-scaled Tikhonov pull on delta_nu", "learnable": false},
+      {"name": "avg_start (bilinear / delta_nu)", "value": "100 / 1000", "role": "iterate averaging start step", "learnable": false}
+    ],
+    "init_recovers": "SEG baseline at λ=0 with no averaging.",
+    "diff_from_baseline": "On top of the SEG baseline, adds a zero-centered Tikhonov regularizer F(z)+λz inside both extragradient steps (with σ-adaptive λ for delta_nu), and outputs a tail-averaged iterate after a problem-specific warmup.",
+    "confidence": "high"
+  }
+]

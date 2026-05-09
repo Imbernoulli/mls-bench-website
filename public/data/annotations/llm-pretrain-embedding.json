@@ -1,0 +1,76 @@
+[
+  {
+    "model": "deepseek-reasoner",
+    "name": "Content-gated positional embedding",
+    "tagline": "Standard tied token+pos embedding, but the position embedding is element-wise multiplied by a sigmoid gate computed from each token's content.",
+    "kind": "formula",
+    "formula": "$$h_t = E_{\\text{tok}}(x_t) + \\sigma(W_g\\,E_{\\text{tok}}(x_t) + b_g)\\odot E_{\\text{pos}}(t)$$",
+    "key_hyperparams": [
+      {"name": "gate_bias_init", "value": "0", "role": "init b_g (so initial gate ~0.5)", "learnable": true},
+      {"name": "gate_weight_std", "value": "0.02", "role": "init std for W_g", "learnable": true}
+    ],
+    "init_recovers": "Vanilla tied baseline at gate ≡ 0.5 (rescaled)",
+    "diff_from_baseline": "Keeps the tied-embedding baseline but inserts a single learned linear+sigmoid that token-conditionally rescales the position embedding before adding it to the token embedding; no value embeddings, no extra tables.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Multi-scale n-gram value injection",
+    "tagline": "Adds an extra value embedding plus hashed bigram and trigram embeddings (each LayerNormed) injected at every transformer layer with per-layer per-source learnable gates.",
+    "kind": "hybrid",
+    "formula": "$$\\mathrm{ve}_\\ell(x_t) = g^{(v)}_\\ell\\odot\\widetilde{V}(x_t) + g^{(b)}_\\ell\\odot\\widetilde{B}(h_2(x_t,x_{t-1})) + g^{(t)}_\\ell\\odot\\widetilde{T}(h_3(x_t,x_{t-1},x_{t-2}))$$",
+    "pseudocode": "// 1. compute bigram hash $h_2 = ((x_t r_1) \\oplus (x_{t-1} r_2))\\,\\bmod\\,2|V|$\n// 2. compute trigram hash $h_3 = ((x_t r_1) \\oplus (x_{t-1} r_2) \\oplus (x_{t-2} r_3))\\,\\bmod\\,2|V|$\n// 3. cache LayerNormed value/bigram/trigram embeddings $\\widetilde V, \\widetilde B, \\widetilde T$\n// 4. forward pass returns $\\mathrm{wte}(x) + \\mathrm{wpe}(t)$ for layer 0\n// 5. before each block $\\ell$: add $g^{(v)}_\\ell\\widetilde V + g^{(b)}_\\ell\\widetilde B + g^{(t)}_\\ell\\widetilde T$ to the residual stream\n// 6. lm_head shares $\\mathrm{wte}$ weights",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "tokens"},
+        {"id": "wte", "label": "wte + wpe"},
+        {"id": "vte", "label": "value table V"},
+        {"id": "bg", "label": "bigram hash B"},
+        {"id": "tg", "label": "trigram hash T"},
+        {"id": "gate", "label": "per-layer gates g_l"},
+        {"id": "blk", "label": "block L (residual add)"}
+      ],
+      "edges": [
+        {"from": "x", "to": "wte", "label": "input"},
+        {"from": "x", "to": "vte"},
+        {"from": "x", "to": "bg"},
+        {"from": "x", "to": "tg"},
+        {"from": "vte", "to": "gate"},
+        {"from": "bg", "to": "gate"},
+        {"from": "tg", "to": "gate"},
+        {"from": "gate", "to": "blk"},
+        {"from": "wte", "to": "blk"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "ngram_vocab_mult", "value": "2x", "role": "bigram/trigram table size = 2 × vocab", "learnable": false},
+      {"name": "n_value_tables", "value": "3", "role": "value-table V plus bigram and trigram", "learnable": false},
+      {"name": "ve_gates", "value": "[n_layer, 3, n_embd]", "role": "per-layer per-source per-dim gates", "learnable": true},
+      {"name": "gate_init_std", "value": "0.01", "role": "initial gate std (≈0)", "learnable": true},
+      {"name": "ngram_hashes", "value": "(36313, 27191, 15473)", "role": "XOR/multiplicative hash constants", "learnable": false}
+    ],
+    "init_recovers": "Tied baseline at all ve_gates = 0",
+    "diff_from_baseline": "Generalizes the value_embed and bigram_hash baselines: combines a unigram value table with bigram and trigram hashed tables, each LayerNormed, and gates them per-layer-per-source-per-dimension instead of value-only or bigram-only injection.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Dual-lexicon + depth-decayed n-gram",
+    "tagline": "Per-token convex mix of two lexical embeddings (alt_wte vs wte) with a sigmoid gate, plus token-confidence-scaled bigram/trigram residuals injected at the input and three layers with decreasing scale.",
+    "kind": "formula",
+    "formula": "$$\\begin{array}{l}\\mathrm{tok}(x) = E_{\\text{wte}}(x) + \\sigma(g(x))\\,(E_{\\text{alt}}(x) - E_{\\text{wte}}(x))\\\\\\mathrm{ngram}(x) = \\sigma(c(x))\\bigl[\\sigma(m(x))\\,T(h_3(x)) + (1-\\sigma(m(x)))\\,B(h_2(x))\\bigr]\\\\h^{(0)} = \\mathrm{tok}(x) + E_{\\text{wpe}}(t) + s_0\\,\\mathrm{ngram}(x),\\quad \\Delta^{(\\ell_i)} = s_i\\,\\mathrm{ngram}(x)\\end{array}$$",
+    "key_hyperparams": [
+      {"name": "ngram_vocab_mult", "value": "2x", "role": "bigram/trigram table size", "learnable": false},
+      {"name": "input_ngram_scale", "value": "0.10", "role": "scalar s_0 at input", "learnable": true},
+      {"name": "layer_scales", "value": "[0.050, 0.035, 0.020]", "role": "depth-decayed scales s_i for the 3 injection layers", "learnable": true},
+      {"name": "inject_layers", "value": "{1, n_layer/2, n_layer-1}", "role": "where ngram is added", "learnable": false},
+      {"name": "alt_wte_init_std", "value": "0.02", "role": "init for the second lexical table", "learnable": true},
+      {"name": "mix_gate_init", "value": "0", "role": "starts purely tied (gate=0.5 after sigmoid)", "learnable": true},
+      {"name": "bigram_hash", "value": "65537·x ⊕ 8191·x_{t-1}", "role": "bigram hashing constants", "learnable": false},
+      {"name": "trigram_hash", "value": "131071·x + 4099·x_{t-1} + 257·x_{t-2}", "role": "trigram hashing constants", "learnable": false}
+    ],
+    "init_recovers": "Tied baseline at mix_gate=0 and ngram tables zero-init",
+    "diff_from_baseline": "Combines and extends the untied + value_embed + bigram_hash baselines: token-wise convex mix of two embedding tables to give the lm_head a softly-untied weight, plus depth-decayed bigram and trigram residuals gated by per-token confidence and source-mixing scalars.",
+    "confidence": "high"
+  }
+]

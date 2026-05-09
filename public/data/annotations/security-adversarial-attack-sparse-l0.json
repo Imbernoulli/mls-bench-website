@@ -1,0 +1,83 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Saliency-mask + targeted PGD",
+    "tagline": "Per-image: pick the top-k saliency pixels for each of the 8 most-likely targets, set them to the gradient sign, then refine with masked Adam PGD on (target − true) margin.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Skip already-misclassified examples.\n// 2. For each image $x$ select top-8 candidate target classes $t$ (by clean logit).\n// 3. For each $t$: compute $g=\\nabla_x(o_t-o_y)$, spatial saliency $s_p=\\sum_c|g_{c,p}|$.\n// 4. For 5 noise restarts $r$: $s'=s+\\mathcal N\\!\\left(0, r\\cdot 0.3\\,\\sigma(s)\\right)$, take top-$k$=pixels indices, build mask $M$.\n//    a. Try the binary fill $x'=\\text{sign}(g)>0$ on $M$; if misclassified, accept.\n//    b. Else run 50 Adam steps (lr=0.2) on $\\delta$ with masked update minimising $o_y-o_t-0.5\\,\\text{CE}(o,y)$, clamp to $[0,1]$, accept if misclassified.",
+    "key_hyperparams": [
+      {"name": "n_targets", "value": "8", "role": "candidate target classes per image", "learnable": false},
+      {"name": "n_restarts", "value": "5", "role": "noise restarts for saliency mask", "learnable": false},
+      {"name": "noise scale", "value": "r·0.3·σ(s)", "role": "saliency perturbation per restart", "learnable": false},
+      {"name": "Adam lr", "value": "0.2", "role": "PGD step size on masked δ", "learnable": false},
+      {"name": "PGD steps", "value": "50", "role": "inner refinement iterations", "learnable": false},
+      {"name": "loss", "value": "$o_y-o_t-0.5\\,\\mathrm{CE}$", "role": "targeted margin minus weighted untargeted CE", "learnable": false}
+    ],
+    "init_recovers": "Pure JSMA-style sign perturbation if PGD never accepts",
+    "diff_from_baseline": "Goes beyond JSMA by combining noise-perturbed saliency masks across 8 targets with a 50-step Adam PGD refinement under a fixed L0 mask.",
+    "confidence": "medium"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Gradient-saliency sparse + iterative refine",
+    "tagline": "Greedy saliency-ranked pixel selection with five color heuristics (0/1/grad-extreme/sign/random), then six rounds of recompute-saliency add-or-swap refinement.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Per image: compute $g=\\nabla_x \\text{CE}$; saliency $s_p=\\sum_c|g_{c,p}|$, sort.\n// 2. Phase 1 — for $k=$pixels..1 try on top-$k$ saliency pixels: (a) all-zero, (b) all-one, (c) gradient-extreme per channel, (d) $x+0.5\\,\\text{sign}(g)$ clipped, (e) 4 random colour fills. Stop on misclassification, else keep loss-best.\n// 3. Phase 2 — 6 refinement rounds: recompute saliency on current adv; if support < pixels, add highest-saliency unperturbed with grad-extreme + random colours; otherwise swap up to 2 lowest-saliency perturbed for highest-saliency unperturbed; finally try 4 random subsets from the top-$6k$ saliency pool.",
+    "key_hyperparams": [
+      {"name": "candidates per shrink step", "value": "5 patterns (00/11/grad-extreme/sign/4·random)", "role": "color search per pixel-count", "learnable": false},
+      {"name": "refinement rounds", "value": "6", "role": "iterative saliency recompute & swap passes", "learnable": false},
+      {"name": "swap count", "value": "2 per round", "role": "max simultaneous pixel swaps per round", "learnable": false},
+      {"name": "fallback pool size", "value": "min(6·pixels, H·W)", "role": "saliency pool for random subsets", "learnable": false}
+    ],
+    "init_recovers": "JSMA-style most-salient pixel + extreme color when phase 2 is skipped",
+    "diff_from_baseline": "Adds (i) explicit color search (0/1/sign/random) per saliency-ranked pixel set, (ii) iterative gradient recomputation and pixel add/swap refinement under the L0 budget — none of which appears in JSMA/SparseFool/OnePixel.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "Multi-restart greedy gradient-PGD",
+    "tagline": "Greedy support growth: at each step pick the unselected pixel with the largest expected logit change, then 7 PGD inner steps; restart with 9 different target classes plus an untargeted run, finishing with a 40-step decaying-α PGD on the final mask.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Compute initial logits; mark already-misclassified as done. Pick top-9 wrong-class targets per image.\n// 2. For each restart $r=0..8$ (targeted) and final $r=9$ (untargeted):\n//    a. Reset mask $M=0$, $\\delta=0$.\n//    b. For $p=1..\\text{pixels}$: compute $g=\\nabla_x \\mathcal L$ (target margin or untargeted margin), pixel score $\\sum_c\\!\\big[g_c(1-x)\\,\\mathbb{1}_{g>0}+g_c(0-x)\\,\\mathbb{1}_{g\\le 0}\\big]$, set $M$ at best pixel.\n//    c. Run 7 inner PGD steps $\\delta\\leftarrow \\delta+0.2\\,\\text{sign}(g)\\,M$, clip and re-mask.\n// 3. Final 40 PGD steps with $\\alpha=0.1\\cdot 0.95^t$ on the final $M$.",
+    "key_hyperparams": [
+      {"name": "n_restarts", "value": "9 targeted + 1 untargeted", "role": "diverse target classes", "learnable": false},
+      {"name": "inner PGD steps", "value": "7 per pixel", "role": "refinement on the active mask", "learnable": false},
+      {"name": "α (inner / final)", "value": "0.2 / 0.1 (×0.95 decay, 40 final steps)", "role": "PGD step sizes", "learnable": false},
+      {"name": "pixel score", "value": "Σ_c max(g·(1-x), -g·x)", "role": "expected per-pixel logit-change estimator", "learnable": false}
+    ],
+    "init_recovers": "JSMA-style targeted greedy when PGD inner steps and final refinement are 0",
+    "diff_from_baseline": "Adds multi-target restarts and a long final masked PGD on top of greedy gradient-saliency pixel addition; selects each new pixel by an explicit expected-logit-change criterion rather than by raw saliency.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Multi-target greedy + candidate eval + swap",
+    "tagline": "Per chunk: for each of the top-3-4 target classes, greedily grow the L0 support by exact forward-evaluation of the top-6 saliency-gain candidates, then run 2 swap rounds that try to exchange weak selected pixels for stronger ones.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Skip misclassified samples; choose targets = top-$T$ classes ($T=3$ for C10, 4 for C100).\n// 2. For each target $t$:\n//    a. Initialise empty support $S$.\n//    b. For step $1..\\text{pixels}$: $g=\\nabla_x(o_y-o_t)$, extreme$=\\mathbb{1}_{g>0}\\cdot 0+\\mathbb{1}_{g\\le 0}\\cdot 1$.\n//       i. Score each unselected pixel by $\\sum_c\\max(g\\cdot x,-g\\cdot(1-x))$.\n//       ii.Take top-6 candidates; build full forward batch with each candidate added; pick the one minimising target margin; commit to $S$.\n//    c. Two swap rounds: drop the lowest-saliency pixel in $S$ (revert to $x_0$), add the best new candidate from outside $S$, accept if target or untargeted margin improves.\n// 3. Keep best adversarial across targets by untargeted margin.",
+    "key_hyperparams": [
+      {"name": "n_targets", "value": "3 (C10) / 4 (C100)", "role": "top-class targets per image", "learnable": false},
+      {"name": "candidate count", "value": "6", "role": "exact-forward candidates per greedy step", "learnable": false},
+      {"name": "swap rounds", "value": "2", "role": "post-greedy support refinement passes", "learnable": false},
+      {"name": "chunk size", "value": "64 (C10) / 48 (C100)", "role": "batched candidate evaluation chunk", "learnable": false}
+    ],
+    "init_recovers": "JSMA-style targeted greedy when candidate count = 1 and swap rounds = 0",
+    "diff_from_baseline": "Differs from JSMA by (i) evaluating multiple candidate pixels per step via exact forwards, (ii) running multi-target restarts, and (iii) post-hoc support swap based on per-pixel saliency.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen/qwen3.6-plus",
+    "name": "Greedy saliency + per-pixel color search",
+    "tagline": "Add one pixel per iteration (highest |gradient| of the untargeted margin), then exhaustively search 0/1/sign/per-channel optimal color for that pixel via direct forward evaluation.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Track misclassified set; iterate budget times.\n// 2. Compute $g=\\nabla_x\\sum_i\\mathbb{1}_{\\text{still correct}}\\,(o_y-\\max_{j\\ne y}o_j)$.\n// 3. For each still-correct image $i$: pick spatial pixel $p^*=\\arg\\max_p\\sum_c|g_{c,p}|$.\n// 4. Strategies tried at $p^*$ and kept by minimum margin:\n//    a. Current value (baseline).\n//    b. All-0 / all-1 fills.\n//    c. Sign pattern $(g>0)$ and its complement.\n//    d. Per-channel exhaustive {0,1} (3 channels → mixed pattern).\n// 5. Recompute prediction; stop if all images misclassified.",
+    "key_hyperparams": [
+      {"name": "color strategies", "value": "5 (current, 0/1, ±sign, mixed)", "role": "exhaustive per-pixel value search", "learnable": false},
+      {"name": "budget", "value": "pixels", "role": "L0 spatial budget", "learnable": false},
+      {"name": "loss", "value": "Σ margin · 1_{still correct}", "role": "untargeted gradient signal", "learnable": false}
+    ],
+    "init_recovers": "JSMA-style saliency picking with sign assignment when other strategies don't beat it",
+    "diff_from_baseline": "Adds an exhaustive per-pixel value search (5 patterns + per-channel optimal) on top of JSMA-style saliency-driven pixel addition; no swap or multi-target restart.",
+    "confidence": "high"
+  }
+]

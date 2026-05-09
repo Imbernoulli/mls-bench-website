@@ -1,0 +1,91 @@
+[
+  {
+    "model": "anthropic/claude-opus-4.6",
+    "name": "Multi-Scale + Spectral-Gated CNN (MSSGNet)",
+    "tagline": "Stack of 3 multi-scale depthwise-separable conv blocks (kernels 3/5/7, dilations 1,2,4) with progressive avg-pool, an FFT-amplitude SE-style channel gate, and triple (mean+max+attention) pooling.",
+    "kind": "hybrid",
+    "formula": "$$\\text{MultiScaleBlock: } x \\leftarrow \\mathrm{BN}(x + W_1\\,\\mathrm{Concat}_{k\\in\\{3,5,7\\}}\\mathrm{GELU}(\\mathrm{DWConv}_{k,d}(x)))$$\n$$\\text{Spectral gate: } g = \\sigma\\!\\bigl(W[\\mathrm{mean}_f|\\mathcal{F}x|,\\,\\mathrm{std}_f|\\mathcal{F}x|]\\bigr),\\ x \\leftarrow x \\odot g$$\n$$\\text{dropout} = \\mathrm{clip}(0.15 + 0.25\\cdot\\min(C/50, 1),\\ 0.1,\\ 0.45)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "[B,T,C] InstanceNorm"},
+        {"id": "proj", "label": "Conv1d 7, BN, GELU"},
+        {"id": "ms", "label": "3x MultiScaleBlock (d=1,2,4)"},
+        {"id": "down", "label": "AvgPool when T>128"},
+        {"id": "sg", "label": "SpectralGate (FFT mean+std)"},
+        {"id": "pool", "label": "Mean + Max + Attn pool"},
+        {"id": "head", "label": "LN + 2-layer MLP"}
+      ],
+      "edges": [
+        {"from": "in", "to": "proj"},
+        {"from": "proj", "to": "ms"},
+        {"from": "ms", "to": "down"},
+        {"from": "down", "to": "ms", "label": "loop"},
+        {"from": "ms", "to": "sg"},
+        {"from": "sg", "to": "pool"},
+        {"from": "pool", "to": "head"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "d_model", "value": "128", "role": "backbone width", "learnable": false},
+      {"name": "n_blocks", "value": "3", "role": "stacked MultiScaleBlocks", "learnable": false},
+      {"name": "kernel sizes", "value": "{3, 5, 7}", "role": "depthwise multi-scale", "learnable": false},
+      {"name": "dilations", "value": "1, 2, 4", "role": "exponential receptive field", "learnable": false},
+      {"name": "downsample threshold", "value": "T > 128", "role": "stride-2 avg-pool between blocks", "learnable": false},
+      {"name": "dropout (data-adaptive)", "value": "clip(0.15 + 0.25*min(C/50, 1), 0.1, 0.45)", "role": "channel-count-aware regularization", "learnable": false},
+      {"name": "spectral gate", "value": "Linear(2D->D/4)->ReLU->Linear(D/4->D)->Sigmoid", "role": "FFT-amplitude SE", "learnable": true},
+      {"name": "pooling", "value": "mean + max + softmax attention", "role": "triple pool, head sees 3D", "learnable": true}
+    ],
+    "diff_from_baseline": "Custom CNN distinct from dlinear/timesnet/patchtst baselines: multi-scale depthwise-separable convs at three kernel sizes with exponential dilation, progressive temporal downsampling, FFT-amplitude (mean+std) channel gating, and triple pooling head; dropout auto-scaled by enc_in.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "FreqAttn + Dilated Conv + MHA + SE",
+    "tagline": "Frequency-domain learnable amplitude weighting (FFT->scale->iFFT), stacked dilated multi-branch convs, multi-head temporal self-attention with padding mask, plus SE-style channel attention.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. zero-out padded steps via x_mark_enc\n// 2. Linear: enc_in -> d_model; transpose to [B, D, L]\n// 3. FreqAttention: $X_f = \\mathrm{rFFT}(x)$; $|X_f|\\leftarrow |X_f|\\odot W_f$ (learnable); $x\\leftarrow x + \\mathrm{iFFT}(\\text{reweighted})$\n// 4. for $i = 1..e_layers$: DilatedConvBlock with rates {1,2,4,8}, residual + GELU\n// 5. CrossChannelAttention (SE): GAP -> MLP -> sigmoid, scale channels\n// 6. transpose to [B, L, D]; MultiHead temporal SA with mask -> LN(residual + out)\n// 7. mask-zero, AdaptiveAvgPool1d -> Linear(D, d_ff) -> GELU -> Dropout -> Linear(d_ff, num_class)",
+    "key_hyperparams": [
+      {"name": "freq_weight", "value": "Parameter(1, D, L/2+1)", "role": "learnable per-bin amplitude weights", "learnable": true},
+      {"name": "dilation_rates", "value": "[1, 2, 4, 8]", "role": "parallel branches per conv block", "learnable": false},
+      {"name": "kernel_size", "value": "3", "role": "dilated conv kernel", "learnable": false},
+      {"name": "channel attn reduction", "value": "4", "role": "SE bottleneck factor", "learnable": false},
+      {"name": "n_heads / e_layers / d_model / d_ff / dropout", "value": "from configs", "role": "wired through configs", "learnable": false},
+      {"name": "pool", "value": "AdaptiveAvgPool1d(1)", "role": "temporal pooling after MHA", "learnable": false}
+    ],
+    "diff_from_baseline": "Hybrid different from any baseline: per-bin learnable rFFT amplitude reweighting with iFFT residual, multi-branch dilated convs (rates 1/2/4/8), SE channel attention, and a final masked MHA temporal block; classifier reads the time-averaged token.",
+    "confidence": "high"
+  },
+  {
+    "model": "google/gemini-3.1-pro-preview",
+    "name": "TV-Mixer (Time x Variable x Feature)",
+    "tagline": "Patches the input (len 16, stride 8) into [B, V, P, d], then stacks temporal-mixer + variable-mixer + feature-mixer MLP blocks; Flatten and Linear classifier.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. instance-normalize per channel\n// 2. PatchEmbedding(d=64, patch=16, stride=8) -> tokens reshaped to [B, V, P, d]\n// 3. for $\\ell = 1..e_{\\text{layers}}$:\n// 4.   TemporalMixer: LN -> MLP across P (P -> 2P -> P), residual\n// 5.   VariableMixer: LN -> MLP across V (V -> max(2V,16) -> V), residual\n// 6.   FeatureMixer: LN -> MLP across d (d -> d_ff -> d), residual\n// 7. Flatten -> Dropout -> Linear(V*P*d, num_class)",
+    "key_hyperparams": [
+      {"name": "patch_len / stride", "value": "16 / 8", "role": "PatchEmbedding params", "learnable": false},
+      {"name": "d_model / d_ff", "value": "64 / 128", "role": "feature widths", "learnable": false},
+      {"name": "e_layers", "value": "configs.e_layers (default 3)", "role": "TVMixer block depth", "learnable": false},
+      {"name": "dropout", "value": "configs.dropout (default 0.2)", "learnable": false},
+      {"name": "var hidden", "value": "max(2V, 16)", "role": "variable-mixer hidden dim safe for V=1", "learnable": false}
+    ],
+    "diff_from_baseline": "MLP-Mixer-style architecture distinct from baselines: factorized mixing across the patched-time axis, the variable axis, and the feature axis (all via simple two-layer MLPs with GELU); uses the library's PatchEmbedding from PatchTST but no attention.",
+    "confidence": "high"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "Mask-Aware ChannelTimeMixer + Spectro-Temporal Head",
+    "tagline": "Two ChannelTimeMixer blocks (channel MLP + 5/9-kernel depthwise conv on x and on diff(x), gated by raw vs diff summary), followed by a time-stat + log-power-spectrum disagreement-gated head.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. mask-aware InstanceNorm on x; LayerNorm(D=enc_in)\n// 2. ChannelTimeMixer (x2):\n// 3.   ch = MLP(LN(x))                 // channel mixing\n// 4.   local = DWConv_{k=5}(x)          // local time conv per channel\n// 5.   diff[i] = x[i] - x[i-1]; diff_local = DWConv_{k=9}(diff)\n// 6.   g = sigmoid(MLP([mean(x|mask), mean(|diff|)]))\n// 7.   x <- LN(x + ch + g*local + (1-g)*diff_local)\n// 8. SpectroTemporalHead: time stats [mean, var, max, min] (4C), log-power FFT proj (4C)\n// 9.   gate = sigmoid(MLP([time, freq]))\n// 10.  fused = [time*gate, freq*(1-gate), |time-freq|] -> Linear -> num_class",
+    "key_hyperparams": [
+      {"name": "channel hidden_mult", "value": "2", "role": "channel MLP width = 2C", "learnable": false},
+      {"name": "time conv kernel", "value": "5 (depthwise)", "role": "local temporal context", "learnable": false},
+      {"name": "diff conv kernel", "value": "9 (depthwise)", "role": "longer kernel on first-difference signal", "learnable": false},
+      {"name": "head freq feat", "value": "Linear((L/2+1)*C -> 4C)", "role": "log-power FFT projection", "learnable": true},
+      {"name": "fusion features", "value": "[gate*time, (1-gate)*freq, |time-freq|]", "role": "disagreement-aware concat (12C)", "learnable": false},
+      {"name": "time stats", "value": "[mean, var, max, min]", "role": "mask-aware pooling", "learnable": false}
+    ],
+    "diff_from_baseline": "Custom architecture distinct from baselines: two stacked mask-aware mixer blocks with parallel raw and first-difference depthwise conv branches gated by a (mean, mean-of-abs-diff) summary, plus a classifier head that fuses time-domain stats and log-power FFT features through a disagreement-gated mix.",
+    "confidence": "high"
+  }
+]

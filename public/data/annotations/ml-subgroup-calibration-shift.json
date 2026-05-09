@@ -1,0 +1,90 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "DRO Ensemble of T/Beta/Platt + Bootstrap Shrinkage",
+    "tagline": "Ensembles temperature, beta, and Platt calibrators with DRO-tilted weights minimizing worst-group ECE-gap; group temperatures shrunk by bootstrap variance.",
+    "kind": "pseudocode",
+    "pseudocode": "// Stage 1: fit globals — T*, (a,b)_Platt, beta-LR\n// Stage 2: per group g (n_g ≥ 25, ≥2 classes):\n//   2a. local_T ← fit; bootstrap n_boot ≤ 15 to get Var(log T)\n//   2b. adaptive_shrink ← 120·(1 + 10·Var(logT))\n//   2c. α = n_g / (n_g + adaptive_shrink); log T_g = α·log T_local + (1−α)·log T*\n//   2d. n_g ≥ 35 → also shrink Platt (a,b); n_g ≥ 40 → also fit beta-LR(C = min(0.5, n_g/300))\n// Stage 3: ensemble weights w (over [T, beta, Platt]):\n//   3a. global w* ← argmin Σ_g exp(η·loss_g)·loss_g + γ·gap(ECE_g) using DRO tilt η=3, γ=1\n//   3b. per-g local w_g ← argmin NLL + 0.3·ECE; shrink toward w* with α_w = n_g/(n_g+200)\n// Predict: blend = w_g[0]·temp + w_g[1]·beta + w_g[2]·Platt",
+    "key_hyperparams": [
+      {"name": "base_shrink", "value": "120", "role": "James-Stein k for temperature", "learnable": false},
+      {"name": "weight_shrink", "value": "200", "role": "shrinkage of group ensemble weights", "learnable": false},
+      {"name": "dro_eta", "value": "3.0", "role": "DRO exponential tilt strength", "learnable": false},
+      {"name": "gap_penalty γ", "value": "1.0", "role": "max-min ECE penalty in DRO", "learnable": false},
+      {"name": "min_group_size", "value": "25", "role": "skip groups below this", "learnable": false},
+      {"name": "n_bootstrap", "value": "min(15, max(3, n_g/15))", "role": "for variance-of-logT", "learnable": false},
+      {"name": "ECE weight in NLL fit", "value": "0.3", "role": "per-group simple ensemble objective", "learnable": false},
+      {"name": "ensemble heads", "value": "3", "role": "[temp, beta-LR, Platt]", "learnable": false}
+    ],
+    "init_recovers": "Global temperature scaling when w → [1,0,0] and groups absent",
+    "diff_from_baseline": "Versus group_temperature_scaling, builds three parametric calibrators (T, Platt, beta), shrinks per-group T using bootstrap variance, then DRO-fits global ensemble weights minimizing worst-group ECE plus max-min gap; per-group ensemble weights are shrunk back toward the DRO global.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Beta + Per-Sample Group/Global Blend",
+    "tagline": "Global beta calibrator plus per-group beta calibrators; predictions blend via a per-sample weight that shrinks with group size and probability proximity to the group mean.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{cal}_{\\mathrm{global}}(p) = \\sigma(\\theta_0 + \\theta_1\\log p + \\theta_2\\log(1-p)),\\qquad \\mathrm{cal}_g(p)\\,\\text{analogous},$$ $$z_i = \\min\\!\\Big(\\tfrac{|p_i - \\bar p_g|}{\\hat\\sigma_g}, 3\\Big),\\quad w_i = \\tfrac{n_g}{n_g + 50}\\cdot\\big(1 - z_i/3\\big)_+,$$ $$\\hat p_i = w_i\\,\\mathrm{cal}_g(p_i) + (1 - w_i)\\,\\mathrm{cal}_{\\mathrm{global}}(p_i).$$",
+    "key_hyperparams": [
+      {"name": "k_size", "value": "50", "role": "James-Stein k in size_weight = n_g/(n_g+50)", "learnable": false},
+      {"name": "min_group_size", "value": "10", "role": "fit per-group beta only above", "learnable": false},
+      {"name": "z_cap", "value": "3", "role": "max z-score in proximity weight", "learnable": false},
+      {"name": "min_std", "value": "0.01", "role": "floor on group prob std", "learnable": false}
+    ],
+    "init_recovers": "Beta calibration baseline when groups absent or all w_i = 0",
+    "diff_from_baseline": "Versus beta_calibration, additionally fits a per-group beta calibrator, then blends per-sample with the global model using a weight that combines size shrinkage (n_g/(n_g+50)) and how close p_i is to that group's mean prob (≥3σ → fall back to global).",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Group Isotonic + Shrinkage + Base-Rate Smoothing",
+    "tagline": "Per-group isotonic regression blended with global isotonic via James-Stein shrinkage, plus a 5% smoothing toward each group's base rate.",
+    "kind": "formula",
+    "formula": "$$\\hat p_g(p) = \\alpha_g\\,\\mathrm{Iso}_g(p) + (1-\\alpha_g)\\,\\mathrm{Iso}(p),\\quad \\alpha_g = \\tfrac{n_g}{n_g + k},\\ k = 100,$$ $$\\hat p_{\\mathrm{out}} = 0.95\\,\\hat p_g(p) + 0.05\\,\\hat\\pi_g + 10^{-5}\\,p,\\qquad \\hat\\pi_g = \\mathrm{clip}(\\bar y_g,\\,0.05, 0.95).$$",
+    "key_hyperparams": [
+      {"name": "k_shrink", "value": "100", "role": "JS shrinkage constant", "learnable": false},
+      {"name": "min_group_size_for_iso", "value": "20", "role": "skip iso fit below; min 5 to record base rate", "learnable": false},
+      {"name": "base_rate_clip", "value": "[0.05, 0.95]", "role": "trim group base rate", "learnable": false},
+      {"name": "base_rate_weight", "value": "0.05", "role": "weight of group prior in final smoothing", "learnable": false},
+      {"name": "tie_breaking_eps", "value": "1e-5", "role": "monotonic perturbation by p", "learnable": false}
+    ],
+    "init_recovers": "Global isotonic when no groups or α_g = 0",
+    "diff_from_baseline": "Versus isotonic_regression, fits a per-group isotonic on top, blends them via α = n_g/(n_g+100), then smooths the result 95/5 toward each group's clipped base rate (small monotonic tie-break also added).",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Iso(T) + Smoothed Per-Bin Subgroup Δ-Table",
+    "tagline": "Global = isotonic on temperature-scaled logits; subgroups get a 7-bin probability-space residual table, shrunk by support and roughness, applied where binning has support.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Fit global T* by NLL; base ← Iso(σ(logit(p)/T*))\n// 2. Bin base into 7 bins via fixed edges [0,0.08,0.2,0.4,0.6,0.8,0.92,1]\n// 3. Per group g (n_g ≥ 12):\n//   3a. Δ_b ← (mean(label) − mean(base)) in bin b minus the global same-bin residual\n//   3b. roughness ρ ← mean |ΔΔ_b|; shrink ← n_g / (n_g + 40·(1 + 6ρ))\n//   3c. Δ ← clip(shrink · Δ, ±0.12); smooth Δ by 3-bin support-weighted moving average\n//   3d. record (Δ_table, support_table)\n// Predict for sample i in group g:\n//   confidence ← support[bin(i)] / (support[bin(i)] + 40)\n//   proximity ← 1 − min(|base_i − bin_center| / 0.2, 1)\n//   p̂_i ← clip(base_i + confidence·proximity·Δ[bin(i)], ε, 1−ε)",
+    "key_hyperparams": [
+      {"name": "bin_edges", "value": "[0, 0.08, 0.2, 0.4, 0.6, 0.8, 0.92, 1]", "role": "7 unequal probability bins", "learnable": false},
+      {"name": "k_shrink", "value": "40", "role": "base shrinkage constant", "learnable": false},
+      {"name": "max_delta", "value": "0.12", "role": "magnitude cap on subgroup correction", "learnable": false},
+      {"name": "support_floor", "value": "12 (group); 4 (per-bin)", "role": "min counts to fit", "learnable": false},
+      {"name": "roughness penalty", "value": "1 + 6·ρ", "role": "extra shrinkage for rough Δ tables", "learnable": false},
+      {"name": "proximity_radius", "value": "0.20", "role": "controls how fast confidence falls off bin center", "learnable": false}
+    ],
+    "init_recovers": "Global isotonic + temperature when all Δ tables are empty",
+    "diff_from_baseline": "Versus group_temperature_scaling / isotonic, keeps a single strong global calibrator (T then iso) and adds an additive, support-weighted per-bin subgroup residual table that is shrunk by both n_g and Δ-roughness, then applied with per-sample proximity weighting.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Minimax-ECE Temperature + Greedy Group Δ",
+    "tagline": "Global T chosen by grid-search to minimize worst-group ECE; each group's T is a shrinkage blend kept only if it improves overall ECE on calibration data.",
+    "kind": "pseudocode",
+    "pseudocode": "// Stage A: global T*\n// 1. Grid log T ∈ linspace(−2, 2, 50)\n// 2. T* ← argmin worst_group_ECE(σ(logit(p)/T)); break ties by NLL\n// Stage B: per group g (n_g ≥ 30, ≥2 classes)\n// 3. T_local ← argmin NLL_g\n// 4. for α ∈ {0.1, 0.2, 0.3, 0.4, 0.5}:\n//    log T_blend ← α·log T_local + (1−α)·log T*\n// 5.   apply T_blend only to group g (others use T*); compute global ECE on cal\n// 6.   keep T_blend that gives the lowest global ECE; else fall back to T*\n// Predict: cal_i = σ(logit(p_i) / T_g)",
+    "key_hyperparams": [
+      {"name": "grid n", "value": "50", "role": "log-T grid size for global", "learnable": false},
+      {"name": "log T range", "value": "[-2, 2]", "role": "temperature search range", "learnable": false},
+      {"name": "min_group_size", "value": "30", "role": "skip per-group below", "learnable": false},
+      {"name": "shrink α grid", "value": "{0.1, 0.2, 0.3, 0.4, 0.5}", "role": "per-group blend α candidates", "learnable": false},
+      {"name": "selection criterion (B)", "value": "global ECE on calibration", "role": "accept local T only if global ECE drops", "learnable": false}
+    ],
+    "init_recovers": "Global temperature scaling when every group falls back to T*",
+    "diff_from_baseline": "Versus group_temperature_scaling, picks the global T by minimax-ECE grid search (not NLL) and chooses per-group temperature by greedy ECE-improvement: each group's T is a shrinkage blend whose α is selected only if it cuts the overall calibration ECE.",
+    "confidence": "high"
+  }
+]

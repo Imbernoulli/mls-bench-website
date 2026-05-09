@@ -1,0 +1,185 @@
+[
+  {
+    "model": "claude-opus-4-6",
+    "name": "GeoGateNet: dual-path SchNet attention",
+    "tagline": "Each layer fuses a SchNet-style continuous filter with softmax attention, gated by a learned residual sigmoid; readout combines attention pool plus sum pool.",
+    "kind": "hybrid",
+    "formula": "$$m_{ij} = \\mathrm{MLP}(h_i) \\odot W(e_{ij}), \\qquad \\alpha_{ij} = \\mathrm{softmax}_j\\, \\mathrm{MLP}([h_i, h_j, e_{ij}])$$\n$$h_j' = h_j + \\mathrm{LN}\\bigl(g_j \\odot \\sum_i \\alpha_{ij} m_{ij}\\bigr), \\quad g_j = \\sigma(W_g [h_j, \\mathrm{agg}_j])$$",
+    "diagram": {
+      "nodes": [
+        {"id": "h", "label": "node feat"},
+        {"id": "e", "label": "edge feat (RBF + type + dir)"},
+        {"id": "filt", "label": "edge filter W"},
+        {"id": "att", "label": "edge attention"},
+        {"id": "agg", "label": "weighted sum"},
+        {"id": "gate", "label": "residual gate"},
+        {"id": "pool", "label": "attn + sum pool"}
+      ],
+      "edges": [
+        {"from": "h", "to": "filt"},
+        {"from": "e", "to": "filt"},
+        {"from": "h", "to": "att"},
+        {"from": "e", "to": "att"},
+        {"from": "filt", "to": "agg"},
+        {"from": "att", "to": "agg"},
+        {"from": "agg", "to": "gate"},
+        {"from": "gate", "to": "pool"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "512", "role": "node embedding width", "learnable": false},
+      {"name": "num_gaussians", "value": "50", "role": "RBF distance basis size", "learnable": false},
+      {"name": "num_edge_types", "value": "7", "role": "1 spatial + 6 sequential offsets (±1,2,3)", "learnable": false},
+      {"name": "max_neighbors", "value": "32", "role": "kNN spatial neighbors", "learnable": false},
+      {"name": "num_layers", "value": "6", "role": "message passing depth", "learnable": false}
+    ],
+    "diff_from_baseline": "Goes beyond SchNet's pure continuous-filter convolution by adding softmax attention and a learned residual gate per layer; richer 7-type edge embedding (RBF + type + direction) and dual attention+sum readout instead of mean pool used in EGNN/SchNet baselines.",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "SE(3)-frame edge-update transformer",
+    "tagline": "Multi-head graph transformer with edge-feature key/value bias, frame-aligned local geometry, and learned edge updates that propagate alongside node features.",
+    "kind": "hybrid",
+    "formula": "$$\\alpha_{ij} = \\mathrm{softmax}_j \\frac{q_i \\cdot (k_j + W_k e_{ij})}{\\sqrt{d_h}}, \\qquad m_{ij} = \\alpha_{ij} (v_j + W_v e_{ij})$$\n$$h_i \\leftarrow h_i + W_O \\sum_j m_{ij} + \\mathrm{FFN}(h_i), \\qquad e_{ij} \\leftarrow e_{ij} + \\phi_e([h_i, h_j, e_{ij}])$$",
+    "diagram": {
+      "nodes": [
+        {"id": "pos", "label": "Cα coords"},
+        {"id": "frame", "label": "local SE(3) frame"},
+        {"id": "edge", "label": "edge feat (RBF+rel+seq)"},
+        {"id": "qkv", "label": "Q/K/V proj"},
+        {"id": "att", "label": "edge-biased attention"},
+        {"id": "ffn", "label": "FFN + edge update"},
+        {"id": "pool", "label": "mean + max pool"}
+      ],
+      "edges": [
+        {"from": "pos", "to": "frame"},
+        {"from": "frame", "to": "edge"},
+        {"from": "edge", "to": "att"},
+        {"from": "qkv", "to": "att"},
+        {"from": "att", "to": "ffn"},
+        {"from": "ffn", "to": "pool"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "192", "role": "node feature width", "learnable": false},
+      {"name": "num_heads", "value": "6", "role": "attention heads", "learnable": false},
+      {"name": "edge_dim", "value": "96", "role": "edge embedding width", "learnable": false},
+      {"name": "num_gaussians", "value": "32", "role": "RBF distance basis", "learnable": false},
+      {"name": "max_neighbors", "value": "16", "role": "kNN graph degree", "learnable": false},
+      {"name": "seq_dim", "value": "16", "role": "sinusoidal sequence-distance encoding", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces SchNet/EGNN scalar message passing with a graph transformer; adds residue-wise SE(3) frames so neighbor offsets become invariant local coordinates, and uniquely co-evolves edge features through every layer rather than fixing them at construction.",
+    "confidence": "high"
+  },
+  {
+    "model": "openai/gpt-5.4",
+    "name": "Curvature-gated dual-channel GNN",
+    "tagline": "Spatial and sequential edges flow through separate MLP channels and are mixed by a per-node gate driven by local backbone curvature features.",
+    "kind": "hybrid",
+    "formula": "$$m_{ij} = (1-k_{ij})\\,\\phi_{\\mathrm{spat}}([h_i,h_j,e_{ij}]) + k_{ij}\\,\\phi_{\\mathrm{seq}}([h_i,h_j,e_{ij}])$$\n$$h_j \\leftarrow \\mathrm{LN}\\!\\left(h_j + \\psi\\!\\left(h_j, \\mathrm{mean}_i m_{ij} \\odot g_j, \\tfrac{1}{\\sqrt{|N|}}\\sum_i m_{ij}\\right)\\right), \\quad g_j = \\sigma(W[h_j, \\mathrm{geom}_j])$$",
+    "diagram": {
+      "nodes": [
+        {"id": "geom", "label": "local curvature/anisotropy"},
+        {"id": "knn", "label": "kNN edges"},
+        {"id": "seq", "label": "sequence ±1,±2 edges"},
+        {"id": "spat", "label": "spatial MLP"},
+        {"id": "smlp", "label": "seq MLP"},
+        {"id": "gate", "label": "curvature gate g"},
+        {"id": "agg", "label": "mean + sym-norm sum"},
+        {"id": "pool", "label": "mean + max + sum + struct"}
+      ],
+      "edges": [
+        {"from": "knn", "to": "spat"},
+        {"from": "seq", "to": "smlp"},
+        {"from": "geom", "to": "gate"},
+        {"from": "spat", "to": "agg"},
+        {"from": "smlp", "to": "agg"},
+        {"from": "gate", "to": "agg"},
+        {"from": "agg", "to": "pool"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "num_rbf", "value": "16", "role": "Gaussian distance basis", "learnable": false},
+      {"name": "seq_span", "value": "2", "role": "max sequence offset for seq edges", "learnable": false},
+      {"name": "max_neighbors", "value": "16", "role": "kNN degree", "learnable": false},
+      {"name": "num_layers", "value": "6", "role": "depth", "learnable": false},
+      {"name": "edge_dim", "value": "24", "role": "RBF + |dir| + seq + cutoff envelope", "learnable": false}
+    ],
+    "diff_from_baseline": "Unlike SchNet's single-channel filter conv or EGNN's coordinate updates, every layer routes spatial vs sequential edges through separate MLPs and mixes them by a learned gate driven by per-node turn/bend curvature; readout fuses mean, max, sum and a curvature-modulated structural pool.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "MSEPA: multi-scale RBF GNN",
+    "tagline": "Splits radius edges into local/medium/long-range buckets, each with its own learned RBF projection, and reads out with attention plus mean plus max pooling.",
+    "kind": "hybrid",
+    "formula": "$$\\mathrm{RBF}(d) = \\exp\\!\\left(-\\tfrac{(d-\\mu_k)^2}{2\\gamma_k^2}\\right)\\exp(-d/r_{\\max}), \\qquad m_{ij}^{(s)} = \\mathrm{MLP}_s([h_i, h_j, \\mathrm{RBF}_s(d_{ij})])$$\n$$h_i \\leftarrow h_i + \\frac{1}{|S|}\\sum_{s\\in S}\\,\\mathrm{LN}\\!\\bigl(h_i + \\mathrm{Update}(h_i, \\mathrm{mean}_j m_{ij}^{(s)})\\bigr)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "pos", "label": "Cα coords"},
+        {"id": "rg", "label": "radius_graph r=20Å"},
+        {"id": "buc", "label": "bucket: local/med/long"},
+        {"id": "rbf", "label": "learnable RBF μ,γ"},
+        {"id": "msg", "label": "scalar+vector message"},
+        {"id": "agg", "label": "scale-averaged update"},
+        {"id": "pool", "label": "attn + mean + max"}
+      ],
+      "edges": [
+        {"from": "pos", "to": "rg"},
+        {"from": "rg", "to": "buc"},
+        {"from": "buc", "to": "rbf"},
+        {"from": "rbf", "to": "msg"},
+        {"from": "msg", "to": "agg"},
+        {"from": "agg", "to": "pool"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "256", "role": "node feature width", "learnable": false},
+      {"name": "num_gaussians", "value": "32", "role": "RBF basis size", "learnable": false},
+      {"name": "rbf_centers", "value": "linspace(0, 20)", "role": "learnable RBF means", "learnable": true},
+      {"name": "rbf_gamma", "value": "ones * 0.625", "role": "learnable RBF widths", "learnable": true},
+      {"name": "scale_cutoffs", "value": "[6Å, 12Å, 20Å]", "role": "local/medium/long boundaries", "learnable": false},
+      {"name": "max_neighbors", "value": "64", "role": "radius graph cap", "learnable": false}
+    ],
+    "diff_from_baseline": "Replaces SchNet's single Gaussian-filter conv with three scale-specific RBF projections and a separate equivariant scalar+vector message block per layer; adds attention-based pooling rather than EGNN's mean or GearNet's sum readout.",
+    "confidence": "high"
+  },
+  {
+    "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+    "name": "Geometric attention with angular bias",
+    "tagline": "Alternating geometric MP and multi-head attention layers; attention scores get a learned bias from per-edge distance, direction, density, and incoming-angle features.",
+    "kind": "hybrid",
+    "formula": "$$\\alpha_{ij} = \\mathrm{softmax}_j\\!\\left(\\frac{q_j \\cdot k_i}{\\sqrt{d_h}} + b_h(d_{ij}, d_{ij}^2, \\hat r_{ij}, \\rho_j, \\cos\\theta_{ij})\\right)$$\n$$h_j \\leftarrow \\mathrm{LN}(h_j + W_O \\sum_i \\alpha_{ij} v_i), \\qquad h_{\\text{out}} = W\\!\\left(\\sum_\\ell w_\\ell h^{(\\ell)}\\right)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "pos", "label": "Cα coords"},
+        {"id": "edge", "label": "kNN edges + angular feats"},
+        {"id": "gmp", "label": "GeometricMP (even layers)"},
+        {"id": "mha", "label": "AngularAttention (odd layers)"},
+        {"id": "lw", "label": "softmax layer weights"},
+        {"id": "vn", "label": "virtual-node global ctx"},
+        {"id": "out", "label": "concat + MLP"}
+      ],
+      "edges": [
+        {"from": "pos", "to": "edge"},
+        {"from": "edge", "to": "gmp"},
+        {"from": "gmp", "to": "mha"},
+        {"from": "mha", "to": "lw"},
+        {"from": "lw", "to": "vn"},
+        {"from": "vn", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "256", "role": "node width", "learnable": false},
+      {"name": "num_heads", "value": "8", "role": "attention heads", "learnable": false},
+      {"name": "num_layers", "value": "6", "role": "alternating GMP/MHA", "learnable": false},
+      {"name": "max_neighbors", "value": "16", "role": "kNN degree", "learnable": false},
+      {"name": "layer_weights", "value": "softmax(ones(L))", "role": "learned residual aggregator", "learnable": true},
+      {"name": "virtual_node", "value": "randn(1, 256)", "role": "global context token", "learnable": true},
+      {"name": "geom_bias_features", "value": "7", "role": "[d, d², dir(3), density, cosθ]", "learnable": false}
+    ],
+    "diff_from_baseline": "Where SchNet uses scalar filters and EGNN updates coordinates equivariantly, this alternates per-layer between an angle-aware MP layer (using triplet angle, curvature, torsion proxies) and multi-head attention with a learned geometric-bias network; final readout aggregates all layers via a learned softmax weight plus a global virtual-node context.",
+    "confidence": "medium"
+  }
+]

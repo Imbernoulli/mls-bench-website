@@ -1,0 +1,178 @@
+[
+  {
+    "model": "claude-opus-4.6",
+    "name": "Gated state/obs+mean-field critic",
+    "tagline": "Two-stream MLP critic that fuses a global-state encoding with a local-observation+mean-field encoding via a feature-wise sigmoid gate, then LayerNorm.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "s", "label": "state ⊕ id"},
+        {"id": "o", "label": "obs ⊕ mean(obs) ⊕ id"},
+        {"id": "hs", "label": "ReLU(state_fc)"},
+        {"id": "ho", "label": "ReLU(obs_fc)"},
+        {"id": "g", "label": "σ(gate_fc(h_o))"},
+        {"id": "fuse", "label": "LN(g·h_s + (1-g)·h_o)"},
+        {"id": "v", "label": "MLP → V_i"}
+      ],
+      "edges": [
+        {"from": "s", "to": "hs"},
+        {"from": "o", "to": "ho"},
+        {"from": "ho", "to": "g"},
+        {"from": "hs", "to": "fuse"},
+        {"from": "ho", "to": "fuse"},
+        {"from": "g", "to": "fuse"},
+        {"from": "fuse", "to": "v"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden h", "value": "args.hidden_dim", "role": "shared width across all branches", "learnable": false},
+      {"name": "mean-field channel", "value": "obs_dim", "role": "team-mean obs broadcast back to each agent", "learnable": false},
+      {"name": "fusion", "value": "g·h_s + (1-g)·h_o", "role": "per-feature sigmoid gate into LayerNorm", "learnable": false}
+    ],
+    "init_recovers": "Pure CentralV (MAPPO) when g→1; pure local critic when g→0",
+    "diff_from_baseline": "Replaces the single state+id MLP critic with a two-stream encoder (state vs. obs+mean-of-obs) fused by a feature-wise sigmoid gate from the obs branch, with a LayerNorm on the fused features.",
+    "confidence": "high"
+  },
+  {
+    "model": "deepseek-reasoner",
+    "name": "Transformer-encoder critic with global token",
+    "tagline": "2-layer Transformer over per-agent (obs+id) tokens plus a state token at position 0; per-agent value head sees its own token concatenated with the global token.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "s", "label": "state token"},
+        {"id": "o", "label": "obs ⊕ id tokens"},
+        {"id": "tx", "label": "TransformerEncoder ×2"},
+        {"id": "g", "label": "global out (pos 0)"},
+        {"id": "a", "label": "agent outs (1..n)"},
+        {"id": "head", "label": "MLP([a_i, g]) → V_i"}
+      ],
+      "edges": [
+        {"from": "s", "to": "tx"},
+        {"from": "o", "to": "tx"},
+        {"from": "tx", "to": "g"},
+        {"from": "tx", "to": "a"},
+        {"from": "g", "to": "head"},
+        {"from": "a", "to": "head"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "n_layers", "value": "2", "role": "TransformerEncoder depth", "learnable": false},
+      {"name": "n_heads", "value": "4", "role": "self-attention heads", "learnable": false},
+      {"name": "dim_ff", "value": "4·hidden_dim", "role": "encoder feed-forward width", "learnable": false},
+      {"name": "activation", "value": "gelu", "role": "encoder MLP nonlinearity", "learnable": false},
+      {"name": "head MLP", "value": "Linear(2h,h)→ReLU→Linear(h,1)", "role": "value head over [agent, global]", "learnable": false}
+    ],
+    "init_recovers": "MAT-critic baseline if global token branch is removed",
+    "diff_from_baseline": "Augments the MAT-style transformer critic with an explicit global state token at position 0 and concatenates that global output with each agent's token output before the value head; encoder depth is 2 (vs 1 in mat_critic).",
+    "confidence": "high"
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "name": "Hypernet-attention message critic",
+    "tagline": "Replaces CustomCritic at class-build time with a critic whose state-conditioned hypernetwork generates per-head softmax attention over agent encodings, producing message-passed features that feed a residual MLP value head.",
+    "kind": "hybrid",
+    "formula": "$$A_h=\\mathrm{softmax}\\big(W_h(s)\\big),\\;m_i=\\sum_h\\sum_j A_h(s)_{ij}\\,h_{j,h},\\;V_i=\\mathrm{MLP}([h_i,\\,m_i,\\,s])$$",
+    "diagram": {
+      "nodes": [
+        {"id": "obs", "label": "obs ⊕ id"},
+        {"id": "h", "label": "feat_ext"},
+        {"id": "hyper", "label": "hyper_w(state) → A_h"},
+        {"id": "msg", "label": "Σ A_h(s)·h"},
+        {"id": "cat", "label": "[h, m, state]"},
+        {"id": "v", "label": "Residual MLP → V_i"}
+      ],
+      "edges": [
+        {"from": "obs", "to": "h"},
+        {"from": "hyper", "to": "msg"},
+        {"from": "h", "to": "msg"},
+        {"from": "h", "to": "cat"},
+        {"from": "msg", "to": "cat"},
+        {"from": "cat", "to": "v"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "num_heads", "value": "4 (or 1)", "role": "softmax-attention heads in the hypernet", "learnable": false},
+      {"name": "hyper_w init", "value": "orthogonal gain=0.01, bias=0", "role": "state→A weight init for stable start", "learnable": true},
+      {"name": "value head", "value": "Linear(2h+state, h)→ReLU→Linear(h,h)+x→Linear(h,1)", "role": "residual MLP head", "learnable": false}
+    ],
+    "init_recovers": "Mean-pool message critic at orthogonal-init small gain",
+    "diff_from_baseline": "Uses a `__build_class__` shim to swap in a hypernet critic where the state generates a multi-head per-agent softmax attention matrix that mixes agent features into messages; the per-agent value head sees [own_h, message, state] through a residual MLP.",
+    "confidence": "medium"
+  },
+  {
+    "model": "gpt-5.4",
+    "name": "FiLM critic + softplus-tempered self-attention",
+    "tagline": "Per-agent obs encoder modulated by state-conditioned FiLM (scale+shift), then self-attention with a state-driven softplus temperature, finally a state-gated mix of local and relational value heads.",
+    "kind": "hybrid",
+    "formula": "$$\\tilde h_i=h_i\\!\\odot(1+\\tanh\\gamma(s))+\\beta(s),\\;\\mathrm{attn}=\\mathrm{softmax}\\!\\left(\\frac{QK^\\top}{\\sqrt{d}\\,(1+\\mathrm{softplus}\\,\\tau(s))}\\right)V,\\;V_i=(1-\\sigma(g))V_{\\text{loc}}+\\sigma(g)V_{\\text{rel}}$$",
+    "diagram": {
+      "nodes": [
+        {"id": "o", "label": "obs ⊕ id"},
+        {"id": "loc", "label": "obs encoder (residual)"},
+        {"id": "s", "label": "state encoder g"},
+        {"id": "film", "label": "FiLM scale+shift"},
+        {"id": "attn", "label": "QKV self-attn / temp(s)"},
+        {"id": "rel", "label": "MsgGate σ"},
+        {"id": "head", "label": "(1-σ)V_loc + σV_rel"}
+      ],
+      "edges": [
+        {"from": "o", "to": "loc"},
+        {"from": "loc", "to": "film"},
+        {"from": "s", "to": "film"},
+        {"from": "film", "to": "attn"},
+        {"from": "attn", "to": "rel"},
+        {"from": "s", "to": "rel"},
+        {"from": "loc", "to": "head"},
+        {"from": "rel", "to": "head"},
+        {"from": "s", "to": "head"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "FiLM γ, β", "value": "Linear(h,h)", "role": "state→tanh scale and shift on agent tokens", "learnable": true},
+      {"name": "temperature head", "value": "softplus(τ(s))+1", "role": "state-conditioned attention sharpness", "learnable": true},
+      {"name": "msg gate", "value": "σ(Linear(2h,h))", "role": "additive gate on relational features", "learnable": true},
+      {"name": "mix gate", "value": "σ(Linear(2h,1))", "role": "blend local vs relational value heads", "learnable": true},
+      {"name": "n_heads", "value": "single head (q/k/v_proj h→h)", "role": "implicit head count", "learnable": false}
+    ],
+    "init_recovers": "Local MLP critic when mix gate σ→0 and FiLM scale/shift→0",
+    "diff_from_baseline": "Adds (i) state-conditioned FiLM modulation of agent tokens, (ii) softplus-tempered single-head self-attention with state-dependent temperature, and (iii) a state-gated soft mixture of local and relational value heads on top of the MAT critic skeleton.",
+    "confidence": "high"
+  },
+  {
+    "model": "qwen3.6-plus",
+    "name": "Dual-path attention + context query",
+    "tagline": "Two MultiheadAttention layers over per-agent obs encodings followed by a learnable-query attention pool that builds a team context, fused with a state-MLP and agent one-hot in a per-agent value head.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "o", "label": "obs encoder + LN"},
+        {"id": "a1", "label": "MHSA + LN ×1"},
+        {"id": "a2", "label": "MHSA + LN ×2"},
+        {"id": "q", "label": "context_vector query"},
+        {"id": "team", "label": "MHA(query, attn2)"},
+        {"id": "s", "label": "state MLP + LN"},
+        {"id": "fuse", "label": "[team, state, id]"},
+        {"id": "v", "label": "MLP → V_i"}
+      ],
+      "edges": [
+        {"from": "o", "to": "a1"},
+        {"from": "a1", "to": "a2"},
+        {"from": "a2", "to": "team"},
+        {"from": "q", "to": "team"},
+        {"from": "team", "to": "fuse"},
+        {"from": "s", "to": "fuse"},
+        {"from": "fuse", "to": "v"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "attention layers", "value": "2", "role": "stacked self-attention over agents", "learnable": false},
+      {"name": "n_heads", "value": "4", "role": "heads per MHA layer", "learnable": false},
+      {"name": "context_vector", "value": "randn(1,1,d_model)", "role": "learned query for team-context pooling", "learnable": true},
+      {"name": "value head", "value": "MLP(2d+n→d→d→1)", "role": "fusion MLP per agent", "learnable": false}
+    ],
+    "init_recovers": "MAT-style attention critic if the pooled context branch is bypassed",
+    "diff_from_baseline": "Adds a second self-attention layer plus a learnable-query attention pool that produces a team context vector, then concatenates it with a state-MLP encoding and the agent one-hot for the per-agent value head.",
+    "confidence": "high"
+  }
+]
