@@ -1,0 +1,43 @@
+[
+  {
+    "model": "DBSCAN",
+    "name": "DBSCAN",
+    "tagline": "Density-based clustering: connects core points within $\\epsilon$ and labels low-density regions as noise.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Set min_samples = 10, eps based on dim: 0.22 for low-D StandardScaled, else Kneedle on k-distance graph.\n2. For each $x_i$: count $|\\{x_j : \\|x_i - x_j\\| \\le \\epsilon\\}|$; mark core if count $\\ge$ min_samples.\n3. Build $\\epsilon$-neighborhood graph among core points; assign each connected component a cluster id.\n4. Assign border points (within $\\epsilon$ of a core) to that core's cluster.\n5. Remaining points labeled $-1$ (noise).",
+    "key_hyperparams": [
+      {"name": "ε", "value": "0.22 (low-D) / Kneedle (high-D)", "role": "neighborhood radius", "learnable": false},
+      {"name": "min_samples", "value": "10 (low-D) / max(4, min(2d, 10))", "role": "core point threshold", "learnable": false}
+    ],
+    "diff_from_baseline": "Ester, Kriegel, Sander, Xu 1996 (KDD) — sklearn.cluster.DBSCAN. Density-based clustering of applications with noise; the standard density-cluster baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "HDBSCAN",
+    "name": "HDBSCAN",
+    "tagline": "Hierarchical density-based clustering with mutual reachability and stability-based cluster extraction.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Compute mutual reachability distance $d_{mr}(x_i, x_j) = \\max(\\mathrm{core}_k(x_i), \\mathrm{core}_k(x_j), d(x_i, x_j))$.\n2. Build minimum spanning tree on $d_{mr}$.\n3. Construct cluster hierarchy by removing edges in decreasing order.\n4. Extract flat clustering via excess-of-mass (EOM) stability selection with min_cluster_size.\n5. Fallback: if all points labeled noise, run KMeans with $k = $ n_clusters.",
+    "key_hyperparams": [
+      {"name": "min_cluster_size", "value": "max(5, n/50)", "role": "smallest cluster", "learnable": false},
+      {"name": "min_samples", "value": "5", "role": "core distance neighbors", "learnable": false},
+      {"name": "selection", "value": "EOM", "role": "excess-of-mass extraction", "learnable": false}
+    ],
+    "diff_from_baseline": "Campello, Moulavi, Sander 2013 — sklearn.cluster.HDBSCAN. SOTA density-based method that auto-selects number of clusters; eliminates DBSCAN's eps parameter via hierarchy + stability.",
+    "confidence": "high"
+  },
+  {
+    "model": "K-Means",
+    "name": "K-Means",
+    "tagline": "Centroid-based clustering minimizing within-cluster squared Euclidean distance (Lloyd's algorithm).",
+    "kind": "formula",
+    "formula": "$$\\min_{C_1,...,C_k, \\mu_1,...,\\mu_k} \\sum_{c=1}^{k} \\sum_{x \\in C_c} \\| x - \\mu_c \\|^2 \\\\ \\text{Lloyd: assign } C_c = \\{x : c = \\arg\\min_j \\|x - \\mu_j\\|\\}, \\quad \\mu_c \\leftarrow \\frac{1}{|C_c|} \\sum_{x \\in C_c} x$$",
+    "key_hyperparams": [
+      {"name": "n_clusters", "value": "given or 8", "role": "number of clusters $k$", "learnable": false},
+      {"name": "n_init", "value": "10", "role": "k-means++ restarts", "learnable": false},
+      {"name": "max_iter", "value": "300", "role": "Lloyd iterations cap", "learnable": false}
+    ],
+    "diff_from_baseline": "Lloyd 1957 / MacQueen 1967 — sklearn.cluster.KMeans. Default centroid-based baseline; assumes convex, isotropic clusters of similar size.",
+    "confidence": "high"
+  }
+]

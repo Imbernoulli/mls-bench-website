@@ -1,0 +1,67 @@
+[
+  {
+    "model": "GAIN",
+    "name": "GAIN (ExtraTrees fallback)",
+    "tagline": "Iterative non-linear imputation with ExtraTreesRegressor as the per-feature estimator (numpy GAN GAIN replaced for stability).",
+    "kind": "pseudocode",
+    "pseudocode": "1. Initialise missing entries with column means.\n2. Sort features by ascending missingness.\n3. for iter $= 1\\ldots\\text{max\\_iter}$ (round-robin):\n4.  for each feature $j$ with missing values:\n5.   train $\\mathrm{ExtraTreesRegressor}(n\\_est=100, \\max\\_features=\\sqrt d)$ on observed rows using all other features as predictors.\n6.   predict and overwrite missing entries of $j$.\n7. Stop when $\\|X^{(t)}-X^{(t-1)}\\|^2 / \\|X^{(t)}\\|^2 < 10^{-3}$.",
+    "key_hyperparams": [
+      {"name": "n_estimators", "value": "100", "role": "trees per regressor", "learnable": false},
+      {"name": "max_iter", "value": "10", "role": "round-robin iterations", "learnable": false},
+      {"name": "tol", "value": "1e-3", "role": "convergence tolerance", "learnable": false}
+    ],
+    "diff_from_baseline": "Yoon et al., ICML 2018 — GAIN (Generative Adversarial Imputation Networks). Original GAIN trains a generator/discriminator with hint vectors; this baseline uses sklearn's IterativeImputer + ExtraTrees as a stable non-linear stand-in because the numpy-only GAN cannot backprop through hidden layers.",
+    "confidence": "high"
+  },
+  {
+    "model": "KNN Imputation",
+    "name": "KNN Imputation",
+    "tagline": "Replace each NaN with the distance-weighted mean of the K=5 nearest complete-feature neighbours.",
+    "kind": "pseudocode",
+    "pseudocode": "1. For each row with NaNs, compute distance to all other rows on commonly observed features.\n2. Pick K=5 nearest neighbours.\n3. Impute missing entry as the inverse-distance-weighted mean of those neighbours' observed values for that feature.\n4. Repeat for every (row, missing feature) pair.",
+    "key_hyperparams": [
+      {"name": "n_neighbors", "value": "5", "role": "number of neighbours", "learnable": false},
+      {"name": "weights", "value": "distance", "role": "inverse-distance weighting", "learnable": false}
+    ],
+    "diff_from_baseline": "Troyanskaya et al., Bioinformatics 2001. K-Nearest-Neighbour imputation; sklearn.impute.KNNImputer wrapper. Standard non-parametric imputation baseline that uses local feature similarity.",
+    "confidence": "high"
+  },
+  {
+    "model": "MICE",
+    "name": "MICE (Bayesian Ridge)",
+    "tagline": "Multiple Imputation by Chained Equations: round-robin Bayesian Ridge regressions on each incomplete feature.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Fill all NaNs with column means as initial guess.\n2. Order features by ascending missingness.\n3. for iter $= 1\\ldots 30$:\n4.  for each feature $j$ with missingness:\n5.   fit BayesianRidge with $X_{obs,\\,\\setminus j}$ → $X_{obs,\\,j}$.\n6.   replace missing entries of $j$ with model's posterior predictions.\n7. Stop on tolerance ($10^{-3}$).",
+    "key_hyperparams": [
+      {"name": "estimator", "value": "BayesianRidge", "role": "per-feature regressor", "learnable": false},
+      {"name": "max_iter", "value": "30", "role": "MICE rounds", "learnable": false},
+      {"name": "imputation_order", "value": "ascending", "role": "fill least-missing first", "learnable": false}
+    ],
+    "diff_from_baseline": "van Buuren & Groothuis-Oudshoorn, JSS 2011 — MICE. Round-robin chained-equations imputer; sklearn's IterativeImputer+BayesianRidge implementation. Default mainstream imputation baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "Mean Imputation",
+    "name": "Mean Imputation",
+    "tagline": "Replace each missing entry with that column's training mean — the simplest imputation floor.",
+    "kind": "formula",
+    "formula": "$$\\hat{x}_{ij} = \\frac{1}{|\\{i' : x_{i'j} \\text{ observed}\\}|}\\sum_{i'\\,:\\,x_{i'j}\\text{ obs.}} x_{i'j}$$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Standard SimpleImputer(strategy='mean'). Ignores all inter-feature correlations; serves as the floor baseline against which any structured imputer is judged.",
+    "confidence": "high"
+  },
+  {
+    "model": "MissForest",
+    "name": "MissForest",
+    "tagline": "Iterative Random-Forest imputation: round-robin RF predictions for each incomplete feature until convergence.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Initialise NaNs with column means.\n2. Sort features by ascending missingness.\n3. for iter $= 1\\ldots\\text{max\\_iter}$:\n4.  for each feature $j$ with missingness:\n5.   train RandomForestRegressor (n_estimators=100, max_features=√d) on observed rows of $j$ using all other features.\n6.   predict and overwrite the missing entries of $j$.\n7. Stop when $\\|\\Delta X\\|^2 / \\|X\\|^2 < 10^{-4}$ or max_iter reached.",
+    "key_hyperparams": [
+      {"name": "n_estimators", "value": "100", "role": "trees per forest", "learnable": false},
+      {"name": "max_iter", "value": "10", "role": "round-robin sweeps", "learnable": false},
+      {"name": "tol", "value": "1e-4", "role": "convergence tolerance", "learnable": false}
+    ],
+    "diff_from_baseline": "Stekhoven & Bühlmann, Bioinformatics 2012 — MissForest. Non-parametric Random-Forest imputation; consistently strong baseline across mixed tabular data and a common SOTA reference.",
+    "confidence": "high"
+  }
+]

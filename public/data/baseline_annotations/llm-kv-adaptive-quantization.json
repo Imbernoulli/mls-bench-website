@@ -1,0 +1,59 @@
+[
+  {
+    "model": "KIVI Overlap (4-bit)",
+    "name": "KIVI (4-bit)",
+    "tagline": "KIVI's mixed-axis 4-bit KV quantizer: per-channel groups for keys, per-token groups for values, with FP16 residual sliding windows on both.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. bits = 4, group_size = 32, residual_length = 128\n// 2. Keys: quantize along channel axis (per-channel groups)\n//    - tail residual policy: keep last $L \\bmod r$ tokens FP\n// 3. Values: quantize along token axis (per-token groups)\n//    - tail residual policy: keep last $r$ tokens FP\n// 4. For each group: $s = (g_{\\max}-g_{\\min})/(2^b-1)$, $q = \\text{round}((g - g_{\\min})/s)$\n// 5. Dequantize: $\\hat{g} = q\\,s + g_{\\min}$\n// 6. Avg bits = $((L-r)\\,b + r\\,16)/L$",
+    "key_hyperparams": [
+      {"name": "bits", "value": "4", "role": "uniform quant width", "learnable": false},
+      {"name": "group_size", "value": "32", "role": "min-max group size", "learnable": false},
+      {"name": "residual_length", "value": "128", "role": "FP16 sliding window", "learnable": false}
+    ],
+    "diff_from_baseline": "Liu et al. 2024 (KIVI, ICML). Plug-and-play 2-bit/4-bit asymmetric KV quantization with per-channel keys + per-token values and a sliding FP16 residual window. Recreated here at 4-bit with KIVI's overlap residual policy.",
+    "confidence": "high"
+  },
+  {
+    "model": "KVTuner-4 KIVI",
+    "name": "KVTuner-4 (KIVI-style)",
+    "tagline": "KVTuner's per-layer K/V bit preset (mostly 4-bit keys, 2-bit values) with KIVI-style mixed-axis quantization for Qwen2.5-3B-Instruct.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Load _PRESET[layer] -> {key_bits, value_bits} (4 or 2, mostly)\n// 2. Per-layer signed asymmetric quant, group_size=32, residual_length=32\n// 3. Keys: transpose to channel-axis groups (axis=1)\n// 4. Values: per-token groups (axis=0)\n// 5. Per-group: $s = (\\max-\\min)/(2^b-1)$, $z = \\text{round}(\\min/s) - q_{\\min}$\n// 6.   $q = \\text{clip}(\\text{round}(g/s) - z, q_{\\min}, q_{\\max})$\n// 7.   $\\hat{g} = (q + z)\\,s$\n// 8. Modulo residual policy: keep last $L \\bmod 32$ tokens FP",
+    "key_hyperparams": [
+      {"name": "bits per layer", "value": "preset (mostly K=4, V=2)", "role": "per-layer mixed precision", "learnable": false},
+      {"name": "group_size", "value": "32", "role": "asym min-max group size", "learnable": false},
+      {"name": "residual_length", "value": "32", "role": "FP16 modulo residual", "learnable": false}
+    ],
+    "diff_from_baseline": "He et al. 2025 (KVTuner). Per-layer K/V bit-width search over the KIVI mixed-axis quantizer; this baseline applies the official KIVI-style preset for Qwen2.5-3B-Instruct.",
+    "confidence": "high"
+  },
+  {
+    "model": "KVTuner-4 Per-Token",
+    "name": "KVTuner-4 (per-token)",
+    "tagline": "KVTuner per-layer bit preset for Qwen2.5-3B with simple per-token asymmetric quantization (no axis transpose, no residual).",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Load _PRESET[layer] -> {key_bits, value_bits} (mostly 4/2; some 8/8)\n// 2. Per-token asymmetric quant for both K and V (axis=0, group_size=-1)\n// 3. residual_length = 0 (no FP16 fallback)\n// 4. Per row (size=head_dim):\n// 5.   $s = (\\max-\\min)/(2^b-1)$, $z = \\text{round}(\\min/s) - q_{\\min}$\n// 6.   $\\hat{g} = (\\text{clip}(\\text{round}(g/s)-z) + z)\\,s$\n// 7. Avg bits = layer-preset value",
+    "key_hyperparams": [
+      {"name": "bits per layer", "value": "preset (mixed 2/4/8)", "role": "per-layer mixed precision", "learnable": false},
+      {"name": "group_size", "value": "-1 (full row)", "role": "no sub-grouping", "learnable": false},
+      {"name": "residual_length", "value": "0", "role": "no FP16 residual", "learnable": false}
+    ],
+    "diff_from_baseline": "He et al. 2025 (KVTuner). Official per-token preset variant: same per-layer bit search, but applied to a simpler per-token quantizer without KIVI's axis transpose or residual buffer.",
+    "confidence": "high"
+  },
+  {
+    "model": "SQuat Subspace (4-bit)",
+    "name": "SQuat (4-bit)",
+    "tagline": "Subspace-aware 4-bit key quantizer: prefill query SVD defines an orthogonal subspace; per-group key error is propagated forward in the head-dim using a low-rank inverse so the projection of error onto the query subspace is minimized.",
+    "kind": "pseudocode",
+    "pseudocode": "// Prefill: SVD of query states, keep top-r subspace V_r\n// 1. $A_t = I + \\lambda\\,V_r^\\top V_r$  (per head-group precomputation)\n// 2. For each head-dim group $g = 0,\\dots,G-1$:\n// 3.   chunk = K[:, :, :, g\\cdot Q : (g+1)Q]\n// 4.   dequant chunk via per-token min-max 4-bit groups\n// 5.   $d = \\hat{x} - x$ (quant error in subspace)\n// 6.   if $g < G-1$: propagate $d \\cdot H_g^\\top \\cdot B_g^\\top$ to remaining cols\n// 7. Values: simple per-token min-max 4-bit (no SQuat)",
+    "key_hyperparams": [
+      {"name": "bits", "value": "4", "role": "K/V quant width", "learnable": false},
+      {"name": "subspace_dim", "value": "60", "role": "rank kept from query SVD", "learnable": false},
+      {"name": "squat_lambda", "value": "0.001", "role": "subspace regularizer in $A_t$", "learnable": false},
+      {"name": "quant_group_size", "value": "64", "role": "head-dim sequential group size", "learnable": false}
+    ],
+    "diff_from_baseline": "Wang et al. 2025 (SQuat, arXiv:2503.24358). Subspace-orthogonal KV quantization that uses a prefill query SVD to redirect quantization error away from the query subspace; we use it at 4-bit with per-token group-wise dequantization plus value-side min-max 4-bit.",
+    "confidence": "high"
+  }
+]

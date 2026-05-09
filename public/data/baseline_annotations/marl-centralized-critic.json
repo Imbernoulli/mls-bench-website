@@ -1,0 +1,88 @@
+[
+  {
+    "model": "IPPO Decentralized Critic",
+    "name": "IPPO Critic",
+    "tagline": "Per-agent MLP value over local observation + agent one-hot — the no-centralization floor.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "obs", "label": "Local obs_i"},
+        {"id": "id", "label": "Agent one-hot e_i"},
+        {"id": "concat", "label": "concat"},
+        {"id": "fc", "label": "MLP (h, h, 1) ReLU"},
+        {"id": "v", "label": "V_i"}
+      ],
+      "edges": [
+        {"from": "obs", "to": "concat"},
+        {"from": "id", "to": "concat"},
+        {"from": "concat", "to": "fc"},
+        {"from": "fc", "to": "v"}
+      ]
+    },
+    "formula": "$$V_i(o_i) = W_3\\,\\sigma\\!\\big(W_2\\,\\sigma(W_1\\,[o_i\\,\\|\\,e_i])\\big)$$",
+    "key_hyperparams": [
+      {"name": "input", "value": "obs_i ⊕ one-hot(i)", "role": "no global state", "learnable": false},
+      {"name": "hidden", "value": "args.hidden_dim", "role": "MLP width", "learnable": false}
+    ],
+    "diff_from_baseline": "Yu et al., NeurIPS 2022 (arXiv 2103.01955) — IPPO/MAPPO study. Decentralised PPO critic that uses only the agent's local observation; matches epymarl's ACCritic. Floor baseline showing what 'no centralisation' achieves.",
+    "confidence": "high"
+  },
+  {
+    "model": "MAPPO Centralized Critic",
+    "name": "MAPPO Critic",
+    "tagline": "Standard centralized V: shared MLP over (global state ⊕ agent one-hot).",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "s", "label": "Global state s"},
+        {"id": "id", "label": "Agent one-hot e_i"},
+        {"id": "concat", "label": "concat"},
+        {"id": "mlp", "label": "MLP (h, h, 1) ReLU"},
+        {"id": "v", "label": "V_i(s)"}
+      ],
+      "edges": [
+        {"from": "s", "to": "concat"},
+        {"from": "id", "to": "concat"},
+        {"from": "concat", "to": "mlp"},
+        {"from": "mlp", "to": "v"}
+      ]
+    },
+    "formula": "$$V_i(s) = W_3\\,\\sigma\\!\\big(W_2\\,\\sigma(W_1\\,[s\\,\\|\\,e_i])\\big)$$",
+    "key_hyperparams": [
+      {"name": "input", "value": "state ⊕ one-hot(i)", "role": "agent-specific centralised V", "learnable": false},
+      {"name": "hidden", "value": "args.hidden_dim", "role": "MLP width", "learnable": false}
+    ],
+    "diff_from_baseline": "Yu et al., NeurIPS 2022 — MAPPO. Standard centralised V function: a shared MLP receives the global state and an agent index, producing per-agent values. Matches epymarl's CentralVCritic; canonical CTDE PPO critic.",
+    "confidence": "high"
+  },
+  {
+    "model": "MAT-Style Attention Critic",
+    "name": "MAT Attention Critic",
+    "tagline": "Per-agent token = Linear(obs_i ⊕ state); a single Transformer encoder mixes across agents, per-token V head.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "obs", "label": "obs_i"},
+        {"id": "s", "label": "broadcast state"},
+        {"id": "tok", "label": "token = Linear(obs⊕s)"},
+        {"id": "tx", "label": "Transformer encoder (1 layer, 4 heads, GELU)"},
+        {"id": "head", "label": "Linear → V_i"},
+        {"id": "v", "label": "Per-agent V"}
+      ],
+      "edges": [
+        {"from": "obs", "to": "tok"},
+        {"from": "s", "to": "tok"},
+        {"from": "tok", "to": "tx"},
+        {"from": "tx", "to": "head"},
+        {"from": "head", "to": "v"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "nhead", "value": "4", "role": "self-attention heads", "learnable": false},
+      {"name": "num_layers", "value": "1", "role": "encoder depth", "learnable": false},
+      {"name": "dim_ff", "value": "4×d_model", "role": "FFN width", "learnable": false}
+    ],
+    "diff_from_baseline": "Wen et al. 2022 (arXiv 2205.14953) — Multi-Agent Transformer; also related to MAAC (Iqbal & Sha, ICML 2019). Critic-only adaptation: per-agent tokens + self-attention over the agent axis to produce centralised values, while the actor remains the standard MAPPO RNN.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,59 @@
+[
+  {
+    "model": "EGNN",
+    "name": "EGNN",
+    "tagline": "E(n)-equivariant GNN using only pairwise distances as edge features for ligand-pocket message passing.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Embed ligand and pocket atoms: $h_l = W_l x_l$, $h_p = W_p x_p$.\n2. Use distance scalars $d_{ij}$ as edge features (1-dim).\n3. For each layer $\\ell=1..L$:\n   a. EGNN message: $m_{ij} = \\phi_u(h_i) + \\phi_v(h_j) + \\phi_e(d_{ij})$.\n   b. Aggregate $a_j = \\sum_{i \\in \\mathcal{N}(j)} m_{ij}$ over CIG (intra) and NIG (inter) edges.\n   c. Update $h_j' = \\psi(\\text{cat}[h_j, a_j])$; sum across edge types.\n4. Score atom-atom interactions for both L$\\to$P and P$\\to$L; subtract attention-pooled bias.\n5. Return $(\\hat{y}_{lp} + \\hat{y}_{pl}) / 2$.",
+    "key_hyperparams": [
+      {"name": "H", "value": "256", "role": "hidden dim", "learnable": false},
+      {"name": "L", "value": "3", "role": "message-passing layers", "learnable": false},
+      {"name": "edge_dim", "value": "1", "role": "scalar distance edge feature", "learnable": false}
+    ],
+    "diff_from_baseline": "Satorras et al. 2021 (E(n) Equivariant Graph Neural Networks). Equivariant message passing using pairwise distances; here adapted to a heterogeneous CIG/NIG graph following EHIGN_PLA/ablation_study/HEGNN.",
+    "confidence": "high"
+  },
+  {
+    "model": "EHIGN",
+    "name": "EHIGN",
+    "tagline": "Edge-enhanced Heterogeneous Interaction GNN with covalent (CIG) and non-covalent (NIG) convolutions and dual bidirectional readout.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Embed nodes ($h_l$, $h_p$) and 4 edge types ($e_{ll}, e_{pp}, e_{lp}, e_{pl}$) to dim $H$.\n2. For each layer $\\ell=1..L$:\n   a. CIGConv (intra): $\\text{MLP}(h + \\sum_{i \\in \\mathcal{N}} \\text{ReLU}(h_i + e_i))$.\n   b. NIGConv (inter): edge-weighted gated aggregation $W_n \\frac{1}{|\\mathcal{N}|}\\sum h_i \\odot w_i + W_s h_j$.\n   c. HeteroGraphConv: sum intra and inter outputs per node type.\n3. Two atom-atom heads: $\\hat{y}_{lp}, \\hat{y}_{pl}$ from $W_e e \\odot W_s h_i \\odot W_d h_j$ pooled via inter-batch.\n4. Attention-based bias correction subtracted from each head; average $(\\hat{y}_{lp} + \\hat{y}_{pl})/2$.\n5. Loss = $\\frac{1}{3}(\\text{MSE}(\\hat{y}_{lp}, y) + \\text{MSE}(\\hat{y}_{pl}, y) + \\text{MSE}(\\hat{y}_{lp}, \\hat{y}_{pl}))$.",
+    "key_hyperparams": [
+      {"name": "H", "value": "256", "role": "hidden dim", "learnable": false},
+      {"name": "L", "value": "3", "role": "CIG/NIG layers", "learnable": false},
+      {"name": "feat_drop", "value": "0.1", "role": "NIGConv dropout", "learnable": false}
+    ],
+    "diff_from_baseline": "Yang et al. (guaguabujianle/EHIGN_PLA). Heterogeneous interaction GNN designed specifically for protein-ligand affinity, with bidirectional dual prediction and consistency regularization.",
+    "confidence": "high"
+  },
+  {
+    "model": "GIGN",
+    "name": "GIGN",
+    "tagline": "Geometric Interaction GNN: GIN-style message passing for ligand and pocket plus an inter-edge readout head.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Embed atoms: $h_l = W_l x_l$, $h_p = W_p x_p$ to dim $H$.\n2. For each layer $\\ell=1..L$:\n   a. GINLayer (intra): $h' = \\text{MLP}((1+\\epsilon) h + \\sum_i (h_i + W_e e_i))$ for ligand and pocket.\n   b. InterGINLayer (L$\\to$P): mean-aggregated ligand messages concatenated with pocket and passed through MLP.\n3. Inter-edge readout: $\\text{MLP}(\\text{cat}[h_l[s], h_p[d], e_{lp}])$ summed per complex.\n4. Graph readout: $\\text{MLP}(\\text{cat}[\\text{mean}(h_l), \\text{mean}(h_p)])$.\n5. Return $(\\text{inter\\_pred} + \\text{graph\\_pred}) / 2$.",
+    "key_hyperparams": [
+      {"name": "H", "value": "256", "role": "hidden dim", "learnable": false},
+      {"name": "L", "value": "3", "role": "GIN layers", "learnable": false},
+      {"name": "ε", "value": "0", "role": "GIN self-weight init", "learnable": true}
+    ],
+    "diff_from_baseline": "Yang et al. 2023 (guaguabujianle/GIGN). Geometric interaction graph network using GIN message passing on heterogeneous protein-ligand graphs; combines edge-level and graph-level affinity prediction.",
+    "confidence": "high"
+  },
+  {
+    "model": "SchNet",
+    "name": "SchNet",
+    "tagline": "Continuous-filter convolution with Gaussian RBF distance expansion applied to all heterogeneous edge types.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Expand pairwise distances with RBFs: $\\phi_k(d) = \\exp(-(d - \\mu_k)^2 / (2\\sigma^2))$, $k=1..60$ on $[0, 6]$Å.\n2. Embed atoms: $h_l = W_l x_l$, $h_p = W_p x_p$ to dim $H$.\n3. For each layer $\\ell=1..L$:\n   a. CFConv: $h_j' = h_j + \\text{MLP}(\\sum_{i \\in \\mathcal{N}(j)} W_n h_i \\odot \\text{filter}(\\phi(d_{ij})))$.\n   b. Apply CFConv on ligand-ligand, pocket-pocket, ligand$\\to$pocket, pocket$\\to$ligand.\n   c. Sum per-node-type outputs (HeteroGraphConv).\n4. Atom-atom heads + attention bias correction; return mean of L$\\to$P and P$\\to$L predictions.",
+    "key_hyperparams": [
+      {"name": "H", "value": "256", "role": "hidden dim", "learnable": false},
+      {"name": "L", "value": "3", "role": "interaction blocks", "learnable": false},
+      {"name": "RBF gap", "value": "0.1 Å", "role": "RBF center spacing", "learnable": false},
+      {"name": "RBF range", "value": "[0, 6] Å", "role": "distance window", "learnable": false}
+    ],
+    "diff_from_baseline": "Schütt et al. 2017 (NeurIPS). Continuous-filter convolutional network using Gaussian RBF distance featurization; here adapted to a heterogeneous CIG/NIG protein-ligand graph following EHIGN_PLA/ablation_study/HSchNet.",
+    "confidence": "high"
+  }
+]

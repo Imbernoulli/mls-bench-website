@@ -1,0 +1,72 @@
+[
+  {
+    "model": "Human Exact Form",
+    "name": "Human exact-form law",
+    "tagline": "Per-benchmark literature-derived parametric scaling laws (Tao vocab, SLDBench Expert-B lr/bsz, Muennighoff data-constrained); fit by per-group nonlinear least squares.",
+    "kind": "hybrid",
+    "formula": "$$ \\begin{aligned} L_{\\text{vocab}} &= E + A N^{-\\alpha} + B V^{-\\beta} + C D^{-\\gamma} \\\\ L_{\\text{lrbsz}} &= A D^{-\\alpha} + B N^{-\\beta} + C + K_l (l - l_0)^2 + E\\,(\\log b + b_0/b) \\\\ L_{\\text{dc}} &= E + A N^{-\\alpha} + B D_{\\text{eff}}^{-\\beta},\\quad D_{\\text{eff}} = U(1 - e^{-D/U}) \\end{aligned} $$",
+    "diagram": {
+      "nodes": [
+        {"id": "data", "label": "Train trials grouped by categorical metadata"},
+        {"id": "form", "label": "Pick benchmark-specific symbolic form"},
+        {"id": "fit", "label": "scipy.optimize.least_squares with multi-start (soft_l1, log/linear residuals)"},
+        {"id": "params", "label": "Per-group fitted coefficients"},
+        {"id": "predict", "label": "Eval on held-out trials per group"}
+      ],
+      "edges": [
+        {"from": "data", "to": "form"},
+        {"from": "form", "to": "fit"},
+        {"from": "fit", "to": "params"},
+        {"from": "params", "to": "predict"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "n_restarts", "value": "6-8", "role": "multi-start initializations per fit", "learnable": false},
+      {"name": "loss", "value": "soft_l1, f_scale=0.05", "role": "robust LS objective", "learnable": false}
+    ],
+    "diff_from_baseline": "Tao et al. 2024 (vocabulary scaling); SLDBench paper arXiv:2507.21184 (Expert-B law, App. A.4); Muennighoff et al. 2023 (data-constrained). Symbolic Chinchilla-style laws fit per categorical group via multi-start nonlinear least squares; the lrbsz fit also seeds from the paper's reference coefficients.",
+    "confidence": "high"
+  },
+  {
+    "model": "Kernel Ridge Regression",
+    "name": "Kernel ridge",
+    "tagline": "Black-box RBF kernel-ridge baseline on raw + log-transformed numerics and one-hot categoricals.",
+    "kind": "formula",
+    "formula": "$$ \\hat{f}(x) = \\sum_i \\alpha_i\\, k(x,x_i),\\; k(x,x') = \\exp\\!\\big(-\\gamma\\|\\phi(x) - \\phi(x')\\|^2\\big),\\; \\gamma = 1/d_\\phi,\\; \\alpha = (K + \\lambda I)^{-1} y $$",
+    "key_hyperparams": [
+      {"name": "alpha (ridge)", "value": "0.05", "role": "Tikhonov regularization", "learnable": false},
+      {"name": "kernel", "value": "RBF", "role": "Gaussian kernel", "learnable": false},
+      {"name": "gamma", "value": "1/d_features", "role": "RBF bandwidth", "learnable": false}
+    ],
+    "diff_from_baseline": "Saunders, Gammerman & Vovk 1998 (kernel ridge regression). Generic RBF kernel ridge on standardized + log-encoded mixed numeric/categorical features; intentionally non-parametric to gauge how much symbolic structure helps over a black-box predictor.",
+    "confidence": "high"
+  },
+  {
+    "model": "SLDAgent-Style",
+    "name": "SLDAgent-style symbolic",
+    "tagline": "Discovered-style symbolic forms with cross-axis interactions: V*D cross term, (lr,bsz) correlated quadratic bowl, multiplicative repeat-efficiency on D_eff.",
+    "kind": "formula",
+    "formula": "$$ \\begin{aligned} L_{\\text{vocab}} &= E + A\\,N^{-a_1}V^{-a_2}D^{-a_3} + A_{vd}V^{-g_1}D^{-g_2} \\\\ L_{\\text{lrbsz}} &= L_{\\text{Chinchilla}}(N,D) + k\\big(dx^2+dy^2+2\\rho\\,dx\\,dy\\big) \\\\ L_{\\text{dc}} &= E + A N^{-\\alpha} + B (D\\cdot \\eta)^{-\\beta},\\; \\eta = (1+D/(UR))^{-1} \\end{aligned} $$",
+    "key_hyperparams": [
+      {"name": "n_restarts", "value": "8-10", "role": "multi-start initializations", "learnable": false},
+      {"name": "loss", "value": "soft_l1, f_scale=0.05", "role": "robust LS objective", "learnable": false}
+    ],
+    "diff_from_baseline": "SLDAgent-style stand-in baseline. Reasonable surrogate symbolic forms in the SLDAgent spirit (cross-axis interactions, correlated quadratic bowls, repeat-efficiency multipliers) since the agent's exact discovered formulas are not published.",
+    "confidence": "medium"
+  },
+  {
+    "model": "XGBoost",
+    "name": "XGBoost",
+    "tagline": "Gradient-boosted regression trees on engineered (raw + log) numerics and one-hot categoricals; trained in log-target space when targets are positive.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Encode numerics as (standardized raw) $\\oplus$ (standardized $\\log(1+x)$); one-hot encode categoricals\n2. If $\\min y > 0$, set target $\\leftarrow \\log y$ (use_log = True), else keep $y$\n3. Fit XGBRegressor: $n\\_\\text{estimators}=120$, $\\max\\_\\text{depth}=3$, $\\eta=0.05$, subsample=0.9, colsample=0.8, $\\lambda=1.0$, tree_method='hist'\n4. Fall back to sklearn GradientBoostingRegressor if XGBoost unavailable\n5. Predict on test, exponentiate if use_log",
+    "key_hyperparams": [
+      {"name": "n_estimators", "value": "120", "role": "boosting rounds", "learnable": false},
+      {"name": "max_depth", "value": "3", "role": "tree depth (shallow)", "learnable": false},
+      {"name": "learning_rate", "value": "0.05", "role": "shrinkage", "learnable": false},
+      {"name": "reg_lambda", "value": "1.0", "role": "L2 leaf weight penalty", "learnable": false}
+    ],
+    "diff_from_baseline": "Chen & Guestrin 2016 (XGBoost, KDD). Off-the-shelf gradient-boosted trees baseline on engineered features, trained in log-target space when targets are strictly positive.",
+    "confidence": "high"
+  }
+]

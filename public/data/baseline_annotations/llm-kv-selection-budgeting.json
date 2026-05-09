@@ -1,0 +1,57 @@
+[
+  {
+    "model": "Expected Attention",
+    "name": "Expected Attention",
+    "tagline": "Score each cached key by closed-form expected dot-product against a Gaussian model of future query states (mean + covariance) under the post-RoPE distribution.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. q_pre = pre-RoPE query states for non-sink positions\n// 2. mu = mean(q_pre);  Sigma = cov(q_pre)  if use_covariance\n// 3. (mu, Sigma) <- avg_RoPE(mu, Sigma, future window n_future=512)\n// 4. score = mu^T k / sqrt(d)   + (1/2d) k^T Sigma k\n// 5. score = softmax_k(score), avg over GQA groups\n// 6. score *= ||v||  (value-norm rescaling)\n// 7. force-keep first n_sink=4 tokens, then top-k under budget",
+    "key_hyperparams": [
+      {"name": "n_sink", "value": "4", "role": "attention sinks", "learnable": false},
+      {"name": "n_future", "value": "512", "role": "future window for RoPE avg", "learnable": false},
+      {"name": "use_covariance", "value": "true", "role": "Eq.7 covariance term", "learnable": false},
+      {"name": "use_value_norm", "value": "true", "role": "rescale by ||v||", "learnable": false}
+    ],
+    "diff_from_baseline": "Devoto, Jeblick, Jegou (NVIDIA) 2025, arXiv:2510.00636. Models the distribution of upcoming queries as a Gaussian and selects KV tokens by their expected attention. Reference impl: NVIDIA/kvpress ExpectedAttentionPress.",
+    "confidence": "high"
+  },
+  {
+    "model": "Full Attention",
+    "name": "Full Attention (no eviction)",
+    "tagline": "Anchor baseline that retains every prefill KV token; bypasses the compression path entirely.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. retention_plan: disable_compression = True\n// 2. score_tokens: return None\n// 3. select_cache: return (keys, values) unchanged",
+    "key_hyperparams": [
+      {"name": "disable_compression", "value": "true", "role": "skip eviction", "learnable": false}
+    ],
+    "diff_from_baseline": "Hugging Face DynamicCache without eviction. Reference upper bound — quality of full attention with no cache savings; not a valid compressed submission.",
+    "confidence": "high"
+  },
+  {
+    "model": "LagKV",
+    "name": "LagKV",
+    "tagline": "Lag-relative scoring: each token in window i is normalised by the next window's key/value envelope, then softmax-ranked within the window.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. partition cache into lag windows of size L=128 (skip n_sink=4)\n// 2. for each tensor T in {keys, values}:\n//      ref = T[next-window], val = T[current-window]\n//      norm = (val - min(ref)) / (max(ref) - min(ref))\n//      score_T = softmax(std_d(norm))\n// 3. score = mean(score_keys, score_values)\n// 4. cross_scoring=False -> rank via argsort(argsort(score)) / L\n// 5. force-keep sinks + final tail; top-k the rest",
+    "key_hyperparams": [
+      {"name": "n_sink", "value": "4", "role": "attention sinks", "learnable": false},
+      {"name": "lag_size", "value": "128", "role": "window length", "learnable": false},
+      {"name": "cross_scoring", "value": "false", "role": "within-window argsort", "learnable": false}
+    ],
+    "diff_from_baseline": "Liang et al. 2025, arXiv:2504.04704 (LagKV). Per-layer training-free KV selector based on lag-window key/value variance. Reference impl: NVIDIA/kvpress LagKVPress.",
+    "confidence": "high"
+  },
+  {
+    "model": "StreamingLLM",
+    "name": "StreamingLLM (sinks + recent)",
+    "tagline": "Keep the first few attention-sink tokens plus the most recent window, drop the middle, and re-rotate retained keys to their new positions.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. n_sink = 4 attention-sink tokens\n// 2. n_pruned = k_len - floor(k_len*(1-ratio))\n// 3. score = ones; score[:, n_sink:n_sink+n_pruned] = 0\n// 4. indices = topk(score) and sort\n// 5. re-rotate selected keys: shift RoPE by (new_pos - old_pos)\n// 6. return (rerotated_keys, gathered_values)",
+    "key_hyperparams": [
+      {"name": "n_sink", "value": "4", "role": "attention sinks", "learnable": false},
+      {"name": "rerotate_keys", "value": "true", "role": "RoPE shift to new positions", "learnable": false},
+      {"name": "compression_ratio", "value": "task-set", "role": "fraction pruned", "learnable": false}
+    ],
+    "diff_from_baseline": "Xiao et al. 2024 (StreamingLLM, ICLR), arXiv:2309.17453. Discovers attention sinks and proposes sliding-window + sink retention. Re-rotation follows kvpress KeyRerotationPress.",
+    "confidence": "high"
+  }
+]

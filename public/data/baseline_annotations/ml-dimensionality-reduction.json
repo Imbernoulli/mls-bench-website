@@ -1,0 +1,71 @@
+[
+  {
+    "model": "PCA",
+    "name": "PCA",
+    "tagline": "Linear projection onto the top-2 principal components via sklearn.decomposition.PCA (SVD).",
+    "kind": "formula",
+    "formula": "$$X = U\\Sigma V^{\\top},\\qquad Z = X\\,V_{[:, :2]} \\in \\mathbb{R}^{n\\times 2}$$",
+    "key_hyperparams": [
+      {"name": "n_components", "value": "2", "role": "embedding dimension", "learnable": false}
+    ],
+    "diff_from_baseline": "Pearson 1901; Hotelling 1933. Closed-form linear baseline that maximizes preserved variance under orthonormal projection.",
+    "confidence": "high"
+  },
+  {
+    "model": "PaCMAP",
+    "name": "PaCMAP",
+    "tagline": "Pairwise Controlled Manifold Approximation: combines near-pair, mid-near-pair and far-pair forces for balanced local/global structure.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Build three pair sets: NN ($k{=}10$), mid-near (MN_ratio $0.5$), far (FP_ratio $2.0$).\n2. Initialize embedding (PCA scaled).\n3. Optimize loss $L = \\sum_\\mathrm{NN} \\frac{d^2}{10+d^2} + \\sum_\\mathrm{MN} w_\\mathrm{MN}\\frac{d^2}{10000+d^2} - \\sum_\\mathrm{FP} \\frac{1}{1+d^2}$ with three-phase weight schedule.\n4. Use Adam with the schedule (attractive only → balanced → stable).\n5. Return 2-D embedding $Z \\in \\mathbb{R}^{n\\times 2}$.",
+    "key_hyperparams": [
+      {"name": "n_neighbors", "value": "10", "role": "near-pair count k", "learnable": false},
+      {"name": "MN_ratio", "value": "0.5", "role": "mid-near pairs / NN", "learnable": false},
+      {"name": "FP_ratio", "value": "2.0", "role": "far pairs / NN", "learnable": false}
+    ],
+    "diff_from_baseline": "Wang, Huang & Rudin, JMLR 2021. SOTA neighbor-based reducer with three weighted pair types; widely cited for balanced local + global preservation.",
+    "confidence": "high"
+  },
+  {
+    "model": "TriMap",
+    "name": "TriMap",
+    "tagline": "Triplet-loss embedding: for each point, sample inlier/outlier/random triplets and minimize a t-distributed triplet objective.",
+    "kind": "pseudocode",
+    "pseudocode": "1. For each point $i$, sample $n_\\text{in}{=}10$ inlier neighbors, $n_\\text{out}{=}5$ outliers, $n_\\text{rand}{=}5$ random.\n2. Form triplets $(i, j_\\text{near}, k_\\text{far})$ with weight $w_{ijk} = \\exp(-d_{ij}^2 / \\sigma_i^2)$.\n3. Initialize embedding (PCA).\n4. Optimize $L = \\sum w_{ijk}\\, s(d^Y_{ik}, d^Y_{ij})$ with $s(a,b)=\\frac{a^2/(1+a^2)}{a^2/(1+a^2)+b^2/(1+b^2)}$.\n5. Run $400$ Adam iters; return 2-D embedding.",
+    "key_hyperparams": [
+      {"name": "n_inliers", "value": "10", "role": "near neighbors per point", "learnable": false},
+      {"name": "n_outliers", "value": "5", "role": "far points per inlier", "learnable": false},
+      {"name": "n_random", "value": "5", "role": "random pairs", "learnable": false},
+      {"name": "n_iters", "value": "400", "role": "optimizer steps", "learnable": false}
+    ],
+    "diff_from_baseline": "Amid & Warmuth 2019 (arXiv:1910.00204). Triplet-based embedding designed to keep large-scale structure that t-SNE / UMAP often distort.",
+    "confidence": "high"
+  },
+  {
+    "model": "UMAP",
+    "name": "UMAP",
+    "tagline": "Uniform Manifold Approximation: optimize a low-D fuzzy graph to match the high-D fuzzy k-NN graph (Bernoulli cross-entropy).",
+    "kind": "pseudocode",
+    "pseudocode": "1. Build fuzzy simplicial set from $k{=}15$ nearest neighbors with adaptive ρ (local connectivity = 1).\n2. Symmetrize via probabilistic t-conorm: $p_{ij} = p_{i|j}+p_{j|i} - p_{i|j}p_{j|i}$.\n3. Initialize $Y$ via spectral embedding of the graph.\n4. Optimize cross-entropy with attractive force on edges and negative sampling for repulsion, using $q_{ij}=(1+a\\,\\|y_i-y_j\\|^{2b})^{-1}$ with $a,b$ from min_dist=$0.1$.\n5. Run SGD; return 2-D embedding.",
+    "key_hyperparams": [
+      {"name": "n_neighbors", "value": "15", "role": "local neighborhood size", "learnable": false},
+      {"name": "min_dist", "value": "0.1", "role": "min spread between embedded points", "learnable": false},
+      {"name": "metric", "value": "euclidean", "role": "distance in input space", "learnable": false}
+    ],
+    "diff_from_baseline": "McInnes, Healy & Melville 2018 (arXiv:1802.03426). Standard nonlinear reducer; faster than t-SNE and tends to preserve more global structure.",
+    "confidence": "high"
+  },
+  {
+    "model": "t-SNE",
+    "name": "t-SNE",
+    "tagline": "Probabilistic neighbor embedding: minimize KL between Gaussian high-D affinities and Student-t low-D affinities.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Compute conditional Gaussian neighborhood probabilities with perplexity $30$, symmetrize: $p_{ij} = (p_{i|j}+p_{j|i})/2n$.\n2. Initialize $Y$ from PCA.\n3. Define $q_{ij} = (1+\\|y_i-y_j\\|^2)^{-1}/Z$ (Student-t, df=1).\n4. Optimize $L = \\mathrm{KL}(P\\,\\|\\,Q) = \\sum_{i\\ne j} p_{ij}\\log\\frac{p_{ij}}{q_{ij}}$ with auto learning rate, $1000$ iters.\n5. Return $Y\\in\\mathbb{R}^{n\\times 2}$.",
+    "key_hyperparams": [
+      {"name": "perplexity", "value": "30", "role": "effective neighborhood size", "learnable": false},
+      {"name": "init", "value": "pca", "role": "initialization", "learnable": false},
+      {"name": "n_iter", "value": "1000", "role": "optimizer steps", "learnable": false}
+    ],
+    "diff_from_baseline": "van der Maaten & Hinton, JMLR 2008. Classic probabilistic neighborhood-preserving visualizer (sklearn implementation).",
+    "confidence": "high"
+  }
+]

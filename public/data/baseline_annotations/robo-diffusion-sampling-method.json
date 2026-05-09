@@ -1,0 +1,41 @@
+[
+  {
+    "model": "DDIM (20-Step Deterministic Sampling)",
+    "name": "DDIM (20 steps)",
+    "tagline": "Deterministic implicit reverse-process solver from DDIM, run at 20 inference steps inside CleanDiffuser's DiscreteDiffusionSDE.",
+    "kind": "formula",
+    "formula": "$$x_{t-1} = \\sqrt{\\bar\\alpha_{t-1}}\\,\\hat{x}_0(x_t) + \\sqrt{1 - \\bar\\alpha_{t-1}}\\,\\epsilon_\\theta(x_t, t)$$",
+    "key_hyperparams": [
+      {"name": "solver", "value": "ddim", "role": "CleanDiffuser DiscreteDiffusionSDE solver flag", "learnable": false},
+      {"name": "sampling_steps", "value": "20", "role": "denoiser calls per action", "learnable": false}
+    ],
+    "diff_from_baseline": "Song et al. 2021 (DDIM, ICLR). Deterministic non-Markov reverse process; 5x fewer steps than the DDPM default (100) while maintaining most of the quality.",
+    "confidence": "high"
+  },
+  {
+    "model": "DPM-Solver++ 2M (10-Step)",
+    "name": "DPM-Solver++ 2M (10 steps)",
+    "tagline": "High-order multistep ODE solver tuned for guided sampling; second-order multistep variant at just 10 NFE.",
+    "kind": "formula",
+    "formula": "$$x_{t-1} = e^{-(\\lambda_{t-1}-\\lambda_t)} x_t - (1 - e^{-h_t})\\Big[D_\\theta(x_t,t) + \\tfrac{1}{2}\\,\\tfrac{h_{t-1}}{h_t}\\,(D_\\theta(x_t,t) - D_\\theta(x_{t+1}, t{+}1))\\Big]$$",
+    "key_hyperparams": [
+      {"name": "solver", "value": "ode_dpmsolver++_2M", "role": "CleanDiffuser solver flag (2nd-order multistep)", "learnable": false},
+      {"name": "sampling_steps", "value": "10", "role": "denoiser calls per action", "learnable": false}
+    ],
+    "diff_from_baseline": "Lu et al. 2022 (DPM-Solver++, arXiv:2211.01095). High-order multistep ODE solver that converges with very few NFE; 10x fewer steps than DDPM and 2x fewer than DDIM.",
+    "confidence": "high"
+  },
+  {
+    "model": "DDPM (100-Step Ancestral Sampling)",
+    "name": "DDPM (100 steps)",
+    "tagline": "Default ancestral DDPM reverse-process solver at 100 steps — the unmodified template baseline.",
+    "kind": "formula",
+    "formula": "$$x_{t-1} = \\frac{1}{\\sqrt{\\alpha_t}}\\Big(x_t - \\frac{1-\\alpha_t}{\\sqrt{1-\\bar\\alpha_t}}\\,\\epsilon_\\theta(x_t, t)\\Big) + \\sigma_t\\,z,\\quad z\\sim\\mathcal{N}(0,I)$$",
+    "key_hyperparams": [
+      {"name": "solver", "value": "ddpm", "role": "ancestral SDE sampler (CleanDiffuser default)", "learnable": false},
+      {"name": "sampling_steps", "value": "100", "role": "denoiser calls per action", "learnable": false}
+    ],
+    "diff_from_baseline": "Ho et al. 2020 (DDPM, NeurIPS). Default ancestral sampler; high-quality but slow. The unmodified CleanDiffuser template baseline against which fast samplers are compared.",
+    "confidence": "high"
+  }
+]

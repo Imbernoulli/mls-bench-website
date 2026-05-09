@@ -1,0 +1,45 @@
+[
+  {
+    "model": "AWQ",
+    "name": "AWQ",
+    "tagline": "Activation-aware weight-only quantization: per-channel scale search using calibration activations, then per-group max-clip search before symmetric quantization.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Collect $|X|$ per input channel; reservoir-sample raw input rows\n// 2. Auto-scale: for $\\alpha \\in [0,1)$:\n// 3.   $s = |X|^\\alpha / \\sqrt{\\max(s)\\min(s)}$; $W' = W \\cdot s$\n// 4.   quantize $W'$ symmetric, $W_{\\text{final}} = \\hat W' / s$\n// 5.   $\\text{err} = \\|X (W - W_{\\text{final}})^\\top\\|^2$; keep best $s$\n// 6. Auto-clip: per-(out-channel, group), search clip $\\in (1 - i/N)\\cdot M_g$\n// 7.   $W_{\\text{clip}} = \\text{clip}(W', \\pm M)$, quantize, pick min err\n// 8. Final: quantize with clipped scales, undo per-channel scaling",
+    "key_hyperparams": [
+      {"name": "n_alpha", "value": "20", "role": "scale-search grid size", "learnable": false},
+      {"name": "n_clip_grid", "value": "20", "role": "clip-search grid size", "learnable": false},
+      {"name": "clip_max_shrink", "value": "0.5", "role": "max clip ratio", "learnable": false},
+      {"name": "n_sample_token", "value": "256", "role": "calibration tokens kept", "learnable": false}
+    ],
+    "diff_from_baseline": "Lin et al. 2024 (AWQ, MLSys). Activation-aware weight quantization that scales salient (high-activation) channels up before quantization to preserve them; here paired with per-group clip search. No Hessian needed.",
+    "confidence": "high"
+  },
+  {
+    "model": "GPTQ",
+    "name": "GPTQ",
+    "tagline": "Hessian-based column-wise PTQ: quantize one column at a time and propagate the error to remaining columns using $H^{-1}$ to minimize layer output error.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Accumulate $H = X^\\top X$ from calibration\n// 2. Damp: $H \\leftarrow H + \\text{percdamp}\\cdot \\text{tr}(H)/n \\cdot I$\n// 3. Cholesky: $H^{-1} = L L^\\top$\n// 4. For block $b$ of columns (size 128):\n// 5.   For each col $j$ in block:\n// 6.     find scale/zero on group, $\\hat{w}_j = Q(w_j)$\n// 7.     $err = (w_j - \\hat{w}_j)/L_{jj}$\n// 8.     $W_{:, j+1:} \\mathrel{-}= err \\cdot L_{j, j+1:}$\n// 9.   propagate block error to next block",
+    "key_hyperparams": [
+      {"name": "block_size", "value": "128", "role": "column block size", "learnable": false},
+      {"name": "percdamp", "value": "0.01", "role": "Hessian damping fraction", "learnable": false},
+      {"name": "symmetric", "value": "true", "role": "weight quant scheme", "learnable": false}
+    ],
+    "diff_from_baseline": "Frantar et al. 2023 (GPTQ, ICLR). One-shot Hessian-based PTQ using OBQ-style per-column updates with block-wise Cholesky. The dominant accurate-low-bit baseline for LLMs.",
+    "confidence": "high"
+  },
+  {
+    "model": "Round-to-Nearest (RTN)",
+    "name": "RTN",
+    "tagline": "Symmetric per-channel (or per-group) round-to-nearest quantization with no calibration data.",
+    "kind": "formula",
+    "formula": "$$s_g = \\frac{\\max_{c\\in g} |W_{r,c}|}{2^{b-1}-1},\\quad \\hat W_{r,c} = s_g\\,\\text{clip}\\!\\left(\\text{round}(W_{r,c}/s_g),\\,-2^{b-1},\\,2^{b-1}-1\\right)$$",
+    "key_hyperparams": [
+      {"name": "num_bits", "value": "4 / 3", "role": "weight bit-width", "learnable": false},
+      {"name": "group_size", "value": "128 (or 64)", "role": "per-group scaling granularity", "learnable": false},
+      {"name": "symmetric", "value": "true", "role": "no zero-point", "learnable": false}
+    ],
+    "diff_from_baseline": "Jacob et al. 2018 (CVPR). Round-to-Nearest quantization: simplest possible PTQ baseline, no calibration, zero overhead. Reference floor for any low-bit method.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,60 @@
+[
+  {
+    "model": "CEM",
+    "name": "CEM",
+    "tagline": "Cross-Entropy Method: refit a Gaussian to the top-K elite trajectories each iteration; return the final mean.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Init $\\mu \\leftarrow 0$, $\\sigma \\leftarrow 1.5$ (per timestep).\n2. For iter $1\\ldots N$:\n3. \\quad Sample $A \\sim \\mathcal N(\\mu,\\sigma^2)$, $B$ trajectories of length $H$.\n4. \\quad Clip per-step action norm to 2.45.\n5. \\quad Score with $J(A) = \\text{cost}(A; \\hat o_0)$ via JEPA rollout.\n6. \\quad Pick top-$K$ elites ($K = \\max(10, B/10)$).\n7. \\quad $\\mu \\leftarrow \\text{mean}(A_{\\text{elite}}),\\; \\sigma \\leftarrow \\text{std}(A_{\\text{elite}})$.\n8. Return $\\mu$ as the planned action sequence.",
+    "key_hyperparams": [
+      {"name": "num_samples", "value": "200", "role": "trajectories per iter", "learnable": false},
+      {"name": "n_iters", "value": "20", "role": "CEM iterations", "learnable": false},
+      {"name": "num_elites", "value": "max(10, B/10)", "role": "top-K refit set", "learnable": false},
+      {"name": "var_scale", "value": "1.5", "role": "initial std", "learnable": false}
+    ],
+    "diff_from_baseline": "Rubinstein 1997 / Botev et al. 2013 — standard model-based-planning baseline. Refits a per-timestep Gaussian to elite returns under a learned (here JEPA) dynamics model.",
+    "confidence": "high"
+  },
+  {
+    "model": "MPPI",
+    "name": "MPPI",
+    "tagline": "Sampling-based path-integral control: softmax-weighted update of the action distribution by exp(temperature * cost).",
+    "kind": "pseudocode",
+    "pseudocode": "1. Init $\\mu\\!\\leftarrow\\!0$, $\\sigma\\!\\leftarrow\\!2$.\n2. For iter $1\\ldots N$:\n3. \\quad Sample $A^{(b)}\\!\\sim\\!\\mathcal N(\\mu,\\sigma^2)$, score $J^{(b)}$ via JEPA rollout.\n4. \\quad Take top-$K$ elites; let $J_{\\min}\\!=\\!\\min_b J^{(b)}$.\n5. \\quad $w^{(k)} \\propto \\exp\\!\\bigl(\\lambda(J_{\\min}-J^{(k)})\\bigr)$ over the $K$ elites.\n6. \\quad $\\mu \\leftarrow \\sum_k w^{(k)} A^{(k)},\\; \\sigma^2 \\leftarrow \\sum_k w^{(k)}(A^{(k)}-\\mu)^2$.\n7. Sample one elite by $w$ as the executed action sequence.",
+    "key_hyperparams": [
+      {"name": "temperature", "value": "0.005", "role": "$\\lambda$ in exp$(\\lambda\\cdot\\Delta J)$", "learnable": false},
+      {"name": "max_std", "value": "2.0", "role": "init/cap on $\\sigma$", "learnable": false},
+      {"name": "num_elites", "value": "20", "role": "softmax pool size", "learnable": false}
+    ],
+    "diff_from_baseline": "Williams et al., 'Model Predictive Path Integral Control' (2017). Same sampling skeleton as CEM but uses a soft (exponential-weight) update instead of refitting to a hard top-K elite cut.",
+    "confidence": "high"
+  },
+  {
+    "model": "Random",
+    "name": "Random shooting",
+    "tagline": "Single-pass random sampling of action sequences; pick the lowest-cost rollout. No iterative refinement.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Sample $B$ action sequences $A^{(b)}\\!\\sim\\!\\mathcal N(0,1)^{H\\times d_a}$.\n2. Clip per-step norm to 2.45.\n3. Score $J^{(b)}\\!=\\!\\text{cost}(A^{(b)}; \\hat o_0)$ via JEPA rollout.\n4. Return $A^{(\\arg\\min J)}$.",
+    "key_hyperparams": [
+      {"name": "num_samples", "value": "200", "role": "shooting candidates", "learnable": false}
+    ],
+    "diff_from_baseline": "Classic random-shooting MPC lower-bound. Useful as a sanity check for any iterative planner that should beat single-pass sampling under the same compute.",
+    "confidence": "high"
+  },
+  {
+    "model": "iCEM",
+    "name": "iCEM",
+    "tagline": "Improved CEM with colored 1/f^beta noise, sample decay per iteration, elite reuse, momentum, and across-step shift.",
+    "kind": "pseudocode",
+    "pseudocode": "1. On $t_0$: reset $\\mu,\\sigma$ to (0, 1.5); else shift $\\mu$ left by 1, repeat last step, reset $\\sigma\\!=\\!\\sigma_{\\text{init}}$.\n2. For iter $i=1\\ldots N$ ($N{=}10$):\n3. \\quad Sample with colored noise: $\\epsilon\\!\\sim\\!1/f^{\\,\\beta}$ Gaussian (FFT); $A=\\mu + \\sigma\\,\\epsilon$.\n4. \\quad Reuse 30% top elites from prev iter / prev step.\n5. \\quad Score $J$, take $K{=}10\\%$ elites; track best-ever ($A^{\\star},J^{\\star}$).\n6. \\quad Momentum update: $\\mu \\leftarrow 0.9\\,\\mu_{\\text{new}}+0.1\\,\\mu$ (and $\\sigma$).\n7. \\quad Decay: $B \\leftarrow \\max(2K,\\, B/\\gamma)$ with $\\gamma{=}1.25$.\n8. Return $A^{\\star}$ (or final $\\mu$ if $J(\\mu){<}J^{\\star}$).",
+    "key_hyperparams": [
+      {"name": "noise_beta", "value": "2.5", "role": "1/f$^\\beta$ colored noise", "learnable": false},
+      {"name": "num_samples", "value": "900", "role": "Pinneri Table S4 4000-budget setting", "learnable": false},
+      {"name": "n_iters", "value": "10", "role": "iCEM iterations", "learnable": false},
+      {"name": "factor_decrease_num", "value": "1.25", "role": "$\\gamma$ for sample decay", "learnable": false},
+      {"name": "fraction_elites_reused", "value": "0.3", "role": "elite reuse fraction", "learnable": false},
+      {"name": "alpha", "value": "0.1", "role": "momentum smoothing", "learnable": false}
+    ],
+    "diff_from_baseline": "Pinneri et al., 'Sample-efficient Cross-Entropy Method for Real-time Planning' (CoRL 2020 / PMLR 2021). Adds correlated colored noise, elite reuse, momentum, sample decay, and across-step shift (Sec. 3.2) to vanilla CEM.",
+    "confidence": "high"
+  }
+]

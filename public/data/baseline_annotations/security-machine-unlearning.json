@@ -1,0 +1,87 @@
+[
+  {
+    "model": "Bad Teacher",
+    "name": "Bad Teacher (KD with incompetent teacher)",
+    "tagline": "Per-sample KD: distill from a frozen competent teacher on retain samples and from a randomly re-initialised incompetent teacher on forget samples.",
+    "kind": "hybrid",
+    "formula": "$$\\mathcal{L} = \\mathrm{KL}\\!\\left(\\mathrm{softmax}(z_s / T) \\,\\Big\\|\\, \\ell\\,\\mathrm{softmax}(z_u / T) + (1 - \\ell)\\,\\mathrm{softmax}(z_c / T)\\right), \\quad T = 1$$",
+    "diagram": {
+      "nodes": [
+        {"id": "init", "label": "On step 0: capture competent + reinit incompetent"},
+        {"id": "batch", "label": "Concat retain (label 0) and forget (label 1)"},
+        {"id": "stu", "label": "Student logits z_s"},
+        {"id": "compt", "label": "Competent teacher z_c (frozen original)"},
+        {"id": "incompt", "label": "Incompetent teacher z_u (random Kaiming reinit)"},
+        {"id": "loss", "label": "KL(student || ℓ·u + (1-ℓ)·c)"}
+      ],
+      "edges": [
+        {"from": "init", "to": "batch"},
+        {"from": "batch", "to": "stu"},
+        {"from": "batch", "to": "compt"},
+        {"from": "batch", "to": "incompt"},
+        {"from": "compt", "to": "loss"},
+        {"from": "incompt", "to": "loss"},
+        {"from": "stu", "to": "loss"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "KL_temperature", "value": "1.0", "role": "softmax temperature", "learnable": false},
+      {"name": "incompetent_init", "value": "Kaiming (mode='fan_out' for conv)", "role": "matches run_unlearning.py", "learnable": false}
+    ],
+    "diff_from_baseline": "Chundawat, Tarun, Mandal & Kankanhalli, AAAI 2023 — Can Bad Teaching Induce Forgetting? Standard dual-teacher KD baseline (incompetent vs. competent) for class-wise unlearning.",
+    "confidence": "high"
+  },
+  {
+    "model": "Negative Gradient",
+    "name": "Negative Gradient",
+    "tagline": "Descend cross-entropy on retain data while ascending it on forget data via a small negative-weight subtraction.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\mathrm{CE}(f_\\theta(x_r), y_r) - 0.5\\,\\mathrm{CE}(f_\\theta(x_f), y_f)$$",
+    "key_hyperparams": [
+      {"name": "forget_weight", "value": "0.5", "role": "ascent coefficient on forget CE", "learnable": false}
+    ],
+    "diff_from_baseline": "Golatkar et al., CVPR 2020 (Forgetting Outside the Box) and follow-ups — gradient-ascent unlearning. Subtracts a fraction of the forget-set gradient from the retain-set update; simplest non-trivial unlearning baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "Retain Fine-Tune",
+    "name": "Retain fine-tune",
+    "tagline": "Plain SGD/Adam fine-tuning on the retain set only — vanilla catastrophic-forgetting baseline.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\mathrm{CE}(f_\\theta(x_r), y_r), \\quad x_r,\\,y_r \\sim \\mathcal{D}_{\\text{retain}}$$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Common reference baseline in MUFAC / NeurIPS 2023 unlearning benchmarks. Continued training on retained data only — no explicit forgetting signal — relies on catastrophic forgetting of the held-out class.",
+    "confidence": "high"
+  },
+  {
+    "model": "SCRUB",
+    "name": "SCRUB",
+    "tagline": "Min-max KD against a frozen original teacher: maximise KL on the forget set for the first msteps epochs, always minimise CE + α·KL on retain.",
+    "kind": "hybrid",
+    "formula": "$$\\begin{aligned}\\text{Max (epoch} < m_{\\text{steps}}\\text{):} \\;& -\\mathrm{KL}_T\\!\\big(\\mathrm{softmax}(z_s^{f}/T) \\,\\|\\, \\mathrm{softmax}(z_t^{f}/T)\\big) \\cdot T^2 \\\\ \\text{Min (every epoch):} \\;& \\gamma\\,\\mathrm{CE}(z_s^{r}, y_r) + \\alpha\\,\\mathrm{KL}_T\\!\\big(z_s^{r} \\,\\|\\, z_t^{r}\\big)\\cdot T^2 \\end{aligned}$$",
+    "diagram": {
+      "nodes": [
+        {"id": "init", "label": "Capture frozen teacher = original model"},
+        {"id": "max", "label": "Forget batch -> ascend KL(student || teacher)"},
+        {"id": "rewind", "label": "Only for epoch < msteps"},
+        {"id": "min", "label": "Retain batch -> γ·CE + α·KL"},
+        {"id": "step", "label": "Optimizer step (separate per batch)"}
+      ],
+      "edges": [
+        {"from": "init", "to": "max"},
+        {"from": "rewind", "to": "max"},
+        {"from": "max", "to": "step"},
+        {"from": "init", "to": "min"},
+        {"from": "min", "to": "step"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "msteps", "value": "2", "role": "max-step rewind epochs", "learnable": false},
+      {"name": "kd_T", "value": "4.0", "role": "KD temperature", "learnable": false},
+      {"name": "alpha", "value": "0.01", "role": "retain KL weight", "learnable": false},
+      {"name": "gamma", "value": "0.99", "role": "retain CE weight", "learnable": false}
+    ],
+    "diff_from_baseline": "Kurmanji, Triantafillou, Hayes & Triantafillou, NeurIPS 2023 — Towards Unbounded Machine Unlearning (SCRUB). Min-max distillation against the frozen original; defaults follow the authors' VGG notebook.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,44 @@
+[
+  {
+    "model": "QSGD (Quantized SGD)",
+    "name": "QSGD",
+    "tagline": "Unbiased stochastic quantization: round each gradient element to $s$ levels with probability proportional to its fractional level (256 levels, gradient clipping).",
+    "kind": "formula",
+    "formula": "$$\\ell_i = \\frac{s\\,|g_i|}{\\lVert g\\rVert_2},\\;\\; q_i = \\lfloor \\ell_i\\rfloor + \\mathbb{1}[u_i < \\ell_i - \\lfloor \\ell_i\\rfloor],\\; u_i\\sim U(0,1),\\quad \\hat{g}_i = \\mathrm{sign}(g_i)\\cdot \\frac{\\lVert g\\rVert_2}{s}\\cdot q_i$$",
+    "key_hyperparams": [
+      {"name": "$s$", "value": "256", "role": "quantization levels (~9 bits)", "learnable": false},
+      {"name": "clip_norm", "value": "1.0", "role": "pre-quantization gradient clip", "learnable": false},
+      {"name": "unbiased", "value": "true", "role": "$\\mathbb{E}[\\hat{g}] = g$", "learnable": false}
+    ],
+    "diff_from_baseline": "Alistarh et al., 'QSGD: Communication-Efficient SGD via Gradient Quantization and Encoding' (NeurIPS 2017). GRACE-style quantizer; unbiased so error feedback is not needed. Gradient clipping prevents rare large-norm gradients from amplifying quantization noise.",
+    "confidence": "high"
+  },
+  {
+    "model": "SignSGD",
+    "name": "SignSGD + EF",
+    "tagline": "1-bit sign compression with mean-magnitude scaling and error-feedback residual accumulation; ignores the compression ratio (always 1-bit).",
+    "kind": "formula",
+    "formula": "$$\\bar{g}_t = g_t + \\beta\\,e_{t-1},\\;\\; \\hat{g}_t = \\mathrm{sign}(\\bar{g}_t)\\cdot\\overline{|\\bar{g}_t|},\\;\\; e_t = \\bar{g}_t - \\hat{g}_t$$",
+    "key_hyperparams": [
+      {"name": "bits", "value": "1", "role": "sign per element", "learnable": false},
+      {"name": "scale", "value": "mean magnitude", "role": "reconstruction amplitude", "learnable": false},
+      {"name": "$\\beta$", "value": "1.0", "role": "error-feedback momentum", "learnable": false}
+    ],
+    "diff_from_baseline": "Bernstein et al., 'signSGD: Compressed Optimisation for Non-Convex Problems' (ICML 2018) and 'signSGD with Majority Vote is Communication Efficient and Fault Tolerant' (ICLR 2019); error feedback follows EF-SGD literature. Highly biased; needs EF for convergence.",
+    "confidence": "high"
+  },
+  {
+    "model": "TopK Sparsification with Error Feedback",
+    "name": "TopK + Error Feedback",
+    "tagline": "Keep the K largest-magnitude gradient entries per tensor; accumulate the dropped residual into the next iteration's gradient (EF-TopK).",
+    "kind": "pseudocode",
+    "pseudocode": "1. Augment current gradient with residual: $\\bar{g}_t = g_t + e_{t-1}$\n2. Choose $K = \\max(1, \\text{numel}\\cdot\\rho)$ with $\\rho = $ compress_ratio\n3. Pick indices of top-$K$ entries by magnitude $|\\bar{g}_t|$\n4. Communicate (values, indices); reconstruct $\\hat{g}_t$ by scattering values back\n5. Update residual $e_t = \\bar{g}_t - \\hat{g}_t$ for the next round\n6. Apply $\\hat{g}_t$ in the optimizer step",
+    "key_hyperparams": [
+      {"name": "compress_ratio ($\\rho$)", "value": "0.01 (100x)", "role": "fraction of entries kept", "learnable": false},
+      {"name": "selector", "value": "magnitude top-K", "role": "biased compressor", "learnable": false},
+      {"name": "error_feedback", "value": "true", "role": "memory of dropped gradient", "learnable": false}
+    ],
+    "diff_from_baseline": "Aji & Heafield, 'Sparse Communication for Distributed Gradient Descent' (EMNLP 2017); Stich, Cordonnier & Jaggi, 'Sparsified SGD with Memory' (NeurIPS 2018); Alistarh et al., 'The Convergence of Sparsified Gradient Methods' (NeurIPS 2018). Strong sparsifier baseline; EF restores convergence under heavy sparsification.",
+    "confidence": "high"
+  }
+]

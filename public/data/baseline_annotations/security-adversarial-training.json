@@ -1,0 +1,69 @@
+[
+  {
+    "model": "AWP + TRADES",
+    "name": "AWP + TRADES",
+    "tagline": "Adversarial Weight Perturbation on top of TRADES: maximize TRADES loss in weight space, train under perturbed weights, restore.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Generate $x_{\\text{adv}}$ via TRADES PGD: maximize $\\mathrm{KL}(p_{\\text{adv}}\\,\\|\\,p_{\\text{clean}})$\n2. Copy model -> proxy; proxy SGD ascends $\\mathcal{L}_{\\text{TRADES}}$ on $(x,x_{\\text{adv}})$\n3. For each weight param $w$ with dim>1: $\\Delta = \\frac{\\lVert w\\rVert}{\\lVert w_{\\text{proxy}}-w\\rVert}\\,(w_{\\text{proxy}}-w)$\n4. Apply $w \\mathrel{+}= \\gamma\\,\\Delta$ to model (gamma=0.005)\n5. Compute TRADES loss on perturbed model, optimizer.step()\n6. Restore: $w \\mathrel{-}= \\gamma\\,\\Delta$",
+    "key_hyperparams": [
+      {"name": "beta", "value": "6.0", "role": "TRADES KL weight", "learnable": false},
+      {"name": "gamma", "value": "0.005", "role": "AWP perturbation magnitude", "learnable": false},
+      {"name": "proxy lr", "value": "0.1", "role": "proxy SGD step (paper)", "learnable": false}
+    ],
+    "diff_from_baseline": "Wu, Xia & Wang 2020 (NeurIPS) AWP + Zhang et al. 2019 (ICML) TRADES. Flatness-aware AT: smooths the weight-space loss landscape by adversarially perturbing weights, then training on the perturbed network. Top robustness on RobustBench.",
+    "confidence": "high"
+  },
+  {
+    "model": "MART",
+    "name": "MART",
+    "tagline": "Misclassification-Aware Regularized Training: boosted CE on adv + KL weighted by misclass probability.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}_{\\text{MART}} = \\mathrm{CE}(p_{\\text{adv}}, y) + \\mathrm{NLL}\\!\\big(\\log(1.0001-p_{\\text{adv}}+\\epsilon),\\;y_{\\text{runner-up}}\\big) + \\beta\\,\\mathbb{E}\\Big[(1-p_{\\text{clean}}(y))\\,\\mathrm{KL}(p_{\\text{adv}}\\,\\|\\,p_{\\text{clean}})\\Big]$$",
+    "key_hyperparams": [
+      {"name": "beta", "value": "6.0", "role": "regularization weight", "learnable": false},
+      {"name": "PGD init", "value": "0.001 * Gaussian", "role": "official MART initialization", "learnable": false},
+      {"name": "alpha", "value": "framework", "role": "PGD step size", "learnable": false}
+    ],
+    "diff_from_baseline": "Wang, Zou, Yi, Bailey, Ma & Gu 2020 (ICLR). Down-weights confidently-correct examples and emphasizes hard / misclassified ones in both the CE-on-adv and KL terms; consistently improves robustness over PGD-AT and TRADES.",
+    "confidence": "high"
+  },
+  {
+    "model": "PGD-AT",
+    "name": "PGD-AT (Madry)",
+    "tagline": "Min-max adversarial training: K-step PGD inside the loss, then plain CE on adversarial examples.",
+    "kind": "formula",
+    "formula": "$$x^{k+1} = \\Pi_{\\lVert x'-x\\rVert_\\infty\\le\\varepsilon}\\!\\left(x^k + \\alpha\\,\\mathrm{sgn}(\\nabla_{x^k}\\mathcal{L}(f(x^k),y))\\right);\\quad \\min_\\theta \\mathbb{E}\\,\\mathcal{L}_{\\mathrm{CE}}(f(x^K),y)$$",
+    "key_hyperparams": [
+      {"name": "epsilon", "value": "framework", "role": "L-inf budget", "learnable": false},
+      {"name": "attack_steps", "value": "framework", "role": "PGD iterations", "learnable": false},
+      {"name": "alpha", "value": "framework", "role": "PGD step size", "learnable": false},
+      {"name": "PGD init", "value": "uniform[-eps, eps]", "role": "random start", "learnable": false}
+    ],
+    "diff_from_baseline": "Madry, Makelov, Schmidt, Tsipras & Vladu 2018 (ICLR). The canonical adversarial training algorithm: train on PGD-generated adversarial examples; default robust-training baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "TRADES",
+    "name": "TRADES",
+    "tagline": "Decompose loss into clean CE + beta * KL(clean || adv); inner PGD maximizes the KL term.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}_{\\text{TRADES}} = \\mathrm{CE}(f(x), y) + \\beta\\,\\mathrm{KL}\\!\\big(\\mathrm{softmax}(f(x))\\,\\big\\|\\,\\mathrm{softmax}(f(x_{\\text{adv}}))\\big),\\quad x_{\\text{adv}} = \\arg\\max_{\\lVert\\delta\\rVert_\\infty\\le\\varepsilon}\\mathrm{KL}\\!\\big(f(x+\\delta)\\,\\|\\,f(x)\\big)$$",
+    "key_hyperparams": [
+      {"name": "beta", "value": "6.0", "role": "robustness/accuracy tradeoff weight", "learnable": false},
+      {"name": "attack_steps", "value": "framework", "role": "inner PGD iterations on KL", "learnable": false},
+      {"name": "PGD init", "value": "uniform[-eps, eps]", "role": "random start", "learnable": false}
+    ],
+    "diff_from_baseline": "Zhang, Yu, Jiao, Xing, El Ghaoui & Jordan 2019 (ICML). Theoretically-motivated decomposition into clean accuracy + boundary regularization via KL between clean and adversarial predictions. Standard reference baseline alongside PGD-AT.",
+    "confidence": "high"
+  },
+  {
+    "model": "Standard Training",
+    "name": "Standard (no AT)",
+    "tagline": "Plain cross-entropy training without any adversarial perturbation; clean-accuracy upper bound, robustness floor.",
+    "kind": "formula",
+    "formula": "$$\\min_\\theta\\;\\mathbb{E}_{(x,y)\\sim\\mathcal{D}}\\,\\mathrm{CE}\\!\\big(f_\\theta(x),\\,y\\big)$$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Standard ERM baseline. No adversarial defense: trains on natural inputs only. Gives the clean-accuracy upper bound and robustness floor (~0% under PGD); included as a reference point and lower bound for adversarial robustness.",
+    "confidence": "high"
+  }
+]

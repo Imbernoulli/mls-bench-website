@@ -1,0 +1,54 @@
+[
+  {
+    "model": "Activation Clustering",
+    "name": "Activation clustering",
+    "tagline": "Per-class 2-means on penultimate features; samples in the smaller (poison) cluster get high suspicion scores.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Group penultimate features $r_i$ by training label $y_i$.\n2. For each class $c$ with at least 4 samples:\n3. \\quad Run 2-means (deterministic init at indices 0 and N/2) for up to 50 iterations.\n4. \\quad Identify the smaller cluster; cache its centroid $\\bar c_{\\text{small}}$.\n5. score_samples($r$): for each $i$ with class $c$, return\n6. \\quad $s_i = 10\\cdot\\mathbf 1[i\\in\\text{small}_c] + 1/(\\|r_i - \\bar c_{\\text{small},c}\\|+10^{-8})$.\n7. Higher $s_i$ $\\Rightarrow$ more likely poisoned.",
+    "key_hyperparams": [
+      {"name": "k", "value": "2", "role": "k-means cluster count", "learnable": false},
+      {"name": "membership_score", "value": "10x", "role": "boost for small-cluster members", "learnable": false}
+    ],
+    "diff_from_baseline": "Chen et al., 'Detecting Backdoor Attacks on Deep Neural Networks by Activation Clustering' (SafeAI 2019, arXiv:1811.03728). Within the poisoned target class, trigger-bearing samples cluster separately from benign data.",
+    "confidence": "high"
+  },
+  {
+    "model": "Confidence Filter",
+    "name": "Confidence z-score",
+    "tagline": "Per (predicted) class z-score of max softmax confidence; high-confidence outliers within a class are flagged as poison.",
+    "kind": "formula",
+    "formula": "$$\\hat y_i = \\arg\\max_c p_i,\\quad m_i = \\max_c p_{i,c},\\quad s_i = \\frac{m_i - \\mu_{\\hat y_i}}{\\sigma_{\\hat y_i} + 10^{-8}}$$",
+    "key_hyperparams": [
+      {"name": "grouping", "value": "predicted class", "role": "per-class statistics", "learnable": false},
+      {"name": "feature", "value": "max softmax confidence", "role": "outlier signal", "learnable": false}
+    ],
+    "diff_from_baseline": "Heuristic confidence-outlier baseline: backdoored samples are confidently classified into the target class, so they show high z-score within their predicted class.",
+    "confidence": "high"
+  },
+  {
+    "model": "Spectral Signatures",
+    "name": "Spectral signatures",
+    "tagline": "Per-class top right-singular direction of centered features; score = squared projection of each sample.",
+    "kind": "pseudocode",
+    "pseudocode": "1. For each class $c$ (training labels): collect $R_c = \\{r_i : y_i = c\\}$.\n2. Compute $\\mu_c = \\mathrm{mean}(R_c)$ and centered matrix $\\tilde R_c = R_c - \\mu_c$.\n3. SVD: $\\tilde R_c = U\\Sigma V^{\\top}$; take top right singular vector $v_c = V_{:,1}$.\n4. score_samples($r,\\;y_{\\text{train}}$): for each $i$ with class $c$,\n5. \\quad $\\tau_i = \\bigl((r_i - \\mu_c)\\cdot v_c\\bigr)^{2}$.\n6. Use cached training labels (not argmax(logits)) to apply the per-class direction.\n7. Higher $\\tau_i$ $\\Rightarrow$ more likely poisoned.",
+    "key_hyperparams": [
+      {"name": "spectral component", "value": "top-1 right singular vector", "role": "trigger direction in feature space", "learnable": false},
+      {"name": "labeling", "value": "training labels (not predictions)", "role": "matches Tran et al. Algorithm 1", "learnable": false}
+    ],
+    "diff_from_baseline": "Tran, Li, Madry, 'Spectral Signatures in Backdoor Attacks' (NeurIPS 2018, arXiv:1811.00636). Trigger injection produces a coherent outlier direction whose squared projection separates poisoned from clean within the target class.",
+    "confidence": "high"
+  },
+  {
+    "model": "Z-Score Outlier",
+    "name": "Per-class feature z-score",
+    "tagline": "Per (training-label) class diagonal Mahalanobis-style outlier score: mean squared z over feature dimensions.",
+    "kind": "formula",
+    "formula": "$$\\mu_c, \\sigma_c \\leftarrow \\mathrm{mean}, \\mathrm{std}\\,(R_c);\\quad s_i = \\frac{1}{D}\\sum_{d=1}^{D}\\!\\left(\\frac{r_{i,d}-\\mu_{c,d}}{\\sigma_{c,d}+10^{-8}}\\right)^{\\!2}$$",
+    "key_hyperparams": [
+      {"name": "metric", "value": "diagonal squared z-score", "role": "feature outlier", "learnable": false},
+      {"name": "labeling", "value": "training labels", "role": "per-class stats applied to the same class", "learnable": false}
+    ],
+    "diff_from_baseline": "Generic activation-outlier baseline (NOT Liu et al. Fine-Pruning, RAID 2018). Within each training class, poisoned samples activating normally-dormant feature dims earn a high mean squared z-score.",
+    "confidence": "high"
+  }
+]

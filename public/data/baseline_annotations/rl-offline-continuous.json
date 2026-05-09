@@ -1,0 +1,48 @@
+[
+  {
+    "model": "IQL",
+    "name": "IQL",
+    "tagline": "Implicit Q-Learning: expectile-regressed value $V$ avoids OOD actions in the bootstrap, then advantage-weighted regression extracts the policy.",
+    "kind": "formula",
+    "formula": "$$L_V = \\mathbb{E}\\bigl[L_2^\\tau\\bigl(Q_{\\bar\\theta}(s,a)-V_\\psi(s)\\bigr)\\bigr],\\;\\; L_Q = \\mathbb{E}\\bigl[(r+\\gamma V_\\psi(s')-Q_\\theta(s,a))^2\\bigr],\\;\\; L_\\pi = \\mathbb{E}\\bigl[\\exp(\\beta\\,A)\\cdot(-\\log\\pi(a\\mid s))\\bigr]$$",
+    "key_hyperparams": [
+      {"name": "expectile $\\tau$", "value": "0.7", "role": "asymmetric L2 loss for $V$", "learnable": false},
+      {"name": "$\\beta$ (AWR)", "value": "3.0", "role": "advantage-weighted policy temperature", "learnable": false},
+      {"name": "EXP_ADV_MAX", "value": "100", "role": "clipping for $\\exp(\\beta A)$", "learnable": false},
+      {"name": "actor_lr schedule", "value": "Cosine to 1e6", "role": "decay actor LR", "learnable": false}
+    ],
+    "diff_from_baseline": "Kostrikov, Nair & Levine, 'Offline Reinforcement Learning with Implicit Q-Learning' (ICLR 2022). Avoids OOD action bootstrap by training $V$ via expectile regression on in-data $Q$, then policy is fit by advantage-weighted regression with Gaussian actor.",
+    "confidence": "high"
+  },
+  {
+    "model": "ReBRAC",
+    "name": "ReBRAC",
+    "tagline": "TD3+BC plus per-environment-tuned BC penalties on both actor and critic targets, deeper 3x256 nets with critic LayerNorm.",
+    "kind": "formula",
+    "formula": "$$\\text{critic: } y = r + \\gamma\\bigl[\\min_k Q_{\\bar\\theta_k}(s', \\tilde{a}') - \\beta_c\\,\\lVert\\tilde{a}' - a'_{\\mathrm{data}}\\rVert^2\\bigr],\\quad \\text{actor: } L_\\pi = \\mathbb{E}\\bigl[\\beta_a\\,\\lVert\\pi(s)-a\\rVert^2 - \\lambda\\,Q_{\\theta_1}(s,\\pi(s))\\bigr],\\;\\; \\lambda = 1/\\overline{|Q|}$$",
+    "key_hyperparams": [
+      {"name": "$\\beta_a, \\beta_c$", "value": "per-env tuned", "role": "actor / critic BC coefficients", "learnable": false},
+      {"name": "policy_noise", "value": "0.2", "role": "target policy smoothing", "learnable": false},
+      {"name": "policy_freq", "value": "2", "role": "delayed actor update", "learnable": false},
+      {"name": "actor", "value": "3x256, no LayerNorm", "role": "deeper than TD3+BC", "learnable": false},
+      {"name": "critic", "value": "3x256 + LayerNorm", "role": "stable Q-function", "learnable": false}
+    ],
+    "diff_from_baseline": "Tarasov et al., 'Revisiting the Minimalist Approach to Offline Reinforcement Learning' (NeurIPS 2023, ReBRAC). TD3+BC with extra BC penalty on the critic target's next action, deeper actor/critic, and critic LayerNorm; SOTA among minimalist offline RL on D4RL.",
+    "confidence": "high"
+  },
+  {
+    "model": "TD3-BC",
+    "name": "TD3+BC",
+    "tagline": "Twin-Delayed DDPG with a behavior-cloning regularizer in the actor loss, balanced by $\\lambda = \\alpha/\\overline{|Q|}$.",
+    "kind": "formula",
+    "formula": "$$L_\\pi = -\\lambda\\,\\mathbb{E}\\bigl[Q_{\\theta_1}(s,\\pi(s))\\bigr] + \\mathbb{E}\\bigl[\\lVert\\pi(s)-a\\rVert^2\\bigr],\\;\\; \\lambda = \\frac{\\alpha}{\\overline{|Q|}},\\quad y = r + \\gamma\\min_k Q_{\\bar\\theta_k}\\!\\bigl(s', \\mathrm{clip}(\\pi_{\\bar\\phi}(s')+\\epsilon)\\bigr)$$",
+    "key_hyperparams": [
+      {"name": "$\\alpha$", "value": "2.5", "role": "BC weight balance", "learnable": false},
+      {"name": "policy_noise", "value": "$0.2\\cdot a_{\\max}$", "role": "target smoothing", "learnable": false},
+      {"name": "noise_clip", "value": "$0.5\\cdot a_{\\max}$", "role": "smoothing clip", "learnable": false},
+      {"name": "policy_freq", "value": "2", "role": "delayed actor updates", "learnable": false}
+    ],
+    "diff_from_baseline": "Fujimoto & Gu, 'A Minimalist Approach to Offline Reinforcement Learning' (NeurIPS 2021). TD3 with a single BC regularization term; the canonical strong minimalist baseline on D4RL.",
+    "confidence": "high"
+  }
+]

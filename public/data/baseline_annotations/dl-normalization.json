@@ -1,0 +1,44 @@
+[
+  {
+    "model": "Batch-Instance Norm",
+    "name": "Batch-Instance Norm",
+    "tagline": "Per-channel learnable gate that interpolates between BatchNorm and InstanceNorm statistics.",
+    "kind": "formula",
+    "formula": "$$y = \\big[\\rho_c\\,\\hat{x}_{\\text{BN}} + (1 - \\rho_c)\\,\\hat{x}_{\\text{IN}}\\big]\\cdot\\gamma_c + \\beta_c, \\quad \\rho_c = \\sigma(\\tilde\\rho_c)$$",
+    "key_hyperparams": [
+      {"name": "rho_init", "value": "1.0 (logit, σ≈0.73)", "role": "initial BN/IN mixing toward BN", "learnable": true},
+      {"name": "eps", "value": "1e-5", "role": "numerical stability", "learnable": false},
+      {"name": "gamma, beta", "value": "init 1, 0", "role": "affine scale/shift", "learnable": true}
+    ],
+    "diff_from_baseline": "Nam & Kim 2018 (NeurIPS). Batch-Instance Normalization for adaptively style-invariant networks: gates BN and IN per channel; ρ→1 recovers BatchNorm, ρ→0 recovers InstanceNorm.",
+    "confidence": "high"
+  },
+  {
+    "model": "GroupNorm",
+    "name": "GroupNorm",
+    "tagline": "Splits channels into G groups and normalizes within each group; independent of batch size.",
+    "kind": "formula",
+    "formula": "$$\\hat{x}_{n,g,c,h,w} = \\frac{x_{n,g,c,h,w} - \\mu_{n,g}}{\\sqrt{\\sigma_{n,g}^2 + \\epsilon}},\\quad \\mu_{n,g}, \\sigma_{n,g}^2 \\text{ over } (C/G, H, W)$$",
+    "key_hyperparams": [
+      {"name": "num_groups", "value": "min(32, C)", "role": "channel groups", "learnable": false},
+      {"name": "eps", "value": "1e-5", "role": "numerical stability", "learnable": false},
+      {"name": "affine", "value": "true", "role": "per-channel γ, β", "learnable": true}
+    ],
+    "diff_from_baseline": "Wu & He 2018 (ECCV). Group Normalization: avoids batch dependency by normalizing within channel groups; standard fallback for small-batch CNNs.",
+    "confidence": "high"
+  },
+  {
+    "model": "Switchable Norm",
+    "name": "Switchable Norm",
+    "tagline": "Softmax-weighted convex combination of BatchNorm, InstanceNorm, and LayerNorm statistics with learnable importance weights.",
+    "kind": "formula",
+    "formula": "$$\\mu = \\sum_{k\\in\\{\\text{BN,IN,LN}\\}} w_k^{(\\mu)}\\,\\mu_k,\\quad \\sigma^2 = \\sum_k w_k^{(\\sigma)}\\,\\sigma_k^2,\\quad w^{(\\cdot)} = \\text{softmax}(\\tilde w)$$",
+    "key_hyperparams": [
+      {"name": "mean_weight", "value": "init ones (3,)", "role": "logits for {IN, LN, BN} mean mix", "learnable": true},
+      {"name": "var_weight", "value": "init ones (3,)", "role": "logits for {IN, LN, BN} variance mix", "learnable": true},
+      {"name": "gamma, beta", "value": "init 1, 0", "role": "affine scale/shift", "learnable": true}
+    ],
+    "diff_from_baseline": "Luo et al. 2019 (ICLR). Differentiable Learning-to-Normalize via Switchable Normalization: softmax-weighted mix over BN/IN/LN statistics with separately learned mean and variance weights.",
+    "confidence": "high"
+  }
+]

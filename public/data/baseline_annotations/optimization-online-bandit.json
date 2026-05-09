@@ -1,0 +1,42 @@
+[
+  {
+    "model": "KL-UCB",
+    "name": "KL-UCB",
+    "tagline": "Bernoulli KL upper-confidence bound: pull arm maximizing the largest q with N*KL(mu_hat,q) <= log t.",
+    "kind": "formula",
+    "formula": "$$U_a(t) = \\sup\\{q\\in[0,1] : N_a(t)\\,\\mathrm{KL}_{\\mathrm{Ber}}(\\hat\\mu_a, q) \\le c\\,\\log t\\},\\quad c = 1;\\qquad a_t = \\arg\\max_a U_a(t)$$",
+    "key_hyperparams": [
+      {"name": "c", "value": "1", "role": "exploration constant (theorem-tight)", "learnable": false},
+      {"name": "binary-search iters", "value": "32", "role": "fast scipy-free bound solver", "learnable": false}
+    ],
+    "diff_from_baseline": "Garivier & Cappe 2011 (COLT); Cappe, Garivier, Maillard, Munos & Stoltz 2013 (Annals of Statistics). KL-divergence-based UCB matches the Lai-Robbins lower bound for Bernoulli bandits; canonical asymptotically-optimal MAB baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "Thompson Sampling",
+    "name": "Thompson Sampling",
+    "tagline": "Beta posterior per arm for MAB; LinTS Sherman-Morrison updates for contextual; discounted Beta for non-stationary.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Init $\\alpha_a=\\beta_a=1$ for each arm; (LinTS) $B_a^{-1}=I/\\lambda$, $f_a=0$, $\\hat\\theta_a=0$\n2. select_arm(t, ctx): if ctx given, sample $\\theta_a\\sim\\mathcal{N}(\\hat\\theta_a, v^2 B_a^{-1})$ via Cholesky; pick $\\arg\\max_a \\langle ctx,\\theta_a\\rangle$\n3. else sample $s_a \\sim \\mathrm{Beta}(\\alpha_a,\\beta_a)$, pick $\\arg\\max_a s_a$\n4. update(arm, r, ctx): if ctx, Sherman-Morrison $B_a^{-1} \\mathrel{-}= \\frac{B_a^{-1}xx^\\top B_a^{-1}}{1 + x^\\top B_a^{-1}x}$, $f_a += r\\,x$, $\\hat\\theta_a = B_a^{-1}f_a$\n5. else discount: $\\alpha,\\beta \\mathrel{*}= \\gamma$ (clamped to >=1); $\\alpha_{\\text{arm}} += r$, $\\beta_{\\text{arm}} += 1-r$",
+    "key_hyperparams": [
+      {"name": "gamma (discount)", "value": "0.999", "role": "non-stationary discounting", "learnable": false},
+      {"name": "lambda (LinTS)", "value": "1.0", "role": "ridge regularization", "learnable": false},
+      {"name": "v^2 (LinTS)", "value": "0.25", "role": "posterior sampling scale", "learnable": false}
+    ],
+    "diff_from_baseline": "Thompson 1933 (Biometrika); Agrawal & Goyal 2012 (COLT) for MAB; Agrawal & Goyal 2013 (ICML) for LinTS. Bayesian probability-matching: posterior sampling per arm. Default baseline for Bernoulli/contextual bandits; near-optimal in practice.",
+    "confidence": "high"
+  },
+  {
+    "model": "UCB1",
+    "name": "UCB1",
+    "tagline": "Auer-Cesa-Bianchi-Fischer upper confidence bound: pull arm maximizing empirical mean plus exploration bonus.",
+    "kind": "formula",
+    "formula": "$$a_t = \\arg\\max_a\\;\\hat\\mu_a + \\sqrt{\\frac{2\\log(t+1)}{N_a}}$$",
+    "key_hyperparams": [
+      {"name": "exploration coef", "value": "$\\sqrt{2}$", "role": "Hoeffding-derived bonus", "learnable": false},
+      {"name": "init phase", "value": "round-robin K", "role": "play each arm once", "learnable": false}
+    ],
+    "diff_from_baseline": "Auer, Cesa-Bianchi & Fischer 2002 (Machine Learning). Foundational UCB algorithm; logarithmic regret on stationary stochastic MAB. Falls back to per-arm UCB1 for contextual settings (no context use). The implementation also maintains a sliding-window buffer (Garivier & Moulines 2011 SW-UCB) that is intentionally NOT used so vanilla UCB1 behavior is preserved.",
+    "confidence": "high"
+  }
+]

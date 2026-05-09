@@ -1,0 +1,70 @@
+[
+  {
+    "model": "PC",
+    "name": "PC (constraint-based)",
+    "tagline": "Classical constraint-based causal discovery: chi-squared CI tests on discrete data, then collider/Meek orientation.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Initialize complete undirected graph $G$ over $X_1,\\dots,X_d$\n2. Stable skeleton: for increasing $|S|$, remove edge $(i,j)$ if $\\chi^2$ test gives $X_i \\perp X_j \\mid S$ at $\\alpha = 0.05$\n3. Orient unshielded triples $i - k - j$ as colliders $i \\to k \\leftarrow j$ when $k \\notin \\text{sepset}(i,j)$\n4. Apply Meek rules to propagate edge orientations\n5. Return resulting CPDAG",
+    "key_hyperparams": [
+      {"name": "$\\alpha$", "value": "0.05", "role": "CI test significance threshold", "learnable": false},
+      {"name": "test", "value": "chisq", "role": "discrete CI test", "learnable": false},
+      {"name": "stable", "value": "true", "role": "order-independent skeleton phase", "learnable": false}
+    ],
+    "diff_from_baseline": "Spirtes, Glymour & Scheines, 'Causation, Prediction, and Search' (2000). Uses causal-learn's stable PC with chi-squared CI tests for discrete data and UC-sepset + Meek orientation. Default constraint-based reference for discrete causal discovery.",
+    "confidence": "high"
+  },
+  {
+    "model": "GES",
+    "name": "GES (score-based)",
+    "tagline": "Greedy Equivalence Search over CPDAGs using BDeu score with two phases: forward edge additions then backward deletions.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Start from empty CPDAG; cache local BDeu scores\n2. Forward Equivalence Search: greedily add the edge that maximizes the BDeu score increase\n3. Repeat until no addition improves the score\n4. Backward Equivalence Search: greedily delete the edge that maximizes the score increase\n5. Repeat until no deletion improves the score\n6. Return final CPDAG",
+    "key_hyperparams": [
+      {"name": "score", "value": "local_score_BDeu", "role": "Bayesian Dirichlet equivalent uniform score", "learnable": false},
+      {"name": "sample_prior", "value": "1.0", "role": "BDeu equivalent sample size", "learnable": false},
+      {"name": "structure_prior", "value": "1.0", "role": "edge prior strength", "learnable": false}
+    ],
+    "diff_from_baseline": "Chickering, 'Optimal structure identification with greedy search' (JMLR 2002). Two-phase greedy search in CPDAG space using BDeu (Bayesian Dirichlet equivalent uniform) score; the canonical score-based reference for discrete Bayesian network learning.",
+    "confidence": "high"
+  },
+  {
+    "model": "GRaSP",
+    "name": "GRaSP (permutation-based)",
+    "tagline": "Greedy Relaxation of the Sparsest Permutation algorithm: searches over orderings with depth-bounded DFS to find a low-score DAG.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Start from a random permutation $\\pi$ of variables\n2. For each variable, project onto $\\pi$ to get DAG with parents preceding the node\n3. Score the DAG via local BDeu and cache scores\n4. Run depth-3 DFS over swaps in $\\pi$, accepting swaps that lower total score\n5. Repeat until no admissible swap exists at any depth\n6. Convert final DAG to its CPDAG",
+    "key_hyperparams": [
+      {"name": "score", "value": "local_score_BDeu", "role": "discrete scoring function", "learnable": false},
+      {"name": "depth", "value": "3", "role": "DFS swap depth", "learnable": false}
+    ],
+    "diff_from_baseline": "Lam, Andrews & Ramsey, 'Greedy Relaxations of the Sparsest Permutation Algorithm' (UAI 2022). Permutation-based search with depth-3 DFS relaxation over orderings, using BDeu score for discrete data; achieves strong recovery on dense graphs.",
+    "confidence": "high"
+  },
+  {
+    "model": "BOSS",
+    "name": "BOSS (best-order search)",
+    "tagline": "Best Order Score Search: greedily reorders variables and uses Grow-Shrink trees to score parent sets, returning the best DAG over orderings.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Start from a random permutation $\\pi$\n2. For each variable, fit Grow-Shrink parent sets within prefix of $\\pi$ scored by BDeu\n3. Iterate over swaps and reinsertions of each node into $\\pi$ to lower total score\n4. Accept the move that maximally decreases the score\n5. Repeat until $\\pi$ is locally optimal\n6. Convert the implied DAG to its CPDAG",
+    "key_hyperparams": [
+      {"name": "score", "value": "local_score_BDeu", "role": "discrete scoring function", "learnable": false},
+      {"name": "sample_prior", "value": "1.0", "role": "BDeu equivalent sample size", "learnable": false},
+      {"name": "structure_prior", "value": "1.0", "role": "edge prior strength", "learnable": false}
+    ],
+    "diff_from_baseline": "Andrews, Ramsey, Sanchez Romero, Camchong & Velasquez, 'Fast Scalable and Accurate Discovery of DAGs Using the Best Order Score Search and Grow-Shrink Trees' (NeurIPS 2023). State-of-the-art permutation-based score search; the strongest causal-learn permutation reference.",
+    "confidence": "high"
+  },
+  {
+    "model": "Hill Climbing",
+    "name": "Hill Climbing (greedy DAG)",
+    "tagline": "Greedy DAG hill-climbing in BDeu score space using add/delete/reverse edge operators with cycle checks; convert to CPDAG at the end.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Start with empty adjacency $A$; cache $s_j = \\text{BDeu}(j, \\emptyset)$ for each node $j$\n2. For every ordered pair $(i,j)$, compute score delta of ADD / DELETE / REVERSE under DAG cycle constraint\n3. Pick the operator with the largest score improvement $\\Delta > 0$\n4. Apply it and refresh local scores for affected nodes\n5. Repeat until no admissible move improves the score\n6. Convert the learned DAG to its CPDAG via dag2cpdag",
+    "key_hyperparams": [
+      {"name": "score", "value": "local_score_BDeu", "role": "discrete scoring function", "learnable": false},
+      {"name": "operators", "value": "{add, delete, reverse}", "role": "edge moves", "learnable": false}
+    ],
+    "diff_from_baseline": "Heckerman, Geiger & Chickering, 'Learning Bayesian networks: the combination of knowledge and statistical data' (Mach. Learn. 1995). Classic greedy DAG hill-climbing with add/delete/reverse moves and BDeu score; widely used baseline that often gets stuck in local optima but is computationally cheap.",
+    "confidence": "high"
+  }
+]

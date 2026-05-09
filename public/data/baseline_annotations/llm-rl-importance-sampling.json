@@ -1,0 +1,46 @@
+[
+  {
+    "model": "First-K Tokens",
+    "name": "First-K Truncated IS",
+    "tagline": "Per-token PPO clipped objective for the first K=64 response tokens; for later positions the importance ratio is detached so it carries no gradient.",
+    "kind": "pseudocode",
+    "pseudocode": "1. $\\Delta = \\mathrm{clip}(\\log\\pi_\\theta - \\log\\pi_{\\text{old}}, -20, 20)$, $r = e^{\\Delta}$.\n2. $m_t = \\mathbb{1}[t < K]$ with $K=64$.\n3. $r_{\\text{eff}} = r\\cdot m + r.\\text{detach}()\\cdot(1-m)$.\n4. $\\ell^{(1)} = -A\\cdot r_{\\text{eff}};\\;\\; \\ell^{(2)} = -A\\cdot \\mathrm{clip}(r_{\\text{eff}}, 1-\\epsilon_l, 1+\\epsilon_h)$.\n5. $\\ell = \\max(\\ell^{(1)}, \\ell^{(2)})$ ; (optional rollout IS weights).\n6. Aggregate via `agg_loss(loss_agg_mode=\"token-mean\")`.",
+    "key_hyperparams": [
+      {"name": "K", "value": "64", "role": "prefix length with live IS gradient", "learnable": false},
+      {"name": "clip_low/high", "value": "config.clip_ratio_low/high", "role": "PPO clip bounds", "learnable": false},
+      {"name": "agg", "value": "token-mean", "role": "loss aggregation", "learnable": false}
+    ],
+    "diff_from_baseline": "Inspired by DAPO-style truncated/decoupled clipping (https://arxiv.org/abs/2503.14476). Late tokens drift the most in old-vs-new log-prob, so freezing their ratios kills the noisy IS gradient while keeping the per-token log_prob path intact for shorter responses.",
+    "confidence": "high"
+  },
+  {
+    "model": "Sequence-Level (GSPO)",
+    "name": "Sequence-Level IS (GSPO)",
+    "tagline": "One scalar importance ratio per response (masked mean of per-token log-prob differences) broadcast to every token, with PPO clipping and seq-mean-token-mean aggregation.",
+    "kind": "formula",
+    "formula": "$$s_i = \\exp\\!\\Big(\\tfrac{1}{|y_i|}\\sum_t (\\log\\pi_\\theta - \\log\\pi_{\\text{old}})_{i,t}\\Big),\\quad \\tilde{s}_{i,t} = \\exp\\!\\big(\\log\\pi_{\\theta,i,t} - \\mathrm{sg}(\\log\\pi_{\\theta,i,t}) + \\mathrm{sg}(\\log s_i)\\big)$$\n$$\\mathcal{L} = -\\mathbb{E}_{\\text{seq-mean-token-mean}}\\big[\\min(A\\,\\tilde{s},\\; A\\,\\mathrm{clip}(\\tilde{s}, 1-\\epsilon_l, 1+\\epsilon_h))\\big]$$",
+    "key_hyperparams": [
+      {"name": "ratio scope", "value": "per sequence", "role": "single s_i broadcast across tokens", "learnable": false},
+      {"name": "agg", "value": "seq-mean-token-mean", "role": "GSPO aggregation", "learnable": false},
+      {"name": "log clip", "value": "max=10.0", "role": "numerical safety", "learnable": false},
+      {"name": "straight-through", "value": "log_pi - sg(log_pi) + sg(log s)", "role": "keep per-token log-prob gradient", "learnable": false}
+    ],
+    "diff_from_baseline": "GSPO (Zheng et al. 2025, arXiv:2507.18071). Replaces per-token importance weights with one ratio per sampled sequence, dramatically reducing variance and matching the clip behavior at the response level. Implemented via a straight-through estimator so per-token log-prob gradients still flow.",
+    "confidence": "high"
+  },
+  {
+    "model": "Token-Level (Vanilla PPO)",
+    "name": "Token-Level PPO (GRPO default)",
+    "tagline": "Standard per-token PPO clipped objective with dual clip (lower bound at -A*c) and token-mean aggregation, as in vanilla GRPO actor loss.",
+    "kind": "formula",
+    "formula": "$$r_{i,t} = \\exp\\!\\big(\\log\\pi_\\theta - \\log\\pi_{\\text{old}}\\big),\\;\\; \\ell_1 = -A\\,r,\\;\\; \\ell_2 = -A\\,\\mathrm{clip}(r,1-\\epsilon_l,1+\\epsilon_h)$$\n$$\\mathcal{L} = \\mathbb{E}_{\\text{token-mean}}\\!\\Big[\\,\\mathbb{1}[A<0]\\,\\min(-Ac, \\max(\\ell_1,\\ell_2)) + \\mathbb{1}[A\\ge 0]\\,\\max(\\ell_1, \\ell_2)\\Big]$$",
+    "key_hyperparams": [
+      {"name": "clip_ratio_low/high", "value": "config.clip_ratio_low/high", "role": "asymmetric PPO bounds", "learnable": false},
+      {"name": "clip_ratio_c", "value": "3.0 (default)", "role": "dual-clip lower cap when A<0", "learnable": false},
+      {"name": "log_diff clamp", "value": "[-20, 20]", "role": "numerical safety", "learnable": false},
+      {"name": "agg", "value": "token-mean", "role": "loss aggregation", "learnable": false}
+    ],
+    "diff_from_baseline": "Schulman et al., PPO (2017). The GRPO/verl default `compute_policy_loss_vanilla`: per-token importance ratio, per-token clip with optional asymmetric bounds, and dual-clip lower limit when advantages are negative. Reference comparator for ratio-design proposals.",
+    "confidence": "high"
+  }
+]

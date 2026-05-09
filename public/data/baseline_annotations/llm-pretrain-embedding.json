@@ -1,0 +1,43 @@
+[
+  {
+    "model": "Untied Embeddings",
+    "name": "Untied Embeddings",
+    "tagline": "Decouple input token embedding from output projection: separate $W_E$ for $\\mathrm{wte}$ and $W_O$ for the LM head.",
+    "kind": "formula",
+    "formula": "$$h_0 = W_E[x] + W_P[\\mathrm{pos}],\\qquad p(\\hat{x}) = \\mathrm{softmax}\\bigl(W_O\\,h_L\\bigr),\\quad W_O \\in \\mathbb{R}^{V\\times d},\\; W_O \\neq W_E$$",
+    "key_hyperparams": [
+      {"name": "tie", "value": "false", "role": "input/output weights are NOT shared", "learnable": false},
+      {"name": "init", "value": "zeros for $W_O$", "role": "match nanoGPT muP-style init", "learnable": false}
+    ],
+    "diff_from_baseline": "Press & Wolf, 'Using the Output Embedding to Improve Language Models' (EACL 2017) (this baseline is the untied alternative). Adds a separate $V\\times d$ output projection rather than tying it to $W_E$. Common when extra parameters are acceptable; trades capacity for representation flexibility.",
+    "confidence": "high"
+  },
+  {
+    "model": "Value Embeddings",
+    "name": "Value Embeddings",
+    "tagline": "Add learned value-embedding tables that inject token-level residuals into selected transformer layers via per-layer learnable lambdas.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{VE}_i(x) = W_{V,i}[x],\\quad i \\in \\{0,\\dots,4\\},\\qquad h_\\ell \\leftarrow h_\\ell + \\lambda_\\ell\\,\\mathrm{VE}_{i(\\ell)}(x), \\quad \\ell \\in \\{1,2,L-3,L-2,L-1\\}$$",
+    "key_hyperparams": [
+      {"name": "n_ve", "value": "5", "role": "number of independent VE tables", "learnable": false},
+      {"name": "$\\lambda$ init", "value": "0.5", "role": "per-VE blend coefficient", "learnable": true},
+      {"name": "injection layers", "value": "{1, 2, L-3, L-2, L-1}", "role": "where VE residuals are added", "learnable": false}
+    ],
+    "diff_from_baseline": "Reference: KellerJordan/modded-nanogpt records #14-15 and #63. Five token-indexed value-embedding tables are looked up once and injected as residuals at early layers (1, 2) and the last three layers, scaled by per-layer learnable $\\lambda$.",
+    "confidence": "high"
+  },
+  {
+    "model": "Bigram Hash Embeddings",
+    "name": "Bigram Hash Embeddings",
+    "tagline": "Augment token + position embeddings with a hash-based bigram embedding (XOR of consecutive token IDs into a 5x table) injected at every layer.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{hash}(x_t, x_{t-1}) = (a\\,x_t \\oplus b\\,x_{t-1}) \\bmod (5V-1),\\;\\; a=36313,\\,b=27191,\\qquad h_\\ell \\leftarrow h_\\ell + \\lambda_\\ell \\, W_B[\\mathrm{hash}(x_t,x_{t-1})]$$",
+    "key_hyperparams": [
+      {"name": "bigram_vocab", "value": "$5V$", "role": "hash table size (collision reduction)", "learnable": false},
+      {"name": "$\\lambda_\\ell$ init", "value": "0.1", "role": "per-layer bigram blend", "learnable": true},
+      {"name": "init", "value": "zeros", "role": "$W_B$ initialized to zero", "learnable": false}
+    ],
+    "diff_from_baseline": "Reference: KellerJordan/modded-nanogpt record #62. XOR-hash of $(x_t, x_{t-1})$ indexes into a $5V \\times d$ bigram table that is added (with per-layer $\\lambda$) at every transformer layer; captures local context without growing the tokenizer.",
+    "confidence": "high"
+  }
+]

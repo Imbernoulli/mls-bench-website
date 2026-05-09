@@ -1,0 +1,137 @@
+[
+  {
+    "model": "DiffPool",
+    "name": "DiffPool",
+    "tagline": "Hierarchical pooling that learns a soft cluster assignment matrix to coarsen the graph into super-nodes.",
+    "kind": "hybrid",
+    "formula": "$$ S = \\mathrm{softmax}_{\\text{nodes}}(\\mathrm{MLP}(X)),\\quad X' = S^\\top X,\\quad A' = S^\\top A S $$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Node embeddings $X$"},
+        {"id": "mask", "label": "to_dense_batch + mask"},
+        {"id": "assign", "label": "MLP $\\to$ softmax assignment $S \\in \\mathbb{R}^{N\\times K}$"},
+        {"id": "pool", "label": "$X' = S^\\top X$"},
+        {"id": "mean", "label": "Mean over $K$ clusters"},
+        {"id": "out", "label": "Graph embedding"}
+      ],
+      "edges": [
+        {"from": "x", "to": "mask"},
+        {"from": "mask", "to": "assign"},
+        {"from": "assign", "to": "pool"},
+        {"from": "mask", "to": "pool"},
+        {"from": "pool", "to": "mean"},
+        {"from": "mean", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "num_clusters", "value": "25", "role": "size of coarsened graph", "learnable": false},
+      {"name": "max_nodes", "value": "150", "role": "padded dense batch length", "learnable": false}
+    ],
+    "diff_from_baseline": "Ying et al. 2018 (NeurIPS). Differentiable hierarchical pooling: a learned soft assignment matrix maps nodes to a fixed number of clusters; the coarsened graph is mean-pooled to produce the graph embedding.",
+    "confidence": "high"
+  },
+  {
+    "model": "GIN + Sum",
+    "name": "GIN JK-Sum",
+    "tagline": "Original GIN readout: sum-pool node features at each layer, batch-norm, then concatenate (Jumping Knowledge).",
+    "kind": "formula",
+    "formula": "$$ h_G = \\bigoplus_{\\ell=1}^{L} \\mathrm{BN}_\\ell\\!\\Big(\\sum_{v \\in G} h_v^{(\\ell)}\\Big) $$",
+    "key_hyperparams": [
+      {"name": "output_dim", "value": "hidden_dim * num_layers", "role": "JK concat dim", "learnable": false}
+    ],
+    "diff_from_baseline": "Xu, Hu, Leskovec & Jegelka 2019 (GIN, ICLR). Sum readout over each layer's node embeddings followed by Jumping-Knowledge concatenation, the original GIN graph-classification readout. Per-layer BatchNorm stabilizes training across folds.",
+    "confidence": "high"
+  },
+  {
+    "model": "SAGPool",
+    "name": "SAGPool (hierarchical)",
+    "tagline": "Self-attention graph pooling: score nodes via GNN attention, keep top-k twice, concat sum+mean readouts at three resolutions.",
+    "kind": "hybrid",
+    "formula": "$$ \\mathrm{score}_v = \\mathrm{GNN}(X,A)_v,\\quad \\mathrm{idx} = \\mathrm{topk}(\\mathrm{score}, \\lceil rN \\rceil) $$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Node feats $X$"},
+        {"id": "r0", "label": "Sum+Mean readout (level 0)"},
+        {"id": "p1", "label": "SAGPool ratio=0.5"},
+        {"id": "r1", "label": "Sum+Mean readout (level 1)"},
+        {"id": "p2", "label": "SAGPool ratio=0.5"},
+        {"id": "r2", "label": "Sum+Mean readout (level 2)"},
+        {"id": "concat", "label": "Concat $\\to$ Linear"}
+      ],
+      "edges": [
+        {"from": "x", "to": "r0"},
+        {"from": "x", "to": "p1"},
+        {"from": "p1", "to": "r1"},
+        {"from": "p1", "to": "p2"},
+        {"from": "p2", "to": "r2"},
+        {"from": "r0", "to": "concat"},
+        {"from": "r1", "to": "concat"},
+        {"from": "r2", "to": "concat"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "ratio", "value": "0.5", "role": "fraction of nodes kept per pool layer", "learnable": false},
+      {"name": "levels", "value": "3", "role": "original + 2 coarsenings", "learnable": false}
+    ],
+    "diff_from_baseline": "Lee, Lee & Kang 2019 (ICML). Hierarchical pooling with self-attention scores selecting the top-k informative nodes, applied here as a two-level coarsening with sum+mean readouts at each resolution.",
+    "confidence": "high"
+  },
+  {
+    "model": "gmt",
+    "name": "GMT",
+    "tagline": "Graph Multiset Transformer: pooling-by-multihead-attention with a learnable seed vector cross-attending to padded node features.",
+    "kind": "hybrid",
+    "formula": "$$ s = \\mathrm{MHA}(\\text{seed}, X, X;\\, \\text{key\\_pad}=\\neg\\text{mask}),\\; h_G = \\mathrm{LN}(s + \\mathrm{FFN}(\\mathrm{LN}(s))) $$",
+    "diagram": {
+      "nodes": [
+        {"id": "seed", "label": "Learnable seed $\\in \\mathbb{R}^{1\\times d}$"},
+        {"id": "x", "label": "Padded node feats $X$"},
+        {"id": "mha", "label": "Multi-head Attention (4 heads)"},
+        {"id": "ln1", "label": "LayerNorm + residual"},
+        {"id": "ffn", "label": "FFN (hidden_dim$\\to$2x$\\to$hidden_dim)"},
+        {"id": "ln2", "label": "LayerNorm + residual"},
+        {"id": "out", "label": "Graph embedding"}
+      ],
+      "edges": [
+        {"from": "seed", "to": "mha"},
+        {"from": "x", "to": "mha"},
+        {"from": "mha", "to": "ln1"},
+        {"from": "ln1", "to": "ffn"},
+        {"from": "ffn", "to": "ln2"},
+        {"from": "ln2", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "num_heads", "value": "4", "role": "PMA attention heads", "learnable": false},
+      {"name": "num_seeds", "value": "1", "role": "seed vectors used as queries", "learnable": false}
+    ],
+    "diff_from_baseline": "Baek, Kang & Hwang 2021 (GMT, ICLR). Set-Transformer-based readout: a learnable seed token attends to all node features, capturing multiset structure. Strong attention-based readout on molecular and bio graph datasets.",
+    "confidence": "high"
+  },
+  {
+    "model": "set2set",
+    "name": "Set2Set",
+    "tagline": "LSTM with attention iteratively reads the node set; the final query+attended-context produces a permutation-invariant pooled vector.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Initialize LSTM hidden state $q_0 = 0$\n2. for $t = 1 \\ldots T$ do (here $T=6$)\n3.   $a_{v,t} = \\mathrm{softmax}_v(q_t^\\top h_v)$ over nodes $v$ in graph\n4.   $r_t = \\sum_v a_{v,t}\\, h_v$\n5.   $q_{t+1} = \\mathrm{LSTM}([q_t, r_t])$\n6. end for\n7. Output $[q_T, r_T] \\in \\mathbb{R}^{2d}$, projected to $\\mathbb{R}^d$ by a Linear layer",
+    "key_hyperparams": [
+      {"name": "processing_steps", "value": "6", "role": "LSTM iterations", "learnable": false},
+      {"name": "output_dim", "value": "2 * hidden_dim", "role": "before linear projection", "learnable": false}
+    ],
+    "diff_from_baseline": "Vinyals, Bengio & Kudlur 2016 (ICLR). Order-invariant set readout where an LSTM repeatedly attends over node embeddings; widely used as the readout in MPNN-style molecular property predictors.",
+    "confidence": "high"
+  },
+  {
+    "model": "sortpool",
+    "name": "SortPool (DGCNN)",
+    "tagline": "Sort nodes by their last-channel activation, truncate/pad to size k, then 1D-conv over the sorted sequence.",
+    "kind": "pseudocode",
+    "pseudocode": "1. For each graph in the batch, sort node embeddings by the last channel value (WL-color proxy)\n2. Truncate or zero-pad the sorted sequence to length $k = 30$\n3. Reshape $[B, 1, k\\cdot d]$ and apply Conv1d with kernel $d$, stride $d$ to produce 16 channels of length $k$\n4. ReLU and flatten to $[B, 16k]$\n5. Linear projection to hidden_dim",
+    "key_hyperparams": [
+      {"name": "k", "value": "30", "role": "fixed sequence length after sorting", "learnable": false},
+      {"name": "conv_channels", "value": "16", "role": "1D conv output channels", "learnable": false}
+    ],
+    "diff_from_baseline": "Zhang, Cui, Neumann & Chen 2018 (DGCNN, AAAI). Sort-based readout treating sorted node embeddings as a 1D sequence and applying a CNN. Common DGCNN/SortPool reference for graph classification.",
+    "confidence": "high"
+  }
+]

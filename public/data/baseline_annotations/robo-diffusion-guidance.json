@@ -1,0 +1,80 @@
+[
+  {
+    "model": "Classifier-Free Guidance",
+    "name": "Classifier-Free Guidance",
+    "tagline": "Drops the cumulative-reward classifier and conditions the trajectory diffuser directly on a normalized return via MLPCondition with label dropout.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Same JannerUNet1d backbone over (obs, act) trajectories as the default\n2. Replace CumRewClassifier with $\\text{MLPCondition}(\\text{in}=1, \\text{out}=d_{\\text{model}})$ trained with label dropout (Ho & Salimans)\n3. Train: standard diffusion loss conditioned on normalized returns; no classifier loss\n4. Inference: $\\epsilon_\\theta = (1+w)\\epsilon_\\theta(x_t, c) - w\\,\\epsilon_\\theta(x_t, \\emptyset)$ with $w = $ task.w_cfg\n5. Set $w_{cg} = 0$, $w_{cfg}$ from config; sample one trajectory per env (no candidate re-ranking)\n6. Read first action directly from sampled trajectory: $a_t = \\mathrm{clip}(\\tau_{0, \\text{obs\\_dim:}}, -1, 1)$",
+    "key_hyperparams": [
+      {"name": "guidance type", "value": "CFG (w_cg=0)", "role": "no classifier gradient", "learnable": false},
+      {"name": "w_cfg", "value": "task.w_cfg", "role": "guidance strength", "learnable": false},
+      {"name": "label_dropout", "value": "args.label_dropout", "role": "unconditional fraction during training", "learnable": false},
+      {"name": "candidates", "value": "1 (no re-ranking)", "role": "trajectory selection", "learnable": false},
+      {"name": "backbone", "value": "JannerUNet1d, kernel=5", "role": "trajectory diffusion U-Net", "learnable": false}
+    ],
+    "diff_from_baseline": "Ho & Salimans 2022 (Classifier-Free Diffusion Guidance, arXiv:2207.12598). Minimal apples-to-apples ablation of the CG default that swaps only the guidance pathway, keeping JannerUNet1d, DiscreteDiffusionSDE, masking, and (obs+act) state space identical.",
+    "confidence": "high"
+  },
+  {
+    "model": "Decision Diffuser",
+    "name": "Decision Diffuser",
+    "tagline": "State-only diffusion with DiT1d transformer backbone, return-conditioning via MLPCondition, and an MLP inverse-dynamics model to recover actions.",
+    "kind": "hybrid",
+    "pseudocode": "1. Train DiT1d on observations only (not obs+act) with continuous-time SDE\n2. Condition on normalized return via MLPCondition with label dropout (CFG)\n3. Train inverse dynamics MLP $\\hat{a}_t = \\text{InvDyn}(s_t, s_{t+1})$ with Tanh output\n4. Inference: sample state trajectory $\\tau \\sim p_\\theta(\\tau \\,|\\, R_{\\text{target}})$ via solver with $w_{cfg}$\n5. Use $a_t = \\text{InvDyn}(\\text{obs}, \\tau_{1})$ to recover the executed action\n6. No candidate re-ranking; placeholders for logp/idx",
+    "diagram": {
+      "nodes": [
+        {"id": "ret", "label": "target return"},
+        {"id": "cond", "label": "MLPCondition (label dropout)"},
+        {"id": "dit", "label": "DiT1d (state-only)"},
+        {"id": "sde", "label": "ContinuousDiffusionSDE"},
+        {"id": "inv", "label": "MlpInvDynamic (s, s') -> a"},
+        {"id": "act", "label": "act"}
+      ],
+      "edges": [
+        {"from": "ret", "to": "cond"},
+        {"from": "cond", "to": "dit"},
+        {"from": "dit", "to": "sde"},
+        {"from": "sde", "to": "inv"},
+        {"from": "inv", "to": "act"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "backbone", "value": "DiT1d (transformer)", "role": "state-only diffuser", "learnable": false},
+      {"name": "diffusion type", "value": "ContinuousDiffusionSDE", "role": "noise_schedule=linear", "learnable": false},
+      {"name": "guidance", "value": "CFG with target return", "role": "w_cfg from task config", "learnable": false},
+      {"name": "inv dynamics", "value": "MlpInvDynamic, hidden=512, Tanh", "role": "action recovery", "learnable": false},
+      {"name": "label_dropout", "value": "args.label_dropout", "role": "CFG dropout rate", "learnable": false}
+    ],
+    "diff_from_baseline": "Ajay et al. 2022 (Is Conditional Generative Modeling all you need for Decision-Making?, arXiv:2211.15657). Full DD port: state-only diffusion + DiT1d transformer + return-conditioning via CFG + inverse-dynamics action recovery, replacing both the architecture and guidance pathway of the CG default.",
+    "confidence": "high"
+  },
+  {
+    "model": "No Guidance",
+    "name": "No Guidance",
+    "tagline": "Unconditional trajectory diffusion: trains JannerUNet1d on (obs, act) without any classifier or return condition; samples with w_cg=w_cfg=0.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Same JannerUNet1d backbone and DiscreteDiffusionSDE as the default\n2. nn_condition = None; no CumRewClassifier\n3. Train: standard diffusion objective on (obs+act) trajectories without any conditioning\n4. Inference: prior = zeros, no condition tensor\n5. Sample with $w_{cg}=0$ and $w_{cfg}=0$\n6. Take first-step action directly from $\\tau$, no re-ranking",
+    "key_hyperparams": [
+      {"name": "guidance", "value": "None (w_cg=w_cfg=0)", "role": "unconditional sampling", "learnable": false},
+      {"name": "candidates", "value": "1 (no re-ranking)", "role": "trajectory selection", "learnable": false},
+      {"name": "backbone", "value": "JannerUNet1d (obs+act)", "role": "shared with default", "learnable": false}
+    ],
+    "diff_from_baseline": "Ablation that strips all guidance from the Diffuser baseline; the reference floor that any meaningful guidance method must beat.",
+    "confidence": "high"
+  },
+  {
+    "model": "Diffuser (Classifier Guidance)",
+    "name": "Diffuser (CG default)",
+    "tagline": "Janner-style trajectory diffusion with a learned cumulative-reward classifier whose gradient guides the reverse process toward high-return trajectories.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Train JannerUNet1d as a (obs+act) trajectory diffusion model on the offline dataset\n2. Train CumRewClassifier $C_\\psi(\\tau)$ to predict cumulative reward from a noisy trajectory at level $t$\n3. At sampling step $t$, compute classifier gradient $\\nabla_{x_t} \\log C_\\psi(x_t)$\n4. Reverse step uses guided score $\\hat{\\epsilon} = \\epsilon_\\theta(x_t) - w_{cg}\\,\\sigma_t \\nabla_{x_t} \\log C_\\psi(x_t)$\n5. Optionally sample multiple candidate trajectories per env and re-rank by classifier log-probability\n6. Execute first action of selected trajectory in environment",
+    "key_hyperparams": [
+      {"name": "guidance type", "value": "Classifier Guidance", "role": "w_cg > 0, w_cfg = 0", "learnable": false},
+      {"name": "classifier", "value": "CumRewClassifier", "role": "reward predictor on noisy trajectories", "learnable": false},
+      {"name": "backbone", "value": "JannerUNet1d (obs+act), kernel=5", "role": "trajectory U-Net", "learnable": false},
+      {"name": "diffusion", "value": "DiscreteDiffusionSDE", "role": "trajectory diffusion process", "learnable": false}
+    ],
+    "diff_from_baseline": "Janner et al. 2022 (Planning with Diffusion for Flexible Behavior Synthesis, arXiv:2205.09991). The CG-style Diffuser that the task ships as the default template; uses a learned cumulative-reward classifier to steer the reverse process and optional candidate re-ranking by log-probability.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,71 @@
+[
+  {
+    "model": "PEARL Attention Context Encoder",
+    "name": "PEARL + self-attention",
+    "tagline": "MLP per-transition embedding plus a multi-head self-attention layer that lets context transitions reason about each other.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "Context (task, seq, feat)"},
+        {"id": "mlp", "label": "Per-transition MLP (hidden_sizes, ReLU)"},
+        {"id": "attn", "label": "Multi-head Self-Attn (4 heads)"},
+        {"id": "ln", "label": "LayerNorm + residual"},
+        {"id": "out", "label": "Linear -> 2*latent (per-transition)"}
+      ],
+      "edges": [
+        {"from": "in", "to": "mlp"},
+        {"from": "mlp", "to": "attn"},
+        {"from": "attn", "to": "ln"},
+        {"from": "ln", "to": "out"}
+      ]
+    },
+    "pseudocode": "1. Reshape context to (task*seq, feat) and embed each transition through hidden_sizes MLP with ReLU + fan-in init.\n2. Reshape back to (task, seq, hidden) and apply MultiheadAttention (4 heads) with self queries/keys/values.\n3. Add residual and LayerNorm: h = LN(h + Attn(h, h, h)).\n4. Final Linear maps each transition to (μ, log σ²) so the agent can still aggregate via product-of-Gaussians.",
+    "key_hyperparams": [
+      {"name": "num_heads", "value": "4", "role": "self-attention heads", "learnable": false},
+      {"name": "hidden_sizes", "value": "PEARL default (e.g., 200×3)", "role": "per-transition MLP", "learnable": false}
+    ],
+    "diff_from_baseline": "Vaswani et al., NeurIPS 2017 — Multi-head self-attention dropped into the PEARL context encoder. Lets transitions attend to each other before product-of-Gaussians aggregation.",
+    "confidence": "high"
+  },
+  {
+    "model": "PEARL MLP Context Encoder",
+    "name": "PEARL MLP encoder",
+    "tagline": "Original PEARL 3-layer MLP encoder: each transition encoded independently, agent aggregates via product-of-Gaussians.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Input transition $c_t = [s_t, a_t, r_t, s_{t+1}]$.\n2. For each FC in hidden_sizes (default 200-200-200): $h \\leftarrow \\mathrm{ReLU}(W h + b)$ with fan-in init and bias=0.1.\n3. Final FC with uniform[-3e-3,3e-3] weight init outputs preactivation $\\in \\mathbb{R}^{2|z|}$.\n4. Per-transition output is interpreted as $(\\mu, \\log\\sigma^2)$; PEARL agent aggregates over transitions via product-of-Gaussians.\n5. `reset()` is a no-op (no recurrent state).",
+    "key_hyperparams": [
+      {"name": "hidden_sizes", "value": "(200, 200, 200)", "role": "PEARL default", "learnable": false},
+      {"name": "init_w", "value": "3e-3", "role": "last-layer uniform", "learnable": false}
+    ],
+    "diff_from_baseline": "Rakelly et al., ICML 2019 — PEARL. Original PEARL context encoder: independent per-transition MLP whose Gaussian outputs are combined by product-of-Gaussians. Standard meta-RL latent-context baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "PEARL Recurrent Context Encoder",
+    "name": "PEARL recurrent (LSTM) encoder",
+    "tagline": "Per-transition MLP feeding a single-layer LSTM over the ordered context; last hidden state projected to Gaussian latent params.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "Context (task, seq, feat)"},
+        {"id": "mlp", "label": "Per-transition MLP (hidden_sizes, ReLU)"},
+        {"id": "lstm", "label": "1-layer LSTM (batch_first)"},
+        {"id": "last", "label": "Take last hidden h_T"},
+        {"id": "out", "label": "Linear -> 2*latent"}
+      ],
+      "edges": [
+        {"from": "in", "to": "mlp"},
+        {"from": "mlp", "to": "lstm"},
+        {"from": "lstm", "to": "last"},
+        {"from": "last", "to": "out"}
+      ]
+    },
+    "pseudocode": "1. Embed each transition with the same per-transition MLP as the MLP encoder.\n2. Maintain a persistent hidden state buffer of shape (1, num_tasks, hidden_dim); reset on task-count mismatch.\n3. Run a single-layer LSTM over the ordered (task, seq, hidden) context with zero cell state and the persisted hidden state.\n4. Save the final hidden state, take the last time step output, and project through `last_fc` to (μ, log σ²).",
+    "key_hyperparams": [
+      {"name": "lstm_layers", "value": "1", "role": "LSTM depth", "learnable": false},
+      {"name": "IS_RECURRENT", "value": "True", "role": "switch ordered-context sampler in oyster", "learnable": false}
+    ],
+    "diff_from_baseline": "Oyster's PEARL recurrent encoder variant (matches `rlkit.torch.networks.RecurrentEncoder`). Ordered LSTM context encoder used as a recurrent alternative to the bag-of-transitions PEARL baseline.",
+    "confidence": "high"
+  }
+]

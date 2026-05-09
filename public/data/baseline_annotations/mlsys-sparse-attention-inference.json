@@ -1,0 +1,98 @@
+[
+  {
+    "model": "BigBird",
+    "name": "BigBird (global+window+random)",
+    "tagline": "Block-sparse attention pattern combining global tokens, a local window, and per-block random keys to hit a fixed density budget.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Partition keys into blocks of $B = 64$\n2. Mark first $g = 2$ blocks as GLOBAL (attended-by and attended-to all)\n3. Add WINDOW: $|b_i - b_j| \\le w/2$ with $w = 3$ blocks (band)\n4. Pick $r$ extra RANDOM blocks per query block to fit budget: $r = \\max(0, \\mathrm{round}(0.88\\cdot\\rho\\cdot n_b) - g - w)$\n5. AND with causal mask if causal\n6. Token-level softmax-attention with $-\\infty$ on dropped pairs",
+    "key_hyperparams": [
+      {"name": "BLOCK", "value": "64", "role": "block size in tokens", "learnable": false},
+      {"name": "NUM_GLOBAL_BLOCKS", "value": "2", "role": "leading global blocks", "learnable": false},
+      {"name": "NUM_WINDOW_BLOCKS", "value": "3", "role": "band width", "learnable": false},
+      {"name": "density_budget $\\rho$", "value": "0.25", "role": "harness budget", "learnable": false}
+    ],
+    "diff_from_baseline": "Zaheer et al., NeurIPS 2020 ('Big Bird: Transformers for Longer Sequences'). Static fixed pattern that satisfies the density constraint without per-query content scoring.",
+    "confidence": "high"
+  },
+  {
+    "model": "Block Top-K",
+    "name": "Block Top-K (NSA-style)",
+    "tagline": "Score key blocks by mean-pooled q-k dot product per query block; keep the top-K block columns plus the diagonal block.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Pad N to multiple of $B$ blocks; mean-pool $q$ and $k$ per block\n2. scores $= q_{\\text{blk}} k_{\\text{blk}}^\\top \\cdot s$ (mask non-causal pairs)\n3. Solve K from causal density quadratic: $K(2n_b+1-K) = \\rho\\,n_b(n_b+1)$\n4. For each query block, pick top-(K-1) key blocks by score and force-include diagonal\n5. Expand block keep -> token-level mask, AND with causal\n6. Softmax-attend over kept positions only",
+    "key_hyperparams": [
+      {"name": "BLOCK", "value": "64", "role": "block size", "learnable": false},
+      {"name": "scoring", "value": "mean-pooled $q\\cdot k$", "role": "block importance", "learnable": false},
+      {"name": "density_budget $\\rho$", "value": "0.25", "role": "harness budget", "learnable": false},
+      {"name": "include diagonal", "value": "True", "role": "always attend to current block", "learnable": false}
+    ],
+    "diff_from_baseline": "NSA-style mean-pooled block selection; content-adaptive analogue of FlexPrefill that works without a decode-time KV cache.",
+    "confidence": "high"
+  },
+  {
+    "model": "Dense",
+    "name": "Dense oracle",
+    "tagline": "Standard dense causal attention — upper-bound quality reference; only allowed to exceed the density budget via ALLOW_DENSE_FLAG.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{Attn}(Q,K,V) = \\mathrm{softmax}\\!\\left(\\tfrac{Q K^\\top}{\\sqrt{d}}\\right) V$$",
+    "key_hyperparams": [
+      {"name": "density", "value": "1.0", "role": "no sparsification", "learnable": false},
+      {"name": "kernel", "value": "F.scaled_dot_product_attention", "role": "fused PyTorch SDPA", "learnable": false}
+    ],
+    "diff_from_baseline": "Vaswani et al. 2017 dense attention. Oracle baseline that bypasses the harness density budget for quality reference.",
+    "confidence": "high"
+  },
+  {
+    "model": "StreamingLLM",
+    "name": "StreamingLLM (sinks + window)",
+    "tagline": "Each query attends to the first num_sinks 'attention sink' tokens plus a sliding causal window of size W solved analytically from the budget.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Causal: solve $W = \\mathrm{round}(\\rho(N+1)/2) - s$ where $s$=sinks\n2. Non-causal: $W = (\\mathrm{round}(\\rho N) - s - 1)/2$\n3. Build mask = (recent-window) OR (column $< s$)\n4. AND with causal lower triangle if causal\n5. Softmax over kept positions; report measured density",
+    "key_hyperparams": [
+      {"name": "num_sinks $s$", "value": "4", "role": "leading sink tokens", "learnable": false},
+      {"name": "density_budget $\\rho$", "value": "0.25", "role": "harness budget", "learnable": false}
+    ],
+    "diff_from_baseline": "Xiao et al., ICLR 2024 ('Efficient Streaming Language Models with Attention Sinks', arXiv:2309.17453). Sinks + sliding-window pattern that recovers most dense quality on streaming inputs.",
+    "confidence": "high"
+  },
+  {
+    "model": "flexprefill",
+    "name": "FlexPrefill",
+    "tagline": "Adaptive content-aware block-sparse prefill that picks important key blocks per query block during long-context prefill.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Partition Q into query blocks; pool/representative-vector per block\n2. Score K blocks vs each Q block with low-rank approx\n3. Pick top-$\\lceil \\rho\\,n_b \\rceil$ key blocks per query block\n4. Keep diagonal + sink/causal constraints; build token mask\n5. Softmax-attend only on kept blocks",
+    "key_hyperparams": [
+      {"name": "block_size", "value": "~64-128", "role": "key/query block granularity", "learnable": false},
+      {"name": "density target", "value": "0.25", "role": "harness budget", "learnable": false}
+    ],
+    "diff_from_baseline": "Lai et al., 2024 (FlexPrefill, arXiv:2502.20766). Adaptive sparse-attention prefill; representative content-aware baseline for long-context inference.",
+    "confidence": "medium"
+  },
+  {
+    "model": "h2o",
+    "name": "H2O (heavy hitters)",
+    "tagline": "Keeps a small set of 'heavy hitter' KV positions whose accumulated attention weights are largest, plus a recent window.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Maintain running sum of attention probabilities per key position\n2. At each step, designate the top-$h$ accumulated-attention positions as heavy hitters\n3. Always attend to: heavy hitters $\\cup$ last-$w$ recent tokens\n4. AND with causal mask\n5. Compute attention only over the union",
+    "key_hyperparams": [
+      {"name": "heavy_size $h$", "value": "fraction of budget", "role": "persistent kept positions", "learnable": false},
+      {"name": "recent_size $w$", "value": "fraction of budget", "role": "sliding recency window", "learnable": false},
+      {"name": "density target", "value": "0.25", "role": "harness budget", "learnable": false}
+    ],
+    "diff_from_baseline": "Zhang et al., NeurIPS 2023 ('H2O: Heavy-Hitter Oracle for Efficient Generative Inference of LLMs', arXiv:2306.14048). Decode-time KV-eviction policy adapted to a parallel-prefill density mask.",
+    "confidence": "medium"
+  },
+  {
+    "model": "snapkv",
+    "name": "SnapKV",
+    "tagline": "Selects KV positions to keep based on the attention an observation window of recent queries pays to past keys, then attends only to the snapshot.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Pick observation window: last $w$ queries\n2. Aggregate attention scores from those queries onto all past keys\n3. Select top-$k$ key positions by aggregated score (plus a recent window)\n4. Keep the selected KV positions, drop the rest\n5. Compute attention only on the snapshot under causal mask",
+    "key_hyperparams": [
+      {"name": "obs_window", "value": "~32-64 queries", "role": "queries used to score keys", "learnable": false},
+      {"name": "kept fraction", "value": "matches budget", "role": "0.25 density target", "learnable": false}
+    ],
+    "diff_from_baseline": "Li et al., NeurIPS 2024 ('SnapKV: LLM Knows What You Are Looking for Before Generation', arXiv:2404.14469). Observation-window KV compression baseline applied here as a sparse-attention mask.",
+    "confidence": "medium"
+  }
+]

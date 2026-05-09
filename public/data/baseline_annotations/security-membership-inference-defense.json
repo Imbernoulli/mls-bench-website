@@ -1,0 +1,50 @@
+[
+  {
+    "model": "Confidence Penalty",
+    "name": "Confidence Penalty",
+    "tagline": "Cross-entropy minus a softmax-entropy bonus, which discourages overconfident outputs and reduces MIA leakage.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\mathrm{CE}(z, y) - \\beta\\,\\mathbb{E}_x\\!\\left[-\\sum_k p_\\theta(y\\!=\\!k\\mid x)\\,\\log p_\\theta(y\\!=\\!k\\mid x)\\right],\\quad \\beta = 0.1$$",
+    "key_hyperparams": [
+      {"name": "entropy_weight (beta)", "value": "0.1", "role": "entropy bonus strength", "learnable": false}
+    ],
+    "diff_from_baseline": "Pereyra et al., ICLR 2017 workshop (Regularizing Neural Networks by Penalizing Confident Output Distributions). Standard MIA-defense baseline that adds negative softmax entropy to CE; reduces confidence gap between members and non-members.",
+    "confidence": "high"
+  },
+  {
+    "model": "ERM",
+    "name": "ERM (vanilla CE)",
+    "tagline": "Standard cross-entropy training with no defense; the unprotected baseline that exposes the maximum membership-inference leakage.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\mathrm{CE}(z, y) = -\\log\\mathrm{softmax}(z)_y$$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Empirical risk minimization with cross-entropy; the no-defense baseline against which all MIA-defense methods are compared.",
+    "confidence": "high"
+  },
+  {
+    "model": "Label Smoothing",
+    "name": "Label Smoothing",
+    "tagline": "Replaces one-hot targets with (1 - eps) one-hot + eps/C, lowering output confidence and reducing membership-inference signal.",
+    "kind": "formula",
+    "formula": "$$\\tilde{y}_k = (1 - \\varepsilon)\\,\\mathbb{1}[k = y] + \\frac{\\varepsilon}{C},\\quad \\mathcal{L} = -\\sum_k \\tilde{y}_k \\log\\mathrm{softmax}(z)_k,\\quad \\varepsilon = 0.1$$",
+    "key_hyperparams": [
+      {"name": "epsilon", "value": "0.1", "role": "smoothing strength", "learnable": false}
+    ],
+    "diff_from_baseline": "Szegedy et al., CVPR 2016 (Rethinking the Inception Architecture). Standard MIA-defense baseline: soft targets reduce overconfidence on training points and shrink the confidence gap exploited by MIAs.",
+    "confidence": "high"
+  },
+  {
+    "model": "RelaxLoss",
+    "name": "RelaxLoss",
+    "tagline": "Two-phase alternation: even epochs drive batch CE toward target alpha; odd epochs do CE descent or posterior flattening on already-correct samples.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Per dataset choose $\\alpha = 0.5$ if $C=100$ else $1.0$ (config-tied target loss level)\n2. Compute $L_{\\text{ce}} = \\overline{\\mathrm{CE}(z, y)}$ and per-sample $\\ell_i$\n3. Even epoch: return $|L_{\\text{ce}} - \\alpha|$ (gradient toward target, ascent if below)\n4. Odd epoch and $L_{\\text{ce}} > \\alpha$: standard CE descent\n5. Odd epoch and $L_{\\text{ce}} \\le \\alpha$: build flattened soft targets with $p_t = \\mathrm{clip}(\\mathrm{softmax}(z)_y, \\le 1)$ on true class, $(1-p_t)/(C-1)$ elsewhere (detached)\n6. Return $\\frac{1}{N}\\sum_i \\big[(1 - \\mathbb{1}[\\hat{y}_i = y_i])\\cdot \\mathrm{CE}_{\\text{soft}, i} - \\ell_i\\big]$ (sign-flipped CE on correct samples + soft CE on wrong)",
+    "key_hyperparams": [
+      {"name": "alpha", "value": "1.0 (C=10), 0.5 (C=100)", "role": "target CE level", "learnable": false},
+      {"name": "upper", "value": "1.0", "role": "p_t clamp ceiling", "learnable": false},
+      {"name": "phase split", "value": "even / odd epoch alternation", "role": "training schedule", "learnable": false}
+    ],
+    "diff_from_baseline": "Chen et al., ICLR 2022 (RelaxLoss: Defending Membership Inference Attacks without Losing Utility). Faithful port of the official source/cifar/defense/relaxloss.py - bidirectional gradient toward a target loss level plus posterior flattening on correctly classified samples.",
+    "confidence": "high"
+  }
+]

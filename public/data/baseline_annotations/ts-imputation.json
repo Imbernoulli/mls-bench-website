@@ -1,0 +1,80 @@
+[
+  {
+    "model": "DLinear",
+    "name": "DLinear",
+    "tagline": "Decomposition-only linear forecaster: subtract a moving-average trend and learn one linear map per channel for trend and seasonal.",
+    "kind": "formula",
+    "formula": "$$ x_{\\text{trend}} = \\mathrm{AvgPool}_k(x),\\quad x_{\\text{season}} = x - x_{\\text{trend}},\\qquad \\hat{x} = W_t\\, x_{\\text{trend}} + W_s\\, x_{\\text{season}} $$",
+    "key_hyperparams": [
+      {"name": "kernel_size (decomp)", "value": "25", "role": "moving-average kernel", "learnable": false},
+      {"name": "channels", "value": "Independent linear per variable", "role": "no cross-channel mixing", "learnable": false}
+    ],
+    "diff_from_baseline": "Zeng, Chen, Zhang & Xu 2023 (AAAI). Decomposition-then-Linear baseline: trend/seasonal split via moving average, then a per-channel linear map. Surprisingly competitive on long-horizon forecasting and a standard reference for time-series tasks; here repurposed for masked imputation in Time-Series-Library.",
+    "confidence": "high"
+  },
+  {
+    "model": "PatchTST",
+    "name": "PatchTST",
+    "tagline": "Channel-independent transformer over non-overlapping patches of each univariate series with RevIN normalization.",
+    "kind": "hybrid",
+    "formula": "$$ x \\to \\text{RevIN} \\to \\text{patches } P \\in \\mathbb{R}^{N\\times L_p} \\to \\text{Transformer encoder} \\to \\text{linear head} \\to \\hat{x} $$",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "Multivariate series (channel-independent)"},
+        {"id": "rev", "label": "RevIN per-channel normalize"},
+        {"id": "patch", "label": "Patchify length L_p, stride S"},
+        {"id": "embed", "label": "Linear patch embedding + pos enc"},
+        {"id": "enc", "label": "Transformer encoder"},
+        {"id": "head", "label": "Linear head (flatten patches)"},
+        {"id": "out", "label": "Imputed series (denorm)"}
+      ],
+      "edges": [
+        {"from": "in", "to": "rev"},
+        {"from": "rev", "to": "patch"},
+        {"from": "patch", "to": "embed"},
+        {"from": "embed", "to": "enc"},
+        {"from": "enc", "to": "head"},
+        {"from": "head", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "patch_len", "value": "16 (default)", "role": "patch size", "learnable": false},
+      {"name": "stride", "value": "8 (default)", "role": "patch stride", "learnable": false},
+      {"name": "channel_independence", "value": "true", "role": "shared backbone across channels", "learnable": false}
+    ],
+    "diff_from_baseline": "Nie, Nguyen, Sinthong & Kalagnanam 2023 (ICLR). Patch-based, channel-independent transformer with RevIN; strong long-horizon forecaster used here through Time-Series-Library's imputation task hook.",
+    "confidence": "high"
+  },
+  {
+    "model": "TimesNet",
+    "name": "TimesNet",
+    "tagline": "FFT-derived top-k periods reshape the 1D series into 2D tensors; an Inception-style 2D CNN captures intra/inter-period patterns.",
+    "kind": "hybrid",
+    "formula": "$$ \\{p_1, \\ldots, p_k\\} = \\arg\\mathrm{topk}\\,|\\mathcal{F}(x)|,\\qquad x_{2D}^{(p)} \\in \\mathbb{R}^{p\\times \\lceil T/p\\rceil},\\quad \\hat{x} = \\sum_p w_p\\,\\mathrm{Inception2D}(x_{2D}^{(p)}) $$",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "Masked time series"},
+        {"id": "fft", "label": "FFT amplitude $\\to$ top-k periods"},
+        {"id": "reshape", "label": "Reshape to 2D per period $p_i$"},
+        {"id": "inception", "label": "Inception-style 2D conv block"},
+        {"id": "merge", "label": "Period-weighted sum"},
+        {"id": "stack", "label": "Stack of TimesBlocks (residual)"},
+        {"id": "out", "label": "Imputed series"}
+      ],
+      "edges": [
+        {"from": "in", "to": "fft"},
+        {"from": "fft", "to": "reshape"},
+        {"from": "reshape", "to": "inception"},
+        {"from": "inception", "to": "merge"},
+        {"from": "merge", "to": "stack"},
+        {"from": "stack", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "top_k", "value": "5 (default)", "role": "FFT periods used per block", "learnable": false},
+      {"name": "blocks", "value": "stack of TimesBlocks", "role": "residual depth", "learnable": false}
+    ],
+    "diff_from_baseline": "Wu, Hu, Liu, Zhou, Wang & Long 2023 (ICLR). General-purpose temporal 2D-variation modelling: FFT picks dominant periods, the series is folded to 2D per period, and Inception-style 2D convolutions process intra- and inter-period structure. Standard imputation baseline in Time-Series-Library.",
+    "confidence": "high"
+  }
+]

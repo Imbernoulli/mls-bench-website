@@ -1,0 +1,41 @@
+[
+  {
+    "model": "DFS with LLM Ranking",
+    "name": "DFS + LLM Ranking",
+    "tagline": "Depth-first tree search where children are scored by LLM pairwise comparison; expand best first, backtrack on failure.",
+    "kind": "pseudocode",
+    "pseudocode": "1. expand_num(now_node) := global counter, then increment\n2. if depth >= max OR pruned OR is_terminal: record terminal/give-up and return back_length\n3. for $i = 1 \\ldots$ tree_beam_size: add diversity prompt, generate one child via _step; collect into candidates\n4. if multiple candidates: scores := _rank_nodes(candidates); sort candidates by prior_score desc\n5. for cand in candidates: result := _dfs(cand)\n6. if enough terminal answers: return 10000\n7. if result > 1: now_node.make_finish(2); return result - 1\n8. return 1 (continue exploring sibling)",
+    "key_hyperparams": [
+      {"name": "tree_beam_size", "value": "framework default", "role": "children generated per node", "learnable": false},
+      {"name": "answer_count", "value": "framework default", "role": "stop after N terminal answers", "learnable": false}
+    ],
+    "diff_from_baseline": "Qin et al. 2023, ToolLLM (DFSDT with filter). Tree search where LLM ranks the candidate next actions, expanding the most promising branch first; the canonical DFS-with-filter strategy in StableToolBench.",
+    "confidence": "high"
+  },
+  {
+    "model": "DFSDT",
+    "name": "DFSDT (no ranking)",
+    "tagline": "Depth-first search with decision tree: generate one child, recurse immediately, backtrack on pruning or terminal.",
+    "kind": "pseudocode",
+    "pseudocode": "1. expand_num(now_node) := counter, then increment\n2. if depth >= max OR pruned OR is_terminal: record terminal/give-up; return back_length\n3. for $i = 1 \\ldots$ tree_beam_size:\n4.    add diversity prompt to messages, call _step(now_node) to generate one child\n5.    mark diversity message invalid afterwards\n6.    if no child, continue\n7.    result := _dfsdt(child)  // recurse depth-first immediately\n8.    if enough terminal answers: return 10000\n9.    if result > 1: return result - 1   // unwind backtrack\n10. return 1",
+    "key_hyperparams": [
+      {"name": "tree_beam_size", "value": "framework default", "role": "max children attempted per node", "learnable": false},
+      {"name": "back_length", "value": "2", "role": "levels to unwind on prune / final answer", "learnable": false}
+    ],
+    "diff_from_baseline": "Qin et al. 2023, ToolLLM. DFSDT with `with_filter=False`: explores one child at a time, no ranking step. Standard ablation against the ranked DFSDT variant.",
+    "confidence": "high"
+  },
+  {
+    "model": "Greedy Chain (CoT)",
+    "name": "Greedy Chain (CoT@1)",
+    "tagline": "Single-path greedy reasoning: keep one trajectory, no branching, no backtracking; stop on terminal/prune/budget.",
+    "kind": "pseudocode",
+    "pseudocode": "1. now_node := root_node\n2. for step in range(single_chain_max_step):\n3.    if query_count >= max_query_count: break\n4.    if enough terminal answers: break\n5.    new_leaves := _step(now_node)\n6.    if no new leaves: break\n7.    now_node := new_leaves[-1]\n8.    if terminal: status=1; record terminal_node; break\n9.    if pruned: optionally record give_up_node; break\n10. if depth >= max: mark pruned and break",
+    "key_hyperparams": [
+      {"name": "single_chain_max_step", "value": "framework default", "role": "max reasoning steps", "learnable": false},
+      {"name": "max_query_count", "value": "framework default", "role": "global LLM query budget", "learnable": false}
+    ],
+    "diff_from_baseline": "ReAct-style chain-of-thought with no search (Yao et al. 2022). Equivalent to CoT@1 in StableToolBench: minimal-cost baseline, no branching or backtracking.",
+    "confidence": "high"
+  }
+]

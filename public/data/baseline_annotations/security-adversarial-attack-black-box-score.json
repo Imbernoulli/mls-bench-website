@@ -1,0 +1,45 @@
+[
+  {
+    "model": "Random Search",
+    "name": "Random Search",
+    "tagline": "Greedy uniform-noise random search inside the L_inf ball: at each step accept a noise sample if it lowers the true-class logit.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Initialize $x_{\\text{adv}} = x$; query the true-class score $b = f(x_{\\text{adv}})_y$\n2. for $t = 1 \\ldots \\min(n_q, 64)$ do\n3.   Sample $\\delta_t \\sim \\mathrm{Unif}(-\\epsilon/2, \\epsilon/2)^d$\n4.   $x' = \\mathrm{clip}_{[0,1]}(x + \\mathrm{clip}_{[-\\epsilon,\\epsilon]}(x_{\\text{adv}} + \\delta_t - x))$\n5.   Query $s' = f(x')_y$; if $s' < b$ accept: $x_{\\text{adv}} \\leftarrow x',\\, b \\leftarrow s'$\n6. end for\n7. Return clipped $(x + \\mathrm{clip}_{[-\\epsilon,\\epsilon]}(x_{\\text{adv}} - x))$",
+    "key_hyperparams": [
+      {"name": "step", "value": "eps / 2", "role": "uniform noise half-width per query", "learnable": false},
+      {"name": "n_steps cap", "value": "64", "role": "max queries per batch", "learnable": false}
+    ],
+    "diff_from_baseline": "Andriushchenko & Hein 2019, Sect. 5 random-search baseline (and many earlier random-baselines). Greedy elementwise-uniform random noise inside the $L_\\infty$ ball with score-only acceptance; weakest reasonable score-based attack and strong sanity check.",
+    "confidence": "high"
+  },
+  {
+    "model": "SPSA",
+    "name": "SPSA",
+    "tagline": "Simultaneous Perturbation Stochastic Approximation: Bernoulli +/-1 finite-difference gradient estimates with PGD-style sign updates.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Wrap with torchattacks.SPSA: $\\delta = 0.01,\\, \\eta = 0.01,\\, n_{\\text{sample}} = 128,\\, n_{\\text{iter}} = \\lfloor n_q / (2 n_{\\text{sample}})\\rfloor$\n2. for $t = 1 \\ldots n_{\\text{iter}}$ do\n3.   Sample $u_i \\sim \\mathrm{Unif}\\{-1,+1\\}^d$ for $i = 1\\ldots n_{\\text{sample}}$\n4.   Estimate $\\hat g \\approx \\frac{1}{n_{\\text{sample}}}\\sum_i \\frac{L(x+\\delta u_i, y) - L(x-\\delta u_i, y)}{2\\delta}\\, u_i$\n5.   $x \\leftarrow x + \\eta \\cdot \\mathrm{sign}(\\hat g)$ then project to $[x_0 - \\epsilon, x_0 + \\epsilon] \\cap [0,1]$\n6. end for; return clipped $x_{\\text{adv}}$",
+    "key_hyperparams": [
+      {"name": "delta", "value": "0.01", "role": "perturbation scale for finite differences", "learnable": false},
+      {"name": "lr", "value": "0.01", "role": "step size", "learnable": false},
+      {"name": "nb_sample", "value": "128", "role": "samples per gradient estimate", "learnable": false},
+      {"name": "max_batch_size", "value": "64", "role": "internal SPSA batch", "learnable": false}
+    ],
+    "diff_from_baseline": "Uesato et al. 2018 (\"Adversarial Risk and the Dangers of Evaluating Against Weak Attacks\"); originally Spall 1992. Score-based PGD-equivalent attack using SPSA's Bernoulli +/-1 finite-difference gradient estimator; standard strong baseline against gradient-masking defenses.",
+    "confidence": "high"
+  },
+  {
+    "model": "Square Attack",
+    "name": "Square Attack",
+    "tagline": "Score-based black-box attack that flips sign on random axis-aligned square patches inside the L_inf ball with margin-loss acceptance.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Wrap torchattacks.Square: norm='Linf', $\\epsilon$ from harness, $n_{\\text{queries}} = n_q$, $p_{\\text{init}} = 0.8$, loss='margin', resc_schedule=True\n2. Initialize $x_{\\text{adv}} = x + \\epsilon \\cdot \\text{vertical-stripes}$\n3. for $t = 1 \\ldots n_q$ do\n4.   Schedule patch fraction $p_t$ from $p_{\\text{init}}$\n5.   Pick a random square of side $h_t = \\sqrt{p_t \\cdot d}$ at a random position; assign each channel $\\pm \\epsilon$\n6.   Project to $L_\\infty$ ball + $[0,1]$; query margin loss; accept if margin improves\n7. end for; return $x_{\\text{adv}}$",
+    "key_hyperparams": [
+      {"name": "p_init", "value": "0.8", "role": "initial square area fraction", "learnable": false},
+      {"name": "n_restarts", "value": "1", "role": "single random restart", "learnable": false},
+      {"name": "loss", "value": "margin", "role": "Carlini-Wagner-style margin loss", "learnable": false},
+      {"name": "resc_schedule", "value": "true", "role": "anneal patch size over queries", "learnable": false}
+    ],
+    "diff_from_baseline": "Andriushchenko, Croce, Flammarion & Hein 2020 (Square Attack, ECCV). State-of-the-art score-based $L_\\infty$ attack: random sign-flip on contiguous square regions with margin-loss acceptance and a decreasing patch-size schedule.",
+    "confidence": "high"
+  }
+]

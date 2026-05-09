@@ -1,0 +1,46 @@
+[
+  {
+    "model": "AdamW + Nesterov",
+    "name": "NAdam (AdamW + Nesterov)",
+    "tagline": "AdamW with Nesterov-style momentum lookahead in the update step (a.k.a. NAdam), implemented via torch.optim.NAdam.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Group params: 2-D tensors get weight_decay (decoupled), 1-D get 0.0\n2. For each step compute moments $m_t = \\beta_1 m_{t-1} + (1-\\beta_1) g_t,\\; v_t = \\beta_2 v_{t-1} + (1-\\beta_2) g_t^2$\n3. Bias-correct $\\hat{v}_t = v_t/(1-\\beta_2^t)$\n4. Nesterov lookahead numerator $\\tilde{m}_t = \\beta_1 \\hat{m}_{t+1} + (1-\\beta_1)\\hat{g}_t$ (PyTorch NAdam form)\n5. Update $\\theta \\gets \\theta - \\eta\\,\\tilde{m}_t/(\\sqrt{\\hat{v}_t} + \\epsilon)$\n6. Decoupled weight decay applied separately on 2-D params",
+    "key_hyperparams": [
+      {"name": "betas", "value": "(0.9, 0.95)", "role": "moment EMAs", "learnable": false},
+      {"name": "weight_decay", "value": "config (decoupled)", "role": "applied only to 2-D tensors", "learnable": false},
+      {"name": "decoupled_weight_decay", "value": "True", "role": "AdamW-style decay", "learnable": false}
+    ],
+    "diff_from_baseline": "Dozat 2016 (Incorporating Nesterov Momentum into Adam). Drop-in NAdam variant of AdamW that adds Nesterov-style lookahead to the first-moment estimate; minimal departure from the AdamW baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "Lion",
+    "name": "Lion",
+    "tagline": "Sign-based optimizer that uses only the sign of an EMA-momentum interpolation; no second moment, simpler than AdamW.",
+    "kind": "pseudocode",
+    "pseudocode": "1. State: $m_0 = 0$ per parameter\n2. For each step compute update $u_t = \\beta_1\\,m_{t-1} + (1-\\beta_1)\\,g_t$\n3. Apply decoupled weight decay $\\theta \\gets \\theta\\,(1 - \\eta\\,\\lambda)$ first\n4. Sign-based step $\\theta \\gets \\theta - \\eta\\,\\mathrm{sign}(u_t)$\n5. Update slow EMA $m_t \\gets \\beta_2\\,m_{t-1} + (1-\\beta_2)\\,g_t$\n6. LR scaled to $0.3 \\times$ base AdamW LR (Lion needs smaller step)",
+    "key_hyperparams": [
+      {"name": "betas", "value": "(0.9, 0.99)", "role": "fast/slow EMA decays", "learnable": false},
+      {"name": "lr_scale", "value": "0.3 x AdamW LR", "role": "smaller step than AdamW", "learnable": false},
+      {"name": "weight_decay", "value": "config (decoupled, before update)", "role": "AdamW-style decay", "learnable": false}
+    ],
+    "diff_from_baseline": "Chen et al. 2023 (Symbolic Discovery of Optimization Algorithms). Discovered via program search; uses sign-based updates with only a momentum buffer, often matching AdamW with less memory.",
+    "confidence": "high"
+  },
+  {
+    "model": "Muon",
+    "name": "Muon (+ AdamW)",
+    "tagline": "Newton-Schulz orthogonalized momentum on 2-D weight matrices, with AdamW handling embeddings and norm parameters.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Split params: 2-D projection weights -> Muon; embeddings (wte, wpe, lm_head), 1-D and norms -> AdamW\n2. Muon momentum buffer $b_t = \\beta\\, b_{t-1} + (1-\\beta)\\,g_t$, Nesterov $\\tilde{g} = \\beta\\,b_t + (1-\\beta)\\,g_t$\n3. Orthogonalize: 5 Newton-Schulz iterations $X \\gets aX + b(AX) + c(A(AX))$ with $A = XX^\\top$, $(a,b,c) = (3.4445, -4.7750, 2.0315)$, $X$ in bfloat16\n4. Scale step by $\\sqrt{\\max(1, m/n)}$ for shape $m\\times n$\n5. Decoupled weight decay $\\theta \\gets \\theta(1 - \\eta_M\\lambda_M)$ before Muon update; $\\theta \\gets \\theta - \\eta_M\\,\\mathrm{orth}(\\tilde{g})$\n6. AdamW step on remaining params with original LR/betas",
+    "key_hyperparams": [
+      {"name": "muon_lr", "value": "0.02", "role": "Muon base LR", "learnable": false},
+      {"name": "momentum", "value": "0.95", "role": "Muon EMA", "learnable": false},
+      {"name": "ns_steps", "value": "5", "role": "Newton-Schulz iterations", "learnable": false},
+      {"name": "muon_weight_decay", "value": "0.1", "role": "decoupled WD on 2-D", "learnable": false},
+      {"name": "CONFIG_OVERRIDES.learning_rate", "value": "1e-3", "role": "schedule scale for AdamW group", "learnable": false}
+    ],
+    "diff_from_baseline": "Jordan et al., modded-nanogpt records #3-4; Bernstein & Newhouse 2024 (Old Optimizer, New Norm). Treats matrix updates in spectral norm by orthogonalizing the momentum via 5-step Newton-Schulz; AdamW retained for embeddings/norms.",
+    "confidence": "high"
+  }
+]

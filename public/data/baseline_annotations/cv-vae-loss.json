@@ -1,0 +1,60 @@
+[
+  {
+    "model": "L1 + KL",
+    "name": "L1 + KL",
+    "tagline": "Simplest VAE loss: L1 reconstruction error plus KL divergence on the encoder posterior.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\overline{|x - \\hat{x}|} + 10^{-6}\\,\\mathrm{KL}\\!\\left(q_\\phi(z\\mid x)\\,\\|\\,\\mathcal{N}(0,I)\\right)$$",
+    "key_hyperparams": [
+      {"name": "kl_weight", "value": "1e-6", "role": "weight on KL regulariser", "learnable": false}
+    ],
+    "diff_from_baseline": "Vanilla KL-regularised AE (Kingma & Welling, ICLR 2014) with L1 (instead of L2) for sharper pixels. Standard simplest baseline for image VAE training.",
+    "confidence": "high"
+  },
+  {
+    "model": "L1 + LPIPS + KL",
+    "name": "L1 + LPIPS + KL",
+    "tagline": "L1 reconstruction plus VGG-based LPIPS perceptual loss and a small KL regulariser — standard latent-diffusion VAE recipe.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\overline{|x - \\hat{x}|} + 0.5\\,\\mathrm{LPIPS}_{\\text{VGG}}(\\hat{x}, x) + 10^{-6}\\,\\mathrm{KL}\\!\\left(q_\\phi(z\\mid x)\\,\\|\\,\\mathcal{N}(0,I)\\right)$$",
+    "key_hyperparams": [
+      {"name": "perceptual_weight", "value": "0.5", "role": "LPIPS coefficient", "learnable": false},
+      {"name": "kl_weight", "value": "1e-6", "role": "weight on KL regulariser", "learnable": false},
+      {"name": "lpips_net", "value": "vgg", "role": "frozen perceptual backbone", "learnable": false}
+    ],
+    "diff_from_baseline": "Zhang et al., CVPR 2018 — LPIPS. Standard perceptual-VAE recipe used by Stable Diffusion's first-stage AutoencoderKL.",
+    "confidence": "high"
+  },
+  {
+    "model": "vqgan",
+    "name": "VQGAN-style (LPIPS + GAN feat-match)",
+    "tagline": "L1 + LPIPS reconstruction with a PatchGAN discriminator and feature-matching loss enabled after a 5k-step warmup.",
+    "kind": "hybrid",
+    "formula": "$$\\mathcal{L} = \\overline{|x - \\hat{x}|} + 0.5\\,\\mathrm{LPIPS}(\\hat{x},x) + \\mathbb{1}[t \\geq 5000]\\,1.0\\,\\overline{\\sum_{\\ell} |D^{(\\ell)}(\\hat{x}) - D^{(\\ell)}(x)|} + 10^{-6}\\,\\mathrm{KL}$$",
+    "diagram": {
+      "nodes": [
+        {"id": "rec", "label": "L1(recon, target)"},
+        {"id": "lpips", "label": "LPIPS-VGG perceptual"},
+        {"id": "kl", "label": "KL(posterior || N(0,I))"},
+        {"id": "disc", "label": "PatchGAN spectral-norm disc."},
+        {"id": "fm", "label": "Feature-match L1 over LeakyReLU layers"},
+        {"id": "loss", "label": "Sum (FM gated by step >= 5000)"}
+      ],
+      "edges": [
+        {"from": "rec", "to": "loss"},
+        {"from": "lpips", "to": "loss"},
+        {"from": "kl", "to": "loss"},
+        {"from": "disc", "to": "fm"},
+        {"from": "fm", "to": "loss"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "perceptual_weight", "value": "0.5", "role": "LPIPS coefficient", "learnable": false},
+      {"name": "feat_match_weight", "value": "1.0", "role": "discriminator FM coefficient", "learnable": false},
+      {"name": "kl_weight", "value": "1e-6", "role": "weight on KL regulariser", "learnable": false},
+      {"name": "disc_start", "value": "5000", "role": "step at which GAN turns on", "learnable": false}
+    ],
+    "diff_from_baseline": "Esser, Rombach & Ommer, CVPR 2021 — VQGAN/Taming Transformers. Reproduces the L1+LPIPS+(feature-matching) GAN recipe used by VQ-/AutoencoderKL training, here with a spectral-norm PatchGAN discriminator and FM loss in place of the adaptive hinge term.",
+    "confidence": "high"
+  }
+]

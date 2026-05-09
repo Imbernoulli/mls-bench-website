@@ -1,0 +1,44 @@
+[
+  {
+    "model": "EWC",
+    "name": "EWC (diagonal Fisher)",
+    "tagline": "Elastic Weight Consolidation: estimate the diagonal Fisher information after each context (label-weighted squared gradients) and add a 0.5 * F * (theta-theta*)^2 penalty.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Switch model to eval; iterate up to 200 batches of size 1.\n2. For each example, compute output logits and softmax weights $p_y = \\mathrm{softmax}(\\text{out})$.\n3. For each label $y$: compute $-\\log p_y$ via cross-entropy and backprop.\n4. Accumulate $F_n \\mathrel{+}= p_y\\,(\\partial_n)^2$ for every parameter $n$.\n5. Average: $F_n \\leftarrow F_n / N$.\n6. Penalty when learning later contexts: $\\mathcal{L}_{\\text{reg}} = 0.5 \\sum_n F_n\\,(\\theta_n - \\theta_n^\\star)^2$.",
+    "key_hyperparams": [
+      {"name": "n_samples", "value": "min(|D|, 200)", "role": "Fisher estimation budget", "learnable": false},
+      {"name": "weight", "value": "softmax(p_y)", "role": "Fisher = weighted squared gradients (true Fisher)", "learnable": false},
+      {"name": "penalty coef", "value": "0.5", "role": "outer regularizer multiplier", "learnable": false}
+    ],
+    "diff_from_baseline": "Kirkpatrick et al., \"Overcoming catastrophic forgetting\" (PNAS 2017). Diagonal Fisher importance and quadratic penalty around previous-context parameters; classic regularization-based continual learner.",
+    "confidence": "high"
+  },
+  {
+    "model": "Online EWC",
+    "name": "Online EWC",
+    "tagline": "EWC with exponential decay across contexts: F_t = gamma * F_{t-1} + F_new (gamma=0.9), keeping a single running Fisher.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Set $\\gamma = 0.9$ (model.gamma).\n2. Compute fresh diagonal Fisher $F_{\\text{new}}$ exactly as in EWC (200 samples, label-weighted squared grads).\n3. Decay-and-merge: $F_n \\leftarrow \\gamma F_n^{\\text{old}} + F_{\\text{new}, n}$.\n4. Return delta $F_{\\text{new}, n} - F_n^{\\text{old}}$ so the harness's accumulator stores the new merged Fisher.\n5. Penalty: $\\mathcal{L}_{\\text{reg}} = 0.5\\,\\gamma \\sum_n F_n\\,(\\theta_n - \\theta_n^\\star)^2$.",
+    "key_hyperparams": [
+      {"name": "gamma", "value": "0.9", "role": "Fisher decay across contexts", "learnable": false},
+      {"name": "n_samples", "value": "min(|D|, 200)", "role": "per-context Fisher budget", "learnable": false},
+      {"name": "penalty coef", "value": "0.5 * gamma", "role": "outer regularizer", "learnable": false}
+    ],
+    "diff_from_baseline": "Schwarz et al., \"Progress & Compress\" (ICML 2018). Variant of EWC that maintains a single Fisher matrix, exponentially decayed and additively merged with each new context; reduces to standard EWC when gamma=1.",
+    "confidence": "high"
+  },
+  {
+    "model": "SI",
+    "name": "Synaptic Intelligence",
+    "tagline": "Synaptic Intelligence: per-step path-integral W tracks how each parameter contributes to loss reduction, then omega = W / (delta^2 + eps) drives a quadratic penalty.",
+    "kind": "formula",
+    "formula": "$$W_n^{(c)} = -\\sum_t g_{n,t}\\cdot \\Delta\\theta_{n,t}\\quad(\\text{accumulated by training-loop hook}),\\;\\; \\delta_n = \\theta_n - \\theta_n^\\star$$\n$$\\Omega_n = \\frac{W_n^{(c)}}{\\delta_n^2 + \\epsilon},\\quad \\mathcal{L}_{\\text{reg}} = \\sum_n \\Omega_n\\,(\\theta_n - \\theta_n^\\star)^2$$",
+    "key_hyperparams": [
+      {"name": "epsilon", "value": "0.1", "role": "damping in omega denominator", "learnable": false},
+      {"name": "W tracker", "value": "model._custom_W", "role": "per-step path integral updated by mid_edit hook", "learnable": false},
+      {"name": "penalty coef", "value": "1.0", "role": "no extra 1/2 factor", "learnable": false}
+    ],
+    "diff_from_baseline": "Zenke et al., \"Continual Learning Through Synaptic Intelligence\" (ICML 2017). Online importance estimate using the per-step contribution to loss reduction, normalized by squared parameter change; a path-integral alternative to Fisher-based EWC.",
+    "confidence": "high"
+  }
+]

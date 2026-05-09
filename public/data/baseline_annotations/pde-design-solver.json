@@ -1,0 +1,125 @@
+[
+  {
+    "model": "Graph U-Net",
+    "name": "Graph U-Net",
+    "tagline": "Hierarchical graph encoder-decoder with random pooling, SAGE/GAT convs, radius re-graphing, and skip connections across resolutions.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "encode features (MLP)"},
+        {"id": "d1", "label": "Down: SAGEConv + BN + ReLU"},
+        {"id": "p1", "label": "DownSample: random/topK pool + radius_graph"},
+        {"id": "d2", "label": "More down levels (L=5, channels x2)"},
+        {"id": "u1", "label": "UpSample: nearest-neighbor cluster"},
+        {"id": "u2", "label": "Concat skip + SAGEConv + BN"},
+        {"id": "out", "label": "decode -> per-point flow vars"}
+      ],
+      "edges": [
+        {"from": "in", "to": "d1"},
+        {"from": "d1", "to": "p1"},
+        {"from": "p1", "to": "d2"},
+        {"from": "d2", "to": "u1"},
+        {"from": "u1", "to": "u2"},
+        {"from": "d1", "to": "u2"},
+        {"from": "u2", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "n_hidden", "value": "16", "role": "channel width (matches paper script)", "learnable": false},
+      {"name": "scale L", "value": "5", "role": "pooling levels", "learnable": false},
+      {"name": "pool_ratio", "value": "[0.5]*5", "role": "node fraction kept per level", "learnable": false},
+      {"name": "list_r", "value": "[0.05,0.2,0.5,1,10]", "role": "radius for re-graphing", "learnable": false},
+      {"name": "layer", "value": "SAGE", "role": "graph conv type", "learnable": false}
+    ],
+    "diff_from_baseline": "Gao & Ji, ICML 2019 (Graph U-Net) adapted to industrial CFD in Neural-Solver-Library / Bonnet et al.'s AirfRANS baseline. Hierarchical pooling for unstructured meshes.",
+    "confidence": "high"
+  },
+  {
+    "model": "GraphSAGE",
+    "name": "GraphSAGE",
+    "tagline": "Stack of SAGE convolutions with batch norm and ReLU between encoder/decoder MLPs — neighborhood aggregation per layer.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "encode (MLP) fun_dim+space_dim -> n_hidden"},
+        {"id": "in1", "label": "SAGEConv in_layer + BN + ReLU"},
+        {"id": "hid", "label": "n_layers-1 x SAGEConv + BN + ReLU"},
+        {"id": "out", "label": "SAGEConv out_layer"},
+        {"id": "dec", "label": "decode (MLP) -> out_dim per node"}
+      ],
+      "edges": [
+        {"from": "in", "to": "in1"},
+        {"from": "in1", "to": "hid"},
+        {"from": "hid", "to": "out"},
+        {"from": "out", "to": "dec"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "n_hidden", "value": "128", "role": "SAGE channel width", "learnable": false},
+      {"name": "n_layers", "value": "args.n_layers", "role": "SAGE depth", "learnable": false},
+      {"name": "batch_norm", "value": "True", "role": "per-layer BN", "learnable": false}
+    ],
+    "diff_from_baseline": "Hamilton et al., NeurIPS 2017 (GraphSAGE). Standard inductive GNN baseline used in Neural-Solver-Library DesignBench scripts.",
+    "confidence": "high"
+  },
+  {
+    "model": "PointNet",
+    "name": "PointNet",
+    "tagline": "Per-point MLP feature extractor combined with a global max-pooled descriptor concatenated back to every point.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "encode coords + features"},
+        {"id": "ptmlp", "label": "in_block MLP"},
+        {"id": "g", "label": "max_block MLP -> global max-pool"},
+        {"id": "cat", "label": "concat [point feats, broadcast global]"},
+        {"id": "out_block", "label": "out_block MLP -> fcfinal -> decode"}
+      ],
+      "edges": [
+        {"from": "in", "to": "ptmlp"},
+        {"from": "ptmlp", "to": "g"},
+        {"from": "ptmlp", "to": "cat"},
+        {"from": "g", "to": "cat"},
+        {"from": "cat", "to": "out_block"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "n_hidden", "value": "16", "role": "base width (matches DesignBench script)", "learnable": false},
+      {"name": "global_dim", "value": "n_hidden*32", "role": "global descriptor width", "learnable": false},
+      {"name": "pooling", "value": "global_max_pool", "role": "permutation-invariant aggregator", "learnable": false}
+    ],
+    "diff_from_baseline": "Qi et al., CVPR 2017 (PointNet). Permutation-invariant point-cloud baseline; ignores explicit graph connectivity.",
+    "confidence": "high"
+  },
+  {
+    "model": "Transolver",
+    "name": "Transolver",
+    "tagline": "Physics-attention transformer that learns soft slice tokens over mesh points, then runs Pre-LN attention + MLP blocks over slices.",
+    "kind": "hybrid",
+    "formula": "$$\\mathrm{Transolver\\,block}(z) = z + \\mathrm{MLP}(\\mathrm{LN}(z + \\mathrm{Physics\\text{-}Attn}(\\mathrm{LN}(z))))$$",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "x (coords) + fx (features)"},
+        {"id": "pre", "label": "preprocess MLP -> hidden + placeholder"},
+        {"id": "blocks", "label": "n_layers x Transolver_block (PhysAttn + MLP)"},
+        {"id": "physattn", "label": "Physics_Attention_Irregular_Mesh(slice_num=32)"},
+        {"id": "out", "label": "last block: LN + Linear -> out_dim"}
+      ],
+      "edges": [
+        {"from": "in", "to": "pre"},
+        {"from": "pre", "to": "blocks"},
+        {"from": "blocks", "to": "physattn"},
+        {"from": "physattn", "to": "blocks"},
+        {"from": "blocks", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "n_hidden", "value": "256", "role": "embedding/attn width", "learnable": false},
+      {"name": "slice_num", "value": "32", "role": "physics-attention slice tokens", "learnable": false},
+      {"name": "n_heads", "value": "args.n_heads", "role": "attention heads", "learnable": false},
+      {"name": "geotype", "value": "unstructured (default)", "role": "selects irregular-mesh attention", "learnable": false}
+    ],
+    "diff_from_baseline": "Wu et al., ICML 2024 (Transolver). State-of-the-art physics-aware transformer for PDE solving on unstructured meshes; default reference in Neural-Solver-Library.",
+    "confidence": "high"
+  }
+]

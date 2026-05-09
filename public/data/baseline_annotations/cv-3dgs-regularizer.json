@@ -1,0 +1,40 @@
+[
+  {
+    "model": "Effective-rank + scale/opacity L1",
+    "name": "erank + scale/opacity L1",
+    "tagline": "Compactness L1 always on, plus an effective-rank log-barrier (warmup at 7k steps) to suppress needle-floater Gaussians.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}_{reg} = 10^{-2}\\,\\overline{|\\exp(s)|} + 10^{-2}\\,\\overline{|\\sigma(o)|} + \\mathbb{1}[t \\geq 7000]\\,10^{-2}\\!\\left(\\overline{\\max(0,-\\log(\\mathrm{erank}-1+\\varepsilon))} + \\overline{s_{\\min}}\\right)$$",
+    "key_hyperparams": [
+      {"name": "scale_reg", "value": "1e-2", "role": "L1 on exp(scales)", "learnable": false},
+      {"name": "opacity_reg", "value": "1e-2", "role": "L1 on sigmoid(opacities)", "learnable": false},
+      {"name": "erank_reg", "value": "1e-2", "role": "log-barrier weight after warmup", "learnable": false},
+      {"name": "erank_warmup", "value": "7000", "role": "step at which barrier turns on", "learnable": false}
+    ],
+    "diff_from_baseline": "Combines 3DGS-MCMC scale/opacity L1 with the effective-rank log-barrier of Hyung et al., NeurIPS 2024 (arXiv:2406.11672). Pushes effective rank ≥ 2 (planar Gaussians), suppressing needle-shaped floaters while preserving compactness.",
+    "confidence": "high"
+  },
+  {
+    "model": "No regularization",
+    "name": "No regularization",
+    "tagline": "Lower bound: only the photometric (0.8 L1 + 0.2 SSIM) loss supervises 3DGS — regularizer returns zero.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}_{reg}(\\theta, t, s) = 0$$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Trivial baseline: photometric loss alone, no shape/opacity penalty. Sets the floor any meaningful regularizer must beat.",
+    "confidence": "high"
+  },
+  {
+    "model": "Scale + opacity L1",
+    "name": "Scale + opacity L1",
+    "tagline": "gsplat's default L1 penalty on per-Gaussian scale and opacity to encourage compactness and sparsity.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}_{reg} = 10^{-2}\\,\\frac{1}{N}\\sum_i |\\exp(s_i)| + 10^{-2}\\,\\frac{1}{N}\\sum_i |\\sigma(o_i)|$$",
+    "key_hyperparams": [
+      {"name": "SCALE_REG", "value": "1e-2", "role": "L1 on exp(scales)", "learnable": false},
+      {"name": "OPACITY_REG", "value": "1e-2", "role": "L1 on sigmoid(opacities)", "learnable": false}
+    ],
+    "diff_from_baseline": "gsplat default regularizer (`opacity_reg`, `scale_reg`, coefficient 0.01 each). Encourages smaller Gaussians (limits floaters) and sparse opacity (prunable background); also matches the 3DGS-MCMC compactness penalty (Kheradmand et al., NeurIPS 2024).",
+    "confidence": "high"
+  }
+]

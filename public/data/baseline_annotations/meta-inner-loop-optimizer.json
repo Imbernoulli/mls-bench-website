@@ -1,0 +1,41 @@
+[
+  {
+    "model": "ANIL",
+    "name": "ANIL",
+    "tagline": "Almost No Inner Loop: SGD adapts only the classifier head; backbone frozen during inner loop.",
+    "kind": "pseudocode",
+    "pseudocode": "1. At init, identify head parameters by name ('classifier').\n2. Per inner step on the support set:\n3. \\quad Re-resolve head params (l2l update_module replaces parameter ids).\n4. \\quad Compute loss $L_S$, take grads only w.r.t. head params (create_graph=True).\n5. \\quad Build update list: $-\\eta\\,\\nabla_{\\theta_h}L_S$ for head, zero for backbone.\n6. \\quad $\\theta \\leftarrow \\text{update\\_module}(\\theta, \\text{updates})$.\n7. Outer loop trains $\\theta_0$ via second-order MAML through head-only inner steps.",
+    "key_hyperparams": [
+      {"name": "inner_lr", "value": "INNER_LR", "role": "fixed head LR", "learnable": false},
+      {"name": "adapted_params", "value": "head only (classifier.*)", "role": "frozen backbone", "learnable": false}
+    ],
+    "diff_from_baseline": "Raghu et al., 'Rapid Learning or Feature Reuse? Towards Understanding the Effectiveness of MAML' (ICLR 2020). Tests the feature-reuse hypothesis by collapsing MAML's inner loop to just the head.",
+    "confidence": "high"
+  },
+  {
+    "model": "MAML",
+    "name": "MAML",
+    "tagline": "Vanilla second-order MAML: inner-loop SGD with a fixed learning rate over all parameters.",
+    "kind": "formula",
+    "formula": "$$\\theta'_T = \\theta - \\eta\\sum_{t=1}^{n}\\,\\nabla_{\\theta}L_S(\\theta_{t-1});\\quad \\eta = 0.01\\;(\\text{1-shot}),\\;0.5\\;(\\text{5-shot})$$",
+    "key_hyperparams": [
+      {"name": "inner_lr", "value": "0.01 (1-shot) / 0.5 (5-shot)", "role": "fixed inner SGD step", "learnable": false},
+      {"name": "create_graph", "value": "True", "role": "second-order MAML", "learnable": false}
+    ],
+    "diff_from_baseline": "Finn, Abbeel, Levine, 'Model-Agnostic Meta-Learning' (ICML 2017). Default reference for gradient-based meta-learning; full-network adaptation via second-order outer-loop differentiation.",
+    "confidence": "high"
+  },
+  {
+    "model": "Meta-SGD",
+    "name": "Meta-SGD",
+    "tagline": "MAML with a learnable per-parameter learning-rate vector that the outer loop optimizes.",
+    "kind": "formula",
+    "formula": "$$\\theta_{t} = \\theta_{t-1} - \\alpha \\odot \\nabla_{\\theta}L_S(\\theta_{t-1}),\\quad \\alpha\\in\\mathbb R^{|\\theta|}\\;\\text{meta-learned},\\;\\alpha_0=\\eta\\,\\mathbf 1$$",
+    "key_hyperparams": [
+      {"name": "alpha (init)", "value": "INNER_LR", "role": "init of per-param LR", "learnable": true},
+      {"name": "alpha shape", "value": "matches each param", "role": "per-element learnable LR", "learnable": true}
+    ],
+    "diff_from_baseline": "Li, Zhou, Chen, Li, 'Meta-SGD: Learning to Learn Quickly for Few-Shot Learning' (2017, arXiv:1707.09835). Adds a meta-learned LR vector; can absorb both step size and (sign of) update direction per parameter.",
+    "confidence": "high"
+  }
+]

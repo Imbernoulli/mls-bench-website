@@ -1,0 +1,48 @@
+[
+  {
+    "model": "AWAC",
+    "name": "AWAC",
+    "tagline": "Advantage-Weighted Actor-Critic: TD3-style twin critic + advantage-weighted log-likelihood regression on the actor; same update offline and online.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Sample batch $(s, a, r, s', d)$ from offline+online replay\n2. Critic update: $q_{\\text{tgt}} = r + \\gamma(1-d)\\,\\min(Q_1', Q_2')(s', \\pi(s'))$; minimize $\\mathrm{MSE}(Q_i, q_{\\text{tgt}})$ for $i=1,2$ with separate optimizers\n3. Compute advantage $A = \\min(Q_1, Q_2)(s,a) - \\min(Q_1, Q_2)(s,\\pi(s))$\n4. Importance weight $w = \\min(\\exp(A/\\lambda),\\, w_{\\max})$ with $\\lambda = 0.1,\\, w_{\\max}=100$\n5. Actor loss: $-\\mathbb{E}\\,[w\\cdot \\log \\pi(a|s)]$\n6. Soft-update target critics; same loop is used in offline and online phases",
+    "key_hyperparams": [
+      {"name": "awac_lambda", "value": "0.1", "role": "advantage temperature", "learnable": false},
+      {"name": "exp_adv_max", "value": "100.0", "role": "weight clip", "learnable": false},
+      {"name": "actor / critic hidden", "value": "3 x 256", "role": "MLP width and depth", "learnable": false},
+      {"name": "policy", "value": "Gaussian, state-indep log_std", "role": "Normal (no Tanh transform)", "learnable": false}
+    ],
+    "diff_from_baseline": "Nair, Gupta, Dalal & Levine 2020 (AWAC). Off-policy actor-critic with advantage-weighted maximum likelihood that requires no modification at the offline-to-online transition; reference CORL implementation.",
+    "confidence": "high"
+  },
+  {
+    "model": "IQL",
+    "name": "IQL",
+    "tagline": "Implicit Q-Learning: expectile regression for V, standard Bellman backup for Q, and AWR-style exponential-advantage policy update.",
+    "kind": "pseudocode",
+    "pseudocode": "1. V loss (asymmetric L2): $L_V = \\mathbb{E}\\,[\\,|\\tau - \\mathbb{1}(A < 0)|\\,A^2\\,]$ with $\\tau = 0.8,\\, A = Q_{\\text{tgt}}(s,a) - V(s)$\n2. Twin Q loss: $L_Q = \\mathrm{MSE}(Q_i(s,a),\\, r + \\gamma(1-d) V(s'))$ for $i=1,2$\n3. Actor loss (AWR): $L_\\pi = -\\mathbb{E}\\,[\\min(\\exp(\\beta A), 100)\\,\\log\\pi(a|s)]$ with $\\beta = 3.0$\n4. Soft-update target Q; cosine-anneal actor LR over $10^6$ steps\n5. Same update is used offline and online (no transition logic)",
+    "key_hyperparams": [
+      {"name": "iql_tau", "value": "0.8", "role": "expectile for V", "learnable": false},
+      {"name": "beta", "value": "3.0", "role": "advantage temperature", "learnable": false},
+      {"name": "exp_adv_max", "value": "100.0", "role": "AWR weight clip", "learnable": false},
+      {"name": "lr schedule", "value": "CosineAnnealingLR", "role": "actor only, T_max=1e6", "learnable": false}
+    ],
+    "diff_from_baseline": "Kostrikov, Nair & Levine 2022 (ICLR). Offline RL via implicit value learning that never queries the policy at unseen actions, then advantage-weighted regression for the policy; common offline-to-online baseline used unchanged across both phases.",
+    "confidence": "high"
+  },
+  {
+    "model": "SPOT",
+    "name": "SPOT",
+    "tagline": "TD3 + VAE support constraint: actor maximizes normalized Q minus the VAE ELBO of $(s,a)$; lambda cools online.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Pretrain a VAE on offline $(s,a)$ for 100k iters; encode $\\beta(a|s)$ as the negative ELBO\n2. Twin critic update with target-policy smoothing: $\\tilde{a}' = \\pi'(s') + \\mathrm{clip}(\\mathcal{N}(0, \\sigma_p), -c, c)$\n3. $q_{\\text{tgt}} = r + \\gamma(1-d) \\min(Q_1'(s', \\tilde{a}'), Q_2'(s', \\tilde{a}'))$, MSE losses\n4. Every 2 steps update actor: $L_\\pi = -\\frac{1}{|Q|.\\mathrm{mean}}\\,Q(s,\\pi(s)) + \\lambda \\cdot \\mathrm{neg\\_log\\_beta}(s,\\pi(s))$\n5. During online phase, linearly cool $\\lambda \\to \\lambda_{\\text{end}}=0.5$ to relax the support constraint",
+    "key_hyperparams": [
+      {"name": "lambda (init)", "value": "1.0", "role": "support-constraint strength", "learnable": false},
+      {"name": "lambda_end", "value": "0.5", "role": "cooled online value", "learnable": false},
+      {"name": "policy_noise / clip", "value": "0.2 / 0.5 (x max_action)", "role": "TD3 target smoothing", "learnable": false},
+      {"name": "policy_freq", "value": "2", "role": "delayed actor updates", "learnable": false},
+      {"name": "vae_iterations", "value": "100,000", "role": "VAE pretraining steps", "learnable": false}
+    ],
+    "diff_from_baseline": "Wu, Zhai, Hu, Vinyals & Schulman 2022 (SPOT). Support-constrained policy optimization that learns a VAE density on offline data and adds its negative log to the actor loss; lambda cooling enables relaxation during online fine-tuning.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,35 @@
+[
+  {
+    "model": "Avg + Max",
+    "name": "Avg + Max Pool",
+    "tagline": "Element-wise mean of global average pooling and global max pooling — combines mean and peak channel statistics.",
+    "kind": "formula",
+    "formula": "$$y_c = \\tfrac{1}{2}\\left(\\tfrac{1}{HW}\\sum_{h,w} x_{c,h,w} + \\max_{h,w} x_{c,h,w}\\right)$$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Common practice in image retrieval and classification (e.g., used as an ablation in fastai and image-retrieval literature). Combines the two cheapest summary statistics; no learned parameters.",
+    "confidence": "high"
+  },
+  {
+    "model": "GeM",
+    "name": "GeM (Generalized Mean)",
+    "tagline": "Learnable generalized mean pooling with exponent p; interpolates between average (p=1) and max (p->inf).",
+    "kind": "formula",
+    "formula": "$$y_c = \\left(\\tfrac{1}{HW}\\sum_{h,w} \\max(x_{c,h,w},\\epsilon)^{p}\\right)^{1/p},\\qquad p = \\max(p_{\\text{learn}}, 1.0),\\quad p_{\\text{init}} = 3.0$$",
+    "key_hyperparams": [
+      {"name": "p", "value": "3.0 (init)", "role": "generalized-mean exponent", "learnable": true},
+      {"name": "epsilon", "value": "1e-6", "role": "stability for power", "learnable": false}
+    ],
+    "diff_from_baseline": "Radenovic, Tolias & Chum 2018 (TPAMI). Standard pooling head in image retrieval (CGD, NetVLAD-style retrieval). Single learned scalar interpolates between mean and max pooling.",
+    "confidence": "high"
+  },
+  {
+    "model": "Global Max",
+    "name": "Global Max Pool",
+    "tagline": "Adaptive max pooling: pick the maximum activation per channel across all spatial positions.",
+    "kind": "formula",
+    "formula": "$$y_c = \\max_{h,w} x_{c,h,w}$$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Standard practice in fine-grained recognition and retrieval; selects the most salient feature per channel. Common alternative to global average pooling, especially when locality matters.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,53 @@
+[
+  {
+    "model": "Identity (no normalization)",
+    "name": "Identity",
+    "tagline": "Pass-through ablation: no normalization applied to the TD-MPC2 latent representations.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{Identity}(x) = x$$",
+    "key_hyperparams": [
+      {"name": "dim", "value": "simnorm_dim", "role": "carried for API compat only", "learnable": false}
+    ],
+    "diff_from_baseline": "Ablation: removes the latent normalization to quantify how much SimNorm contributes versus an unnormalized world-model latent.",
+    "confidence": "high"
+  },
+  {
+    "model": "L2 normalization",
+    "name": "L2 Normalization",
+    "tagline": "Project the entire latent vector onto the unit hypersphere with a single learnable scale.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{L2Norm}(x) = \\gamma \\cdot \\frac{x}{\\max(\\|x\\|_2, \\varepsilon)}, \\quad \\gamma \\in \\mathbb{R} \\text{ learnable}, \\ \\varepsilon = 10^{-8}$$",
+    "key_hyperparams": [
+      {"name": "γ", "value": "1.0 init", "role": "learnable scalar scale", "learnable": true},
+      {"name": "ε", "value": "1e-8", "role": "denominator floor", "learnable": false}
+    ],
+    "diff_from_baseline": "Hypersphere normalization preserving angular relationships between latent vectors. Common alternative to simplex/RMS schemes; used in metric-learning style representations.",
+    "confidence": "high"
+  },
+  {
+    "model": "RMSNorm",
+    "name": "Group RMSNorm",
+    "tagline": "Group-wise root-mean-square normalization with learnable per-element gain (Zhang & Sennrich 2019).",
+    "kind": "formula",
+    "formula": "$$\\text{Reshape: } x \\in \\mathbb{R}^{... \\times d} \\to \\mathbb{R}^{... \\times G \\times d_g} \\\\ \\mathrm{RMSNorm}(x_g) = \\frac{x_g}{\\sqrt{\\frac{1}{d_g}\\sum_j x_{g,j}^2 + \\varepsilon}} \\odot \\gamma, \\quad \\gamma \\in \\mathbb{R}^{d_g}$$",
+    "key_hyperparams": [
+      {"name": "d_g", "value": "simnorm_dim", "role": "group size", "learnable": false},
+      {"name": "γ", "value": "ones init", "role": "per-element gain", "learnable": true},
+      {"name": "ε", "value": "1e-8", "role": "denominator stabilizer", "learnable": false}
+    ],
+    "diff_from_baseline": "Zhang & Sennrich 2019 (NeurIPS) — \"Root Mean Square Layer Normalization\". Same group structure as SimNorm but RMS-normalize each group instead of softmax (no simplex constraint).",
+    "confidence": "high"
+  },
+  {
+    "model": "SimNorm",
+    "name": "SimNorm",
+    "tagline": "Simplicial normalization (TD-MPC2 default): reshape latent into groups and apply softmax within each group.",
+    "kind": "formula",
+    "formula": "$$\\text{Reshape: } x \\in \\mathbb{R}^{... \\times d} \\to \\mathbb{R}^{... \\times G \\times d_g} \\\\ \\mathrm{SimNorm}(x_g)_j = \\frac{\\exp(x_{g,j})}{\\sum_{k=1}^{d_g} \\exp(x_{g,k})}, \\quad \\sum_j \\mathrm{SimNorm}(x_g)_j = 1$$",
+    "key_hyperparams": [
+      {"name": "d_g", "value": "simnorm_dim", "role": "group size (simplex dimension)", "learnable": false}
+    ],
+    "diff_from_baseline": "Hansen, Su, Wang 2024 (ICLR) — TD-MPC2. Default simplicial normalization that constrains latent groups to a product of probability simplices, providing implicit categorical structure for the world-model latent.",
+    "confidence": "high"
+  }
+]

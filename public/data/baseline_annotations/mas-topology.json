@@ -1,0 +1,38 @@
+[
+  {
+    "model": "Chain",
+    "name": "Chain (sequential)",
+    "tagline": "Linear pipeline 0 -> 1 -> 2 -> ... -> N-1: each agent revises the predecessor's solution. Maximum depth, zero parallelism.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Initialize edges = [].\n2. For i in 0..N-2:\n3.    edges.append((i, i+1)).\n4. Return edges.\n// Depth $O(N)$, edges $O(N)$. Deep iterative refinement; no diversity branch.",
+    "key_hyperparams": [
+      {"name": "N", "value": "4", "role": "agent count (task-fixed)", "learnable": false}
+    ],
+    "diff_from_baseline": "MacNet-style chain topology (Qian et al., 'Scaling Large-Language-Model-based Multi-Agent Collaboration', 2024). Sequential refinement reference design; the rigorous-codebase default.",
+    "confidence": "high"
+  },
+  {
+    "model": "Layered",
+    "name": "Layered (MLP-like)",
+    "tagline": "Splits N agents into $L=\\max(2,\\log_2 N)$ layers, fully connecting adjacent layers; balances depth (refinement) with width (parallel diversity).",
+    "kind": "pseudocode",
+    "pseudocode": "1. layer_num = max(2, $\\lfloor\\log_2 N\\rfloor$); layers = [N // layer_num] * layer_num; layers[0] += N % layer_num.\n2. Compute start/end ids for each layer.\n3. For l in 0..len(layers)-2:\n4.    For each u in layer l, for each v in layer l+1: edges.append((u, v)).\n5. Return edges.",
+    "key_hyperparams": [
+      {"name": "layer_num", "value": "max(2, log2(N))", "role": "number of layers", "learnable": false}
+    ],
+    "diff_from_baseline": "MacNet-style layered/MLP topology (Qian et al. 2024). Reference design that interpolates between chain and star by stacking width.",
+    "confidence": "high"
+  },
+  {
+    "model": "Star",
+    "name": "Star (hub-and-spoke)",
+    "tagline": "Single source agent broadcasts to all others; each spoke independently produces a candidate answer. Depth O(1), maximum parallelism.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Initialize edges = [].\n2. For i in 1..N-1:\n3.    edges.append((0, i)).\n4. Return edges.\n// Depth $O(1)$, edges $O(N)$. Pure exploration; no iterative refinement chain.",
+    "key_hyperparams": [
+      {"name": "hub", "value": "node 0", "role": "broadcast source", "learnable": false}
+    ],
+    "diff_from_baseline": "MacNet-style star topology (Qian et al. 2024). Reference design emphasizing parallel diverse generation over iterative refinement.",
+    "confidence": "high"
+  }
+]

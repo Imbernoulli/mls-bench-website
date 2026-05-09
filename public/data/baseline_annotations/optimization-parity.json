@@ -1,0 +1,44 @@
+[
+  {
+    "model": "Default",
+    "name": "Default (one-pass + AdamW)",
+    "tagline": "Maximum random binary dataset (one-pass training under fixed step budget) with Xavier init and standard AdamW (lr=1e-3, wd=1e-2).",
+    "kind": "pseudocode",
+    "pseudocode": "1. `init_model`: for each Linear, Xavier-uniform with gain `calculate_gain('relu')` for the first layer (gain 1 elsewhere); biases zeroed.\n2. `make_dataset`: draw $X \\in \\{0,1\\}^{N \\times n}$ with $N = $ `config.max_train_examples` and label $y = \\bigoplus_{i \\in S} x_i$ via `parity_labels`.\n3. `get_optimizer_config`: AdamW with lr=1e-3, weight_decay=1e-2, $\\beta_1$=0.9, $\\beta_2$=0.999.\n4. Returned dataset is large enough that training under the fixed step budget is essentially one-pass over fresh samples.",
+    "key_hyperparams": [
+      {"name": "lr", "value": "1e-3", "role": "AdamW learning rate", "learnable": false},
+      {"name": "weight_decay", "value": "1e-2", "role": "AdamW decoupled L2", "learnable": false},
+      {"name": "init", "value": "Xavier uniform (gain=ReLU)", "role": "first-layer scale", "learnable": false},
+      {"name": "dataset_size", "value": "max_train_examples", "role": "one-pass regime", "learnable": false}
+    ],
+    "diff_from_baseline": "Naive AdamW + Xavier-init reference for sparse parity (Loshchilov & Hutter, ICLR 2019 — AdamW). Maximum-size random dataset means each batch is fresh; sets the unmodified reference for the parity benchmark.",
+    "confidence": "high"
+  },
+  {
+    "model": "Multi-Epoch",
+    "name": "Multi-Epoch (small dataset)",
+    "tagline": "Same Xavier init and AdamW defaults, but a much smaller (10k) dataset so training repeatedly cycles over the same examples.",
+    "kind": "pseudocode",
+    "pseudocode": "1. `init_model`: identical to Default — Xavier-uniform Linear weights, zero biases, ReLU gain on first layer.\n2. `make_dataset`: draw $X \\in \\{0,1\\}^{N \\times n}$ with $N = \\min(10000, $ max_train_examples$)$ and label by `parity_labels`.\n3. `get_optimizer_config`: AdamW lr=1e-3, weight_decay=1e-2, $\\beta_1$=0.9, $\\beta_2$=0.999.\n4. Under the fixed step budget, the model now performs many epochs over the small set — tests whether sample reuse helps sparse-parity learning.",
+    "key_hyperparams": [
+      {"name": "train_examples", "value": "10000", "role": "small dataset for multi-epoch reuse", "learnable": false},
+      {"name": "lr", "value": "1e-3", "role": "AdamW learning rate", "learnable": false},
+      {"name": "weight_decay", "value": "1e-2", "role": "AdamW decoupled L2", "learnable": false}
+    ],
+    "diff_from_baseline": "Multi-epoch ablation of the Default baseline. Probes the data-reuse axis discussed by Barak et al. 2022 (NeurIPS — Hidden Progress in Sparse Parity) where many passes over a fixed set are sometimes required.",
+    "confidence": "high"
+  },
+  {
+    "model": "No Weight Decay",
+    "name": "No weight decay",
+    "tagline": "Default Xavier init and large random dataset, but AdamW weight_decay set to zero.",
+    "kind": "pseudocode",
+    "pseudocode": "1. `init_model`: Xavier-uniform Linear weights with ReLU gain on first layer; zero biases (same as Default).\n2. `make_dataset`: draw $N = $ max_train_examples one-pass random binary dataset and label with `parity_labels`.\n3. `get_optimizer_config`: AdamW with lr=1e-3, weight_decay=0.0 (only change from Default), $\\beta_1$=0.9, $\\beta_2$=0.999.\n4. Isolates the contribution of decoupled weight decay to sparse-parity generalisation.",
+    "key_hyperparams": [
+      {"name": "weight_decay", "value": "0.0", "role": "no decoupled L2", "learnable": false},
+      {"name": "lr", "value": "1e-3", "role": "AdamW learning rate", "learnable": false}
+    ],
+    "diff_from_baseline": "Ablation of Default with `wd=0`; tests whether AdamW weight decay helps or hurts sparse parity in the one-pass regime.",
+    "confidence": "high"
+  }
+]

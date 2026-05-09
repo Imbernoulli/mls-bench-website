@@ -1,0 +1,71 @@
+[
+  {
+    "model": "JSMA",
+    "name": "JSMA",
+    "tagline": "Jacobian-based Saliency Map Attack: greedy white-box attack that flips the most-salient input features two at a time toward the least-likely class.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Pick target $t = \\arg\\min_c p_c(x)$ (least-likely class).\n2. Compute saliency $S_{ij}(x,t) = \\partial p_t / \\partial x_{ij} \\cdot |\\sum_{c\\neq t}\\partial p_c/\\partial x_{ij}|$ when signs match, else 0.\n3. Select feature pair $(i^*, j^*)$ with highest joint saliency.\n4. Push both to extreme value $\\theta=1$.\n5. Repeat for $\\lceil \\text{pixels}/2\\rceil$ iterations (i.e. $\\gamma = \\text{pixels}/(CHW)$ caps total perturbed features).\n6. Return adversarial image, clipped to [0,1].",
+    "key_hyperparams": [
+      {"name": "θ", "value": "1.0", "role": "perturbation magnitude per feature", "learnable": false},
+      {"name": "γ", "value": "pixels/(C·H·W)", "role": "feature-budget fraction", "learnable": false}
+    ],
+    "diff_from_baseline": "Papernot et al., EuroS&P 2016 — Jacobian-based Saliency Map Attack. Targeted-only white-box attack via torchattacks; with least-likely-class targeting and γ tuned so that ≤ pixels features are flipped, satisfying the L0 budget.",
+    "confidence": "high"
+  },
+  {
+    "model": "OnePixel",
+    "name": "OnePixel (DE)",
+    "tagline": "Differential-Evolution black-box attack: searches a few-pixel coordinate+RGB perturbation that maximises misclassification.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Encode each candidate perturbation as a vector of (x, y, r, g, b)×pixels values.\n2. Initialise a population of size popsize with random spatial+colour entries.\n3. for `steps` generations: mutate via DE (parent + F·(p1 − p2)), crossover, and select if classifier confidence on true class drops.\n4. Score on the model in batches of size `inf_batch=128`.\n5. Return the best perturbed image found within the L0 budget.",
+    "key_hyperparams": [
+      {"name": "pixels", "value": "10", "role": "L0 budget", "learnable": false},
+      {"name": "steps", "value": "6", "role": "DE generations", "learnable": false},
+      {"name": "popsize", "value": "8", "role": "DE population", "learnable": false}
+    ],
+    "diff_from_baseline": "Su, Vargas & Sakurai 2017/2019 — One Pixel Attack via differential evolution. Black-box, derivative-free baseline that natively respects spatial-pixel L0 budgets.",
+    "confidence": "high"
+  },
+  {
+    "model": "Pixle",
+    "name": "Pixle (patch-swap)",
+    "tagline": "Black-box patch-swap attack: replaces small image patches with pixels copied from elsewhere in the image, iterated with restarts.",
+    "kind": "pseudocode",
+    "pseudocode": "1. for restart $= 1\\ldots R$:\n2.  for it $= 1\\ldots\\text{max\\_iterations}$:\n3.   pick a random patch of size $(x\\_dim, y\\_dim)$ in the image and a random source location.\n4.   copy source pixels into target patch (random pixel mapping).\n5.   keep the swap if the model's loss on the true label increases; otherwise revert (`update_each_iteration=False` means apply only the best at the end).\n6. Return the best adversarial image.",
+    "key_hyperparams": [
+      {"name": "x_dim/y_dim", "value": "(1,2)", "role": "patch size range", "learnable": false},
+      {"name": "restarts", "value": "3", "role": "random restarts", "learnable": false},
+      {"name": "max_iterations", "value": "5", "role": "swaps per restart", "learnable": false}
+    ],
+    "diff_from_baseline": "Pomponi, Scardapane & Uncini 2022 — Pixle. Score-based black-box attack that perturbs by re-arranging existing pixels; produces sparse, in-distribution colour edits.",
+    "confidence": "high"
+  },
+  {
+    "model": "Sparse-RS",
+    "name": "Sparse-RS (L0)",
+    "tagline": "SOTA black-box L0 attack: random search that swaps subsets of perturbed pixels and resamples binary RGB colors, accepted by margin loss.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Initialise: pick a random set $\\mathcal{B}$ of $\\epsilon$ spatial pixels, fill with binary $\\{0,1\\}^C$ colors.\n2. Compute margin loss $L = f_y(x) - \\max_{c\\neq y} f_c(x)$.\n3. for it $= 1\\ldots n_{queries}$:\n4.  draw a swap fraction $p(\\text{it})$ via the Croce et al. schedule, propose to revert $\\lceil p\\,\\epsilon \\rceil$ pixels and perturb the same number of new pixels with fresh binary colors.\n5.  evaluate $L'$; accept if $L'$ improves or if margin already $<0$, swap mask indices accordingly.\n6. Stop early when all margins are negative; return $x_{best}$.",
+    "key_hyperparams": [
+      {"name": "n_queries", "value": "1000", "role": "query budget", "learnable": false},
+      {"name": "p_init", "value": "0.8", "role": "initial swap fraction", "learnable": false},
+      {"name": "ε (budget)", "value": "10 pixels", "role": "L0 spatial budget", "learnable": false}
+    ],
+    "diff_from_baseline": "Croce et al., AAAI 2022 — Sparse-RS. Versatile query-efficient sparse random search; current black-box L0 SOTA. Inlined from the official rs_attacks.py because torchattacks lacks a Sparse-RS implementation.",
+    "confidence": "high"
+  },
+  {
+    "model": "SparseFool",
+    "name": "SparseFool",
+    "tagline": "Linear-approximation white-box L0 attack: iteratively projects DeepFool's hyperplane to a few coordinates per step.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Run DeepFool to find the minimum L2 perturbation $r^*$ to cross the closest decision hyperplane.\n2. Approximate the boundary linearly: solve a sparse box-constrained projection that touches the hyperplane while modifying as few pixels as possible (with overshoot $1+\\eta$).\n3. Apply the resulting sparse perturbation; clip to $[0,1]$.\n4. Repeat up to `steps`=20 iterations, scaling by $\\lambda=3$.\n5. Return $x_{adv}$.",
+    "key_hyperparams": [
+      {"name": "steps", "value": "20", "role": "outer iterations", "learnable": false},
+      {"name": "λ", "value": "3.0", "role": "linearisation scaling", "learnable": false},
+      {"name": "overshoot", "value": "0.02", "role": "boundary push", "learnable": false}
+    ],
+    "diff_from_baseline": "Modas, Moosavi-Dezfooli & Frossard, CVPR 2019 — SparseFool. White-box DeepFool-based L0 attack that finds minimum-pixel perturbations via iterative sparse linearised projections.",
+    "confidence": "high"
+  }
+]

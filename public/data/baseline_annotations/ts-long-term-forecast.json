@@ -1,0 +1,154 @@
+[
+  {
+    "model": "DLinear",
+    "name": "DLinear",
+    "tagline": "Decomposes the input into trend + seasonal via moving average, then applies one linear layer per channel.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Input window x ∈ ℝ^{L×C}"},
+        {"id": "ma", "label": "Moving-average decomp"},
+        {"id": "trend", "label": "Trend x_t"},
+        {"id": "seas", "label": "Seasonal x_s = x − x_t"},
+        {"id": "lin_t", "label": "Linear_T (L→H)"},
+        {"id": "lin_s", "label": "Linear_S (L→H)"},
+        {"id": "y", "label": "ŷ = ŷ_t + ŷ_s"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ma"},
+        {"from": "ma", "to": "trend"},
+        {"from": "ma", "to": "seas"},
+        {"from": "trend", "to": "lin_t"},
+        {"from": "seas", "to": "lin_s"},
+        {"from": "lin_t", "to": "y"},
+        {"from": "lin_s", "to": "y"}
+      ]
+    },
+    "formula": "$$\\hat y = W_t\\,\\mathrm{MA}_k(x) + W_s\\,(x - \\mathrm{MA}_k(x))$$",
+    "key_hyperparams": [
+      {"name": "kernel", "value": "25", "role": "moving-average window", "learnable": false},
+      {"name": "input/horizon", "value": "96 / 96", "role": "fixed by harness", "learnable": false}
+    ],
+    "diff_from_baseline": "Zeng et al., AAAI 2023 — \"Are Transformers Effective for Time Series Forecasting?\" Decomposition-then-linear baseline that beat many transformers; minimal per-channel linear forecaster, the canonical linear baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "PatchTST",
+    "name": "PatchTST",
+    "tagline": "Channel-independent transformer over non-overlapping patches of each univariate series, with reversible instance norm.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x ∈ ℝ^{L×C}"},
+        {"id": "rin", "label": "RevIN normalize"},
+        {"id": "split", "label": "Per-channel split"},
+        {"id": "patch", "label": "Patchify (P=16, S=8)"},
+        {"id": "tx", "label": "Transformer encoder (channel-indep)"},
+        {"id": "head", "label": "Linear projection → H"},
+        {"id": "y", "label": "RevIN denorm → ŷ"}
+      ],
+      "edges": [
+        {"from": "x", "to": "rin"},
+        {"from": "rin", "to": "split"},
+        {"from": "split", "to": "patch"},
+        {"from": "patch", "to": "tx"},
+        {"from": "tx", "to": "head"},
+        {"from": "head", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "patch_len", "value": "16", "role": "token = patch of length P", "learnable": false},
+      {"name": "stride", "value": "8", "role": "patch stride", "learnable": false},
+      {"name": "channel-indep", "value": "true", "role": "shared transformer per channel", "learnable": false}
+    ],
+    "diff_from_baseline": "Nie, Nguyen, Sinthong & Kalagnanam, ICLR 2023 — \"A Time Series is Worth 64 Words\". Patch-tokenised channel-independent transformer with RevIN; strong long-horizon forecasting baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "TimeMixer",
+    "name": "TimeMixer",
+    "tagline": "All-MLP multiscale mixing: decomposes the series at multiple resolutions and mixes past patterns bottom-up + future patterns top-down.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Input x"},
+        {"id": "ms", "label": "Multi-scale downsampling"},
+        {"id": "pdm", "label": "Past-Decomposable-Mixing (bottom-up, season+trend)"},
+        {"id": "fmm", "label": "Future-Multipredictor-Mixing (top-down)"},
+        {"id": "agg", "label": "Aggregate scale heads"},
+        {"id": "y", "label": "ŷ"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ms"},
+        {"from": "ms", "to": "pdm"},
+        {"from": "pdm", "to": "fmm"},
+        {"from": "fmm", "to": "agg"},
+        {"from": "agg", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "down_sampling_layers", "value": "≈3", "role": "scale levels", "learnable": false},
+      {"name": "decomp_method", "value": "moving avg", "role": "season/trend split", "learnable": false}
+    ],
+    "diff_from_baseline": "Wang et al., ICLR 2024 — TimeMixer. Pure-MLP multiscale decomposable mixer with Past-Decomposable-Mixing and Future-Multipredictor-Mixing modules; SOTA at publication for many long-horizon settings.",
+    "confidence": "high"
+  },
+  {
+    "model": "TimeXer",
+    "name": "TimeXer",
+    "tagline": "Transformer that mixes endogenous patch tokens with an exogenous-variate global token via cross-attention.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "endo", "label": "Endogenous series → patch tokens"},
+        {"id": "exo", "label": "Exogenous variates → global token"},
+        {"id": "self", "label": "Self-attention on patch tokens"},
+        {"id": "cross", "label": "Cross-attention (patch ⇄ global)"},
+        {"id": "ffn", "label": "FFN block"},
+        {"id": "head", "label": "Linear head → H"}
+      ],
+      "edges": [
+        {"from": "endo", "to": "self"},
+        {"from": "self", "to": "cross"},
+        {"from": "exo", "to": "cross"},
+        {"from": "cross", "to": "ffn"},
+        {"from": "ffn", "to": "head"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "patch_len", "value": "16", "role": "endogenous patch size", "learnable": false},
+      {"name": "exo token", "value": "global per-variate", "role": "cross-attention key/value", "learnable": false}
+    ],
+    "diff_from_baseline": "Wang et al., NeurIPS 2024 — TimeXer. Patch-token self-attention on the endogenous series combined with cross-attention to a single exogenous global token per variate; SOTA on TSLib at publication.",
+    "confidence": "high"
+  },
+  {
+    "model": "iTransformer",
+    "name": "iTransformer",
+    "tagline": "Inverted transformer: each channel's full series is one token; self-attention models inter-variate correlations.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x ∈ ℝ^{L×C}"},
+        {"id": "embed", "label": "Per-variate embedding (one token per channel)"},
+        {"id": "tx", "label": "Transformer encoder over C tokens"},
+        {"id": "ffn", "label": "Per-token FFN over time"},
+        {"id": "head", "label": "Linear → horizon H"},
+        {"id": "y", "label": "ŷ"}
+      ],
+      "edges": [
+        {"from": "x", "to": "embed"},
+        {"from": "embed", "to": "tx"},
+        {"from": "tx", "to": "ffn"},
+        {"from": "ffn", "to": "head"},
+        {"from": "head", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "token granularity", "value": "per-variate", "role": "C tokens, length-L embed", "learnable": false},
+      {"name": "RevIN", "value": "true", "role": "per-channel reversible norm", "learnable": false}
+    ],
+    "diff_from_baseline": "Liu et al., ICLR 2024 — iTransformer. Inverts the role of tokens vs. channels: each channel becomes a token and attention captures inter-variate dependencies; strong default transformer baseline in TSLib.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,43 @@
+[
+  {
+    "model": "Pure MSE Velocity",
+    "name": "Pure MSE Velocity",
+    "tagline": "Floor baseline: clean per-sample MSE between predicted and target mean velocity, no reweighting.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\frac{1}{B}\\sum_{b=1}^{B} \\frac{1}{D}\\|\\hat{v}_b - v^{*}_b\\|_2^2$$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "MeanFlow / flow-matching default loss. Plain mean-squared error on the predicted mean velocity, with no auxiliary perceptual or frequency term and no inverse-loss reweighting. Establishes the velocity-MSE floor.",
+    "confidence": "high"
+  },
+  {
+    "model": "MSE + Charbonnier + LPIPS + Gradient + Multiscale",
+    "name": "Spatial Perceptual Stack",
+    "tagline": "Velocity MSE + Charbonnier + (LPIPS, Sobel-grad, multiscale-L1) on the implied denoised image, weighted by (1-t)^2.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\underbrace{\\|\\hat v - v^{*}\\|_2^2}_{\\text{MSE}} + 0.1\\,\\underbrace{\\sqrt{(\\hat v-v^{*})^2+\\epsilon^2}}_{\\text{Charbonnier}} + (1-t)^2\\,\\mathbf{1}_{t>0.1}\\!\\left[0.5\\,\\mathrm{LPIPS}(\\hat x_0,x) + 0.3\\,\\|\\nabla \\hat x_0 - \\nabla x\\|_1 + 0.2\\,\\mathcal{L}_{ms}(\\hat x_0,x)\\right]$$",
+    "key_hyperparams": [
+      {"name": "λ_charb", "value": "0.1", "role": "Charbonnier weight", "learnable": false},
+      {"name": "λ_lpips", "value": "0.5", "role": "perceptual weight", "learnable": false},
+      {"name": "λ_grad", "value": "0.3", "role": "Sobel edge weight", "learnable": false},
+      {"name": "λ_multi", "value": "0.2", "role": "multiscale L1 weight", "learnable": false},
+      {"name": "t_min", "value": "0.1", "role": "skip noisy timesteps", "learnable": false}
+    ],
+    "diff_from_baseline": "Composite spatial-domain perceptual recipe. LPIPS (Zhang et al., 2018) + Sobel-gradient L1 + multiscale L1 + Charbonnier (Lai et al., 2017) on the implied denoised image $\\hat x_0=x_t - t\\hat v$, gated to low-noise timesteps. Strong spatial-only baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "MSE + LPIPS + Gradient + Multiscale + FFT",
+    "name": "Spatial+Frequency Stack",
+    "tagline": "Spatial perceptual stack (LPIPS+Sobel+multiscale) extended with an FFT-magnitude L1 term covering the global frequency spectrum.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\|\\hat v - v^{*}\\|_2^2 + (1-t)^2\\,\\mathbf{1}_{t>0.1}\\!\\left[0.5\\,\\mathrm{LPIPS} + 0.3\\,\\|\\nabla \\hat x_0 - \\nabla x\\|_1 + 0.2\\,\\mathcal{L}_{ms} + 0.2\\,\\big\\| |\\mathcal{F}\\hat x_0| - |\\mathcal{F}x| \\big\\|_1\\right]$$",
+    "key_hyperparams": [
+      {"name": "λ_lpips", "value": "0.5", "role": "perceptual weight", "learnable": false},
+      {"name": "λ_grad", "value": "0.3", "role": "Sobel edge weight", "learnable": false},
+      {"name": "λ_multi", "value": "0.2", "role": "multiscale L1 weight", "learnable": false},
+      {"name": "λ_fft", "value": "0.2", "role": "FFT-magnitude L1 weight", "learnable": false}
+    ],
+    "diff_from_baseline": "Adds a spectral term (Mathieu et al., 2016 / Fuoli et al., 2021): L1 on the magnitude of the 2D rFFT of the denoised image vs. ground truth, on top of LPIPS+Sobel+multiscale. Combined spatial+frequency perceptual baseline.",
+    "confidence": "high"
+  }
+]

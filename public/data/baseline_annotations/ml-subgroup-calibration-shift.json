@@ -1,0 +1,55 @@
+[
+  {
+    "model": "Beta Calibration",
+    "name": "Beta Calibration",
+    "tagline": "Logistic regression on (log p, log(1-p)) features — learns a 2-parameter Beta link to remap probabilities.",
+    "kind": "formula",
+    "formula": "$$\\hat p = \\sigma\\!\\big(a\\,\\log p + b\\,\\log(1-p) + c\\big),\\quad p\\in[\\epsilon,1-\\epsilon]$$",
+    "key_hyperparams": [
+      {"name": "max_iter", "value": "2000", "role": "logistic-regression solver iterations", "learnable": false},
+      {"name": "epsilon", "value": "1e-6", "role": "log clip", "learnable": false}
+    ],
+    "diff_from_baseline": "Kull, Silva Filho & Flach 2017 (AISTATS). Two-parameter Beta family generalizes Platt scaling beyond sigmoid; fits via logistic regression on (log p, log(1-p)). Standard reference for binary post-hoc calibration.",
+    "confidence": "high"
+  },
+  {
+    "model": "Group-wise Temperature Scaling",
+    "name": "Group T-Scaling (JS shrink)",
+    "tagline": "Per-group temperature fit, then James-Stein-style log-space shrinkage toward the global temperature.",
+    "kind": "formula",
+    "formula": "$$T_g = \\exp\\!\\big(\\alpha_g \\log T^{\\text{local}}_g + (1-\\alpha_g)\\log T^{\\text{global}}\\big),\\quad \\alpha_g = \\frac{n_g}{n_g + k},\\;\\;k=200;\\quad \\hat p_g = \\sigma(\\mathrm{logit}(p)/T_g)$$",
+    "key_hyperparams": [
+      {"name": "k_shrink", "value": "200", "role": "James-Stein-style shrinkage strength", "learnable": false},
+      {"name": "min n_g", "value": "20", "role": "fall back to global if subgroup too small", "learnable": false},
+      {"name": "log T bounds", "value": "[-3,3]", "role": "scalar minimization range", "learnable": false}
+    ],
+    "diff_from_baseline": "Subgroup variant of Guo et al. 2017 (Pira et al. 2024 group-wise). Per-group temperatures avoid one-size-fits-all calibration; James-Stein shrinkage in log-space prevents overfitting on small subgroups under shift.",
+    "confidence": "high"
+  },
+  {
+    "model": "Isotonic Regression",
+    "name": "Isotonic Regression",
+    "tagline": "Non-parametric monotonic remapping of predicted probability to label rate; piecewise-constant.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Sort calibration pairs by score $p_i$\n2. Fit non-decreasing piecewise-constant $f$ minimizing $\\sum_i (f(p_i)-y_i)^2$ via Pool Adjacent Violators\n3. Constrain $y_{\\min}=0,\\,y_{\\max}=1$, out_of_bounds=\"clip\"\n4. At test time: $\\hat p = f(p)$, clipped to $[\\epsilon,1-\\epsilon]$",
+    "key_hyperparams": [
+      {"name": "y bounds", "value": "[0,1]", "role": "valid probability range", "learnable": false},
+      {"name": "epsilon", "value": "1e-6", "role": "output clip", "learnable": false}
+    ],
+    "diff_from_baseline": "Zadrozny & Elkan 2002 (KDD). Most flexible non-parametric calibrator: monotone piecewise-constant via PAV. Standard baseline; can overfit small calibration sets.",
+    "confidence": "high"
+  },
+  {
+    "model": "Temperature Scaling",
+    "name": "Temperature Scaling",
+    "tagline": "Single scalar temperature on logits, fit by NLL minimization on calibration set; ignores subgroup IDs.",
+    "kind": "formula",
+    "formula": "$$T^{*} = \\arg\\min_T -\\frac{1}{n}\\sum_i \\big[y_i\\log\\sigma(\\ell_i/T)+(1-y_i)\\log(1-\\sigma(\\ell_i/T))\\big],\\quad \\ell_i=\\mathrm{logit}(p_i)$$",
+    "key_hyperparams": [
+      {"name": "log T bounds", "value": "[-3,3]", "role": "bounded scalar minimization", "learnable": false},
+      {"name": "epsilon", "value": "1e-6", "role": "logit clip", "learnable": false}
+    ],
+    "diff_from_baseline": "Guo, Pleiss, Sun & Weinberger 2017 (ICML). Default post-hoc calibrator: a single temperature scaling logits preserves accuracy and reduces ECE; standard baseline before any subgroup-aware method.",
+    "confidence": "high"
+  }
+]

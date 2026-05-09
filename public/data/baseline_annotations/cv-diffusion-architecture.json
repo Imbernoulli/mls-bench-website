@@ -1,0 +1,105 @@
+[
+  {
+    "model": "Full-Attention U-Net",
+    "name": "Full-Attention UNet",
+    "tagline": "DDPM UNet with self-attention placed at every resolution level (32, 16, 8, 4).",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "x_t (3x32x32) + t-emb"},
+        {"id": "d1", "label": "AttnDown 32x32 (128)"},
+        {"id": "d2", "label": "AttnDown 16x16 (256)"},
+        {"id": "d3", "label": "AttnDown 8x8 (256)"},
+        {"id": "d4", "label": "AttnDown 4x4 (256)"},
+        {"id": "mid", "label": "MidBlock + Attn"},
+        {"id": "up", "label": "AttnUp x4 (mirror)"},
+        {"id": "out", "label": "ε-pred (3x32x32)"}
+      ],
+      "edges": [
+        {"from": "in", "to": "d1"},
+        {"from": "d1", "to": "d2"},
+        {"from": "d2", "to": "d3"},
+        {"from": "d3", "to": "d4"},
+        {"from": "d4", "to": "mid"},
+        {"from": "mid", "to": "up"},
+        {"from": "up", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "block_out_channels", "value": "(128, 256, 256, 256)", "role": "channel widths per resolution", "learnable": false},
+      {"name": "layers_per_block", "value": "2", "role": "ResNet blocks per resolution", "learnable": false},
+      {"name": "norm_num_groups", "value": "32", "role": "GroupNorm groups", "learnable": false},
+      {"name": "act_fn", "value": "silu", "role": "activation", "learnable": false}
+    ],
+    "diff_from_baseline": "Diffusers UNet2DModel with AttnDown/AttnUp at every resolution. Maximally expressive UNet; significantly more compute and memory than the standard DDPM placement.",
+    "confidence": "high"
+  },
+  {
+    "model": "No-Attention U-Net",
+    "name": "No-Attention UNet",
+    "tagline": "Pure convolutional DDPM UNet with no self-attention at any down/up resolution (mid-block keeps one attention).",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "x_t (3x32x32) + t-emb"},
+        {"id": "d1", "label": "Down 32x32 (128)"},
+        {"id": "d2", "label": "Down 16x16 (256)"},
+        {"id": "d3", "label": "Down 8x8 (256)"},
+        {"id": "d4", "label": "Down 4x4 (256)"},
+        {"id": "mid", "label": "MidBlock (1 attn)"},
+        {"id": "up", "label": "Up x4 (no attn, mirror)"},
+        {"id": "out", "label": "ε-pred (3x32x32)"}
+      ],
+      "edges": [
+        {"from": "in", "to": "d1"},
+        {"from": "d1", "to": "d2"},
+        {"from": "d2", "to": "d3"},
+        {"from": "d3", "to": "d4"},
+        {"from": "d4", "to": "mid"},
+        {"from": "mid", "to": "up"},
+        {"from": "up", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "block_out_channels", "value": "(128, 256, 256, 256)", "role": "channel widths per resolution", "learnable": false},
+      {"name": "layers_per_block", "value": "2", "role": "ResNet blocks per resolution", "learnable": false}
+    ],
+    "diff_from_baseline": "Convolutional-only ablation: tests whether per-resolution self-attention is necessary for good CIFAR-10 FID. Mid-block retains the default single self-attention layer.",
+    "confidence": "high"
+  },
+  {
+    "model": "Standard DDPM U-Net",
+    "name": "Standard DDPM UNet",
+    "tagline": "Original Ho et al. 2020 DDPM CIFAR-10 architecture: self-attention only at the 16x16 resolution.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "x_t (3x32x32) + t-emb"},
+        {"id": "d1", "label": "Down 32x32 (128)"},
+        {"id": "d2", "label": "AttnDown 16x16 (256)"},
+        {"id": "d3", "label": "Down 8x8 (256)"},
+        {"id": "d4", "label": "Down 4x4 (256)"},
+        {"id": "mid", "label": "MidBlock + Attn"},
+        {"id": "u3", "label": "AttnUp 16x16 (256)"},
+        {"id": "out", "label": "ε-pred (3x32x32)"}
+      ],
+      "edges": [
+        {"from": "in", "to": "d1"},
+        {"from": "d1", "to": "d2"},
+        {"from": "d2", "to": "d3"},
+        {"from": "d3", "to": "d4"},
+        {"from": "d4", "to": "mid"},
+        {"from": "mid", "to": "u3"},
+        {"from": "u3", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "block_out_channels", "value": "(128, 256, 256, 256)", "role": "channel widths per resolution", "learnable": false},
+      {"name": "layers_per_block", "value": "2", "role": "ResNet blocks per resolution", "learnable": false},
+      {"name": "norm_num_groups", "value": "32", "role": "GroupNorm groups", "learnable": false},
+      {"name": "freq_shift", "value": "1", "role": "DDPM-style time embedding", "learnable": false}
+    ],
+    "diff_from_baseline": "Ho et al. 2020 (NeurIPS). Original DDPM CIFAR-10 backbone (google/ddpm-cifar10-32). Self-attention at 16x16 only — the standard reference architecture for this benchmark.",
+    "confidence": "high"
+  }
+]

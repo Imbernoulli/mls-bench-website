@@ -1,0 +1,42 @@
+[
+  {
+    "model": "Trapezoidal",
+    "name": "Trapezoidal LR",
+    "tagline": "Linear warmup, constant plateau, then linear cooldown over the last 40% of steps.",
+    "kind": "formula",
+    "formula": "$$\\eta(t) = \\begin{cases} \\eta_{\\max}\\frac{t+1}{W+1}, & t < W \\\\ \\eta_{\\max}, & W \\le t < 0.6\\,T \\\\ \\eta_{\\min} + (\\eta_{\\max}-\\eta_{\\min})\\!\\left(1-\\tfrac{t-0.6T}{0.4T}\\right), & 0.6T \\le t \\le T \\\\ \\eta_{\\min}, & t > T \\end{cases}$$",
+    "key_hyperparams": [
+      {"name": "warmup_iters", "value": "default W", "role": "linear warmup length", "learnable": false},
+      {"name": "cooldown frac", "value": "0.4", "role": "fraction of training spent in linear decay", "learnable": false}
+    ],
+    "diff_from_baseline": "Hu et al. 2024 (MiniCPM warmup-stable-decay). Simple alternative to cosine annealing with explicit plateau and cooldown phases; works well at small to medium scale.",
+    "confidence": "high"
+  },
+  {
+    "model": "WSD (Warmup-Stable-Decay)",
+    "name": "WSD",
+    "tagline": "Three-phase WSD schedule: linear warmup, long constant, linear decay over the last 20% of training.",
+    "kind": "formula",
+    "formula": "$$\\eta(t) = \\begin{cases} \\eta_{\\max}\\frac{t+1}{W+1}, & t < W \\\\ \\eta_{\\max}, & W \\le t < 0.8\\,T \\\\ \\eta_{\\min} + (\\eta_{\\max}-\\eta_{\\min})\\!\\left(1-\\tfrac{t-0.8T}{0.2T}\\right), & t \\ge 0.8T \\end{cases}$$",
+    "key_hyperparams": [
+      {"name": "decay_start", "value": "0.8 T", "role": "fraction of steps before decay", "learnable": false},
+      {"name": "warmup_iters", "value": "default W", "role": "linear warmup length", "learnable": false}
+    ],
+    "diff_from_baseline": "Hu et al. 2024 (MiniCPM). Default Warmup-Stable-Decay: a long stable phase enables checkpoint reuse for downstream finetuning; standard alternative to cosine schedules in modern LLM pretraining.",
+    "confidence": "high"
+  },
+  {
+    "model": "WSD with Inverse-Sqrt Decay",
+    "name": "WSD + sqrt decay",
+    "tagline": "WSD with extended 6% warmup and inverse-square-root cooldown over the last 20% (gentler than linear).",
+    "kind": "formula",
+    "formula": "$$\\text{cooldown coeff: }\\;c(t) = \\frac{1/\\sqrt{1+9s} - 1/\\sqrt{10}}{1 - 1/\\sqrt{10}},\\;\\; s = (t-0.8T)/0.2T \\in[0,1];\\quad \\eta(t)=\\eta_{\\min}+(\\eta_{\\max}-\\eta_{\\min})\\,c(t)$$",
+    "key_hyperparams": [
+      {"name": "warmup frac", "value": "max(W, 0.06 T)", "role": "extended warmup", "learnable": false},
+      {"name": "decay_start", "value": "0.8 T", "role": "WSD plateau end", "learnable": false},
+      {"name": "decay shape", "value": "1/√(1+9s)", "role": "inverse-sqrt cooldown", "learnable": false}
+    ],
+    "diff_from_baseline": "Hu et al. 2024 (MiniCPM) with inverse-sqrt decay variant (e.g., Hagele et al. 2024). Replaces linear cooldown with a smoother $1/\\sqrt{\\cdot}$ profile shown to preserve more learning signal at end of training.",
+    "confidence": "high"
+  }
+]

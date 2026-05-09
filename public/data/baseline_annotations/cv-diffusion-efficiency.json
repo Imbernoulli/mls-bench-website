@@ -1,0 +1,42 @@
+[
+  {
+    "model": "DDIM",
+    "name": "DDIM (first-order)",
+    "tagline": "Denoising diffusion implicit model: deterministic first-order ODE update, one model evaluation per step (CFG++ flavored).",
+    "kind": "formula",
+    "formula": "$$\\hat{x}_0^{(t)} = \\frac{z_t - \\sqrt{1-\\alpha_t}\\,\\epsilon_\\theta^{cfg}(z_t,t)}{\\sqrt{\\alpha_t}}, \\qquad z_{t-\\Delta} = \\sqrt{\\alpha_{t-\\Delta}}\\,\\hat{x}_0^{(t)} + \\sqrt{1-\\alpha_{t-\\Delta}}\\,\\epsilon_\\theta^{uc}(z_t,t)$$",
+    "key_hyperparams": [
+      {"name": "NFE", "value": "20", "role": "function evaluations (1 per step)", "learnable": false},
+      {"name": "cfg", "value": "7.5", "role": "classifier-free guidance scale", "learnable": false}
+    ],
+    "diff_from_baseline": "Song, Meng & Ermon, 'Denoising Diffusion Implicit Models' (ICLR 2021). First-order deterministic sampler — Tweedie estimate of $\\hat{x}_0$ then linear DDIM update using the unconditional noise (CFG++ variant). Standard reference sampler.",
+    "confidence": "high"
+  },
+  {
+    "model": "DPM++ 2S",
+    "name": "DPM++ 2S (Heun's)",
+    "tagline": "Second-order singlestep DPM-Solver++; predictor-corrector with Heun-style averaging, 2 model evals per step (10 steps under NFE=20).",
+    "kind": "pseudocode",
+    "pseudocode": "1. Halve timestep grid so 10 outer steps fit in NFE=20\n2. At step $t$: $\\hat{x}_0^{(t)} = (z_t - \\sqrt{1-\\alpha_t}\\epsilon^{cfg})/\\sqrt{\\alpha_t}$\n3. Euler proposal $z'_{t-h} = \\sqrt{\\alpha_{t-h}}\\hat{x}_0^{(t)} + \\sqrt{1-\\alpha_{t-h}}\\epsilon^{uc}$\n4. Re-evaluate $\\epsilon$ at $(z'_{t-h}, t-h)$ to get $\\hat{x}_0^{(t-h)}$\n5. Average estimates $\\bar{x}_0 = \\tfrac{1}{2}(\\hat{x}_0^{(t)} + \\hat{x}_0^{(t-h)})$ and update $z_{t-h} = \\sqrt{\\alpha_{t-h}}\\bar{x}_0 + \\sqrt{1-\\alpha_{t-h}}\\epsilon^{uc}$\n6. On the final step fall back to Euler",
+    "key_hyperparams": [
+      {"name": "order", "value": "2", "role": "Heun-style singlestep accuracy", "learnable": false},
+      {"name": "outer steps", "value": "10", "role": "halved schedule (2 NFE/step)", "learnable": false}
+    ],
+    "diff_from_baseline": "Lu et al., 'DPM-Solver++: Fast Solver for Guided Sampling of Diffusion Probabilistic Models' (2022). Singlestep second-order solver implemented as a Heun-style predictor-corrector on the data-prediction parameterization, with classifier-free-guidance-aware updates.",
+    "confidence": "high"
+  },
+  {
+    "model": "dpm3m_sde",
+    "name": "DPM++ 3M-SDE",
+    "tagline": "Third-order multistep DPM-Solver++ in SDE form with Karras sigma schedule and Langevin churn ($\\eta=1.2$); 1 NFE/step.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Build Karras $\\sigma$ grid ($\\rho=7$) over $[\\sigma_{\\min}, \\sigma_{\\max}]$ with $T=20$ levels\n2. At each step compute denoised $x_0 = D_\\theta(z, \\sigma)$ via Tweedie\n3. Set $h = t(\\sigma_{i+1}) - t(\\sigma_i)$ with $t(\\sigma)=-\\log\\sigma$ and $h_\\eta = h(\\eta+1)$\n4. Exponential-integrator update: $z \\leftarrow e^{-h_\\eta} z + (1-e^{-h_\\eta}) D_\\theta$\n5. Add 2nd/3rd-order Adams-style corrections from cached $D_\\theta^{(i-1)}, D_\\theta^{(i-2)}$\n6. Inject Langevin noise with std $\\sigma_{i+1}\\sqrt{1-e^{-2h\\eta}}$ when $\\eta>0$",
+    "key_hyperparams": [
+      {"name": "order", "value": "3", "role": "multistep Adams-style", "learnable": false},
+      {"name": "$\\eta$", "value": "1.2", "role": "SDE churn / noise strength", "learnable": false},
+      {"name": "schedule", "value": "Karras $\\rho=7$", "role": "sigma spacing", "learnable": false}
+    ],
+    "diff_from_baseline": "Lu et al., 'DPM-Solver++' (2022); SDE/multistep variant popularized by k-diffusion (Karras sigma schedule, Karras et al. 2022). Third-order multistep exponential-integrator solver with Langevin renoising — strong reference for high-quality few-step sampling.",
+    "confidence": "high"
+  }
+]

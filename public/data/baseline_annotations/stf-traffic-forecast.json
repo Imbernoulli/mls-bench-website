@@ -1,0 +1,245 @@
+[
+  {
+    "model": "DLinear",
+    "name": "DLinear",
+    "tagline": "Decomposition-Linear: moving-average split into trend + seasonal, then two independent per-feature linear projections to the horizon.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Input [B, T, N]"},
+        {"id": "ma", "label": "AvgPool1d (k=25)"},
+        {"id": "trend", "label": "Trend (smoothed)"},
+        {"id": "seas", "label": "Seasonal = x - trend"},
+        {"id": "lt", "label": "Linear T → T'"},
+        {"id": "ls", "label": "Linear T → T'"},
+        {"id": "y", "label": "Prediction [B, T', N]"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ma"},
+        {"from": "ma", "to": "trend"},
+        {"from": "x", "to": "seas"},
+        {"from": "trend", "to": "seas"},
+        {"from": "seas", "to": "ls"},
+        {"from": "trend", "to": "lt"},
+        {"from": "ls", "to": "y"},
+        {"from": "lt", "to": "y"}
+      ]
+    },
+    "formula": "$$\\hat y = W_s\\,\\text{Seasonal}(x) + W_t\\,\\text{Trend}(x),\\quad \\text{Trend}(x) = \\text{AvgPool}_k(x)$$",
+    "key_hyperparams": [
+      {"name": "moving_avg", "value": "25", "role": "trend smoothing kernel", "learnable": false},
+      {"name": "input_len / output_len", "value": "12 / 12", "role": "history / forecast horizon", "learnable": false}
+    ],
+    "diff_from_baseline": "Zeng et al. 2023 (AAAI). Decomposition-Linear: simple but strong forecasting baseline that exposes how much of the gain in deep transformer-based forecasters is just due to a linear trend term.",
+    "confidence": "high"
+  },
+  {
+    "model": "SOFTS",
+    "name": "SOFTS",
+    "tagline": "Series-cOre Fusion via STAR: inverted view (nodes-as-tokens) with STar Aggregate-Redistribute replacing self-attention for O(N) cross-variate mixing.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Input [B, T, N]"},
+        {"id": "rev", "label": "RevIN (per-sample norm)"},
+        {"id": "emb", "label": "Linear T→D (per node)"},
+        {"id": "star", "label": "STAR block × L (aggregate-redistribute)"},
+        {"id": "ffn", "label": "FFN + LN"},
+        {"id": "head", "label": "Linear D → T'"},
+        {"id": "y", "label": "Prediction [B, T', N]"}
+      ],
+      "edges": [
+        {"from": "x", "to": "rev"},
+        {"from": "rev", "to": "emb"},
+        {"from": "emb", "to": "star"},
+        {"from": "star", "to": "ffn"},
+        {"from": "ffn", "to": "head"},
+        {"from": "head", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_size", "value": "512", "role": "node embedding dim", "learnable": false},
+      {"name": "core_size", "value": "128", "role": "STAR core summary dim", "learnable": false},
+      {"name": "num_layers", "value": "2", "role": "STAR blocks", "learnable": false},
+      {"name": "lr", "value": "5e-4", "role": "AdamW learning rate", "learnable": false}
+    ],
+    "diff_from_baseline": "Han et al. 2024 (SOFTS, NeurIPS). Series-cOre Fusion via STAR: replaces self-attention with stochastic-pool/weighted-mean STAR aggregation, scaling linearly in #nodes.",
+    "confidence": "high"
+  },
+  {
+    "model": "StemGNN",
+    "name": "StemGNN",
+    "tagline": "Spectral Temporal Graph Neural Network: latent graph from self-attention + Chebyshev graph convolution + GLU mixing in the FFT domain.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Input [B, T, N]"},
+        {"id": "gru", "label": "GRU(T → N)"},
+        {"id": "attn", "label": "Self-attention → Laplacian"},
+        {"id": "cheb", "label": "Chebyshev (T0..T3)"},
+        {"id": "stock", "label": "StockBlock × L (FFT + GLU + iFFT)"},
+        {"id": "head", "label": "MLP(L → T')"},
+        {"id": "y", "label": "Prediction [B, T', N]"}
+      ],
+      "edges": [
+        {"from": "x", "to": "gru"},
+        {"from": "gru", "to": "attn"},
+        {"from": "attn", "to": "cheb"},
+        {"from": "cheb", "to": "stock"},
+        {"from": "x", "to": "stock"},
+        {"from": "stock", "to": "head"},
+        {"from": "head", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_size", "value": "5", "role": "spectral feature dim", "learnable": false},
+      {"name": "num_blocks", "value": "2", "role": "StockBlock stack depth", "learnable": false},
+      {"name": "Chebyshev order", "value": "3 (T0–T3)", "role": "spectral graph filter order", "learnable": false},
+      {"name": "lr", "value": "1e-3", "role": "AdamW learning rate", "learnable": false}
+    ],
+    "diff_from_baseline": "Cao et al. 2020 (StemGNN, NeurIPS). Spectral temporal GNN that learns the adjacency, applies Chebyshev graph convolution, and mixes temporal patterns in the spectral (FFT) domain via GLU layers.",
+    "confidence": "high"
+  },
+  {
+    "model": "TimeMixer",
+    "name": "TimeMixer",
+    "tagline": "Decomposable multiscale mixing: pyramid of down-sampled inputs, per-scale trend/seasonal split, bottom-up seasonal mix + top-down trend mix.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Input pyramid (avg-pool ×k)"},
+        {"id": "rev", "label": "Per-scale RevIN"},
+        {"id": "embed", "label": "Conv1d 1→D (channel-indep)"},
+        {"id": "decomp", "label": "MovingAvg decomp / scale"},
+        {"id": "smix", "label": "Bottom-up seasonal MLPMix"},
+        {"id": "tmix", "label": "Top-down trend MLPMix"},
+        {"id": "head", "label": "Per-scale Linear(L_i → T')"},
+        {"id": "y", "label": "Sum + RevIN denorm"}
+      ],
+      "edges": [
+        {"from": "x", "to": "rev"},
+        {"from": "rev", "to": "embed"},
+        {"from": "embed", "to": "decomp"},
+        {"from": "decomp", "to": "smix"},
+        {"from": "decomp", "to": "tmix"},
+        {"from": "smix", "to": "head"},
+        {"from": "tmix", "to": "head"},
+        {"from": "head", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_size", "value": "64", "role": "channel-independent embedding dim", "learnable": false},
+      {"name": "num_layers", "value": "2", "role": "PDM blocks", "learnable": false},
+      {"name": "down_sampling_layers / window", "value": "2 / 2", "role": "scale pyramid", "learnable": false},
+      {"name": "moving_avg", "value": "5", "role": "trend kernel size", "learnable": false},
+      {"name": "lr", "value": "1e-3", "role": "AdamW learning rate", "learnable": false}
+    ],
+    "diff_from_baseline": "Wang et al. 2024 (TimeMixer, ICLR). Decomposable multiscale mixing for forecasting: pyramid of down-sampled inputs with bottom-up seasonal and top-down trend mixing across scales.",
+    "confidence": "high"
+  },
+  {
+    "model": "TimesNet",
+    "name": "TimesNet",
+    "tagline": "Temporal 2D-variation modeling: top-k FFT periods reshape the 1D series into 2D images, then a multi-scale Inception block convolves over period × intra-period.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Input [B, T, N]"},
+        {"id": "rev", "label": "RevIN"},
+        {"id": "embed", "label": "Conv1d N → D"},
+        {"id": "predl", "label": "Linear T → T+T'"},
+        {"id": "fft", "label": "rFFT → top-k periods"},
+        {"id": "blk", "label": "TimesBlock × L (2D Inception)"},
+        {"id": "head", "label": "Linear D → N"},
+        {"id": "y", "label": "Prediction [B, T', N]"}
+      ],
+      "edges": [
+        {"from": "x", "to": "rev"},
+        {"from": "rev", "to": "embed"},
+        {"from": "embed", "to": "predl"},
+        {"from": "predl", "to": "fft"},
+        {"from": "fft", "to": "blk"},
+        {"from": "blk", "to": "head"},
+        {"from": "head", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_size", "value": "64", "role": "embedding channels D", "learnable": false},
+      {"name": "num_layers", "value": "2", "role": "TimesBlock stack", "learnable": false},
+      {"name": "top_k", "value": "3", "role": "dominant FFT periods kept", "learnable": false},
+      {"name": "num_kernels", "value": "3", "role": "Inception kernel scales", "learnable": false},
+      {"name": "lr", "value": "1e-3", "role": "AdamW learning rate", "learnable": false}
+    ],
+    "diff_from_baseline": "Wu et al. 2023 (TimesNet, ICLR). Temporal 2D-variation modeling: detect periods via FFT, reshape to 2D, and apply 2D Inception convolutions for intra/inter-period dynamics.",
+    "confidence": "high"
+  },
+  {
+    "model": "iTransformer",
+    "name": "iTransformer",
+    "tagline": "Inverted transformer: tokenize each variate's history, then run self-attention across variates (instead of across time).",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Input [B, T, N]"},
+        {"id": "rev", "label": "RevIN"},
+        {"id": "embed", "label": "Linear T → D (per node)"},
+        {"id": "trf", "label": "Transformer × L (over nodes)"},
+        {"id": "norm", "label": "LayerNorm"},
+        {"id": "head", "label": "Linear D → T'"},
+        {"id": "y", "label": "Prediction [B, T', N]"}
+      ],
+      "edges": [
+        {"from": "x", "to": "rev"},
+        {"from": "rev", "to": "embed"},
+        {"from": "embed", "to": "trf"},
+        {"from": "trf", "to": "norm"},
+        {"from": "norm", "to": "head"},
+        {"from": "head", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_size", "value": "512", "role": "node-token embedding dim", "learnable": false},
+      {"name": "n_heads", "value": "8", "role": "multi-head attention heads", "learnable": false},
+      {"name": "num_layers", "value": "3", "role": "transformer blocks", "learnable": false},
+      {"name": "dropout", "value": "0.1", "role": "regularization", "learnable": false},
+      {"name": "lr", "value": "5e-4", "role": "AdamW learning rate", "learnable": false}
+    ],
+    "diff_from_baseline": "Liu et al. 2024 (iTransformer, ICLR). Inverts the transformer's token axis to variates, capturing cross-variate dependencies via attention while linear layers handle the temporal axis.",
+    "confidence": "high"
+  },
+  {
+    "model": "STID",
+    "name": "STID",
+    "tagline": "Spatial-Temporal Identity: per-node MLP over the input window, augmented with learnable spatial-ID, time-of-day, and day-of-week embeddings.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "ts", "label": "Linear T → h (per node)"},
+        {"id": "sp", "label": "Spatial emb [N, h]"},
+        {"id": "tid", "label": "Time-in-day emb [288, h]"},
+        {"id": "dow", "label": "Day-in-week emb [7, h]"},
+        {"id": "cat", "label": "Concat → 4h"},
+        {"id": "mlp", "label": "ResMLP × L"},
+        {"id": "head", "label": "Linear 4h → T'"},
+        {"id": "y", "label": "Prediction [B, T', N]"}
+      ],
+      "edges": [
+        {"from": "ts", "to": "cat"},
+        {"from": "sp", "to": "cat"},
+        {"from": "tid", "to": "cat"},
+        {"from": "dow", "to": "cat"},
+        {"from": "cat", "to": "mlp"},
+        {"from": "mlp", "to": "head"},
+        {"from": "head", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_size", "value": "32", "role": "embedding dim per component", "learnable": false},
+      {"name": "num_layers", "value": "3", "role": "ResMLP blocks", "learnable": false},
+      {"name": "tid / dow", "value": "288 / 7", "role": "time-of-day & day-of-week buckets", "learnable": true},
+      {"name": "lr", "value": "2e-3", "role": "AdamW learning rate", "learnable": false}
+    ],
+    "diff_from_baseline": "Shao et al. 2022 (STID, CIKM). Simple but strong MLP baseline that augments per-node forecasting with learnable spatial and temporal identity embeddings; needs no graph structure.",
+    "confidence": "high"
+  }
+]

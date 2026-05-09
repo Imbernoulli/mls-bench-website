@@ -1,0 +1,54 @@
+[
+  {
+    "model": "Outcome-Only (Raw)",
+    "name": "Outcome-Only (Raw)",
+    "tagline": "No reward-space normalization: pass the per-token outcome reward through unchanged and let GRPO downstream do all normalization.",
+    "kind": "formula",
+    "formula": "$$\\tilde{r}_{i,t} = r_{i,t}\\cdot m_{i,t}$$",
+    "key_hyperparams": [
+      {"name": "transform", "value": "identity (×mask)", "role": "no statistics applied", "learnable": false}
+    ],
+    "diff_from_baseline": "Shao et al., 'DeepSeekMath' / GRPO (arXiv:2402.03300); verl default reward-handling path (`ray_trainer.py` writes raw `token_level_scores`). Naive pass-through baseline — GRPO advantage estimator handles all centering/scaling itself.",
+    "confidence": "high"
+  },
+  {
+    "model": "Group-Std Normalization",
+    "name": "Group-Std (GRPO upstream)",
+    "tagline": "Per-prompt-group whitening at the reward stage: subtract group mean, divide by group std (+eps), then re-place at the last response token.",
+    "kind": "formula",
+    "formula": "$$s_i = \\sum_t r_{i,t},\\quad \\tilde{s}_i = \\frac{s_i - \\mu_{g(i)}}{\\sigma_{g(i)} + \\epsilon},\\quad \\mu_g, \\sigma_g \\;\\text{computed over samples sharing prompt}\\; g$$",
+    "key_hyperparams": [
+      {"name": "scope", "value": "per-prompt group", "role": "samples sharing index $g(i)$", "learnable": false},
+      {"name": "$\\epsilon$", "value": "1e-6", "role": "numerical stabilizer", "learnable": false},
+      {"name": "placement", "value": "last response token", "role": "outcome-reward semantics preserved", "learnable": false}
+    ],
+    "diff_from_baseline": "Shao et al., 'DeepSeekMath' / GRPO (arXiv:2402.03300); mirrors verl's `compute_grpo_outcome_advantage` but moves it upstream of the advantage estimator. Because GRPO re-normalizes, this baseline tests the effect of double-normalization.",
+    "confidence": "high"
+  },
+  {
+    "model": "Batch-Std Whitening",
+    "name": "Batch-Std Whitening",
+    "tagline": "Classic RLHF reward whitening: subtract the batch-wide mean and divide by the batch std before placing the scalar back at the last response token.",
+    "kind": "formula",
+    "formula": "$$s_i = \\sum_t r_{i,t},\\quad \\tilde{s}_i = \\frac{s_i - \\mu_{\\mathrm{batch}}}{\\sigma_{\\mathrm{batch}} + \\epsilon}$$",
+    "key_hyperparams": [
+      {"name": "scope", "value": "whole batch", "role": "single $\\mu, \\sigma$ across responses", "learnable": false},
+      {"name": "$\\epsilon$", "value": "1e-6", "role": "numerical stabilizer", "learnable": false}
+    ],
+    "diff_from_baseline": "Stiennon et al., 'Learning to summarize from human feedback' (NeurIPS 2020) and Ouyang et al., 'InstructGPT' (2022) — value-function / reward whitening are the standard RLHF analog. TRL exposes the same as `whiten_rewards`. Common in PPO-RLHF.",
+    "confidence": "high"
+  },
+  {
+    "model": "Length-Aware Normalization",
+    "name": "Length-Aware ($1/\\sqrt{T}$)",
+    "tagline": "DAPO-style length-bias correction: divide each response's scalar reward by $\\sqrt{\\text{response length}}$ to keep per-sequence gradient contribution length-invariant.",
+    "kind": "formula",
+    "formula": "$$T_i = \\sum_t m_{i,t},\\qquad \\tilde{s}_i = \\frac{s_i}{\\sqrt{\\max(T_i,1)} + \\epsilon}$$",
+    "key_hyperparams": [
+      {"name": "exponent", "value": "$1/2$", "role": "length scaling power", "learnable": false},
+      {"name": "$\\epsilon$", "value": "1e-6", "role": "numerical stabilizer", "learnable": false}
+    ],
+    "diff_from_baseline": "Liu et al., 'DAPO: Decoupled Clip and Dynamic Sampling Policy Optimization' (arXiv:2503.14476, 2025) and 'Dr. GRPO' (arXiv:2503.20783). Counters length bias in GRPO group-mean normalization where verbose responses accumulate more per-token gradient mass.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "model": "Fixup",
+    "name": "Fixup-style residual scaling",
+    "tagline": "Kaiming init + Fixup-inspired residual-branch scaling: scale the last conv of every residual block by L^(-1/2) and zero-init its trailing BatchNorm gamma.",
+    "kind": "pseudocode",
+    "pseudocode": "1. For every Conv2d: $\\mathrm{KaimingNormal}_{\\text{fan\\_out, ReLU}}$.\n2. For every BatchNorm2d: $\\gamma = 1, \\beta = 0$.\n3. For every Linear: $\\mathrm{KaimingNormal}_{\\text{fan\\_in, ReLU}}$, bias $= 0$.\n4. If model is a ResNet: $L \\leftarrow$ number of BasicBlocks; $s = L^{-1/2}$.\n5. For each BasicBlock: $\\text{conv2.weight} \\mathrel{*}= s$; $\\text{bn2.}\\gamma \\leftarrow 0$.\n6. (For VGG-style nets: stop at step 3; no residual scaling.)",
+    "key_hyperparams": [
+      {"name": "fixup_scale", "value": "L^{-1/2}", "role": "rescale last conv per residual block", "learnable": false},
+      {"name": "bn2 gamma", "value": "0", "role": "zero-gamma so residual branch starts at identity", "learnable": false}
+    ],
+    "diff_from_baseline": "Inspired by Zhang et al. Fixup (ICLR 2019) and Goyal et al. zero-gamma trick (2017). Unlike full Fixup, BatchNorm is kept; only the last conv of each residual block is scaled by 1/sqrt(L) and its BN gamma zeroed. Falls back to plain Kaiming init for non-residual nets.",
+    "confidence": "high"
+  },
+  {
+    "model": "Kaiming Normal",
+    "name": "Kaiming Normal",
+    "tagline": "He/Kaiming normal initialization: Conv weights drawn from N(0, 2/fan_out), BatchNorm at (1,0), Linear from N(0, 2/fan_in).",
+    "kind": "formula",
+    "formula": "$$W_{\\text{Conv}} \\sim \\mathcal{N}\\!\\Big(0,\\; \\tfrac{2}{\\text{fan\\_out}}\\Big),\\quad W_{\\text{Linear}} \\sim \\mathcal{N}\\!\\Big(0,\\; \\tfrac{2}{\\text{fan\\_in}}\\Big),\\quad \\gamma_{\\text{BN}}=1,\\;\\beta_{\\text{BN}}=0$$",
+    "key_hyperparams": [
+      {"name": "mode (Conv)", "value": "fan_out", "role": "preserve forward variance with ReLU", "learnable": false},
+      {"name": "mode (Linear)", "value": "fan_in", "role": "PyTorch default for FC", "learnable": false},
+      {"name": "nonlinearity", "value": "relu (gain=sqrt(2))", "role": "variance correction", "learnable": false}
+    ],
+    "diff_from_baseline": "He et al., \"Delving Deep into Rectifiers\" (ICCV 2015). The de-facto standard for ReLU CNNs; preserves forward-pass activation variance under ReLU. Default initializer in modern image-classification codebases.",
+    "confidence": "high"
+  },
+  {
+    "model": "Orthogonal",
+    "name": "Orthogonal init",
+    "tagline": "Orthogonal initialization for Conv and Linear weights with ReLU gain (sqrt(2)); preserves gradient norms and encourages dynamical isometry.",
+    "kind": "formula",
+    "formula": "$$W = g\\,Q,\\quad Q^\\top Q = I,\\quad g = \\sqrt{2}\\;(\\text{ReLU gain});\\quad \\gamma_{\\text{BN}}=1,\\;\\beta_{\\text{BN}}=0,\\;\\text{bias}=0$$",
+    "key_hyperparams": [
+      {"name": "gain", "value": "sqrt(2)", "role": "ReLU correction", "learnable": false},
+      {"name": "applies_to", "value": "Conv2d & Linear", "role": "weight matrices reshaped to (out, fan_in*kk) before QR", "learnable": false}
+    ],
+    "diff_from_baseline": "Saxe et al., \"Exact solutions to the nonlinear dynamics of learning in deep linear networks\" (ICLR 2014). Initializes weight matrices as semi-orthogonal so singular values are 1, preserving gradient norms during backprop and enabling dynamical isometry in deep networks.",
+    "confidence": "high"
+  }
+]

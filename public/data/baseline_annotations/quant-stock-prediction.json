@@ -1,0 +1,86 @@
+[
+  {
+    "model": "LSTM",
+    "name": "LSTM",
+    "tagline": "Two-layer LSTM over Alpha360 reshaped to 60 timesteps × 6 features per stock-day; last-step linear head.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "Alpha360 [N, 360]"},
+        {"id": "rs", "label": "reshape → [N, 60, 6]"},
+        {"id": "lstm1", "label": "LSTM (h=64)"},
+        {"id": "lstm2", "label": "LSTM (h=64)"},
+        {"id": "last", "label": "take last timestep [N, 64]"},
+        {"id": "fc", "label": "Linear 64 → 1"},
+        {"id": "out", "label": "ŷ next-day return"}
+      ],
+      "edges": [
+        {"from": "in", "to": "rs"},
+        {"from": "rs", "to": "lstm1"},
+        {"from": "lstm1", "to": "lstm2"},
+        {"from": "lstm2", "to": "last"},
+        {"from": "last", "to": "fc"},
+        {"from": "fc", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_size", "value": "64", "role": "LSTM hidden dim", "learnable": false},
+      {"name": "num_layers", "value": "2", "role": "stacked LSTMs", "learnable": false},
+      {"name": "lr / opt", "value": "1e-3 / Adam", "role": "optimizer", "learnable": false},
+      {"name": "batch / epochs", "value": "800 / 200 (early stop 20)", "role": "training", "learnable": false},
+      {"name": "loss", "value": "MSE", "role": "regression target", "learnable": false}
+    ],
+    "diff_from_baseline": "qlib official LSTM baseline (qlib/contrib/model/pytorch_lstm.py) with workflow_config_lstm_Alpha360.yaml hyperparameters. Standard sequence baseline for daily return prediction.",
+    "confidence": "high"
+  },
+  {
+    "model": "LightGBM",
+    "name": "LightGBM",
+    "tagline": "Gradient-boosted decision trees on flat Alpha360 features with strong L1/L2 leaf regularization (qlib official LGB).",
+    "kind": "pseudocode",
+    "pseudocode": "1. Use Alpha360 flat features as tabular input; CSRankNorm of label.\n2. Initialize LightGBM with: num_leaves=210, max_depth=8, learning_rate=0.0421, lambda_l1=205.7, lambda_l2=580.98, colsample=0.888, subsample=0.879, objective=mse.\n3. Train up to num_boost_round=1000 with early_stopping_rounds=50 on the validation set.\n4. Predict next-day return on test segment.\n5. Pass scalar predictions to qlib portfolio analysis.",
+    "key_hyperparams": [
+      {"name": "num_leaves", "value": "210", "role": "tree complexity", "learnable": false},
+      {"name": "max_depth", "value": "8", "role": "max tree depth", "learnable": false},
+      {"name": "lr", "value": "0.0421", "role": "boosting step size", "learnable": false},
+      {"name": "λ1, λ2", "value": "205.7, 580.98", "role": "leaf-output regularization", "learnable": false},
+      {"name": "rounds / early_stop", "value": "1000 / 50", "role": "boosting budget", "learnable": false}
+    ],
+    "diff_from_baseline": "qlib official LGBModel (qlib/contrib/model/gbdt.py) with workflow_config_lightgbm_Alpha360.yaml hyperparameters. The standard tabular baseline on Alpha360; CSRankNorm label preprocessing tailored for tree models.",
+    "confidence": "high"
+  },
+  {
+    "model": "Transformer",
+    "name": "Transformer",
+    "tagline": "Two-layer transformer encoder on Alpha360 sequences (60 days × 6 feats), sin/cos positional encoding, last-step head.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "Alpha360 [N, 360]"},
+        {"id": "rs", "label": "reshape → [N, 60, 6]"},
+        {"id": "emb", "label": "Linear 6 → 64 + sin/cos PE"},
+        {"id": "enc", "label": "TransformerEncoder ×2 (nhead=2)"},
+        {"id": "last", "label": "take last timestep [N, 64]"},
+        {"id": "fc", "label": "Linear 64 → 1"},
+        {"id": "out", "label": "ŷ next-day return"}
+      ],
+      "edges": [
+        {"from": "in", "to": "rs"},
+        {"from": "rs", "to": "emb"},
+        {"from": "emb", "to": "enc"},
+        {"from": "enc", "to": "last"},
+        {"from": "last", "to": "fc"},
+        {"from": "fc", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "d_model", "value": "64", "role": "embedding/ffn dim", "learnable": false},
+      {"name": "n_layers / n_head", "value": "2 / 2", "role": "encoder depth/heads", "learnable": false},
+      {"name": "lr / weight_decay", "value": "1e-4 / 1e-3", "role": "Adam optimizer", "learnable": false},
+      {"name": "batch / epochs", "value": "2048 / 100 (early stop 5)", "role": "training", "learnable": false},
+      {"name": "loss", "value": "MSE", "role": "regression target", "learnable": false}
+    ],
+    "diff_from_baseline": "qlib official TransformerModel (qlib/contrib/model/pytorch_transformer.py) with workflow_config_transformer_Alpha360.yaml hyperparameters. Standard sequence-transformer baseline on the Alpha360 feature suite.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,77 @@
+[
+  {
+    "model": "Default PPO",
+    "name": "Default PPO (humanoid-gym)",
+    "tagline": "Stock humanoid-gym PPO actor-critic: 3x256 ELU MLP per branch, fixed-LR clipped surrogate with GAE(λ=0.95) and clipped value loss.",
+    "kind": "hybrid",
+    "formula": "$$L^{\\text{PPO}} = -\\mathbb{E}\\!\\left[\\min\\!\\big(r_t \\hat{A}_t,\\;\\mathrm{clip}(r_t,1-\\epsilon,1+\\epsilon)\\hat{A}_t\\big)\\right] + c_v L^V_{\\text{clip}} - c_e \\mathcal{H},\\quad \\hat{A}_t = \\mathrm{GAE}_{\\gamma=0.998,\\lambda=0.95}$$",
+    "diagram": {
+      "nodes": [
+        {"id": "obs", "label": "Actor obs"},
+        {"id": "actor", "label": "MLP [256,256,256] + ELU"},
+        {"id": "head", "label": "Linear -> action"},
+        {"id": "std", "label": "Diag-Gaussian std (param)"},
+        {"id": "critic_obs", "label": "Critic obs"},
+        {"id": "critic", "label": "MLP [256,256,256] -> 1"}
+      ],
+      "edges": [
+        {"from": "obs", "to": "actor"},
+        {"from": "actor", "to": "head"},
+        {"from": "std", "to": "head"},
+        {"from": "critic_obs", "to": "critic"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "clip_param", "value": "0.2", "role": "PPO ratio clip", "learnable": false},
+      {"name": "gamma", "value": "0.998", "role": "discount", "learnable": false},
+      {"name": "lambda", "value": "0.95", "role": "GAE", "learnable": false},
+      {"name": "lr", "value": "1e-3 (fixed)", "role": "Adam LR", "learnable": false},
+      {"name": "schedule", "value": "fixed", "role": "no LR adaptation", "learnable": false}
+    ],
+    "diff_from_baseline": "Schulman et al. 2017 (PPO) as packaged in humanoid-gym (Han et al. 2024). Stock actor-critic + clipped surrogate; the reference Isaac-Gym→MuJoCo locomotion baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "PPO with Adaptive KL",
+    "name": "PPO + Adaptive KL LR",
+    "tagline": "Same architecture as default PPO but with adaptive learning rate: shrink/expand LR by 1.5× when measured KL exceeds target_kl·1.5 or falls below target_kl/1.5.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. compute kl(old,new) per batch using stored old (mu, sigma)\n// 2. if kl > target_kl * 1.5:  lr = max(1e-5, lr / 1.5)\n// 3. elif kl < target_kl / 1.5: lr = min(1e-2, lr * 1.5)\n// 4. update Adam param-groups with new lr\n// 5. proceed with standard PPO clipped surrogate update\n// 6. desired_kl = 0.01, schedule = 'adaptive'",
+    "key_hyperparams": [
+      {"name": "desired_kl", "value": "0.01", "role": "target KL per update", "learnable": false},
+      {"name": "kl_threshold", "value": "x1.5 / /1.5", "role": "tightened from 2.0", "learnable": false},
+      {"name": "lr_bounds", "value": "[1e-5, 1e-2]", "role": "LR clamp", "learnable": false}
+    ],
+    "diff_from_baseline": "Schulman et al. 2017 / rl_games adaptive-KL recipe. Replaces the fixed-LR PPO baseline with KL-driven LR adaptation; canonical robust-locomotion technique.",
+    "confidence": "high"
+  },
+  {
+    "model": "PPO with LayerNorm",
+    "name": "PPO + LayerNorm MLP",
+    "tagline": "PPO actor-critic enhanced with LayerNorm after every hidden Linear (and pyramidal hidden sizes [512,256,128]) for sim2sim robustness.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "obs", "label": "Actor obs"},
+        {"id": "l1", "label": "Linear 512 + LayerNorm + ELU"},
+        {"id": "l2", "label": "Linear 256 + LayerNorm + ELU"},
+        {"id": "l3", "label": "Linear 128 + LayerNorm + ELU"},
+        {"id": "head", "label": "Linear -> action"},
+        {"id": "critic", "label": "Mirror critic [512,256,128] -> 1"}
+      ],
+      "edges": [
+        {"from": "obs", "to": "l1"},
+        {"from": "l1", "to": "l2"},
+        {"from": "l2", "to": "l3"},
+        {"from": "l3", "to": "head"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dims", "value": "[512,256,128]", "role": "actor & critic widths", "learnable": false},
+      {"name": "norm", "value": "LayerNorm after Linear", "role": "stabilization", "learnable": false},
+      {"name": "PPO core", "value": "default", "role": "fixed-LR clipped PPO", "learnable": false}
+    ],
+    "diff_from_baseline": "Architectural sim2real tweak: LayerNorm-MLP actor-critic; widely cited as improving distribution-shift robustness for Isaac-Gym→MuJoCo transfer (e.g., He et al. 2024 Humanoid PPO recipes).",
+    "confidence": "high"
+  }
+]

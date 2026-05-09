@@ -1,0 +1,45 @@
+[
+  {
+    "model": "Absolute Log-Ratio",
+    "name": "Absolute Log-Ratio",
+    "tagline": "Per-token KL penalty equals the absolute log-ratio between current and reference policy log-probs.",
+    "kind": "formula",
+    "formula": "$$\\widehat{\\mathrm{KL}}_{\\mathrm{abs}}(s,a) = \\big|\\log \\pi_\\theta(a|s) - \\log \\pi_{\\mathrm{ref}}(a|s)\\big|$$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "verl's `kl_penalty=\"abs\"` branch. Symmetric, nonnegative, robust-to-outliers alternative to the squared k2 estimator.",
+    "confidence": "high"
+  },
+  {
+    "model": "K1 (Unbiased Log-Ratio)",
+    "name": "K1 (Naive)",
+    "tagline": "Schulman's k1 Monte Carlo KL — unbiased but high-variance, can take negative values.",
+    "kind": "formula",
+    "formula": "$$\\widehat{\\mathrm{KL}}_{k_1}(s,a) = \\log \\pi_\\theta(a|s) - \\log \\pi_{\\mathrm{ref}}(a|s)$$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Schulman 2020 (Approximating KL divergence). Unbiased but noisy; corresponds to verl's `kl_penalty in {\"kl\",\"k1\"}`.",
+    "confidence": "high"
+  },
+  {
+    "model": "K2 (Squared Log-Ratio)",
+    "name": "K2 (Squared)",
+    "tagline": "Half the squared log-ratio — Schulman's biased low-variance KL estimator.",
+    "kind": "formula",
+    "formula": "$$\\widehat{\\mathrm{KL}}_{k_2}(s,a) = \\tfrac{1}{2}\\big(\\log \\pi_\\theta(a|s) - \\log \\pi_{\\mathrm{ref}}(a|s)\\big)^{\\!2}$$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Schulman 2020. Biased but always nonnegative and lower variance than k1; verl's `kl_penalty in {\"mse\",\"k2\"}`.",
+    "confidence": "high"
+  },
+  {
+    "model": "K3 (Low-Variance KL)",
+    "name": "K3 (Low-variance, default)",
+    "tagline": "Schulman's k3 unbiased low-variance estimator with numerical clamps; verl's default GRPO KL loss.",
+    "kind": "formula",
+    "formula": "$$r = \\log \\pi_{\\mathrm{ref}}(a|s) - \\log \\pi_\\theta(a|s),\\quad r\\!\\leftarrow\\!\\mathrm{clip}(r,-20,20);\\;\\; \\widehat{\\mathrm{KL}}_{k_3} = \\mathrm{clip}\\big(e^{r} - r - 1,\\,-10,\\,10\\big)$$",
+    "key_hyperparams": [
+      {"name": "log-ratio clip", "value": "[-20, 20]", "role": "stability before exp", "learnable": false},
+      {"name": "kld clip", "value": "[-10, 10]", "role": "post-formula stability", "learnable": false}
+    ],
+    "diff_from_baseline": "Schulman 2020; used as default GRPO KL by DeepSeekMath (Shao et al. 2024) and verl. Unbiased and nonnegative in expectation, with much lower variance than k1.",
+    "confidence": "high"
+  }
+]

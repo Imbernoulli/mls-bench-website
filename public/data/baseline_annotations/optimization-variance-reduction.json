@@ -1,0 +1,43 @@
+[
+  {
+    "model": "STORM",
+    "name": "STORM",
+    "tagline": "Recursive momentum-based stochastic gradient: an EMA blend of current gradient and a control-variate correction, no per-epoch full gradient.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Initialize $d_0 = \\nabla F(x_0)$ once (single full gradient warm-start)\n2. At step $t$ sample mini-batch $i_t$; compute $g_t = \\nabla f_{i_t}(x_t)$\n3. Restore previous params and compute $g_t' = \\nabla f_{i_t}(x_{t-1})$\n4. Recursive estimator $d_t = (1-a) g_t + a (d_{t-1} + g_t - g_t')$ with $a = 1 - 1/\\sqrt{T}$\n5. Update $x_{t+1} = x_t - \\eta\\,d_t$\n6. Cache $x_t$ as previous params for the next step",
+    "key_hyperparams": [
+      {"name": "momentum a", "value": "1 - 1/sqrt(steps_per_epoch)", "role": "EMA decay", "learnable": false},
+      {"name": "lr", "value": "config", "role": "fixed step size", "learnable": false},
+      {"name": "warm-start", "value": "1 full gradient on epoch 0", "role": "initialize d", "learnable": false}
+    ],
+    "diff_from_baseline": "Cutkosky & Orabona, NeurIPS 2019 (Momentum-Based Variance Reduction in Non-Convex SGD). Achieves variance reduction online without the periodic full-gradient snapshots used by SVRG/SARAH.",
+    "confidence": "high"
+  },
+  {
+    "model": "STORM+",
+    "name": "STORM+ (adaptive)",
+    "tagline": "STORM with time-varying momentum, per-step gradient-norm-aware step size, and clipping when ||d|| exceeds 3 ||g||.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Warm-start with one full gradient $d_0$ and $\\eta_0 = \\min(\\eta, 0.01\\,\\|w\\|/\\|d_0\\|)$\n2. At step $t$, momentum $a_t = \\min(1 - 1/\\sqrt{t+1}, 0.999)$\n3. Compute $g_t = \\nabla f_{i_t}(x_t)$ and $g_t' = \\nabla f_{i_t}(x_{t-1})$\n4. Update estimator $d_t = (1-a_t) g_t + a_t (d_{t-1} + g_t - g_t')$\n5. Clip: if $\\|d_t\\| > 3\\,\\|g_t\\|$, scale $d_t$ by $3\\|g_t\\|/\\|d_t\\|$\n6. Adaptive step $\\eta_t = \\min(\\eta, 0.01\\,\\|w\\|/\\|d_t\\|)$ then $x_{t+1} = x_t - \\eta_t\\,d_t$",
+    "key_hyperparams": [
+      {"name": "momentum a_t", "value": "min(1 - 1/sqrt(t+1), 0.999)", "role": "anytime schedule", "learnable": false},
+      {"name": "step lr", "value": "min(lr, 0.01 ||w||/||d||)", "role": "param-aware step", "learnable": false},
+      {"name": "clip threshold", "value": "3 * ||g||", "role": "estimator clipping", "learnable": false}
+    ],
+    "diff_from_baseline": "Enhancement of Cutkosky & Orabona NeurIPS 2019 STORM with adaptive momentum and trust-region-like step sizing; provides a stronger STORM reference under the benchmark's no-tuning constraints.",
+    "confidence": "high"
+  },
+  {
+    "model": "SVRG",
+    "name": "SVRG",
+    "tagline": "Periodic full-gradient snapshot used as control variate: v_t = grad_i(x_t) - grad_i(x_snap) + full_grad(x_snap).",
+    "kind": "pseudocode",
+    "pseudocode": "1. At the start of each epoch save snapshot $\\tilde{x} = x$ and compute full gradient $\\mu = \\nabla F(\\tilde{x})$\n2. For MSE loss only: cap effective lr at $1/\\|\\mu\\|$ to prevent divergence on ill-conditioned problems\n3. For each mini-batch $i$ at iterate $x$: compute $\\nabla f_i(x)$\n4. Restore snapshot params, compute $\\nabla f_i(\\tilde{x})$, restore current params\n5. Variance-reduced gradient $v = \\nabla f_i(x) - \\nabla f_i(\\tilde{x}) + \\mu$\n6. Update $x \\gets x - \\eta\\,v$",
+    "key_hyperparams": [
+      {"name": "full_grad_per_epoch", "value": "1", "role": "snapshot frequency", "learnable": false},
+      {"name": "lr", "value": "config (capped by 1/||g|| for MSE)", "role": "step size", "learnable": false}
+    ],
+    "diff_from_baseline": "Johnson & Zhang, NeurIPS 2013 (Accelerating Stochastic Gradient Descent using Predictive Variance Reduction). Classic snapshot-based variance reduction with proven linear convergence on smooth strongly-convex problems.",
+    "confidence": "high"
+  }
+]

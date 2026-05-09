@@ -1,0 +1,41 @@
+[
+  {
+    "model": "Platt",
+    "name": "Platt Scaling",
+    "tagline": "Per-class sigmoid calibration: fit logistic A·f+B in log-odds space against Platt's smoothed targets, then renormalise across classes.",
+    "kind": "formula",
+    "formula": "$$f = \\log\\!\\frac{p}{1-p},\\quad p_{\\text{cal}} = \\frac{1}{1 + \\exp(A f + B)},\\quad t_+ = \\frac{n_+ + 1}{n_+ + 2},\\; t_- = \\frac{1}{n_- + 2}$$",
+    "key_hyperparams": [
+      {"name": "A,B", "value": "L-BFGS-B fit", "role": "logistic params (per class)", "learnable": true},
+      {"name": "targets", "value": "(n+1)/(n+2)", "role": "Platt smoothing", "learnable": false}
+    ],
+    "diff_from_baseline": "Platt 1999. Classical sigmoid calibration originally developed for SVM scores; standard 2-parameter binary calibrator extended to one-vs-rest for multiclass.",
+    "confidence": "high"
+  },
+  {
+    "model": "Temperature Scaling",
+    "name": "Temperature Scaling",
+    "tagline": "Single learnable temperature T applied to softmax logits, fit by NLL on the calibration set.",
+    "kind": "formula",
+    "formula": "$$p_i^{\\text{cal}} = \\frac{\\exp(z_i / T)}{\\sum_j \\exp(z_j / T)},\\quad T^* = \\arg\\min_T -\\frac{1}{N}\\sum_n \\log p_{y_n}^{\\text{cal}}(T)$$",
+    "key_hyperparams": [
+      {"name": "T", "value": "L-BFGS-B fit, init=1.5", "role": "scalar temperature", "learnable": true},
+      {"name": "T bounds", "value": "[0.01, 20]", "role": "stability", "learnable": false}
+    ],
+    "diff_from_baseline": "Guo et al. 2017 (ICML). Single-parameter post-hoc calibration that preserves accuracy; standard NN calibrator and modern default for deep classifiers.",
+    "confidence": "high"
+  },
+  {
+    "model": "Isotonic Regression",
+    "name": "Isotonic Regression",
+    "tagline": "Non-parametric monotonically-increasing piecewise-constant fit per class via PAV; renormalised across classes.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. for each class c (one-vs-rest):\n//      iso_c = sklearn.IsotonicRegression(out_of_bounds='clip')\n//      iso_c.fit(probs[:, c], (labels == c))\n// 2. predict: p_cal[:, c] = iso_c.predict(probs[:, c])\n// 3. clip to [eps, .]; normalise each row to sum to 1",
+    "key_hyperparams": [
+      {"name": "out_of_bounds", "value": "clip", "role": "extrapolation", "learnable": false},
+      {"name": "y bounds", "value": "[0,1]", "role": "valid probability range", "learnable": false}
+    ],
+    "diff_from_baseline": "Zadrozny & Elkan 2002 (KDD). Non-parametric monotone calibration via Pool-Adjacent-Violators; flexible but data-hungry, prone to overfit small calibration sets.",
+    "confidence": "high"
+  }
+]

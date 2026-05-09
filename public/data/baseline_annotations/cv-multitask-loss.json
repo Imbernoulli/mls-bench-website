@@ -1,0 +1,39 @@
+[
+  {
+    "model": "DWA",
+    "name": "DWA (Dynamic Weight Average)",
+    "tagline": "Re-weights tasks each epoch by the temperature-softmaxed ratio of consecutive losses, giving more weight to tasks whose loss is decreasing slowly.",
+    "kind": "formula",
+    "formula": "$$w_i^{(t)} = N\\,\\frac{\\exp(r_i^{(t)}/T)}{\\sum_j \\exp(r_j^{(t)}/T)},\\quad r_i^{(t)} = \\frac{L_i^{(t-1)}}{L_i^{(t-2)}+\\varepsilon}$$",
+    "key_hyperparams": [
+      {"name": "T", "value": "2.0", "role": "softmax temperature", "learnable": false},
+      {"name": "N", "value": "2", "role": "number of tasks", "learnable": false}
+    ],
+    "diff_from_baseline": "Liu et al., 'End-to-End Multi-Task Learning with Attention' (CVPR 2019). Adaptive task weighting via the relative loss decrease rate, computed per epoch from the previous two losses.",
+    "confidence": "high"
+  },
+  {
+    "model": "PCGrad",
+    "name": "PCGrad (Gradient Surgery)",
+    "tagline": "When two task gradients conflict (negative cosine), each is projected onto the normal plane of the other before being summed.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Compute per-task gradients $g_i = \\nabla_\\theta L_i$ for $i=1,2$ on shared params.\n2. Flatten to vectors $g_0,g_1$.\n3. If $\\langle g_0,g_1\\rangle<0$: $g_0\\leftarrow g_0 - \\frac{\\langle g_0,g_1\\rangle}{\\|g_1\\|^2}g_1$, $g_1\\leftarrow g_1 - \\frac{\\langle g_0,g_1\\rangle}{\\|g_0\\|^2}g_0$.\n4. Combine $g = g_0 + g_1$ and apply via a surrogate loss whose gradient equals $g$.",
+    "key_hyperparams": [
+      {"name": "num_tasks", "value": "2", "role": "fine + coarse heads", "learnable": false}
+    ],
+    "diff_from_baseline": "Yu et al., 'Gradient Surgery for Multi-Task Learning' (NeurIPS 2020). Mitigates gradient interference between tasks by projecting conflicting components away.",
+    "confidence": "high"
+  },
+  {
+    "model": "Uncertainty Weighting",
+    "name": "Uncertainty Weighting",
+    "tagline": "Learns per-task log-variance parameters and weights each loss by $\\exp(-\\log\\sigma_i^2)$ with a $\\log\\sigma_i^2$ regularization term.",
+    "kind": "formula",
+    "formula": "$$L = \\sum_{i=1}^{T} e^{-s_i} L_i + s_i,\\quad s_i = \\log\\sigma_i^2 \\text{ (learnable)}$$",
+    "key_hyperparams": [
+      {"name": "log_vars", "value": "init 0", "role": "per-task learnable log-variance", "learnable": true}
+    ],
+    "diff_from_baseline": "Kendall et al., 'Multi-Task Learning Using Uncertainty to Weigh Losses for Scene Geometry and Semantics' (CVPR 2018). Treats the loss weight as the precision of a Gaussian likelihood, learned jointly with the model.",
+    "confidence": "high"
+  }
+]

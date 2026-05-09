@@ -1,0 +1,69 @@
+[
+  {
+    "model": "BernNet",
+    "name": "BernNet (Bernstein filter)",
+    "tagline": "Learnable Bernstein-polynomial spectral filter on the normalized Laplacian; non-negative coefficients via ReLU.",
+    "kind": "formula",
+    "formula": "$$h(L) = \\sum_{k=0}^{K} \\theta_k \\binom{K}{k} 2^{-K}\\, L^{k} (2I-L)^{K-k},\\qquad \\theta_k = \\mathrm{ReLU}(\\theta_k^{\\text{learn}}),\\quad L = I - D^{-1/2}AD^{-1/2}$$",
+    "key_hyperparams": [
+      {"name": "K", "value": "10", "role": "polynomial order", "learnable": false},
+      {"name": "theta", "value": "init=1.0", "role": "Bernstein basis coefficients", "learnable": true}
+    ],
+    "diff_from_baseline": "He et al. 2021 (NeurIPS). Approximates arbitrary spectral filters via Bernstein polynomial basis on $[0,2]$ Laplacian spectrum; non-negativity enforces filter controllability. MLP encoder + Bernstein propagation.",
+    "confidence": "high"
+  },
+  {
+    "model": "ChebNetII",
+    "name": "ChebNetII (Cheb interp.)",
+    "tagline": "Chebyshev-interpolation graph filter: learn filter values at Chebyshev nodes, convert to polynomial coefficients.",
+    "kind": "formula",
+    "formula": "$$h(\\tilde L) = \\sum_{k=0}^{K} c_k T_k(\\tilde L),\\qquad c_k = \\frac{2}{K+1}\\sum_{j=0}^{K} \\mathrm{ReLU}(\\theta_j)\\, T_k\\!\\left(\\cos\\frac{(K-j+\\tfrac{1}{2})\\pi}{K+1}\\right),\\quad \\tilde L = L - I$$",
+    "key_hyperparams": [
+      {"name": "K", "value": "10", "role": "Chebyshev order / # interp. nodes", "learnable": false},
+      {"name": "theta", "value": "init=1.0", "role": "interpolation values (ReLU-clipped)", "learnable": true}
+    ],
+    "diff_from_baseline": "He, Wei, Hong & Wang 2022 (NeurIPS). Avoids ChebNet's Runge phenomenon by interpolating the spectral filter at Chebyshev nodes instead of approximating monomial coefficients directly.",
+    "confidence": "high"
+  },
+  {
+    "model": "GPR-GNN",
+    "name": "GPR-GNN",
+    "tagline": "Generalized PageRank: learn per-hop polynomial coefficients in monomial basis, initialized uniformly.",
+    "kind": "formula",
+    "formula": "$$h(\\hat A) = \\sum_{k=0}^{K} \\gamma_k\\, \\hat A^{k},\\qquad \\hat A = \\tilde D^{-1/2}\\tilde A\\tilde D^{-1/2},\\quad \\gamma_k^{(0)} = \\frac{1}{K+1}$$",
+    "key_hyperparams": [
+      {"name": "K", "value": "10", "role": "polynomial order", "learnable": false},
+      {"name": "gamma", "value": "uniform 1/(K+1)", "role": "per-hop weights", "learnable": true},
+      {"name": "lr_prop / wd_prop", "value": "0.05 / 0.0", "role": "filter param optimizer", "learnable": false}
+    ],
+    "diff_from_baseline": "Chien, Peng, Li & Milenkovic 2021 (ICLR). Learnable monomial-basis polynomial filter — adaptive to homophilic and heterophilic graphs. Initialization is dataset-agnostic uniform; canonical learnable polynomial-filter baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "appnp",
+    "name": "APPNP",
+    "tagline": "Approximate Personalized PageRank propagation: K-step power iteration with teleport probability alpha.",
+    "kind": "formula",
+    "formula": "$$Z^{(0)} = H,\\quad Z^{(k+1)} = (1-\\alpha)\\hat A Z^{(k)} + \\alpha H,\\quad k=0,\\ldots,K-1$$",
+    "key_hyperparams": [
+      {"name": "K", "value": "10", "role": "power-iteration steps", "learnable": false},
+      {"name": "alpha", "value": "0.1", "role": "teleport probability", "learnable": false},
+      {"name": "lr / wd", "value": "0.01 / 5e-4", "role": "MLP optimizer (paper)", "learnable": false}
+    ],
+    "diff_from_baseline": "Klicpera, Bojchevski & Gunnemann 2019 (ICLR). Decouples prediction (MLP) from propagation (fixed personalized PageRank). Filter is fixed (not learned); only MLP trained. Standard heterophily-aware baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "sgc",
+    "name": "SGC",
+    "tagline": "Simplified Graph Convolution: linear layer + K-hop adjacency power, no nonlinearities between layers.",
+    "kind": "formula",
+    "formula": "$$Y = \\mathrm{softmax}\\!\\left(\\hat A^{K} X W\\right),\\qquad \\hat A = \\tilde D^{-1/2}\\tilde A \\tilde D^{-1/2},\\quad K = 2$$",
+    "key_hyperparams": [
+      {"name": "K", "value": "2", "role": "propagation hops (paper default)", "learnable": false},
+      {"name": "lr / wd", "value": "0.2 / 5e-6", "role": "optimizer (paper)", "learnable": false}
+    ],
+    "diff_from_baseline": "Wu, Souza, Zhang, Fifty, Yu & Weinberger 2019 (ICML). Removes intermediate nonlinearities of GCN, collapsing to a single linear classifier on $\\hat A^K X$. Equivalent to GPR-GNN with only the K-th coefficient = 1.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,128 @@
+[
+  {
+    "model": "DLinear",
+    "name": "DLinear",
+    "tagline": "Decomposes the input into trend (moving average) and seasonal residual, then forecasts each with a separate linear layer; sums the two.",
+    "kind": "hybrid",
+    "formula": "$$x_{\\text{trend}} = \\mathrm{AvgPool}(x;\\,k=25),\\quad x_{\\text{seas}} = x - x_{\\text{trend}};\\quad \\hat y = W_{\\text{trend}} x_{\\text{trend}} + W_{\\text{seas}} x_{\\text{seas}}$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "input series"},
+        {"id": "ma", "label": "moving average (k=25)"},
+        {"id": "trend", "label": "trend $x_{\\text{trend}}$"},
+        {"id": "seas", "label": "seasonal $x - x_{\\text{trend}}$"},
+        {"id": "lt", "label": "linear $W_{\\text{trend}}$"},
+        {"id": "ls", "label": "linear $W_{\\text{seas}}$"},
+        {"id": "sum", "label": "sum"},
+        {"id": "out", "label": "$\\hat y$"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ma"},
+        {"from": "ma", "to": "trend"},
+        {"from": "x", "to": "seas"},
+        {"from": "ma", "to": "seas"},
+        {"from": "trend", "to": "lt"},
+        {"from": "seas", "to": "ls"},
+        {"from": "lt", "to": "sum"},
+        {"from": "ls", "to": "sum"},
+        {"from": "sum", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "kernel", "value": "25 (moving avg)", "role": "trend smoothing window", "learnable": false},
+      {"name": "individual", "value": "True/False", "role": "per-channel vs shared linear", "learnable": false}
+    ],
+    "diff_from_baseline": "Zeng et al., 'Are Transformers Effective for Time Series Forecasting?' (AAAI 2023). Series-decomposition + linear-projection baseline that matches or beats many transformers on long-horizon forecasting.",
+    "confidence": "high"
+  },
+  {
+    "model": "PatchTST",
+    "name": "PatchTST",
+    "tagline": "Channel-independent transformer that splits each univariate series into overlapping patches, applies self-attention over patches, then projects to the horizon.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "univariate series"},
+        {"id": "patch", "label": "patch (len=16, stride=8)"},
+        {"id": "embed", "label": "linear + pos. embed"},
+        {"id": "tx", "label": "Transformer encoder (N layers)"},
+        {"id": "flat", "label": "flatten patch tokens"},
+        {"id": "head", "label": "linear -> horizon"},
+        {"id": "out", "label": "$\\hat y$"}
+      ],
+      "edges": [
+        {"from": "x", "to": "patch"},
+        {"from": "patch", "to": "embed"},
+        {"from": "embed", "to": "tx"},
+        {"from": "tx", "to": "flat"},
+        {"from": "flat", "to": "head"},
+        {"from": "head", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "patch_len / stride", "value": "16 / 8", "role": "patch tokenization", "learnable": false},
+      {"name": "channel_indep", "value": "True", "role": "per-variate forecasting", "learnable": false},
+      {"name": "n_heads / n_layers", "value": "transformer config", "role": "encoder capacity", "learnable": false}
+    ],
+    "diff_from_baseline": "Nie et al., 'A Time Series is Worth 64 Words: Long-Term Forecasting with Transformers' (ICLR 2023). Patching + channel-independence + standard self-attention.",
+    "confidence": "high"
+  },
+  {
+    "model": "TimeMixer",
+    "name": "TimeMixer",
+    "tagline": "Multi-scale series mixing: downsample the input at several scales and exchange information across scales via a Past/Future-Decomposable Mixing module.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "input"},
+        {"id": "ds", "label": "multi-scale downsample"},
+        {"id": "pdm", "label": "Past Decomposable Mixing (cross-scale)"},
+        {"id": "fmm", "label": "Future Multipredictor Mixing"},
+        {"id": "out", "label": "$\\hat y$"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ds"},
+        {"from": "ds", "to": "pdm"},
+        {"from": "pdm", "to": "fmm"},
+        {"from": "fmm", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "down_sampling_layers", "value": "2-3", "role": "scale pyramid depth", "learnable": false},
+      {"name": "decompose", "value": "trend/seasonal", "role": "per-scale decomposition", "learnable": false}
+    ],
+    "diff_from_baseline": "Wang et al., 'TimeMixer: Decomposable Multiscale Mixing for Time Series Forecasting' (ICLR 2024). Cross-scale MLP mixer combining past/future decomposable mixing modules.",
+    "confidence": "high"
+  },
+  {
+    "model": "TimesNet",
+    "name": "TimesNet",
+    "tagline": "Reshape 1D series into 2D tensors along top-k FFT periods, apply Inception-style 2D conv blocks per period, then aggregate via amplitude-weighted sum.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "1D series"},
+        {"id": "fft", "label": "FFT -> top-k periods"},
+        {"id": "reshape", "label": "reshape to 2D (period x freq)"},
+        {"id": "inc", "label": "Inception conv block"},
+        {"id": "back", "label": "reshape back to 1D"},
+        {"id": "agg", "label": "amplitude-weighted sum"},
+        {"id": "out", "label": "$\\hat y$"}
+      ],
+      "edges": [
+        {"from": "x", "to": "fft"},
+        {"from": "fft", "to": "reshape"},
+        {"from": "reshape", "to": "inc"},
+        {"from": "inc", "to": "back"},
+        {"from": "back", "to": "agg"},
+        {"from": "agg", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "top_k", "value": "5", "role": "dominant FFT periods kept per block", "learnable": false},
+      {"name": "block", "value": "Inception 2D conv", "role": "intra/inter-period mixing", "learnable": false}
+    ],
+    "diff_from_baseline": "Wu et al., 'TimesNet: Temporal 2D-Variation Modeling for General Time Series Analysis' (ICLR 2023). Period-aware 2D-conv backbone in the Time-Series-Library.",
+    "confidence": "high"
+  }
+]

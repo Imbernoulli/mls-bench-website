@@ -1,0 +1,42 @@
+[
+  {
+    "model": "Huber Pinball",
+    "name": "Asymmetric Huber (pinball)",
+    "tagline": "Asymmetric Huber loss: smooth-L1 (quadratic for small errors, linear for large) with pinball weights {tau, 1-tau} for over/under-estimation.",
+    "kind": "formula",
+    "formula": "$$\\delta = V(s) - Q(s,a),\\;\\; w(\\delta) = \\begin{cases}1-\\tau & \\delta>0 \\\\ \\tau & \\delta\\le 0\\end{cases},\\;\\; \\rho(\\delta) = \\begin{cases}\\tfrac{1}{2}\\delta^2 & |\\delta|<1 \\\\ |\\delta|-\\tfrac{1}{2} & |\\delta|\\ge 1\\end{cases}$$\n$$\\mathcal{L}_V = \\mathbb{E}\\big[w(\\delta)\\,\\rho(\\delta)\\big]$$",
+    "key_hyperparams": [
+      {"name": "tau (quantile)", "value": "0.9", "role": "asymmetry: target high quantile of Q", "learnable": false},
+      {"name": "beta (Huber)", "value": "1.0", "role": "smooth-L1 transition point", "learnable": false},
+      {"name": "weight scheme", "value": "pinball (1-tau, tau)", "role": "asymmetric weighting", "learnable": false}
+    ],
+    "diff_from_baseline": "Combines Huber loss (Huber 1964) with quantile/pinball weighting (Koenker & Bassett 1978). Quadratic regime keeps gradients well-behaved while linear tails control the influence of outlier Q-targets, retaining IQL's high-quantile target.",
+    "confidence": "high"
+  },
+  {
+    "model": "Quantile Regression",
+    "name": "Quantile (pinball L1)",
+    "tagline": "Asymmetric L1 (pinball) loss: weighted absolute error with {1-tau, tau} weights for over/under-estimation; estimates the conditional tau-quantile of Q(s,a).",
+    "kind": "formula",
+    "formula": "$$\\delta = V(s) - Q(s,a),\\;\\; w(\\delta) = \\begin{cases}1-\\tau & \\delta>0 \\\\ \\tau & \\delta\\le 0\\end{cases},\\quad \\mathcal{L}_V = \\mathbb{E}\\big[w(\\delta)\\,|\\delta|\\big]$$",
+    "key_hyperparams": [
+      {"name": "tau (quantile)", "value": "0.9", "role": "target high quantile of Q", "learnable": false},
+      {"name": "loss form", "value": "asymmetric L1 (pinball)", "role": "robust to outlier Q-values", "learnable": false}
+    ],
+    "diff_from_baseline": "Koenker & Bassett 1978 (pinball loss); used in distributional RL e.g. QR-DQN (Dabney et al., AAAI 2018). Replaces IQL's expectile (asymmetric L2) with the standard quantile loss — same asymmetry but L1 magnitudes for outlier robustness.",
+    "confidence": "high"
+  },
+  {
+    "model": "Default (Expectile)",
+    "name": "Expectile (IQL default)",
+    "tagline": "Default IQL value loss: asymmetric L2 (expectile regression) that pushes V(s) toward a high expectile (tau=0.9) of Q(s,a) without explicit max over actions.",
+    "kind": "formula",
+    "formula": "$$\\delta = V(s) - Q(s,a),\\;\\; w(\\delta) = \\begin{cases}1-\\tau & \\delta>0 \\\\ \\tau & \\delta\\le 0\\end{cases},\\quad \\mathcal{L}_V = \\mathbb{E}\\big[w(\\delta)\\,\\delta^2\\big]$$",
+    "key_hyperparams": [
+      {"name": "tau (quantile)", "value": "0.9", "role": "expectile asymmetry", "learnable": false},
+      {"name": "loss form", "value": "asymmetric L2 (expectile)", "role": "smooth, differentiable", "learnable": false}
+    ],
+    "diff_from_baseline": "Kostrikov et al., \"Offline Reinforcement Learning with Implicit Q-Learning\" (ICLR 2022). The reference IQL value loss: expectile regression weights squared TD errors asymmetrically so V approaches a high expectile of the in-distribution Q. Reference comparator for the task.",
+    "confidence": "high"
+  }
+]

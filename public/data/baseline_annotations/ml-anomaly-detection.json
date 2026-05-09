@@ -1,0 +1,68 @@
+[
+  {
+    "model": "COPOD",
+    "name": "COPOD",
+    "tagline": "Copula-Based Outlier Detection: per-feature empirical CDF tail probabilities aggregated as joint anomaly scores under a copula model.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. For each feature $j$:\n// 2.   compute empirical CDFs $F_j^L, F_j^R$ (left/right tails)\n// 3.   compute skewness-corrected tail probability\n// 4. For each sample $x$:\n// 5.   $p_j = -\\log F_j(x_j)$ for the chosen tail\n// 6. Aggregate via max/sum across features (copula argument)\n// 7. Score = $\\max(\\text{left}, \\text{right}, \\text{skew})$ across $j$",
+    "key_hyperparams": [
+      {"name": "contamination", "value": "0.1", "role": "expected outlier fraction", "learnable": false}
+    ],
+    "diff_from_baseline": "Li et al. 2020 (COPOD, ICDM). Parameter-free copula-based detector that combines marginal tail probabilities; very fast and surprisingly competitive on tabular benchmarks (PyOD default wrapper).",
+    "confidence": "high"
+  },
+  {
+    "model": "ECOD",
+    "name": "ECOD",
+    "tagline": "Empirical-CDF Outlier Detection: per-dimension tail probabilities aggregated into a single anomaly score, no hyperparameters.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Concatenate train + test (transductive PyOD default)\n// 2. For each feature $j$:\n// 3.   compute left and right empirical CDFs $F_j^L, F_j^R$\n// 4.   compute per-feature skewness $\\gamma_j$\n// 5. For each sample $x$:\n// 6.   tail probability $p_j = \\min(F_j^L(x_j), F_j^R(x_j))$ (skew-aware)\n// 7. Score $s(x) = -\\sum_j \\log p_j$",
+    "key_hyperparams": [
+      {"name": "contamination", "value": "0.1 (PyOD default)", "role": "decision threshold", "learnable": false}
+    ],
+    "diff_from_baseline": "Li et al. 2022 (ECOD, IEEE TKDE). Parameter-free per-dimension empirical CDF tail detector, faster than COPOD and a strong default on tabular ADBench tasks.",
+    "confidence": "high"
+  },
+  {
+    "model": "IF (Isolation Forest)",
+    "name": "Isolation Forest",
+    "tagline": "Random isolation trees: anomalies require fewer random splits to isolate, so shorter expected path length implies higher anomaly score.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Build $T$ isolation trees:\n// 2.   sub-sample $\\psi$ rows; recursively pick random feature, random split\n// 3.   stop at max depth $\\lceil\\log_2 \\psi\\rceil$ or singleton\n// 4. For each sample $x$:\n// 5.   compute average path length $E[h(x)]$ across trees\n// 6.   normalize: $s(x) = 2^{-E[h(x)]/c(\\psi)}$\n// 7. Score $\\to 1$ for outliers, $\\to 0.5$ for normals",
+    "key_hyperparams": [
+      {"name": "n_estimators", "value": "100", "role": "number of isolation trees", "learnable": false},
+      {"name": "max_samples", "value": "auto (=256)", "role": "sub-sample size", "learnable": false},
+      {"name": "contamination", "value": "0.1", "role": "expected outlier fraction", "learnable": false}
+    ],
+    "diff_from_baseline": "Liu et al. 2008 (Isolation Forest, ICDM). The canonical tree-isolation anomaly detector. Used here via PyOD's IForest with scikit-learn backend and seed-controlled randomness.",
+    "confidence": "high"
+  },
+  {
+    "model": "LOF",
+    "name": "LOF",
+    "tagline": "Local Outlier Factor: density-based score comparing each point's reachability density to that of its k-nearest neighbors.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. MinMax-normalize features (ADBench protocol)\n// 2. For each $x$, find $k$-NN distances\n// 3. Reach-distance: $r_k(x, o) = \\max(d_k(o), d(x, o))$\n// 4. Local reach density: $\\text{lrd}(x) = 1 / \\text{mean}_o\\,r_k(x, o)$\n// 5. $\\text{LOF}(x) = \\text{mean}_{o\\in N_k(x)}\\,\\text{lrd}(o)/\\text{lrd}(x)$\n// 6. LOF $\\gg 1$: lower local density than neighbors $\\Rightarrow$ outlier",
+    "key_hyperparams": [
+      {"name": "n_neighbors", "value": "20", "role": "size of local neighborhood", "learnable": false},
+      {"name": "metric", "value": "minkowski (p=2)", "role": "distance metric", "learnable": false},
+      {"name": "contamination", "value": "0.1", "role": "expected outlier fraction", "learnable": false}
+    ],
+    "diff_from_baseline": "Breunig et al. 2000 (LOF, SIGMOD). Density-based local outlier detector. Run here with PyOD defaults plus MinMax scaling to match the ADBench Table D4 protocol.",
+    "confidence": "high"
+  },
+  {
+    "model": "OCSVM",
+    "name": "OCSVM",
+    "tagline": "One-Class SVM: learns a kernel-induced boundary around normal data; points outside the boundary are scored as anomalies.",
+    "kind": "formula",
+    "formula": "$$\\min_{w,\\rho,\\xi} \\tfrac{1}{2}\\|w\\|^2 + \\tfrac{1}{\\nu n}\\sum_i \\xi_i - \\rho\\;\\;\\text{s.t.}\\;\\; w^\\top\\phi(x_i) \\ge \\rho - \\xi_i,\\ \\xi_i\\ge 0$$",
+    "key_hyperparams": [
+      {"name": "kernel", "value": "rbf", "role": "feature-space mapping", "learnable": false},
+      {"name": "nu", "value": "0.5", "role": "upper bound on outlier fraction / margin slack", "learnable": false},
+      {"name": "gamma", "value": "auto (= 1/d)", "role": "RBF bandwidth", "learnable": false}
+    ],
+    "diff_from_baseline": "Schölkopf et al. 2001 (Neural Computation). One-Class SVM for high-dimensional support estimation. Run with PyOD defaults plus MinMax scaling to match the ADBench protocol.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,53 @@
+[
+  {
+    "model": "Bootstrap",
+    "name": "Bootstrap (soft)",
+    "tagline": "Interpolates the (poisoned) one-hot label with the model's own detached softmax prediction; trains on the mixed target.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = -\\sum_c \\big[\\beta\\, y_c + (1-\\beta)\\,\\hat{p}_c\\big]\\,\\log p_c,\\quad \\hat{p} = \\mathrm{stop\\_grad}(\\mathrm{softmax}(z))$$",
+    "key_hyperparams": [
+      {"name": "$\\beta$", "value": "0.8", "role": "weight on the noisy one-hot label", "learnable": false}
+    ],
+    "diff_from_baseline": "Reed et al., ICLR 2015 ('Training Deep Neural Networks on Noisy Labels with Bootstrapping'). Soft-bootstrap variant; classic noise-robust loss.",
+    "confidence": "high"
+  },
+  {
+    "model": "Cross-Entropy",
+    "name": "Cross-Entropy",
+    "tagline": "Standard categorical cross-entropy on the (possibly poisoned) labels — non-robust reference.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}_{\\mathrm{CE}} = -\\log p_y(x;\\theta)$$",
+    "key_hyperparams": [
+      {"name": "loss", "value": "F.cross_entropy", "role": "categorical cross-entropy", "learnable": false}
+    ],
+    "diff_from_baseline": "Standard supervised cross-entropy. Susceptible to memorization under label noise; serves as the no-defense reference baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "Generalized Cross-Entropy",
+    "name": "Generalized Cross-Entropy (GCE)",
+    "tagline": "Box-Cox-style generalization of CE that becomes more like MAE for small q, providing noise-robust gradients.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}_{\\mathrm{GCE}} = \\frac{1 - p_y(x;\\theta)^{q}}{q}$$",
+    "key_hyperparams": [
+      {"name": "$q$", "value": "0.7", "role": "Box-Cox interpolation between CE ($q\\to 0$) and MAE ($q=1$)", "learnable": false}
+    ],
+    "diff_from_baseline": "Zhang & Sabuncu, NeurIPS 2018 ('Generalized Cross Entropy Loss for Training Deep Neural Networks with Noisy Labels'). Standard noise-robust loss baseline.",
+    "confidence": "high",
+    "init_recovers": "$q \\to 0$ recovers Cross-Entropy."
+  },
+  {
+    "model": "Symmetric Cross-Entropy",
+    "name": "Symmetric Cross-Entropy (SCE)",
+    "tagline": "CE plus a Reverse-CE penalty that swaps prediction and target arguments; alpha*CE + beta*RCE.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}_{\\mathrm{SCE}} = \\alpha\\,\\mathcal{L}_{\\mathrm{CE}}(p,y) + \\beta\\,\\mathcal{L}_{\\mathrm{RCE}}(y,p),\\quad \\mathcal{L}_{\\mathrm{RCE}} = -\\sum_c p_c\\,\\log y_c$$",
+    "key_hyperparams": [
+      {"name": "$\\alpha$", "value": "1.0", "role": "weight on standard CE", "learnable": false},
+      {"name": "$\\beta$", "value": "0.5", "role": "weight on RCE term", "learnable": false},
+      {"name": "label clip", "value": "1e-4", "role": "log domain stability for RCE", "learnable": false}
+    ],
+    "diff_from_baseline": "Wang et al., ICCV 2019 ('Symmetric Cross Entropy for Robust Learning with Noisy Labels'). RCE penalizes confident wrong predictions and is theoretically noise-tolerant.",
+    "confidence": "high"
+  }
+]

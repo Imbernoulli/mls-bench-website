@@ -1,0 +1,76 @@
+[
+  {
+    "model": "Block Attention Residuals",
+    "name": "Block AttnRes",
+    "tagline": "Partition layers into blocks of 4; within blocks use vanilla residuals; at block boundaries attend over all preceding block outputs with learned queries.",
+    "kind": "hybrid",
+    "formula": "$$x_{b+1} = \\sum_{j=0}^{b}\\,\\mathrm{softmax}\\!\\big(\\langle q_b,\\, \\mathrm{RMSNorm}(x_j)\\rangle\\big)_j\\,x_j$$",
+    "diagram": {
+      "nodes": [
+        {"id": "emb", "label": "embedding x0"},
+        {"id": "b0", "label": "Block 0: 4 layers (Pre-LN)"},
+        {"id": "q1", "label": "Query q1 attends over {x0, x_b0}"},
+        {"id": "b1", "label": "Block 1: 4 layers"},
+        {"id": "qN", "label": "Query qN ... over all block outputs"},
+        {"id": "out", "label": "final aggregation -> LM head"}
+      ],
+      "edges": [
+        {"from": "emb", "to": "b0"},
+        {"from": "b0", "to": "q1"},
+        {"from": "emb", "to": "q1"},
+        {"from": "q1", "to": "b1"},
+        {"from": "b1", "to": "qN"},
+        {"from": "qN", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "block_size_layers", "value": "4", "role": "layers per residual block", "learnable": false},
+      {"name": "n_blocks", "value": "n_layer / 4 = 6", "role": "number of attention boundaries", "learnable": false},
+      {"name": "attnres_lr_scale", "value": "0.1x base lr", "role": "lower LR for query parameters", "learnable": false},
+      {"name": "queries", "value": "n_blocks-1 + 1 output", "role": "learned aggregation queries", "learnable": true}
+    ],
+    "diff_from_baseline": "'Attention Residuals' (Kimi Team, arXiv:2603.15031, 2026). Memory-efficient block-level variant of attention residuals; reduces source list from 2*n_layer sublayers to ~n_blocks block outputs.",
+    "confidence": "high"
+  },
+  {
+    "model": "Learned Scaling",
+    "name": "Learned scaling + x0 injection",
+    "tagline": "Per-layer learned scalars rescale the residual stream and inject the embedding output x0 at every block; init recovers vanilla.",
+    "kind": "formula",
+    "formula": "$$x_{i+1} = \\lambda^{r}_i\\, x_i + \\big(\\mathrm{Block}_i(x_i) - x_i\\big) + \\lambda^{0}_i\\, x_0$$",
+    "key_hyperparams": [
+      {"name": "$\\lambda^{r}$ init", "value": "1.0", "role": "residual stream scaling", "learnable": true},
+      {"name": "$\\lambda^{0}$ init", "value": "0.0", "role": "embedding injection scale", "learnable": true},
+      {"name": "weight_decay", "value": "0 on scalings", "role": "no-decay group for scalars", "learnable": false}
+    ],
+    "diff_from_baseline": "Inspired by modded-nanogpt speedrun records (Keller Jordan) and Nick Ryan's 334M validation. Adds two learned per-layer scalars per block creating a 'gradient highway' from the embedding.",
+    "confidence": "high",
+    "init_recovers": "$\\lambda^{r} = 1$, $\\lambda^{0} = 0$ recovers Vanilla (Pre-LN)."
+  },
+  {
+    "model": "ProRes",
+    "name": "ProRes (progressive warmup)",
+    "tagline": "Progressive residual warmup that linearly ramps each layer's contribution from 0 to 1 over T*layer_idx training steps.",
+    "kind": "formula",
+    "formula": "$$x_{i+1} = x_i + \\alpha_i(t)\\,(\\mathrm{Block}_i(x_i) - x_i),\\quad \\alpha_i(t)=\\min\\!\\Big(\\frac{t}{T\\,(i+1)},\\,1\\Big)$$",
+    "key_hyperparams": [
+      {"name": "$T$ (warmup period)", "value": "1000", "role": "base steps until layer 1 fully on", "learnable": false},
+      {"name": "deeper-layer factor", "value": "$T(i+1)$", "role": "deeper layers ramp slower", "learnable": false}
+    ],
+    "diff_from_baseline": "'Progressive Residual Warmup' (arXiv:2603.05369, 2026). Stabilizes Pre-LN training by damping noisy deep-layer updates early, ramping to vanilla residuals as training progresses.",
+    "confidence": "high",
+    "init_recovers": "After $t \\ge T \\cdot n\\_layer$ this reduces to Vanilla."
+  },
+  {
+    "model": "Vanilla (Pre-LN)",
+    "name": "Vanilla Pre-LN residual",
+    "tagline": "Standard transformer residual: each block's sublayer output is added back to the residual stream as $x \\leftarrow x + \\mathrm{Block}(x)$.",
+    "kind": "formula",
+    "formula": "$$x_{i+1} = x_i + \\mathrm{Block}_i(x_i)$$",
+    "key_hyperparams": [
+      {"name": "norm placement", "value": "Pre-LN", "role": "LayerNorm before attn/MLP", "learnable": false}
+    ],
+    "diff_from_baseline": "Standard GPT-2 / Llama-style Pre-LN residual stream. Reference design that other baselines aim to beat.",
+    "confidence": "high"
+  }
+]

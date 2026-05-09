@@ -1,0 +1,40 @@
+[
+  {
+    "model": "DropBlock",
+    "name": "DropBlock-style weight penalty",
+    "tagline": "Spatial co-activation penalty on conv weights using local block-averaged squared magnitude with linear warm-up after 20% of training.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{R} = \\lambda(t)\\;\\frac{1}{|\\mathcal{C}|}\\sum_{\\ell\\in\\mathcal{C}} \\mathrm{mean}\\!\\left[\\mathrm{AvgPool}_{b\\times b}\\!\\left(\\frac{1}{C_{in}}\\sum_{c} W_\\ell^2\\right)\\right],\\quad b=3,\\;\\lambda_{\\max}=10^{-4}$$",
+    "key_hyperparams": [
+      {"name": "block_size", "value": "3", "role": "spatial block", "learnable": false},
+      {"name": "lambda_max", "value": "1e-4", "role": "max coefficient", "learnable": false},
+      {"name": "warmup", "value": "20%-100%", "role": "linear schedule, delayed start", "learnable": false}
+    ],
+    "diff_from_baseline": "Inspired by Ghiasi et al. 2018 (DropBlock, NeurIPS). DropBlock masks contiguous activation regions; this baseline transfers the idea to convolutional weights by penalising the mean squared block energy of each kernel.",
+    "confidence": "high"
+  },
+  {
+    "model": "Confidence Penalty",
+    "name": "Confidence Penalty",
+    "tagline": "Subtracts the mean softmax entropy of predictions to discourage over-confident output distributions.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{R} = -\\beta\\,\\mathbb{E}_x\\!\\left[\\,-\\sum_k p_\\theta(y\\!=\\!k\\mid x)\\,\\log p_\\theta(y\\!=\\!k\\mid x)\\right],\\quad \\beta = 0.1$$",
+    "key_hyperparams": [
+      {"name": "beta", "value": "0.1", "role": "penalty weight", "learnable": false}
+    ],
+    "diff_from_baseline": "Pereyra et al. 2017 (ICLR workshop). Adds negative entropy of softmax outputs as a penalty term to standard cross-entropy training; canonical confidence-regularization baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "Orthogonal Regularization",
+    "name": "Orthogonal Regularization",
+    "tagline": "Penalises deviation of conv weight matrices from orthogonality via ||W^T W - I||_F^2 with coefficient 1e-4.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{R} = \\lambda \\sum_{\\ell\\in\\mathrm{conv}} \\big\\| W_\\ell^{\\top} W_\\ell - I \\big\\|_F^2,\\quad \\lambda = 10^{-4}, \\quad W_\\ell\\in\\mathbb{R}^{C_{out}\\times C_{in}k^2}$$",
+    "key_hyperparams": [
+      {"name": "lambda", "value": "1e-4", "role": "penalty weight", "learnable": false}
+    ],
+    "diff_from_baseline": "Brock et al. 2017 (Neural Photo Editing). Encourages orthonormal conv kernels reshaped to 2-D matrices; widely used for stable training of GANs and deep CNNs.",
+    "confidence": "high"
+  }
+]

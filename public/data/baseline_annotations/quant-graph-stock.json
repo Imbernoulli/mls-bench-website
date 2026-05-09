@@ -1,0 +1,84 @@
+[
+  {
+    "model": "HIST",
+    "name": "HIST",
+    "tagline": "LSTM/GRU encoder followed by predefined-concept aggregation, hidden-concept mining, and an individual-information branch summed at the readout.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "feat", "label": "Alpha360 features [N,F,T]"},
+        {"id": "rnn", "label": "LSTM/GRU x2 (h=64)"},
+        {"id": "pcm", "label": "Predefined-Concept Module (stock×concept)"},
+        {"id": "hcm", "label": "Hidden-Concept Module (top-1 cosine)"},
+        {"id": "ind", "label": "Individual-Info residual"},
+        {"id": "sum", "label": "Sum + linear readout"}
+      ],
+      "edges": [
+        {"from": "feat", "to": "rnn"},
+        {"from": "rnn", "to": "pcm"},
+        {"from": "rnn", "to": "hcm"},
+        {"from": "rnn", "to": "ind"},
+        {"from": "pcm", "to": "sum"},
+        {"from": "hcm", "to": "sum"},
+        {"from": "ind", "to": "sum"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_size", "value": "64", "role": "RNN width", "learnable": false},
+      {"name": "num_layers", "value": "2", "role": "RNN depth", "learnable": false},
+      {"name": "lr", "value": "1e-4", "role": "Adam LR", "learnable": false},
+      {"name": "n_epochs", "value": "200, early-stop=20", "role": "training", "learnable": false},
+      {"name": "stock2concept", "value": "qlib_csi300_stock2concept.npy", "role": "concept membership", "learnable": false}
+    ],
+    "diff_from_baseline": "Xu et al. 2021 (HIST, IJCAI). Mines shared concept information across stocks via predefined membership and hidden-concept cosine similarity, then combines with an individual residual stream. Verbatim re-impl of qlib pytorch_hist.py with Alpha360 hyperparameters.",
+    "confidence": "high"
+  },
+  {
+    "model": "GATs",
+    "name": "GATs (Graph Attention)",
+    "tagline": "LSTM/GRU encoder per stock, then a fully-connected daily attention layer where each stock attends to all others before the prediction head.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "feat", "label": "Alpha360 features [N,F,T]"},
+        {"id": "rnn", "label": "LSTM/GRU x2 (h=64, dropout=0.7)"},
+        {"id": "trans", "label": "Linear transformation"},
+        {"id": "att", "label": "All-pairs attention softmax(LeakyReLU(a^T[h_i||h_j]))"},
+        {"id": "agg", "label": "Att·H + H residual"},
+        {"id": "head", "label": "Linear -> 1"}
+      ],
+      "edges": [
+        {"from": "feat", "to": "rnn"},
+        {"from": "rnn", "to": "trans"},
+        {"from": "trans", "to": "att"},
+        {"from": "att", "to": "agg"},
+        {"from": "rnn", "to": "agg"},
+        {"from": "agg", "to": "head"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_size", "value": "64", "role": "encoder width", "learnable": false},
+      {"name": "dropout", "value": "0.7", "role": "RNN regularization", "learnable": false},
+      {"name": "lr", "value": "1e-4", "role": "Adam LR", "learnable": false},
+      {"name": "base_model", "value": "LSTM (pretrained)", "role": "encoder + warm-start", "learnable": false}
+    ],
+    "diff_from_baseline": "Velickovic et al. 2018 (GAT, ICLR) adapted by qlib's pytorch_gats.py. RNN sequence encoder followed by a learned daily all-pairs attention; prediction = (att·H + H) -> Linear -> 1.",
+    "confidence": "high"
+  },
+  {
+    "model": "LightGBM",
+    "name": "LightGBM (Alpha360)",
+    "tagline": "Gradient-boosted decision trees on Alpha360 features with the qlib official LightGBM hyperparameters; non-graph reference baseline.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. preprocess: DropnaLabel + CSRankNorm on labels\n// 2. lgb.Dataset(features, labels) for train/valid\n// 3. params = {objective='mse', lr=0.0421, max_depth=8, num_leaves=210,\n//              colsample=0.8879, subsample=0.8789, lambda_l1=205.7, lambda_l2=580.98}\n// 4. lgb.train(num_boost_round=1000, early_stopping=50)\n// 5. predict on test segment",
+    "key_hyperparams": [
+      {"name": "objective", "value": "mse", "role": "regression loss", "learnable": false},
+      {"name": "num_leaves", "value": "210", "role": "tree complexity", "learnable": false},
+      {"name": "max_depth", "value": "8", "role": "tree depth", "learnable": false},
+      {"name": "lambda_l1/l2", "value": "205.7 / 580.98", "role": "regularization", "learnable": false},
+      {"name": "n_rounds", "value": "1000, early-stop 50", "role": "boosting", "learnable": false}
+    ],
+    "diff_from_baseline": "Ke et al. 2017 (LightGBM, NeurIPS). Histogram-based GBDT used as the default qlib baseline; treats each (stock, day) row independently and ignores the stock-concept graph structure.",
+    "confidence": "high"
+  }
+]

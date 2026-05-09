@@ -1,0 +1,62 @@
+[
+  {
+    "model": "G-PBGD",
+    "name": "G-PBGD",
+    "tagline": "Gradient-based Penalized Bilevel Gradient Descent: replaces the inner solve with a single penalty-augmented outer gradient step.",
+    "kind": "pseudocode",
+    "pseudocode": "// Each outer iteration $k$:\n// 1. Update penalty $\\gamma_k$ from initial $\\gamma_0$ toward $\\gamma_{\\max}$ over $K^*$ steps\n// 2. Build penalized objective $f(x,y) + \\gamma_k\\,(F(x,y) - F^\\star(x))$\n// 3. Compute joint gradient $\\nabla_{x,y}$ by combining outer and weighted inner grads\n// 4. $x_{k+1} = x_k - \\text{lr}_x\\,\\nabla_x;\\quad y_{k+1} = y_k - \\text{lr}_y\\,\\nabla_y$\n// 5. Repeat for outer_itr; no nested inner loop required",
+    "key_hyperparams": [
+      {"name": "gamma_max", "value": "37.0", "role": "final penalty weight", "learnable": false},
+      {"name": "gamma_argmax_step", "value": "5k–30k", "role": "schedule length to gamma_max", "learnable": false},
+      {"name": "lr_x, lr_y", "value": "0.3–0.5", "role": "outer / inner learning rates", "learnable": false},
+      {"name": "outer_itr", "value": "40k–50k", "role": "total outer iterations", "learnable": false}
+    ],
+    "diff_from_baseline": "Kwon et al. 2024 (G-PBGD). Penalty-based first-order bilevel solver that avoids nested inner-loops by treating $y$ as a free variable in a penalized formulation; canonical baseline in the V-PBGD repo.",
+    "confidence": "high"
+  },
+  {
+    "model": "RHG",
+    "name": "RHG",
+    "tagline": "Reverse-mode Hyper-Gradient (Iterative Differentiation): unrolls T inner SGD steps and back-propagates through all of them to compute the hypergradient.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. For outer iter $k = 1, \\dots, K_{\\text{out}}$:\n// 2.   Initialize $y_0$\n// 3.   For inner iter $t = 1, \\dots, T$:\n// 4.     $y_t = y_{t-1} - \\text{lr}_{\\text{in}}\\,\\nabla_y g(x, y_{t-1})$\n// 5.   compute $L_{\\text{out}} = f(x, y_T)$\n// 6.   hypergradient $\\nabla_x = \\partial L_{\\text{out}} / \\partial x$  (autodiff through all $T$ steps)\n// 7.   $x \\leftarrow x - \\text{lr}\\,\\nabla_x$",
+    "key_hyperparams": [
+      {"name": "T", "value": "500", "role": "inner unrolling steps", "learnable": false},
+      {"name": "K", "value": "500", "role": "back-prop window (full unrolling)", "learnable": false},
+      {"name": "lr / lr_inner", "value": "0.001 / 0.1", "role": "outer / inner learning rates", "learnable": false},
+      {"name": "outer_itr", "value": "100", "role": "total outer iterations", "learnable": false}
+    ],
+    "diff_from_baseline": "Maclaurin et al. 2015 / Franceschi et al. 2017–18 (RHG / ITD). Reverse-mode hyper-gradient via full inner-loop unrolling. Canonical bilevel baseline; high memory cost due to autodiff tape over T steps.",
+    "confidence": "high"
+  },
+  {
+    "model": "T-RHG",
+    "name": "T-RHG",
+    "tagline": "Truncated RHG: identical to RHG but back-propagates through only the last K inner steps, trading hypergradient bias for lower memory and runtime.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. For outer iter $k = 1, \\dots, K_{\\text{out}}$:\n// 2.   Inner SGD for $T$ steps (no grad tracking for first $T - K$)\n// 3.   Track gradients only over last $K$ inner steps\n// 4.   $L_{\\text{out}} = f(x, y_T)$\n// 5.   $\\tilde\\nabla_x = $ backprop through last $K$ steps only\n// 6.   $x \\leftarrow x - \\text{lr}\\,\\tilde\\nabla_x$",
+    "key_hyperparams": [
+      {"name": "T", "value": "500", "role": "inner steps total", "learnable": false},
+      {"name": "K", "value": "100", "role": "truncated back-prop window", "learnable": false},
+      {"name": "lr / lr_inner", "value": "0.001 / 0.1", "role": "outer / inner learning rates", "learnable": false},
+      {"name": "outer_itr", "value": "100", "role": "total outer iterations", "learnable": false}
+    ],
+    "diff_from_baseline": "Shaban et al. 2019 (T-RHG, AISTATS). Truncated reverse-hyper-gradient: cheaper memory than full RHG, with bounded bias when the inner trajectory contracts.",
+    "confidence": "high"
+  },
+  {
+    "model": "V-PBGD",
+    "name": "V-PBGD",
+    "tagline": "Value-function Penalized Bilevel Gradient Descent: alternating inner refinement + penalty-based outer update with scheduled $\\gamma$.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Schedule penalty $\\gamma_k: \\gamma_0 \\to \\gamma_{\\max}$ over $K^*$ outer steps\n// 2. For outer iter $k$:\n// 3.   inner refinement of $y$ (inner_itr SGD on $g$, lr_inner)\n// 4.   compute outer + penalty gradient on $x$ and $y$\n// 5.   $x_{k+1} = x_k - \\text{lrx}\\,\\nabla_x;\\quad y_{k+1} = y_k - \\text{lry}\\,\\nabla_y$\n// 6.   evaluate every eval_interval steps",
+    "key_hyperparams": [
+      {"name": "gamma_max", "value": "0.1–0.2", "role": "penalty weight cap", "learnable": false},
+      {"name": "gamma_argmax_step", "value": "10k–30k", "role": "ramp length", "learnable": false},
+      {"name": "lrx, lry, lr_inner", "value": "0.1 / 0.01 / 0.01", "role": "outer / inner / inner-refine LRs", "learnable": false},
+      {"name": "inner_itr", "value": "1", "role": "inner refinement steps per outer", "learnable": false}
+    ],
+    "diff_from_baseline": "Liu et al. 2024 (V-PBGD). Value-function penalty-based bilevel optimizer that schedules a single penalty multiplier and uses one inner-step per outer iteration; the original V-PBGD reference.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,58 @@
+[
+  {
+    "model": "Attention Fusion",
+    "name": "Attention Fusion",
+    "tagline": "Project each observation modality to a shared embedding, then apply multi-head self-attention across the modality tokens.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "obs", "label": "obs_dict {ee_pose, gripper, object, ...}"},
+        {"id": "proj", "label": "Per-modality Linear+ReLU → ℝᴱ"},
+        {"id": "stack", "label": "Stack: tokens [B,M,E]"},
+        {"id": "mha", "label": "MultiheadAttention (heads=2)"},
+        {"id": "ln", "label": "LayerNorm + residual"},
+        {"id": "out", "label": "flatten → ℝ^{M·E}"}
+      ],
+      "edges": [
+        {"from": "obs", "to": "proj"},
+        {"from": "proj", "to": "stack"},
+        {"from": "stack", "to": "mha", "label": "Q=K=V"},
+        {"from": "mha", "to": "ln"},
+        {"from": "ln", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "embed_dim", "value": "64", "role": "per-modality token width", "learnable": false},
+      {"name": "num_heads", "value": "2", "role": "self-attention heads", "learnable": false},
+      {"name": "output_dim", "value": "embed_dim · M", "role": "flattened concatenation of attended tokens", "learnable": false}
+    ],
+    "diff_from_baseline": "Standard cross-modal self-attention fusion (cf. Set Transformer / multimodal transformer). Lets the encoder learn pairwise modality interactions before flattening.",
+    "confidence": "high"
+  },
+  {
+    "model": "Gated Fusion",
+    "name": "Gated Fusion",
+    "tagline": "Each modality is processed by a small MLP and multiplied by a learned sigmoid gate from the same input; gated features concatenated.",
+    "kind": "formula",
+    "formula": "$$h_m = \\mathrm{MLP}_m(o_m)\\in\\mathbb{R}^E,\\qquad g_m = \\sigma(W^g_m o_m)\\in(0,1)^E,\\qquad z = \\mathrm{concat}_m\\big(h_m \\odot g_m\\big)$$",
+    "key_hyperparams": [
+      {"name": "embed_dim", "value": "64", "role": "per-modality feature width", "learnable": false},
+      {"name": "MLP", "value": "Linear-ReLU-Linear-ReLU", "role": "modality encoder", "learnable": true},
+      {"name": "gate", "value": "Linear → Sigmoid", "role": "per-channel modality importance", "learnable": true}
+    ],
+    "diff_from_baseline": "Highway / gated multimodal fusion (Arevalo et al. 2017, Hori et al. 2017). Lighter than attention but more expressive than concatenation; lets the policy down-weight noisy modalities per-channel.",
+    "confidence": "high"
+  },
+  {
+    "model": "Default (Concatenation)",
+    "name": "Default (Concatenation)",
+    "tagline": "Robomimic's default low-dim encoder: flatten and concatenate every observation modality vector.",
+    "kind": "formula",
+    "formula": "$$z = \\mathrm{concat}\\big(o_{\\text{ee\\_pose}},\\, o_{\\text{gripper}},\\, o_{\\text{object}},\\, \\ldots\\big)\\in\\mathbb{R}^{\\sum_m d_m}$$",
+    "key_hyperparams": [
+      {"name": "output_dim", "value": "Σ d_m", "role": "sum of modality dims", "learnable": false}
+    ],
+    "diff_from_baseline": "Mandlekar et al., Robomimic 2021 (CoRL). Default ObservationGroupEncoder behavior — concatenate raw low-dim modality vectors before the policy head; no learnable fusion parameters.",
+    "confidence": "high"
+  }
+]

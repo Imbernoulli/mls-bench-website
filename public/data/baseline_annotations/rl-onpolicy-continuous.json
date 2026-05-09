@@ -1,0 +1,45 @@
+[
+  {
+    "model": "AWR",
+    "name": "AWR (Advantage-Weighted Regression)",
+    "tagline": "Replace PPO's clipped surrogate with supervised regression of the policy on actions reweighted by exponentiated advantages.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}_\\pi = -\\,\\mathbb{E}\\!\\big[w(s,a)\\,\\log\\pi_\\theta(a\\mid s)\\big],\\quad w = \\min\\!\\Big(\\tfrac{e^{A/\\beta}}{\\bar w}\\cdot N,\\,W_{\\max}\\Big)$$",
+    "key_hyperparams": [
+      {"name": "beta", "value": "0.05", "role": "advantage temperature", "learnable": false},
+      {"name": "max_weight", "value": "20.0", "role": "weight clamp for stability", "learnable": false},
+      {"name": "value loss", "value": "MSE", "role": "critic regression", "learnable": false}
+    ],
+    "diff_from_baseline": "Peng et al., 'Advantage-Weighted Regression: Simple and Scalable Off-Policy Reinforcement Learning' (2019). Treats policy improvement as supervised regression on advantage-weighted actions.",
+    "confidence": "high"
+  },
+  {
+    "model": "PPO",
+    "name": "PPO (clipped surrogate)",
+    "tagline": "Standard PPO clipped surrogate plus clipped value-loss; the cleanrl on-policy continuous-control reference.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}^{\\text{clip}} = \\mathbb{E}\\!\\big[\\min(r_t A_t,\\;\\mathrm{clip}(r_t,1-\\epsilon,1+\\epsilon)A_t)\\big],\\;\\;r_t=\\tfrac{\\pi_\\theta(a_t|s_t)}{\\pi_{\\theta_{\\mathrm{old}}}(a_t|s_t)}$$",
+    "key_hyperparams": [
+      {"name": "clip_coef", "value": "args.clip_coef", "role": "ratio clipping range", "learnable": false},
+      {"name": "vf_coef / ent_coef", "value": "args.vf_coef / args.ent_coef", "role": "value loss + entropy bonus weights", "learnable": false},
+      {"name": "clip_vloss", "value": "True", "role": "clipped value-loss", "learnable": false}
+    ],
+    "diff_from_baseline": "Schulman et al., 'Proximal Policy Optimization Algorithms' (2017); cleanrl/ppo_continuous_action.py reference. Default on-policy continuous-control baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "PPO (KL Penalty)",
+    "name": "PPO (Adaptive KL Penalty)",
+    "tagline": "Replace ratio clipping with an adaptive-coefficient KL penalty: doubles when KL exceeds 1.5x target, halves when below 1/1.5x target.",
+    "kind": "hybrid",
+    "formula": "$$\\mathcal{L}_\\pi = -\\mathbb{E}[r_t A_t] + \\beta\\,\\widehat{\\mathrm{KL}}\\big(\\pi_{\\theta_{\\mathrm{old}}}\\Vert \\pi_\\theta\\big)$$",
+    "pseudocode": "1. Init $\\beta=0.5$, $\\mathrm{KL}^*=0.01$.\n2. Each minibatch: compute $r_t = \\exp(\\log\\pi_\\theta-\\log\\pi_{\\theta_{\\mathrm{old}}})$ and $\\widehat{\\mathrm{KL}} = \\mathbb{E}[(r_t-1)-\\log r_t]$.\n3. Loss = $-\\mathbb{E}[r_t A_t] + \\beta\\,\\widehat{\\mathrm{KL}}$.\n4. Adapt $\\beta$: if $\\widehat{\\mathrm{KL}} > 1.5\\,\\mathrm{KL}^*$ then $\\beta\\mathrel{*}=2$ (cap 100); if $\\widehat{\\mathrm{KL}} < \\mathrm{KL}^*/1.5$ then $\\beta\\mathrel{/}=2$ (floor 1e-4).\n5. Add MSE value loss + entropy bonus.",
+    "key_hyperparams": [
+      {"name": "kl_beta_init", "value": "0.5", "role": "initial KL coefficient", "learnable": true},
+      {"name": "target_kl", "value": "0.01", "role": "adaptive setpoint", "learnable": false},
+      {"name": "beta bounds", "value": "[1e-4, 100]", "role": "adaptation range", "learnable": false}
+    ],
+    "diff_from_baseline": "Schulman et al., 'Proximal Policy Optimization Algorithms' (2017), Section 4. PPO-Penalty variant with adaptive KL coefficient instead of clipping.",
+    "confidence": "high"
+  }
+]

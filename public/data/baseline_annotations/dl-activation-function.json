@@ -1,0 +1,32 @@
+[
+  {
+    "model": "GELU",
+    "name": "GELU",
+    "tagline": "Gaussian Error Linear Unit: smooth gating activation x * Phi(x) where Phi is the Gaussian CDF.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{GELU}(x) = x\\,\\Phi(x) = \\tfrac{x}{2}\\Big(1 + \\mathrm{erf}\\!\\big(x/\\sqrt{2}\\big)\\Big)$$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Hendrycks & Gimpel 2016 (Gaussian Error Linear Units). Smooth, non-monotonic activation that allows small negative outputs; default in BERT, GPT-family, and many ViTs. Implemented via F.gelu.",
+    "confidence": "high"
+  },
+  {
+    "model": "Mish",
+    "name": "Mish",
+    "tagline": "Self-regularized non-monotonic activation x * tanh(softplus(x)) with smooth gradients.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{Mish}(x) = x \\cdot \\tanh\\!\\big(\\mathrm{softplus}(x)\\big) = x \\cdot \\tanh\\!\\big(\\log(1 + e^x)\\big)$$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Misra 2019 (Mish: A Self Regularized Non-Monotonic Activation Function). Self-gated activation popular in YOLOv4 and other CV backbones; smooth, unbounded above, bounded below.",
+    "confidence": "high"
+  },
+  {
+    "model": "SiLU",
+    "name": "SiLU / Swish",
+    "tagline": "Sigmoid Linear Unit: x * sigmoid(x). Self-gated, smooth, non-monotonic activation.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{SiLU}(x) = x \\cdot \\sigma(x) = \\frac{x}{1 + e^{-x}}$$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Elfwing et al. 2017 / Ramachandran et al. 2017 (Searching for Activation Functions; also called Swish). Default activation in EfficientNet and many modern CNNs; implemented via F.silu.",
+    "confidence": "high"
+  }
+]

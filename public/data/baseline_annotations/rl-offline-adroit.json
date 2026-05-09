@@ -1,0 +1,47 @@
+[
+  {
+    "model": "AWAC",
+    "name": "AWAC",
+    "tagline": "Advantage Weighted Actor-Critic: TD3-style twin Q with an advantage-weighted log-likelihood actor loss.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Critic: $\\min(Q^{\\text{tgt}}_1, Q^{\\text{tgt}}_2)$ targets; MSE on $(Q_1, Q_2)$ vs $r + \\gamma(1{-}d)\\min Q^{\\text{tgt}}_{1,2}(s', \\pi(s'))$.\n2. Compute $\\hat A(s,a) = \\min Q(s,a) - \\min Q(s, \\pi(s))$.\n3. Weights: $w = \\min\\!\\big(e^{\\hat A / \\lambda},\\; 100\\big)$ with $\\lambda{=}0.1$.\n4. Actor loss: $\\mathcal{L}_\\pi = -\\mathbb{E}\\big[w\\cdot \\log \\pi_\\theta(a | s)\\big]$ (BC weighted by exp-advantage).\n5. Soft target update with $\\tau{=}5\\!\\times\\!10^{-3}$.\n6. Networks: 3×256 MLP; Gaussian actor with state-independent $\\log\\sigma$ + clamp; obs normalize.",
+    "key_hyperparams": [
+      {"name": "λ (awac_lambda)", "value": "0.1", "role": "advantage-weight temperature", "learnable": false},
+      {"name": "exp_adv_max", "value": "100", "role": "weight clip", "learnable": false},
+      {"name": "τ", "value": "5e-3", "role": "Polyak target rate", "learnable": false}
+    ],
+    "diff_from_baseline": "Nair et al., AWAC 2020 (arXiv:2006.09359). Implicit policy constraint via exp-advantage-weighted regression toward dataset actions; matches CORL/algorithms/offline/awac.py.",
+    "confidence": "high"
+  },
+  {
+    "model": "IQL",
+    "name": "IQL",
+    "tagline": "Implicit Q-Learning: expectile-regression value head + Bellman with V(s'), policy via advantage-weighted regression.",
+    "kind": "pseudocode",
+    "pseudocode": "1. V update: expectile loss $\\mathcal{L}_V = \\mathbb{E}\\big[|\\tau - \\mathbb{1}\\{u<0\\}|\\,u^2\\big]$ with $u = Q^{\\text{tgt}}(s,a) - V(s)$, $\\tau{=}0.8$.\n2. Q update: TwinQ MSE on $r + \\gamma(1{-}d)\\,V(s')$.\n3. Soft target $Q^{\\text{tgt}}$ update with $\\tau{=}5e{-3}$.\n4. Policy: AWR with $\\exp(\\beta\\cdot(Q^{\\text{tgt}}(s,a)-V(s)))$ clipped to $100$, $\\beta{=}3.0$.\n5. Actor optimizer with cosine LR schedule; 2×256 MLP + Tanh + Dropout(0.1) + state-independent $\\log\\sigma$.\n6. Twin Q: 3×256 MLP, output squeezed.",
+    "key_hyperparams": [
+      {"name": "iql_tau", "value": "0.8", "role": "expectile for V", "learnable": false},
+      {"name": "β", "value": "3.0", "role": "AWR temperature", "learnable": false},
+      {"name": "exp_adv_max", "value": "100", "role": "AWR weight clip", "learnable": false},
+      {"name": "actor_dropout", "value": "0.1", "role": "actor MLP dropout", "learnable": false}
+    ],
+    "diff_from_baseline": "Kostrikov, Nair & Levine, ICLR 2022 (arXiv:2110.06169). Avoids querying Q outside dataset by learning V via expectile regression; standard offline-RL baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "ReBRAC",
+    "name": "ReBRAC",
+    "tagline": "Regularized BRAC: TD3+BC with critic-side BC penalty inside the Bellman target plus actor-side BC penalty; per-env coeffs.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Critic target: $y = r + \\gamma(1{-}d)\\big[\\min_{1,2} Q^{\\text{tgt}}(s', \\pi^{\\text{tgt}}(s')+\\epsilon) - \\beta_c\\,\\|\\pi^{\\text{tgt}}(s')-a'_\\text{data}\\|^2\\big]$ with $\\epsilon$ clipped TD3 noise.\n2. Critic loss: MSE on $(Q_1, Q_2)$ vs $y$; networks 3×256 with post-activation LayerNorm.\n3. Delayed policy update every $2$ steps; $\\lambda = 1/|\\overline{Q}|$ if normalize_q.\n4. Actor loss: $\\mathcal{L}_\\pi = \\mathbb{E}\\big[\\beta_a\\,\\|\\pi(s)-a\\|^2 - \\lambda\\,\\min Q(s,\\pi(s))\\big]$.\n5. Per-env BC coeffs: pen $(\\beta_a,\\beta_c){=}(0.1,0.5)$, hammer $(0.01,0.5)$, door $(0.1,0.1)$, door-cloned $(0.01,0.1)$.\n6. Polyak update $\\tau{=}5e{-3}$; deterministic Tanh actor.",
+    "key_hyperparams": [
+      {"name": "actor_bc_coef β_a", "value": "per-env (0.01–0.1)", "role": "actor BC penalty weight", "learnable": false},
+      {"name": "critic_bc_coef β_c", "value": "per-env (0.1–0.5)", "role": "critic-target BC penalty weight", "learnable": false},
+      {"name": "policy_noise / clip", "value": "0.2 / 0.5", "role": "TD3 target smoothing", "learnable": false},
+      {"name": "policy_freq", "value": "2", "role": "delayed actor update", "learnable": false},
+      {"name": "normalize_q", "value": "true", "role": "λ = 1/|mean Q|", "learnable": false}
+    ],
+    "diff_from_baseline": "Tarasov et al., ReBRAC 2023 (arXiv:2305.09836). Adds BC regularization both in the actor loss and inside the Bellman target on top of TD3+BC; SOTA on D4RL benchmarks.",
+    "confidence": "high"
+  }
+]

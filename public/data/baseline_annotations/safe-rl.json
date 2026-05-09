@@ -1,0 +1,44 @@
+[
+  {
+    "model": "Naive PPO",
+    "name": "Naive PPO",
+    "tagline": "PPO with no constraint handling: Lagrange multiplier stays at 0 and the cost advantage is dropped from the surrogate.",
+    "kind": "formula",
+    "formula": "$$\\lambda \\equiv 0,\\qquad A_{\\mathrm{surr}}(s,a) = A_r(s,a) \\;-\\; \\text{(cost ignored)}$$",
+    "key_hyperparams": [
+      {"name": "$\\lambda$", "value": "0 (fixed)", "role": "no penalty applied", "learnable": false},
+      {"name": "cost head", "value": "ignored", "role": "$A_c$ dropped from surrogate", "learnable": false}
+    ],
+    "diff_from_baseline": "Schulman et al., 'Proximal Policy Optimization Algorithms' (arXiv:1707.06347, 2017). Lower-bound reference for safe RL: pure unconstrained PPO with cost completely ignored. Establishes maximum reward attainable with no safety mechanism.",
+    "confidence": "high"
+  },
+  {
+    "model": "Lagrangian PPO",
+    "name": "PPO-Lagrangian",
+    "tagline": "Adam-optimized Lagrange multiplier: $\\lambda$ is a clamped torch parameter trained to push reward when $J_c$ exceeds the cost limit.",
+    "kind": "formula",
+    "formula": "$$L_\\lambda = -\\lambda\\,(J_c - d),\\;\\; \\lambda \\leftarrow \\mathrm{clip}_{\\geq 0}(\\lambda - \\eta_\\lambda \\nabla_\\lambda L_\\lambda),\\qquad A_{\\mathrm{surr}} = \\frac{A_r - \\lambda\\,A_c}{1 + \\lambda}$$",
+    "key_hyperparams": [
+      {"name": "$d$ (cost_limit)", "value": "25", "role": "constraint budget", "learnable": false},
+      {"name": "$\\lambda_0$", "value": "config (lagrangian_multiplier_init)", "role": "initial multiplier", "learnable": true},
+      {"name": "$\\eta_\\lambda$ (lambda_lr)", "value": "config", "role": "Adam LR for $\\lambda$", "learnable": false}
+    ],
+    "diff_from_baseline": "Ray, Achiam & Amodei, 'Benchmarking Safe Exploration in Deep Reinforcement Learning' (2019, OpenAI Safety Gym); standard PPO-Lagrangian implementation as in OmniSafe `ppo_lag.py`. Canonical safe-RL reference.",
+    "confidence": "high"
+  },
+  {
+    "model": "PID Lagrangian",
+    "name": "PID Lagrangian",
+    "tagline": "PID controller for the Lagrange multiplier: combines proportional, integral, and (delayed) derivative responses to cost violations with EMA smoothing.",
+    "kind": "formula",
+    "formula": "$$\\delta = J_c - d,\\;\\; I \\leftarrow \\max(0, I + k_i\\,\\delta),\\;\\; \\Delta_p \\leftarrow 0.95\\,\\Delta_p + 0.05\\,\\delta,\\;\\; D = \\max(0, c_d - c_d^{(-10)}),\\;\\; \\lambda = \\max(0, k_p\\Delta_p + I + k_d D),\\;\\; A_{\\mathrm{surr}} = \\frac{A_r - \\lambda A_c}{1+\\lambda}$$",
+    "key_hyperparams": [
+      {"name": "$k_p, k_i, k_d$", "value": "0.1, 0.01, 0.01", "role": "PID gains (CPPOPID defaults)", "learnable": false},
+      {"name": "EMA $\\alpha$", "value": "0.95", "role": "smoothing of $\\Delta_p$ and cost", "learnable": false},
+      {"name": "derivative delay", "value": "10 epochs", "role": "deque length for $D$", "learnable": false},
+      {"name": "$d$ (cost_limit)", "value": "25", "role": "constraint budget", "learnable": false}
+    ],
+    "diff_from_baseline": "Stooke, Achiam & Abbeel, 'Responsive Safety in Reinforcement Learning by PID Lagrangian Methods' (ICML 2020). PID feedback controller for $\\lambda$ that reacts faster than Adam-style integral-only updates and damps oscillations near the cost limit.",
+    "confidence": "high"
+  }
+]

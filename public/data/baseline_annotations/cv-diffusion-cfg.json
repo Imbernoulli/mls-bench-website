@@ -1,0 +1,42 @@
+[
+  {
+    "model": "CFG++",
+    "name": "CFG++",
+    "tagline": "Manifold-constrained classifier-free guidance: extrapolate noise for the Tweedie x0 estimate, then renoise with the unconditional prediction to stay on the noise manifold.",
+    "kind": "formula",
+    "formula": "$$\\hat{\\epsilon}_t = \\epsilon_\\varnothing + w(\\epsilon_c - \\epsilon_\\varnothing),\\quad \\hat{x}_0 = (z_t - \\sqrt{1-\\bar\\alpha_t}\\,\\hat\\epsilon_t)/\\sqrt{\\bar\\alpha_t},\\quad z_{t-1} = \\sqrt{\\bar\\alpha_{t-1}}\\,\\hat{x}_0 + \\sqrt{1-\\bar\\alpha_{t-1}}\\,\\epsilon_\\varnothing$$",
+    "key_hyperparams": [
+      {"name": "w (cfg_guidance)", "value": "default 7.5", "role": "guidance scale; CFG++ tolerates lower scales", "learnable": false},
+      {"name": "renoise_with", "value": "epsilon_uncond", "role": "noise added back to z_{t-1}", "learnable": false}
+    ],
+    "diff_from_baseline": "Chung et al., CFG++ (ICLR 2025, arXiv:2406.08070). Same Tweedie x0 from CFG-extrapolated noise, but the DDIM renoising term uses epsilon_uncond instead of the extrapolated noise — interprets CFG as manifold-constrained perturbation and reduces saturation/off-manifold drift.",
+    "confidence": "high"
+  },
+  {
+    "model": "Standard CFG",
+    "name": "Standard CFG",
+    "tagline": "Classical classifier-free guidance: linear extrapolation of conditional and unconditional noise predictions, used for both the x0 estimate and the renoising term.",
+    "kind": "formula",
+    "formula": "$$\\hat{\\epsilon}_t = \\epsilon_\\varnothing + w(\\epsilon_c - \\epsilon_\\varnothing),\\quad \\hat{x}_0 = (z_t - \\sqrt{1-\\bar\\alpha_t}\\,\\hat\\epsilon_t)/\\sqrt{\\bar\\alpha_t},\\quad z_{t-1} = \\sqrt{\\bar\\alpha_{t-1}}\\,\\hat{x}_0 + \\sqrt{1-\\bar\\alpha_{t-1}}\\,\\hat{\\epsilon}_t$$",
+    "key_hyperparams": [
+      {"name": "w (cfg_guidance)", "value": "7.5 (forced)", "role": "guidance scale; standard CFG needs the higher value", "learnable": false},
+      {"name": "renoise_with", "value": "epsilon_pred", "role": "extrapolated noise reused for DDIM step", "learnable": false}
+    ],
+    "diff_from_baseline": "Ho & Salimans, Classifier-Free Guidance (NeurIPS 2021 workshop). The default sampler in Stable Diffusion: linear noise extrapolation between conditional and unconditional predictions, with the same extrapolated noise used to renoise z_{t-1}. Reference comparator for CFG++.",
+    "confidence": "high"
+  },
+  {
+    "model": "Zero-Init CFG++",
+    "name": "Zero-Init CFG++",
+    "tagline": "CFG++ sampler that skips the first K denoising steps (keeps the latent at its noise initialization) before applying manifold-constrained guidance.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Initialize $z_T \\sim \\mathcal{N}(0,I)$\n2. For step $s=0,\\dots,T-1$:\n3.   if $s < K$: continue (skip update, leave $z_t$ unchanged)\n4.   else: predict $\\epsilon_\\varnothing, \\epsilon_c$\n5.       $\\hat\\epsilon = \\epsilon_\\varnothing + w(\\epsilon_c - \\epsilon_\\varnothing)$\n6.       $\\hat{x}_0 = (z_t - \\sqrt{1-\\bar\\alpha_t}\\hat\\epsilon)/\\sqrt{\\bar\\alpha_t}$\n7.       $z_{t-1} = \\sqrt{\\bar\\alpha_{t-1}}\\hat{x}_0 + \\sqrt{1-\\bar\\alpha_{t-1}}\\epsilon_\\varnothing$ (CFG++ renoise)\n8. Decode $\\hat{x}_0$ at the last step.",
+    "key_hyperparams": [
+      {"name": "K", "value": "2", "role": "number of initial steps to skip", "learnable": false},
+      {"name": "w", "value": "7.5", "role": "guidance scale", "learnable": false},
+      {"name": "renoise_with", "value": "epsilon_uncond", "role": "CFG++ renoising", "learnable": false}
+    ],
+    "diff_from_baseline": "Inspired by zero-initialization analyses for low-NFE samplers. Combines CFG++ (epsilon_uncond renoising) with skipping the first K=2 denoising steps so guidance only acts after the latent has reached an informative noise level — useful in the 10-step regime evaluated here.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,77 @@
+[
+  {
+    "model": "MatchingNet",
+    "name": "Matching Networks",
+    "tagline": "Bidirectional-LSTM contextualized support features + attention-LSTM query encoder; classify by cosine soft attention.",
+    "kind": "hybrid",
+    "formula": "$$\\hat y_q = \\sum_{i=1}^{N_s} a(\\hat q, \\hat s_i)\\, y_i,\\quad a(\\hat q, \\hat s_i) = \\mathrm{softmax}_i\\!\\left(\\hat q\\cdot \\frac{\\hat s_i}{\\lVert\\hat s_i\\rVert}\\right);\\quad \\mathcal{L} = \\mathrm{NLL}(\\log\\hat y, y)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "img", "label": "Image batch"},
+        {"id": "bk", "label": "CNN backbone"},
+        {"id": "biLSTM", "label": "BiLSTM(support)"},
+        {"id": "qLSTM", "label": "Attn-LSTM (25 steps)"},
+        {"id": "cos", "label": "Cosine softmax"},
+        {"id": "ce", "label": "Soft label vote -> NLL"}
+      ],
+      "edges": [
+        {"from": "img", "to": "bk"},
+        {"from": "bk", "to": "biLSTM"},
+        {"from": "bk", "to": "qLSTM"},
+        {"from": "biLSTM", "to": "cos"},
+        {"from": "qLSTM", "to": "cos"},
+        {"from": "cos", "to": "ce"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "LR_OVERRIDE", "value": "1e-3 (Adam)", "role": "needed for LSTM stability vs default SGD@1e-2", "learnable": false},
+      {"name": "feature_dim", "value": "FEATURE_DIMENSION", "role": "BiLSTM hidden size", "learnable": false}
+    ],
+    "diff_from_baseline": "Vinyals, Blundell, Lillicrap, Kavukcuoglu & Wierstra 2016 (NeurIPS). First neural-attention few-shot classifier: support encoded by BiLSTM (FCE), query attends to support via LSTM cell, label predicted by soft-attention vote.",
+    "confidence": "high"
+  },
+  {
+    "model": "ProtoNet",
+    "name": "Prototypical Networks",
+    "tagline": "Mean support feature per class as prototype; classify queries by negative squared Euclidean distance.",
+    "kind": "formula",
+    "formula": "$$c_k = \\frac{1}{|S_k|}\\sum_{(x_i,y_i)\\in S_k} f_\\theta(x_i),\\qquad p(y=k\\mid q) = \\mathrm{softmax}\\!\\left(-\\lVert f_\\theta(q)-c_k\\rVert_2^2\\right)$$",
+    "key_hyperparams": [
+      {"name": "use_pooling", "value": "True", "role": "feature vectors (not maps)", "learnable": false},
+      {"name": "use_softmax", "value": "False (CE applies it)", "role": "logits returned raw", "learnable": false}
+    ],
+    "diff_from_baseline": "Snell, Swersky & Zemel 2017 (NeurIPS). Canonical metric-based few-shot baseline: class prototype = mean support embedding; query labeled by nearest prototype under squared Euclidean distance. Default reference for nearly every few-shot study.",
+    "confidence": "high"
+  },
+  {
+    "model": "RelationNet",
+    "name": "Relation Networks",
+    "tagline": "Concatenate query/prototype feature maps; learn a small CNN relation module that scores each pair.",
+    "kind": "hybrid",
+    "formula": "$$r_{q,k} = g_\\phi\\!\\left(\\big[\\,F_k^{\\text{proto}}\\,\\Vert\\,F_q\\,\\big]\\right) \\in [0,1],\\qquad \\mathcal{L} = \\frac{1}{|Q|}\\sum_{q,k} (r_{q,k} - \\mathbb{1}[y_q=k])^2$$",
+    "diagram": {
+      "nodes": [
+        {"id": "img", "label": "Support / query"},
+        {"id": "bk", "label": "CNN backbone (no pool)"},
+        {"id": "proto", "label": "Mean feature map / class"},
+        {"id": "cat", "label": "Concat(query, proto)"},
+        {"id": "relmod", "label": "Conv -> BN -> ReLU x2 -> MLP"},
+        {"id": "sig", "label": "Sigmoid -> MSE loss"}
+      ],
+      "edges": [
+        {"from": "img", "to": "bk"},
+        {"from": "bk", "to": "proto"},
+        {"from": "bk", "to": "cat"},
+        {"from": "proto", "to": "cat"},
+        {"from": "cat", "to": "relmod"},
+        {"from": "relmod", "to": "sig"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "inner_channels", "value": "8", "role": "MLP head width inside relation module", "learnable": false},
+      {"name": "use_pooling", "value": "False", "role": "needs feature maps for conv relation", "learnable": false}
+    ],
+    "diff_from_baseline": "Sung et al. 2018 (CVPR). Replaces fixed metric (cosine/Euclidean) with a learned relation network producing relation scores in [0,1]; trained with MSE against one-hot. Standard learned-metric few-shot baseline.",
+    "confidence": "high"
+  }
+]

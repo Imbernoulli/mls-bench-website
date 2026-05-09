@@ -1,0 +1,54 @@
+[
+  {
+    "model": "NLL with Entropy",
+    "name": "NLL + Entropy Bonus",
+    "tagline": "Standard GMM NLL with a sample-based entropy regularizer to discourage premature mode collapse.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = -\\,\\mathbb{E}_{(s, a^*) \\sim \\mathcal{D}}\\big[\\log p_\\pi(a^* \\mid s)\\big] - \\alpha \\cdot \\hat{H}[\\pi(\\cdot \\mid s)] \\\\ \\hat{H} \\approx -\\,\\mathbb{E}_{a \\sim \\pi}[\\log p_\\pi(a \\mid s)] \\quad \\text{(sample-based)}, \\quad \\alpha = 0.01$$",
+    "key_hyperparams": [
+      {"name": "α", "value": "0.01", "role": "entropy bonus weight", "learnable": false},
+      {"name": "action_dim", "value": "7", "role": "robot action dim", "learnable": false}
+    ],
+    "diff_from_baseline": "Standard NLL with an explicit sampling-based entropy regularizer (no closed-form for MixtureSameFamily). Encourages broader GMM modes; common variance-collapse mitigation in BC.",
+    "confidence": "high"
+  },
+  {
+    "model": "Weighted NLL",
+    "name": "Weighted NLL",
+    "tagline": "GMM NLL with positional action dimensions (first 6) up-weighted relative to the gripper dimension (last).",
+    "kind": "formula",
+    "formula": "$$\\tilde{a}^* = w \\odot a^*, \\quad w = (\\underbrace{2.0, ..., 2.0}_{6}, 1.0) \\\\ \\mathcal{L} = -\\,\\mathbb{E}\\big[\\log p_\\pi(\\tilde{a}^* \\mid s)\\big]$$",
+    "key_hyperparams": [
+      {"name": "pos_weight", "value": "2.0", "role": "weight on first 6 action dims", "learnable": false},
+      {"name": "grip_weight", "value": "1.0", "role": "weight on gripper dim", "learnable": false}
+    ],
+    "diff_from_baseline": "Action-dimension-weighted NLL: implemented by rescaling targets so positional errors contribute more to the log-likelihood, prioritizing accurate end-effector trajectories.",
+    "confidence": "high"
+  },
+  {
+    "model": "Default (NLL)",
+    "name": "Default NLL",
+    "tagline": "Plain GMM negative log-likelihood — the unedited robomimic BC-GMM training objective.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = -\\,\\frac{1}{B} \\sum_{i=1}^{B} \\log\\!\\left(\\sum_{k=1}^{K} \\pi_k(s_i)\\, \\mathcal{N}(a_i^* \\mid \\mu_k(s_i), \\Sigma_k(s_i))\\right)$$",
+    "key_hyperparams": [
+      {"name": "K", "value": "5", "role": "GMM modes", "learnable": false},
+      {"name": "action_dim", "value": "7", "role": "robot action dim", "learnable": false}
+    ],
+    "diff_from_baseline": "Robomimic BC-GMM default loss (no edit applied). Standard maximum-likelihood imitation-learning objective for a Gaussian mixture policy; the canonical reference baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "mode_nll",
+    "name": "Mode NLL",
+    "tagline": "Use only the highest-weight mixture mode's log-probability per sample, not the full marginal mixture.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Per sample: $\\ell_k = \\log \\mathcal{N}(a^* \\mid \\mu_k(s), \\Sigma_k(s))$ for each mode $k$.\n2. $k^* = \\arg\\max_k \\,\\mathrm{logit}_k(s)$ (highest-weight mode).\n3. Loss $= -\\frac{1}{B} \\sum_i \\ell_{k^*}(s_i, a^*_i)$ (no mixture log-sum-exp).\n4. Encourages the policy to commit to a single mode per observation.",
+    "key_hyperparams": [
+      {"name": "selection", "value": "argmax mixture logit", "role": "winner-take-all mode", "learnable": false},
+      {"name": "action_dim", "value": "7", "role": "robot action dim", "learnable": false}
+    ],
+    "diff_from_baseline": "Project-internal cmd-style baseline (formerly tasks/robomimic-bc-loss/edits/mode_nll.edit.py). Replaces marginal mixture NLL with the argmax-weighted component's NLL; akin to hard-EM, encourages mode commitment over averaging.",
+    "confidence": "high"
+  }
+]

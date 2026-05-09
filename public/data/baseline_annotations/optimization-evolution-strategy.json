@@ -1,0 +1,59 @@
+[
+  {
+    "model": "Differential Evolution",
+    "name": "DE/rand/1/bin",
+    "tagline": "Classic differential evolution with rand/1 mutation, binomial crossover, and greedy parent-vs-trial selection.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Initialize population $\\{x_i\\}_{i=1}^N$ uniformly in $[\\mathrm{lo},\\mathrm{hi}]^d$, evaluate fitness.\n2. For each generation, for each $i$: pick distinct $r_1\\!\\ne\\!r_2\\!\\ne\\!r_3\\!\\ne\\!i$.\n3. Mutation: $v = x_{r_1} + F\\,(x_{r_2} - x_{r_3})$ with $F{=}0.5$.\n4. Binomial crossover: $u_j = v_j$ if $\\mathrm{rand}() < CR$ or $j = j_\\text{rand}$, else $x_{i,j}$; $CR{=}0.9$.\n5. Clip $u$ to bounds, evaluate.\n6. Greedy selection: replace $x_i$ with $u$ iff $f(u) \\le f(x_i)$.",
+    "key_hyperparams": [
+      {"name": "F", "value": "0.5", "role": "DE scale factor", "learnable": false},
+      {"name": "CR", "value": "0.9", "role": "binomial crossover rate", "learnable": false},
+      {"name": "selection", "value": "greedy", "role": "trial replaces parent on improvement", "learnable": false}
+    ],
+    "diff_from_baseline": "Storn & Price 1997 (Journal of Global Optimization). Canonical DE/rand/1/bin with Storn–Price recommended defaults.",
+    "confidence": "high"
+  },
+  {
+    "model": "GA (SBX)",
+    "name": "GA + SBX",
+    "tagline": "Real-coded genetic algorithm: tournament selection (k=3), Simulated Binary Crossover (η=20), polynomial bounded mutation.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Initialize population uniformly in $[\\mathrm{lo},\\mathrm{hi}]^d$, evaluate fitness.\n2. Selection: tournament of size $3$ → offspring (size N).\n3. Crossover: with prob cx_prob apply SBX with $\\eta_c{=}20$ to each pair.\n4. Mutation: with prob mut_prob apply polynomial bounded mutation, $\\eta_m{=}20$, indpb $= 1/d$.\n5. Clip to bounds, evaluate invalid offspring.\n6. Replace population with offspring; track best fitness per generation.",
+    "key_hyperparams": [
+      {"name": "tournsize", "value": "3", "role": "tournament size", "learnable": false},
+      {"name": "η_c (SBX)", "value": "20", "role": "crossover distribution index", "learnable": false},
+      {"name": "η_m", "value": "20", "role": "polynomial mutation index", "learnable": false},
+      {"name": "indpb", "value": "1/d", "role": "per-gene mutation probability", "learnable": false}
+    ],
+    "diff_from_baseline": "Deb & Agrawal 1995 (Complex Systems). Standard real-coded GA used as a continuous-EA baseline; uses DEAP's `tools.cxSimulatedBinary` and `mutPolynomialBounded`.",
+    "confidence": "high"
+  },
+  {
+    "model": "L-SHADE",
+    "name": "L-SHADE",
+    "tagline": "Adaptive DE with success-history F/CR memory, current-to-pbest/1 mutation with archive, and linear population size reduction.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Init pop of $N_\\text{init}$, history $M_F, M_{CR} = [0.5]^H$ ($H{=}6$), archive $A=\\emptyset$.\n2. For each $i$: sample $F_i\\!\\sim\\!\\mathrm{Cauchy}(M_F[r], 0.1)^+\\!\\le 1$, $CR_i\\!\\sim\\!\\mathcal{N}(M_{CR}[r], 0.1)$ clamped to $[0,1]$.\n3. current-to-pbest/1 mutation with $p\\!\\in\\![p_\\min, 0.2]$ and external archive: $v = x_i + F_i(x_\\text{pbest} - x_i) + F_i(x_{r1} - x_{r2})$.\n4. Binomial crossover, clip, evaluate; greedy selection (improved trials enter pop, parents enter archive).\n5. Update $M_F$ via weighted Lehmer mean of successful $F$, $M_{CR}$ via weighted arithmetic mean.\n6. Linear population reduction: $N_{g+1} = N_\\text{init} + (N_\\min - N_\\text{init})\\frac{g+1}{G}$, prune worst.",
+    "key_hyperparams": [
+      {"name": "H", "value": "6", "role": "success-history length", "learnable": false},
+      {"name": "N_min", "value": "4", "role": "minimum population", "learnable": false},
+      {"name": "p (pbest)", "value": "[2/N_init, 0.2]", "role": "current-to-pbest fraction", "learnable": false}
+    ],
+    "diff_from_baseline": "Tanabe & Fukunaga, IEEE CEC 2014. Strong adaptive DE family (variant of SHADE with linear pop-size reduction); routinely tops CEC competitions.",
+    "confidence": "high"
+  },
+  {
+    "model": "CMA-ES",
+    "name": "CMA-ES",
+    "tagline": "Covariance Matrix Adaptation Evolution Strategy — adapts the full multivariate-Gaussian search distribution; SOTA derivative-free continuous optimizer.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Initialize mean $m\\!=\\!\\tfrac{\\mathrm{lo}+\\mathrm{hi}}{2}\\mathbf{1}$, step size $\\sigma\\!=\\!(\\mathrm{hi}-\\mathrm{lo})/3$, $C = I$, λ = pop_size.\n2. Sample $x_k = m + \\sigma\\,\\mathcal{N}(0, C)$, clip to bounds, evaluate.\n3. Update mean by weighted recombination of top-$\\mu$ samples.\n4. Update evolution paths $p_\\sigma, p_c$; rank-1 + rank-$\\mu$ covariance update for $C$.\n5. Update step size $\\sigma$ via cumulative step-size adaptation (CSA).\n6. Repeat for n_generations; track best-ever fitness.",
+    "key_hyperparams": [
+      {"name": "λ", "value": "pop_size", "role": "samples per generation", "learnable": false},
+      {"name": "σ₀", "value": "(hi-lo)/3", "role": "initial step size", "learnable": false},
+      {"name": "centroid", "value": "(lo+hi)/2", "role": "initial mean", "learnable": false}
+    ],
+    "diff_from_baseline": "Hansen & Ostermeier 2001 (Evolutionary Computation). Default state-of-the-art ES for continuous black-box optimization; this baseline uses DEAP's `cma.Strategy`.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,58 @@
+[
+  {
+    "model": "GQA",
+    "name": "GQA",
+    "tagline": "Grouped-Query Attention: $n_h/4$ KV heads shared by query head groups; KV bytes reduced 4x.",
+    "kind": "formula",
+    "formula": "$$n_{kv} = \\max(1, n_h / 4), \\quad d_h = d_{model} / n_h \\\\ K, V \\in \\mathbb{R}^{B \\times n_{kv} \\times T \\times d_h} \\xrightarrow{\\text{repeat\\_interleave}(r)} \\tilde{K}, \\tilde{V} \\in \\mathbb{R}^{B \\times n_h \\times T \\times d_h}, \\quad r = n_h / n_{kv} \\\\ Y = \\mathrm{SDPA}(Q, \\tilde{K}, \\tilde{V}, \\text{causal})$$",
+    "key_hyperparams": [
+      {"name": "n_kv_head", "value": "n_h / 4", "role": "shared KV heads", "learnable": false},
+      {"name": "head_dim", "value": "d_model / n_h", "role": "per-head dim", "learnable": false},
+      {"name": "head_sharing_ratio", "value": "4", "role": "queries per KV head", "learnable": false}
+    ],
+    "diff_from_baseline": "Ainslie et al. 2023 — \"GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints\". Standard middle ground between MHA and MQA used in LLaMA-2/3 and many modern LLMs.",
+    "confidence": "high"
+  },
+  {
+    "model": "MHA",
+    "name": "MHA",
+    "tagline": "Dense Multi-Head Attention control: one independent KV head per query head (no KV sharing).",
+    "kind": "formula",
+    "formula": "$$n_{kv} = n_h, \\quad d_h = d_{model} / n_h \\\\ Y = \\mathrm{SDPA}(Q, K, V, \\text{causal}), \\quad Q, K, V \\in \\mathbb{R}^{B \\times n_h \\times T \\times d_h}$$",
+    "key_hyperparams": [
+      {"name": "n_kv_head", "value": "n_h", "role": "one KV head per query head", "learnable": false},
+      {"name": "head_dim", "value": "d_model / n_h", "role": "per-head dim", "learnable": false},
+      {"name": "kv_storage_ratio", "value": "1.0", "role": "no compression", "learnable": false}
+    ],
+    "diff_from_baseline": "Vaswani et al. 2017 (NeurIPS) — \"Attention is All You Need\". Unreduced control matching standard GPT-style dense MHA. Maximum quality but largest KV cache.",
+    "confidence": "high"
+  },
+  {
+    "model": "MLA",
+    "name": "MLA",
+    "tagline": "Multi-Head Latent Attention (DeepSeek-V2): low-rank KV compression with decoupled rotary/non-rotary channels.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Define ranks: $r_q = \\min(d_{model}, 12 d_h)$, $r_{kv} = \\max(16, d_h/2)$, rope dim $d_r \\in [16, 64]$.\n2. Q low-rank: $q = W_q^B(\\mathrm{RMSNorm}(W_q^A x))$, split into $q_{nope} \\in \\mathbb{R}^{d_h}$ and $q_{rope} \\in \\mathbb{R}^{d_r}$.\n3. KV compression: $[\\tilde{kv}, k_{rope}] = W_{kv}^A(x)$, with $\\tilde{kv} \\in \\mathbb{R}^{r_{kv}}$ and shared rope key $k_{rope} \\in \\mathbb{R}^{d_r}$ (MQA-style).\n4. Up-project: $[k_{nope}, v] = W_{kv}^B(\\mathrm{RMSNorm}(\\tilde{kv}))$ for each of $n_h$ heads.\n5. Apply RoPE on $q_{rope}, k_{rope}$; concatenate with nope channels.\n6. $Y = \\mathrm{SDPA}(q, k, v, \\text{causal}, \\text{scale}=1/\\sqrt{d_h + d_r})$; project $W_o Y$.",
+    "key_hyperparams": [
+      {"name": "kv_lora_rank r_kv", "value": "max(16, d_h/2)", "role": "latent KV rank", "learnable": false},
+      {"name": "q_lora_rank r_q", "value": "min(d_model, 12·d_h)", "role": "latent query rank", "learnable": false},
+      {"name": "qk_rope_head_dim d_r", "value": "16-64", "role": "rotary slice", "learnable": false},
+      {"name": "kv_storage_ratio", "value": "(r_kv + d_r) / (2 d_h)", "role": "KV compression", "learnable": false}
+    ],
+    "diff_from_baseline": "DeepSeek-V2 / TransMLA family. Latent-KV compression: cached KV is the low-rank latent ($r_{kv}$) plus a single shared rotary key, dramatically reducing KV bytes/token at preserved quality.",
+    "confidence": "high"
+  },
+  {
+    "model": "MQA",
+    "name": "MQA",
+    "tagline": "Multi-Query Attention: a single KV head shared by all query heads (KV bytes reduced $n_h\\times$).",
+    "kind": "formula",
+    "formula": "$$n_{kv} = 1, \\quad d_h = d_{model} / n_h \\\\ K, V \\in \\mathbb{R}^{B \\times 1 \\times T \\times d_h} \\xrightarrow{\\text{expand to } n_h} \\tilde{K}, \\tilde{V} \\\\ Y = \\mathrm{SDPA}(Q, \\tilde{K}, \\tilde{V}, \\text{causal})$$",
+    "key_hyperparams": [
+      {"name": "n_kv_head", "value": "1", "role": "one shared KV head", "learnable": false},
+      {"name": "head_sharing_ratio", "value": "n_h", "role": "all queries share KV", "learnable": false}
+    ],
+    "diff_from_baseline": "Shazeer 2019 — \"Fast Transformer Decoding: One Write-Head is All You Need\". Most aggressive MHA-family KV reduction; trades quality for inference memory and bandwidth.",
+    "confidence": "high"
+  }
+]

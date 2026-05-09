@@ -1,0 +1,45 @@
+[
+  {
+    "model": "Catoni",
+    "name": "Catoni / lambda bound",
+    "tagline": "PAC-Bayes-lambda (Catoni) bound with a learnable lambda jointly optimized with the posterior.",
+    "kind": "formula",
+    "formula": "$$B_{\\text{Catoni}}(Q,S) = \\frac{\\hat R(Q,S)}{1-\\lambda/2} + \\frac{\\mathrm{KL}(Q\\Vert P) + \\log\\!\\frac{2\\sqrt{n}}{\\delta}}{n\\,\\lambda(1-\\lambda/2)},\\quad \\lambda\\in(0,2)\\;\\text{learned}$$",
+    "key_hyperparams": [
+      {"name": "lambda init", "value": "0.5", "role": "Catoni free parameter", "learnable": true},
+      {"name": "lambda_lr", "value": "0.01", "role": "SGD step on lambda", "learnable": false},
+      {"name": "delta", "value": "0.025", "role": "PAC-Bayes confidence", "learnable": false},
+      {"name": "certificate", "value": "PAC-Bayes-kl inversion on 0-1 risk", "role": "final risk cert", "learnable": false}
+    ],
+    "diff_from_baseline": "Catoni, 'PAC-Bayesian Supervised Classification' (2007); Thiemann et al., 'A Strongly Quasiconvex PAC-Bayesian Bound' (ALT 2017). Standard fclassic-vs-flamb comparison; tighter than McAllester when lambda is well-tuned.",
+    "confidence": "high"
+  },
+  {
+    "model": "McAllester",
+    "name": "McAllester / Maurer bound",
+    "tagline": "Classic PAC-Bayes bound: empirical risk plus sqrt of KL term.",
+    "kind": "formula",
+    "formula": "$$B_{\\text{McA}}(Q,S) = \\hat R(Q,S) + \\sqrt{\\,\\frac{\\mathrm{KL}(Q\\Vert P) + \\log\\!\\frac{2\\sqrt{n}}{\\delta}}{2n}\\,}$$",
+    "key_hyperparams": [
+      {"name": "delta", "value": "0.025", "role": "PAC-Bayes confidence", "learnable": false},
+      {"name": "training surrogate", "value": "NLL clamped at log(pmin)", "role": "smoothed empirical risk", "learnable": false},
+      {"name": "certificate", "value": "PAC-Bayes-kl inversion on 0-1 risk", "role": "final risk cert", "learnable": false}
+    ],
+    "diff_from_baseline": "McAllester, 'Some PAC-Bayesian Theorems' (Mach. Learn. 1999); Maurer (2004) tightened constant. Default PAC-Bayes baseline; PBB 'fclassic' branch.",
+    "confidence": "high"
+  },
+  {
+    "model": "Quadratic",
+    "name": "Quadratic / fquad bound",
+    "tagline": "PAC-Bayes-quadratic bound on bounded NLL (rescaled to [0,1] via 1/log(1/pmin)).",
+    "kind": "formula",
+    "formula": "$$B_{\\text{quad}}(Q,S) = \\Bigl(\\sqrt{\\hat R + \\kappa} + \\sqrt{\\kappa}\\Bigr)^{\\!2},\\quad \\kappa = \\frac{\\mathrm{KL}(Q\\Vert P) + \\log\\!\\frac{2\\sqrt{n}}{\\delta}}{2n},\\quad \\hat R \\leftarrow \\hat R/\\log(1/p_{\\min})$$",
+    "key_hyperparams": [
+      {"name": "loss_scale", "value": "1 / log(1/pmin)", "role": "bounds NLL into [0,1] (PBB Eq. 11)", "learnable": false},
+      {"name": "delta", "value": "0.025", "role": "PAC-Bayes confidence", "learnable": false},
+      {"name": "pmin", "value": "1e-5", "role": "clamp on log-softmax", "learnable": false}
+    ],
+    "diff_from_baseline": "Rivasplata, Kuzborskij, Szepesvari, Shawe-Taylor, 'PAC-Bayes Analysis Beyond the Usual Bounds' (NeurIPS 2020); Perez-Ortiz et al., 'Tighter Risk Certificates for Neural Networks' (JMLR 2021). PBB 'fquad' branch; tighter than McAllester at low empirical risk.",
+    "confidence": "high"
+  }
+]

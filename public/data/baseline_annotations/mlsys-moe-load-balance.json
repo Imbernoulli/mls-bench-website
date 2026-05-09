@@ -1,0 +1,41 @@
+[
+  {
+    "model": "Flat Zigzag",
+    "name": "Flat Zigzag",
+    "tagline": "Single-level vectorized snake bin-packing: replicate experts globally, then zigzag-assign all replicas directly to all GPUs (no node hierarchy).",
+    "kind": "pseudocode",
+    "pseudocode": "1. Skip the group-to-node hierarchical Stage 1 entirely\n2. Greedy replicate experts to total $R$ replicas: at each step, replicate the logical expert with max effective load $w_e/c_e$\n3. Compute per-replica tokens $t_p = w_{\\ell(p)}/c_{\\ell(p)}$\n4. Sort all $R$ replicas by descending $t_p$; assign block-by-block\n5. Even blocks: pack 0,1,...,G-1; odd blocks reverse to G-1,...,1,0 (zigzag)\n6. Inverse-permute back to original replica indices to produce the final phy2log/log2phy/logcnt tensors",
+    "key_hyperparams": [
+      {"name": "stages", "value": "Replicate + global zigzag", "role": "no hierarchical decomposition", "learnable": false},
+      {"name": "balanced_packing", "value": "Vectorized zigzag", "role": "PyTorch tensor ops", "learnable": false}
+    ],
+    "diff_from_baseline": "Variant introduced for this benchmark: drops the group-to-node decomposition (Stage 1) of EPLB and uses a single global zigzag pass. Faster than hierarchical methods but ignores inter-node topology; tests whether locality-aware packing matters at this scale.",
+    "confidence": "high"
+  },
+  {
+    "model": "Greedy",
+    "name": "Greedy (DeepSeek EPLB)",
+    "tagline": "Original DeepSeek EPLB with Python for-loop greedy bin-packing: items sorted by weight, each placed in the lightest under-capacity bin.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Stage 1 - groups to nodes: greedy bin-pack groups onto nodes by descending group weight, picking the lightest pack with capacity\n2. Stage 2 - replicate experts: greedy add replica to logical expert with max effective load $w_e/c_e$\n3. Stage 3 - replicas to GPUs within node: greedy bin-pack replicas onto GPUs by descending tokens-per-replica\n4. Each greedy step uses a Python for-loop over batches and items\n5. Compose final phy2log via inverse permutations\n6. Build log2phy mapping by scattering replica indices",
+    "key_hyperparams": [
+      {"name": "stages", "value": "3 (group->node, replicate, replica->gpu)", "role": "hierarchical decomposition", "learnable": false},
+      {"name": "balanced_packing", "value": "Python for-loop greedy LPT", "role": "longest processing time first", "learnable": false}
+    ],
+    "diff_from_baseline": "DeepSeek-AI EPLB (2024); DeepSeek-V3 Technical Report (arXiv:2412.19437). The original open-source EPLB implementation - correct hierarchical greedy bin-packing but slow (~540ms on medium configs) due to Python iteration.",
+    "confidence": "high"
+  },
+  {
+    "model": "Zigzag",
+    "name": "Zigzag (vectorized hierarchical)",
+    "tagline": "Hierarchical EPLB with vectorized zigzag/snake bin-packing replacing the inner Python loops; Stage-1 and Stage-3 use PyTorch tensor ops.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Stage 1 - groups to nodes: sort groups by descending weight, then zigzag-assign to nodes (even blocks 0..N-1, odd blocks N-1..0)\n2. Permute logical experts so each node gets contiguous group_size experts\n3. Stage 2 - replicate experts within each node: greedy LPT (kept as for-loop) until replicas_per_node\n4. Stage 3 - replicas to GPUs within node: zigzag bin-pack by descending tokens-per-replica\n5. Compose inverse permutations to recover global phy2log\n6. Scatter to build log2phy and logcnt",
+    "key_hyperparams": [
+      {"name": "stages", "value": "3 (hierarchical, zigzag stages 1 & 3)", "role": "node-aware decomposition", "learnable": false},
+      {"name": "balanced_packing", "value": "Vectorized zigzag", "role": "interleaves heavy/light items", "learnable": false}
+    ],
+    "diff_from_baseline": "Cheng et al. 2025 (Barbarians at the Gate, Section 5.2). Internal frontier-lab EPLB variant that replaces Stage-1 and Stage-3 greedy for-loops with a vectorized zigzag tensor pattern, ~20ms on medium configs while preserving hierarchical structure.",
+    "confidence": "high"
+  }
+]

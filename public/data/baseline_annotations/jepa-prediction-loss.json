@@ -1,0 +1,36 @@
+[
+  {
+    "model": "Cosine",
+    "name": "Cosine",
+    "tagline": "1 minus channel-wise cosine similarity between predicted and target latent maps — angular-only objective.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\overline{1 - \\frac{\\langle s, p \\rangle_C}{\\|s\\|_C \\,\\|p\\|_C}}, \\quad s = \\text{state},\\; p = \\text{predicted}$$",
+    "key_hyperparams": [
+      {"name": "normalize_dim", "value": "1 (channel)", "role": "axis used for L2 normalisation", "learnable": false}
+    ],
+    "diff_from_baseline": "Standard angular distance loss used in many SSL/JEPA variants (e.g., BYOL, DINO). Ignores magnitude — only direction in representation space matters.",
+    "confidence": "high"
+  },
+  {
+    "model": "MSE",
+    "name": "MSE",
+    "tagline": "Plain mean-squared error between predicted and target latent tensors — equivalent to JEPA's default SquareLossSeq.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\overline{(s - p)^2}, \\quad s = \\text{state},\\; p = \\text{predicted}$$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Default JEPA-family prediction loss (Assran et al., CVPR 2023 — I-JEPA). Pointwise L2 in representation space without projector or whitening.",
+    "confidence": "high"
+  },
+  {
+    "model": "Smooth L1",
+    "name": "Smooth L1",
+    "tagline": "Huber-style robust pointwise loss: quadratic for small residuals, linear for large ones.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\overline{\\begin{cases} 0.5\\,(s - p)^2 & |s - p| < 1 \\\\ |s - p| - 0.5 & \\text{otherwise} \\end{cases}}$$",
+    "key_hyperparams": [
+      {"name": "beta", "value": "1.0 (PyTorch default)", "role": "Huber transition", "learnable": false}
+    ],
+    "diff_from_baseline": "Huber, Annals of Math. Stat. 1964 — Smooth L1 / Huber loss. Less sensitive to outliers than MSE while remaining differentiable; commonly used as a robust regression baseline.",
+    "confidence": "high"
+  }
+]

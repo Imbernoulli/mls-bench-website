@@ -1,0 +1,88 @@
+[
+  {
+    "model": "AdaRNN",
+    "name": "AdaRNN",
+    "tagline": "Adaptive RNN with Temporal Distribution Characterization plus Temporal Distribution Matching across split sub-domains.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Alpha158 features [B,1,158]"},
+        {"id": "gru1", "label": "GRU(158→64)"},
+        {"id": "gru2", "label": "GRU(64→64)"},
+        {"id": "gate", "label": "Gate (BN+sigmoid)"},
+        {"id": "trans", "label": "TransferLoss (cosine, 2 splits)"},
+        {"id": "fc", "label": "fc_out → 1"},
+        {"id": "y", "label": "Predicted return"}
+      ],
+      "edges": [
+        {"from": "x", "to": "gru1"},
+        {"from": "gru1", "to": "gru2"},
+        {"from": "gru1", "to": "gate"},
+        {"from": "gru2", "to": "gate"},
+        {"from": "gate", "to": "trans"},
+        {"from": "gru2", "to": "fc"},
+        {"from": "fc", "to": "y"}
+      ]
+    },
+    "formula": "$$\\mathcal{L} = \\sum_i \\text{MSE}(\\hat y_i, y_i) + d_w\\!\\sum_{(s,t)} w_{s,t}\\,\\text{TransferLoss}(h_s, h_t)$$",
+    "key_hyperparams": [
+      {"name": "hidden_size", "value": "64", "role": "GRU hidden width", "learnable": false},
+      {"name": "n_splits", "value": "2", "role": "temporal sub-domains", "learnable": false},
+      {"name": "loss_type", "value": "cosine", "role": "domain-distance metric", "learnable": false},
+      {"name": "dw", "value": "0.5", "role": "transfer-loss weight", "learnable": false},
+      {"name": "n_epochs / pre_epoch", "value": "200 / 40", "role": "training schedule", "learnable": false}
+    ],
+    "diff_from_baseline": "Du et al. 2021 (AdaRNN, CIKM). Adaptive RNN with temporal-distribution matching across split periods. Faithful to qlib's official pytorch_adarnn.py.",
+    "confidence": "high"
+  },
+  {
+    "model": "LightGBM",
+    "name": "LightGBM",
+    "tagline": "Gradient-boosted decision-tree regressor with qlib's official Alpha158 hyperparameters and CSRankNorm label normalization.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Apply CSRankNorm to label, no infer-side processors\n// 2. Build LightGBM datasets from Alpha158 features\n// 3. params: objective='mse', lr=0.2, max_depth=8, num_leaves=210\n// 4.   colsample=0.888, subsample=0.879, λ_L1=205.7, λ_L2=580.98\n// 5. Train up to 1000 boosting rounds with early stopping (50)\n// 6. Predict on test segment",
+    "key_hyperparams": [
+      {"name": "max_depth, num_leaves", "value": "8, 210", "role": "tree size", "learnable": false},
+      {"name": "learning_rate", "value": "0.2", "role": "shrinkage", "learnable": false},
+      {"name": "lambda_l1, lambda_l2", "value": "205.7, 580.98", "role": "L1/L2 regularization", "learnable": false},
+      {"name": "num_boost_round", "value": "1000", "role": "max boosting rounds", "learnable": false},
+      {"name": "early_stopping_rounds", "value": "50", "role": "validation patience", "learnable": false}
+    ],
+    "diff_from_baseline": "Ke et al. 2017 (LightGBM, NeurIPS). Histogram-based gradient boosting; this baseline uses qlib's official examples/benchmarks/LightGBM/workflow_config_lightgbm_Alpha158.yaml hyperparameters.",
+    "confidence": "high"
+  },
+  {
+    "model": "TRA",
+    "name": "TRA",
+    "tagline": "Temporal Routing Adaptor: an LSTM/Transformer backbone with multiple linear predictors and a Sinkhorn-routed transport over latent trading patterns.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Alpha158 + FilterCol (20 feats, seq=60)"},
+        {"id": "rnn", "label": "LSTM (hidden=64, 2 layers, attn)"},
+        {"id": "preds", "label": "Linear predictors (num_states=3)"},
+        {"id": "router", "label": "TRA router (LSTM + LR_TPE)"},
+        {"id": "trans", "label": "Sinkhorn transport (sample-wise)"},
+        {"id": "y", "label": "Routed prediction"}
+      ],
+      "edges": [
+        {"from": "x", "to": "rnn"},
+        {"from": "rnn", "to": "preds"},
+        {"from": "rnn", "to": "router"},
+        {"from": "router", "to": "trans"},
+        {"from": "preds", "to": "trans"},
+        {"from": "trans", "to": "y"}
+      ]
+    },
+    "formula": "$$\\mathcal{L} = \\text{MSE}(\\hat y, y) - \\lambda\\,\\rho^{k/100}\\sum_i (\\log p_i)^\\top P_i,\\;\\; P = \\text{Sinkhorn}(-L_{\\text{hist}})$$",
+    "key_hyperparams": [
+      {"name": "num_states", "value": "3", "role": "latent trading patterns / predictors", "learnable": false},
+      {"name": "src_info", "value": "LR_TPE", "role": "router uses latent + temporal pred-error", "learnable": false},
+      {"name": "lambda, rho", "value": "1.0, 0.99", "role": "router-regularization weight + decay", "learnable": false},
+      {"name": "alpha", "value": "0.5", "role": "current-loss vs hist-loss mix", "learnable": false},
+      {"name": "lr / n_epochs", "value": "1e-3 / 100", "role": "training", "learnable": false}
+    ],
+    "diff_from_baseline": "Lin et al. 2021 (TRA, KDD). Temporal Routing Adaptor with Sinkhorn-OT routing over latent trading patterns. Faithful to qlib's pytorch_tra.py with the official Alpha158+FilterCol(20) workflow.",
+    "confidence": "high"
+  }
+]

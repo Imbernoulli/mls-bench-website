@@ -1,0 +1,41 @@
+[
+  {
+    "model": "Label Smoothing",
+    "name": "Label Smoothing",
+    "tagline": "Cross-entropy with $\\varepsilon=0.05$ uniform smoothing of the target distribution during training only; eval reverts to standard CE for comparability.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = -\\sum_v \\tilde y_v \\log p_v,\\quad \\tilde y_v = (1-\\varepsilon)\\,\\mathbf{1}[v=y] + \\frac{\\varepsilon}{V}$$",
+    "key_hyperparams": [
+      {"name": "epsilon", "value": "0.05 (training only)", "role": "uniform smoothing fraction", "learnable": false},
+      {"name": "ignore_index", "value": "-1", "role": "skip padded positions", "learnable": false}
+    ],
+    "diff_from_baseline": "Szegedy et al., 'Rethinking the Inception Architecture' (2016). Reduces overconfidence by mixing the one-hot target with a uniform distribution; here applied only at training time so eval loss stays comparable.",
+    "confidence": "high"
+  },
+  {
+    "model": "Softcap Cross-Entropy",
+    "name": "Softcap Cross-Entropy",
+    "tagline": "Pass logits through a sigmoid-based softcap before cross-entropy to prevent extreme logit magnitudes while preserving rank.",
+    "kind": "formula",
+    "formula": "$$\\tilde z = A\\,\\sigma\\!\\big((z+B)/C\\big),\\quad \\mathcal{L} = -\\log\\frac{e^{\\tilde z_y}}{\\sum_v e^{\\tilde z_v}};\\;(A,B,C)=(23.0,5.0,7.5)$$",
+    "key_hyperparams": [
+      {"name": "A", "value": "23.0", "role": "post-sigmoid amplitude (logit cap)", "learnable": false},
+      {"name": "B", "value": "5.0", "role": "pre-sigmoid bias", "learnable": false},
+      {"name": "C", "value": "7.5", "role": "pre-sigmoid temperature", "learnable": false}
+    ],
+    "diff_from_baseline": "KellerJordan/modded-nanogpt PR #199, inspired by Gemma 2 attention-logit softcapping. Bounded sigmoid cap on logits before cross-entropy.",
+    "confidence": "high"
+  },
+  {
+    "model": "Z-Loss",
+    "name": "Z-Loss",
+    "tagline": "Standard cross-entropy plus a small penalty on the squared log-partition $\\log Z(x)^2$, which discourages logit magnitudes from drifting.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\mathrm{CE}(z, y) + \\beta\\,\\mathbb{E}_x\\!\\big[(\\log\\!\\sum_v e^{z_v})^2\\big],\\quad \\beta = 10^{-4}$$",
+    "key_hyperparams": [
+      {"name": "beta", "value": "1e-4", "role": "z-loss coefficient", "learnable": false}
+    ],
+    "diff_from_baseline": "Chowdhery et al., 'PaLM: Scaling Language Modeling with Pathways' (2022). Stabilizes pretraining by regularizing the log-partition function.",
+    "confidence": "high"
+  }
+]

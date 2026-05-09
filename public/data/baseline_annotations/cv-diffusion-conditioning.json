@@ -1,0 +1,63 @@
+[
+  {
+    "model": "AdaLN-Zero",
+    "name": "AdaLN-Zero",
+    "tagline": "Class embedding produces scale/shift/gate parameters that adaptively modulate features after each ResBlock; time embedding unchanged.",
+    "kind": "hybrid",
+    "formula": "$$h \\leftarrow h + \\mathrm{gate}(c)\\odot \\mathrm{AdaLN}(h;\\,\\gamma(c),\\,\\beta(c))$$",
+    "diagram": {
+      "nodes": [
+        {"id": "h", "label": "ResBlock features h"},
+        {"id": "c", "label": "class_emb c"},
+        {"id": "ada", "label": "AdaLNBlock(γ,β,gate)"},
+        {"id": "out", "label": "h ← h + gate·LN(γ,β)(h)"}
+      ],
+      "edges": [
+        {"from": "h", "to": "ada"},
+        {"from": "c", "to": "ada", "label": "γ,β,gate"},
+        {"from": "ada", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "channels", "value": "per-block", "role": "feature width", "learnable": false},
+      {"name": "cond_dim", "value": "D_class", "role": "class-emb dim", "learnable": false}
+    ],
+    "diff_from_baseline": "Peebles & Xie 2023 (DiT). Adaptive LayerNorm with zero-initialized gate; class conditioning never touches the time embedding.",
+    "confidence": "high"
+  },
+  {
+    "model": "Concat-FiLM",
+    "name": "Concat-FiLM",
+    "tagline": "Add the projected class embedding to the timestep embedding so conditioning enters the UNet via FiLM-style adaptive GroupNorm.",
+    "kind": "formula",
+    "formula": "$$\\tilde{t} = t_\\mathrm{emb} + c_\\mathrm{emb},\\qquad \\mathrm{ClassConditioner}(h,c) = h$$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Standard label-into-time conditioning used in ADM / improved-DDPM. Simplest design: ClassConditioner is a no-op, all class info rides on the time embedding.",
+    "confidence": "high"
+  },
+  {
+    "model": "Cross-Attention",
+    "name": "Cross-Attention",
+    "tagline": "Class embedding serves as key/value in cross-attention layers inserted after each ResBlock; time embedding unchanged.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "h", "label": "ResBlock features h"},
+        {"id": "c", "label": "class_emb c"},
+        {"id": "ca", "label": "CrossAttn(Q=h, K=V=c, heads=4)"},
+        {"id": "out", "label": "h_out"}
+      ],
+      "edges": [
+        {"from": "h", "to": "ca", "label": "Q"},
+        {"from": "c", "to": "ca", "label": "K, V"},
+        {"from": "ca", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "num_heads", "value": "4", "role": "cross-attention heads", "learnable": false},
+      {"name": "cond_dim", "value": "D_class", "role": "K/V dim", "learnable": false}
+    ],
+    "diff_from_baseline": "Rombach et al. 2022 (Stable Diffusion). Standard text/label-as-context cross-attention conditioning.",
+    "confidence": "high"
+  }
+]

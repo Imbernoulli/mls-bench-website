@@ -1,0 +1,41 @@
+[
+  {
+    "model": "FedAvg",
+    "name": "FedAvg",
+    "tagline": "Plain SGD on each client + sample-count-weighted average of returned state dicts on the server.",
+    "kind": "formula",
+    "formula": "$$ w^{(t+1)} = \\sum_{k \\in S_t} \\frac{n_k}{\\sum_{j \\in S_t} n_j}\\, w_k^{(t+1)} $$",
+    "key_hyperparams": [
+      {"name": "client optimizer", "value": "plain SGD", "role": "no momentum / no proximal term", "learnable": false},
+      {"name": "client selection", "value": "uniform random", "role": "sample without replacement each round", "learnable": false}
+    ],
+    "diff_from_baseline": "McMahan et al. 2017 (AISTATS). The canonical federated learning algorithm: each selected client runs local SGD for E epochs and the server takes a sample-weighted average of the resulting parameters. Default reference for any federated benchmark.",
+    "confidence": "high"
+  },
+  {
+    "model": "FedProx",
+    "name": "FedProx",
+    "tagline": "FedAvg with an extra proximal term $\\frac{\\mu}{2}\\|w-w_{\\text{global}}\\|^2$ added to each client's local objective.",
+    "kind": "formula",
+    "formula": "$$ \\min_{w}\\;\\mathcal{L}_k(w) + \\frac{\\mu}{2}\\,\\|w - w^{(t)}_{\\text{global}}\\|_2^2,\\qquad \\text{server: } w^{(t+1)} = \\sum_k \\tfrac{n_k}{\\sum_j n_j}\\, w_k $$",
+    "key_hyperparams": [
+      {"name": "mu", "value": "0.01", "role": "proximal regularization strength", "learnable": false},
+      {"name": "server aggregation", "value": "FedAvg", "role": "weighted mean of client states", "learnable": false}
+    ],
+    "diff_from_baseline": "Li et al. 2020 (MLSys). FedAvg + per-client proximal regularizer that penalizes drift from the round's global parameters; helps non-IID clients with heterogeneous local objectives. Standard suggested $\\mu \\in [0.001, 0.1]$.",
+    "confidence": "high"
+  },
+  {
+    "model": "SCAFFOLD",
+    "name": "SCAFFOLD",
+    "tagline": "Variance-reduced FedAvg with global and per-client control variates that correct local SGD direction.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Server keeps global control variate $c$; each client $k$ keeps $c_k$\n2. Client receives $(w^{(t)}, c)$ and runs $K$ steps of plain SGD on local data:\n3.   $w \\leftarrow w - \\eta\\,\\big(\\nabla \\mathcal{L}_k(w; \\xi) + c - c_k\\big)$\n4. After local training, update $c_k^+ = c_k - c + (w^{(t)} - w)/(K\\eta)$ (Option II)\n5. Return $w$ and $\\Delta c_k = c_k^+ - c_k$ to the server\n6. Server: $w^{(t+1)} = \\sum_k \\tfrac{n_k}{\\sum n}\\, w_k$ and $c \\leftarrow c + \\tfrac{|S_t|}{N}\\,\\overline{\\Delta c_k}$",
+    "key_hyperparams": [
+      {"name": "client optimizer", "value": "plain SGD", "role": "no momentum (per Alg 1)", "learnable": false},
+      {"name": "control update", "value": "Option II", "role": "use trained $w$ vs. extra grad", "learnable": false}
+    ],
+    "diff_from_baseline": "Karimireddy et al. 2020 (ICML). Stochastic Controlled Averaging: server and per-client control variates correct local-SGD drift caused by client heterogeneity. Implements Algorithm 1 with the Option-II control update.",
+    "confidence": "high"
+  }
+]

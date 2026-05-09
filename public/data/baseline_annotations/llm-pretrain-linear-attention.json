@@ -1,0 +1,103 @@
+[
+  {
+    "model": "DeltaNet",
+    "name": "DeltaNet",
+    "tagline": "Linear-attention with the delta update rule plus short causal conv on Q/K and L2-normalised SiLU features.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Input x"},
+        {"id": "ln", "label": "LN"},
+        {"id": "qkv", "label": "Q,K,V proj"},
+        {"id": "conv", "label": "Short conv (k=4)"},
+        {"id": "act", "label": "SiLU + L2 norm on Q,K"},
+        {"id": "delta", "label": "Delta-rule recurrence (β-gated)"},
+        {"id": "out", "label": "Output"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ln"},
+        {"from": "ln", "to": "qkv"},
+        {"from": "qkv", "to": "conv"},
+        {"from": "conv", "to": "act"},
+        {"from": "act", "to": "delta"},
+        {"from": "delta", "to": "out"}
+      ]
+    },
+    "formula": "$$S_t = (I - \\beta_t k_t k_t^\\top)\\,S_{t-1} + \\beta_t k_t v_t^\\top,\\quad o_t = S_t^\\top q_t$$",
+    "key_hyperparams": [
+      {"name": "use_beta", "value": "true", "role": "data-dependent gate β", "learnable": true},
+      {"name": "conv_size", "value": "4", "role": "short conv on Q/K", "learnable": false},
+      {"name": "qk_act", "value": "silu", "role": "feature map", "learnable": false},
+      {"name": "qk_norm", "value": "L2", "role": "key/query normalization", "learnable": false}
+    ],
+    "diff_from_baseline": "Schlag et al. 2021 + Yang et al. 2024 — DeltaNet. Linear-time fast-weight programmer that updates a key→value memory with the delta rule; from `flash-linear-attention`. Strong subquadratic baseline on language modelling.",
+    "confidence": "high"
+  },
+  {
+    "model": "GLA",
+    "name": "GLA",
+    "tagline": "Gated Linear Attention with data-dependent decay and SwiGLU output gate; chunked algorithm for hardware-efficient training.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Input x"},
+        {"id": "ln", "label": "LN"},
+        {"id": "proj", "label": "Q,K,V (expand_k=0.5)"},
+        {"id": "decay", "label": "Data-dep decay α_t"},
+        {"id": "rec", "label": "Gated recurrence S_t = α_t·S_{t-1} + k_t v_t^T"},
+        {"id": "gate", "label": "SiLU output gate"},
+        {"id": "out", "label": "Output"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ln"},
+        {"from": "ln", "to": "proj"},
+        {"from": "proj", "to": "decay"},
+        {"from": "decay", "to": "rec"},
+        {"from": "rec", "to": "gate"},
+        {"from": "gate", "to": "out"}
+      ]
+    },
+    "formula": "$$S_t = \\mathrm{diag}(\\alpha_t)\\,S_{t-1} + k_t v_t^\\top,\\quad o_t = (q_t^\\top S_t) \\odot \\mathrm{SiLU}(g_t)$$",
+    "key_hyperparams": [
+      {"name": "expand_k", "value": "0.5", "role": "key dim ratio", "learnable": false},
+      {"name": "expand_v", "value": "1.0", "role": "value dim ratio", "learnable": false},
+      {"name": "gate_fn", "value": "swish", "role": "output gate activation", "learnable": false},
+      {"name": "mode", "value": "chunk", "role": "chunked recurrence kernel", "learnable": false}
+    ],
+    "diff_from_baseline": "Yang et al., ICML 2024 — Gated Linear Attention. Linear attention with input-dependent diagonal decay and an output gate; chunked Triton kernels match Transformer wall-clock at ~7B. Default linear-attention baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "RetNet",
+    "name": "RetNet (MultiScale Retention)",
+    "tagline": "Multi-scale retention with fixed exponential decay per head and a swish output gate.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Input x"},
+        {"id": "ln", "label": "LN"},
+        {"id": "qkv", "label": "Q,K,V proj"},
+        {"id": "decay", "label": "Per-head fixed γ_h"},
+        {"id": "ret", "label": "Retention S_t = γ_h S_{t-1} + k_t v_t^T"},
+        {"id": "gate", "label": "Swish output gate"},
+        {"id": "out", "label": "Output"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ln"},
+        {"from": "ln", "to": "qkv"},
+        {"from": "qkv", "to": "decay"},
+        {"from": "decay", "to": "ret"},
+        {"from": "ret", "to": "gate"},
+        {"from": "gate", "to": "out"}
+      ]
+    },
+    "formula": "$$o_t = q_t^\\top \\sum_{i\\le t} \\gamma_h^{\\,t-i}\\, k_i v_i^\\top \\;\\; \\text{(per head $h$, fixed } \\gamma_h\\text{)}$$",
+    "key_hyperparams": [
+      {"name": "expand_k", "value": "1.0", "role": "key expansion", "learnable": false},
+      {"name": "expand_v", "value": "1.0", "role": "value expansion", "learnable": false},
+      {"name": "use_output_gate", "value": "true", "role": "swish gate on output", "learnable": false}
+    ],
+    "diff_from_baseline": "Sun et al. 2023 — Retentive Network. Multi-scale exponential-decay retention as a softmax-attention successor: parallel + recurrent + chunkwise modes with O(1) inference state. Strong RNN/linear-attention baseline.",
+    "confidence": "high"
+  }
+]

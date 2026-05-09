@@ -1,0 +1,58 @@
+[
+  {
+    "model": "Elastic-Cache",
+    "name": "Elastic-Cache",
+    "tagline": "Tracked-token windows with per-layer attention-similarity reset and confidence-thresholded one-token transfer.",
+    "kind": "pseudocode",
+    "pseudocode": "1. block_schedule: window_length=16, no warmup forward.\n2. query_plan: step 0 → full sequence; later steps → tracked window only, plus current masked block.\n3. cache_refresh_plan: feature cache OFF, refresh every step, kv_update = tracked-window layer reset.\n4. layer_reset: triggered by attention-similarity ($\\gamma{=}0.9$) — refresh layer KV when probe similarity drops.\n5. attention_probe_plan: request attention weights, track top-1 token.\n6. token_transfer: confidence_threshold ≥ $0.9$, one token per step in masked window.",
+    "key_hyperparams": [
+      {"name": "window_length", "value": "16", "role": "tracked window size", "learnable": false},
+      {"name": "γ", "value": "0.9", "role": "attention-similarity reset threshold", "learnable": false},
+      {"name": "track_num", "value": "1", "role": "tracked tokens per probe", "learnable": false},
+      {"name": "transfer threshold", "value": "0.9", "role": "min confidence to commit token", "learnable": false}
+    ],
+    "diff_from_baseline": "Elastic-Cache style policy: maintains a small tracked-token window and uses attention-similarity to trigger per-layer KV resets, committing one high-confidence token per step.",
+    "confidence": "medium"
+  },
+  {
+    "model": "Vanilla (Uncached)",
+    "name": "Vanilla (Uncached)",
+    "tagline": "No-cache control: full-sequence LLaDA forward at every denoising step, default low-confidence token transfer.",
+    "kind": "pseudocode",
+    "pseudocode": "1. block_schedule: workload defaults, no warmup forward.\n2. query_plan: query_scope = full_sequence every step, no tracked positions.\n3. cache_refresh_plan: feature cache OFF, prompt and gen refresh interval = 1, kv_update = full_refresh.\n4. attention_probe_plan: do not request attention weights.\n5. token_transfer: low_confidence within current block, num_transfer = workload default, force ≥ 1 token.\n6. after_step: cache_state unchanged.",
+    "key_hyperparams": [
+      {"name": "use_feature_cache", "value": "false", "role": "no caching", "learnable": false},
+      {"name": "refresh_interval", "value": "1", "role": "refresh KV every step", "learnable": false}
+    ],
+    "diff_from_baseline": "Reference uncached LLaDA-8B-Instruct decoding — pays full forward cost each step; serves as the quality upper-bound / cache lower-bound.",
+    "confidence": "high"
+  },
+  {
+    "model": "d2Cache",
+    "name": "d2Cache",
+    "tagline": "Active-query rows with attention-rollout top-up; full-sequence pass on the first step in each block, then only active rows.",
+    "kind": "pseudocode",
+    "pseudocode": "1. block_schedule: gen-length-sized blocks, num_steps = gen_length, no warmup forward.\n2. query_plan: step_in_block 0 → full_sequence; later → active_query_rows from cache_state.\n3. cache_refresh_plan: feature cache OFF, row_selector = certainty + density + attention rollout, kv_update = active_q_mask.\n4. attention_probe_plan: rollout_p = $0.1$, current_k = $32$, σ = $10.0$.\n5. token_transfer: low_confidence within current block, force ≥ 1 token.\n6. after_step: cache_state unchanged.",
+    "key_hyperparams": [
+      {"name": "rollout_p", "value": "0.1", "role": "attention rollout probability", "learnable": false},
+      {"name": "current_k", "value": "32", "role": "rollout-tracked token budget", "learnable": false},
+      {"name": "σ", "value": "10.0", "role": "rollout density bandwidth", "learnable": false}
+    ],
+    "diff_from_baseline": "d2Cache-style policy: select an active query mask using certainty, density, and attention rollout; only those rows are recomputed beyond the first step.",
+    "confidence": "medium"
+  },
+  {
+    "model": "dLLM-Cache",
+    "name": "dLLM-Cache",
+    "tagline": "Interval-based feature cache with low-similarity row refresh; per-workload (prompt_int, gen_int, transfer_ratio) presets.",
+    "kind": "pseudocode",
+    "pseudocode": "1. presets: math (50,7,0.25), humaneval (50,8,0.25), lm_eval (50,3,0.25); else (50,4,0.25).\n2. block_schedule: workload defaults, no warmup forward.\n3. query_plan: full_sequence every step, no tracked positions.\n4. cache_refresh_plan: feature cache ON, prompt/gen refresh intervals from preset, transfer_ratio = $0.25$, row_selector = lowest_value_feature_similarity, kv_update = scatter_refresh.\n5. attention_probe_plan: no attention weights needed.\n6. token_transfer: low_confidence within current block, force ≥ 1 token.",
+    "key_hyperparams": [
+      {"name": "prompt_refresh_interval", "value": "50", "role": "steps between prompt-side feature refresh", "learnable": false},
+      {"name": "gen_refresh_interval", "value": "3-8", "role": "steps between generation-side refresh (workload-dependent)", "learnable": false},
+      {"name": "transfer_ratio", "value": "0.25", "role": "fraction of low-similarity rows refreshed", "learnable": false}
+    ],
+    "diff_from_baseline": "Liu et al., dLLM-Cache (2025). Interval feature reuse for diffusion LMs: refresh prompt KV rarely, refresh generation KV every few steps, and scatter-refresh rows whose features drift the most.",
+    "confidence": "high"
+  }
+]

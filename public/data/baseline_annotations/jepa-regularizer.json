@@ -1,0 +1,57 @@
+[
+  {
+    "model": "Barlow Twins",
+    "name": "Barlow Twins",
+    "tagline": "Pushes the cross-correlation matrix between two views toward identity, encouraging invariance and decorrelation.",
+    "kind": "formula",
+    "formula": "$$C_{ij} = \\frac{\\sum_b z^A_{b,i} z^B_{b,j}}{B},\\quad \\mathcal{L} = s\\Big[\\sum_i (1 - C_{ii})^2 + \\lambda \\sum_{i\\neq j} C_{ij}^2\\Big]$$",
+    "key_hyperparams": [
+      {"name": "lambda", "value": "0.0051", "role": "off-diagonal weight", "learnable": false},
+      {"name": "scale_loss", "value": "0.1", "role": "global rescaling for LARS", "learnable": false},
+      {"name": "BatchNorm", "value": "LazyBatchNorm1d (no affine)", "role": "feature standardization", "learnable": false}
+    ],
+    "diff_from_baseline": "Zbontar et al., ICML 2021 (Barlow Twins: Self-Supervised Learning via Redundancy Reduction). Drives the cross-correlation matrix between two augmented views' embeddings toward the identity; standalone anti-collapse SSL objective without teacher/student or EMA.",
+    "confidence": "high"
+  },
+  {
+    "model": "Naive",
+    "name": "Naive (MSE only)",
+    "tagline": "MSE invariance loss with no anti-collapse term; the trivial baseline that demonstrates representation collapse.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\mathrm{MSE}(z^A, z^B) = \\frac{1}{B D}\\sum_{b,d} (z^A_{b,d} - z^B_{b,d})^2$$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Lower-bound baseline used internally by this benchmark. Optimizes invariance only with no variance/covariance/decorrelation penalty - representations collapse to a constant, providing the reference floor for anti-collapse methods.",
+    "confidence": "high"
+  },
+  {
+    "model": "SigReg",
+    "name": "SIGReg (BCS)",
+    "tagline": "Penalises non-Gaussianity of random 1-D projections of embeddings via Epps-Pulley characteristic-function distance, plus MSE invariance.",
+    "kind": "hybrid",
+    "formula": "$$T(u) = \\int_{-3}^{3} e^{-t^2/2} \\big| \\widehat{\\phi}_u(t) - e^{-t^2/2} \\big|^2 dt,\\quad \\mathcal{L} = \\mathrm{MSE}(z^A, z^B) + \\lambda\\,\\overline{T}_{\\text{slices}}(z^A, z^B)$$",
+    "pseudocode": "1. Sample N=256 random unit projections $u_k \\sim \\mathcal{N}(0, I)/\\|\\cdot\\|$\n2. Project both views: $v^A = z^A U,\\; v^B = z^B U$\n3. For each slice, compute empirical characteristic function $\\widehat{\\phi}(t) = \\mathbb{E}[e^{itv}]$ on a 10-point grid in $[-3,3]$\n4. Epps-Pulley statistic $T_k = \\int e^{-t^2/2} |\\widehat{\\phi}_k(t) - e^{-t^2/2}|^2 dt$\n5. BCS = mean(T(view A)) + mean(T(view B)) all divided by 2\n6. Total loss = MSE($z^A,z^B$) + 10 * BCS",
+    "key_hyperparams": [
+      {"name": "num_slices", "value": "256", "role": "random projections", "learnable": false},
+      {"name": "lambda", "value": "10.0", "role": "Gaussianity weight", "learnable": false},
+      {"name": "t_range", "value": "[-3, 3], 10 pts", "role": "ECF integration grid", "learnable": false},
+      {"name": "proj_output_dim", "value": "128", "role": "projector head width override", "learnable": false}
+    ],
+    "diff_from_baseline": "Skorski & Bardes 2024 (SIGReg / Batched Characteristic Slicing). Replaces variance/covariance penalties with a Gaussianity test on random 1-D projections, which scales better in high dimensions while still preventing collapse.",
+    "confidence": "high"
+  },
+  {
+    "model": "VICReg",
+    "name": "VICReg",
+    "tagline": "Variance + Invariance + Covariance regularization: hinge-on-std variance term, MSE invariance, and off-diagonal decorrelation.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L} = \\underbrace{\\mathrm{MSE}(z^A, z^B)}_{s} + \\mu \\underbrace{\\sum_{v\\in\\{A,B\\}}\\frac{1}{D}\\sum_d \\max(0, 1 - \\sigma(z^v_{:,d}))}_{v} + \\nu \\underbrace{\\sum_{v\\in\\{A,B\\}}\\frac{1}{D}\\sum_{i\\neq j} C^{v}_{ij}{}^2}_{c}$$",
+    "key_hyperparams": [
+      {"name": "std_coeff", "value": "1.0", "role": "variance hinge weight", "learnable": false},
+      {"name": "cov_coeff", "value": "100.0", "role": "covariance weight", "learnable": false},
+      {"name": "std_margin", "value": "1.0", "role": "target std", "learnable": false},
+      {"name": "proj_output_dim", "value": "1024", "role": "projector head override", "learnable": false}
+    ],
+    "diff_from_baseline": "Bardes, Ponce & LeCun, ICLR 2022 (VICReg). Three-term SSL objective combining invariance, per-dimension variance hinge, and off-diagonal covariance decorrelation - canonical SSL anti-collapse baseline.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,44 @@
+[
+  {
+    "model": "Binary Sign (BitNet)",
+    "name": "Binary Sign (BitNet)",
+    "tagline": "Weights binarized to {-1,+1} via sign with absmean per-tensor scale; activations absmax-quantized to int8 with STE.",
+    "kind": "formula",
+    "formula": "$$\\hat{W} = \\mathrm{sign}(W),\\;\\; \\alpha = \\frac{1}{N}\\sum_i |W_i|;\\quad \\hat{x} = \\mathrm{round}\\!\\left(\\tfrac{x}{\\beta}\\cdot 127\\right),\\;\\beta = \\max|x|;\\quad y = \\alpha\\,\\tfrac{\\beta}{127}\\,\\hat{x}\\hat{W}^{\\top}$$",
+    "key_hyperparams": [
+      {"name": "weight bits", "value": "1", "role": "{-1,+1}", "learnable": false},
+      {"name": "activation bits", "value": "8", "role": "absmax int8", "learnable": false},
+      {"name": "α scale", "value": "mean(|W|)", "role": "per-tensor weight scale", "learnable": false}
+    ],
+    "diff_from_baseline": "Wang et al., BitNet 2023. The original 1-bit linear layer: sign() weights with absmean scale plus int8 absmax activations and straight-through gradients.",
+    "confidence": "high"
+  },
+  {
+    "model": "INT2 Uniform",
+    "name": "INT2 Uniform",
+    "tagline": "Weights quantized to four uniform levels {-1, -1/3, +1/3, +1} via absmean scaling and STE rounding; int8 absmax activations.",
+    "kind": "formula",
+    "formula": "$$\\alpha = \\tfrac{1}{N}\\sum_i |W_i|,\\;\\; \\hat{W} = \\tfrac{1}{1.5}\\,\\mathrm{round}\\!\\big(\\mathrm{clip}(\\tfrac{1.5\\,W}{\\alpha},-1.5,1.5)\\big) \\in \\{-1,-\\tfrac{1}{3},\\tfrac{1}{3},1\\}$$",
+    "key_hyperparams": [
+      {"name": "weight bits", "value": "2", "role": "log₂(4) = 2 levels", "learnable": false},
+      {"name": "levels", "value": "{-1,-1/3,1/3,1}", "role": "uniform symmetric grid in [-1,1]", "learnable": false},
+      {"name": "activation bits", "value": "8", "role": "absmax int8", "learnable": false}
+    ],
+    "diff_from_baseline": "2-bit uniform-grid quantization with absmean scale — slightly more expressive than ternary while remaining very low-bit. Same STE / int8 activation recipe as BitNet.",
+    "confidence": "high"
+  },
+  {
+    "model": "Ternary 1.58-bit (BitNet b1.58)",
+    "name": "Ternary 1.58-bit",
+    "tagline": "Ternary {-1,0,+1} weight quantization via absmean clip-and-round (log₂3 ≈ 1.58 bits) with int8 activations.",
+    "kind": "formula",
+    "formula": "$$\\alpha = \\tfrac{1}{N}\\sum_i |W_i|,\\;\\; \\hat{W} = \\mathrm{round}\\big(\\mathrm{clip}(\\tfrac{W}{\\alpha},\\,-1,\\,1)\\big) \\in \\{-1,0,1\\};\\quad y = \\alpha\\,\\tfrac{\\beta}{127}\\,\\hat{x}\\hat{W}^{\\top}$$",
+    "key_hyperparams": [
+      {"name": "weight bits", "value": "1.58", "role": "log₂(3)", "learnable": false},
+      {"name": "levels", "value": "{-1,0,+1}", "role": "ternary; 0 enables gating", "learnable": false},
+      {"name": "activation bits", "value": "8", "role": "absmax int8", "learnable": false}
+    ],
+    "diff_from_baseline": "Ma et al., The Era of 1-bit LLMs (BitNet b1.58, 2024). Ternary weights with absmean-clip-round; the zero level lets the layer effectively gate connections.",
+    "confidence": "high"
+  }
+]

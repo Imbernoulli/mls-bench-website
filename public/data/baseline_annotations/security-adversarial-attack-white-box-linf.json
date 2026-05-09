@@ -1,0 +1,58 @@
+[
+  {
+    "model": "AutoAttack",
+    "name": "AutoAttack (Linf, standard)",
+    "tagline": "Parameter-free ensemble of APGD-CE, APGD-DLR, FAB and Square Attack; the standard robustness-evaluation suite for $L_\\infty$ adversaries.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Use torchattacks.AutoAttack with norm='Linf', eps=eps, version='standard'.\n2. Internally runs: APGD-CE -> APGD-DLR (targeted) -> FAB (targeted) -> Square Attack.\n3. Each sub-attack is parameter-free and stops after step-size schedule converges.\n4. Return adversarial images.",
+    "key_hyperparams": [
+      {"name": "norm", "value": "Linf", "role": "perturbation ball", "learnable": false},
+      {"name": "version", "value": "standard", "role": "APGD-CE + APGD-DLR + FAB + Square", "learnable": false},
+      {"name": "eps", "value": "2/255 (task-fixed)", "role": "Linf budget", "learnable": false}
+    ],
+    "diff_from_baseline": "Croce & Hein, 'Reliable Evaluation of Adversarial Robustness with an Ensemble of Diverse Parameter-free Attacks' (ICML 2020). The de-facto whitebox-attack benchmark.",
+    "confidence": "high"
+  },
+  {
+    "model": "FGSM",
+    "name": "FGSM (Fast Gradient Sign)",
+    "tagline": "Single-step Linf attack: take the sign of the loss gradient and step by $\\varepsilon$, clip to $[0,1]$.",
+    "kind": "formula",
+    "formula": "$$x_{\\text{adv}} = \\mathrm{clip}_{[0,1]}\\!\\Big(x + \\varepsilon\\,\\mathrm{sign}\\big(\\nabla_x \\mathrm{CE}(f(x), y)\\big)\\Big)$$",
+    "key_hyperparams": [
+      {"name": "steps", "value": "1", "role": "single-step attack", "learnable": false},
+      {"name": "eps", "value": "2/255 (task-fixed)", "role": "Linf budget", "learnable": false}
+    ],
+    "diff_from_baseline": "Goodfellow, Shlens & Szegedy, 'Explaining and Harnessing Adversarial Examples' (ICLR 2015). Original single-step adversarial attack; weakest baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "MI-FGSM",
+    "name": "MI-FGSM (Momentum Iterative)",
+    "tagline": "Iterative FGSM with a momentum-accumulated normalized gradient, improving transferability and stability over PGD.",
+    "kind": "hybrid",
+    "formula": "$$g_{t+1} = \\mu\\,g_t + \\frac{\\nabla_x \\mathrm{CE}(f(x_t), y)}{\\|\\nabla_x \\mathrm{CE}\\|_{1,\\text{mean}}+\\epsilon},\\quad x_{t+1} = \\Pi_{\\mathcal{B}_\\infty(x_0,\\varepsilon)\\cap[0,1]}\\!\\big(x_t + \\alpha\\,\\mathrm{sign}(g_{t+1})\\big)$$",
+    "pseudocode": "1. Init $x_0 = x + \\mathrm{Uniform}(-\\varepsilon,\\varepsilon)$, clip to $[0,1]$; momentum $g_0=0$.\n2. For 40 steps: compute $\\nabla \\mathrm{CE}$, normalize by per-image mean abs, accumulate $g \\leftarrow \\mu g + \\hat\\nabla$.\n3. Step $x \\leftarrow x + \\alpha\\,\\mathrm{sign}(g)$ with $\\alpha=\\varepsilon/10$.\n4. Project back to $L_\\infty(\\varepsilon)$ ball and clip to $[0,1]$.",
+    "key_hyperparams": [
+      {"name": "steps", "value": "40", "role": "iteration count", "learnable": false},
+      {"name": "alpha", "value": "eps/10", "role": "step size", "learnable": false},
+      {"name": "decay", "value": "1.0", "role": "momentum factor $\\mu$", "learnable": false}
+    ],
+    "diff_from_baseline": "Dong et al., 'Boosting Adversarial Attacks with Momentum' (CVPR 2018). Adds Polyak momentum on per-image normalized gradients.",
+    "confidence": "high"
+  },
+  {
+    "model": "PGD",
+    "name": "PGD (Projected Gradient Descent)",
+    "tagline": "Iterative FGSM with random start: take signed gradient steps and project back to the $L_\\infty(\\varepsilon)$ ball after each step.",
+    "kind": "pseudocode",
+    "pseudocode": "1. $x_0 = x + \\mathrm{Uniform}(-\\varepsilon,\\varepsilon)$, clip to $[0,1]$.\n2. For 40 steps:\n3.   $\\nabla = \\nabla_x \\mathrm{CE}(f(x_t), y)$.\n4.   $x_{t+1} = x_t + \\alpha\\,\\mathrm{sign}(\\nabla)$ with $\\alpha=\\varepsilon/4$.\n5.   Project: clamp $x_{t+1}-x$ to $[-\\varepsilon,\\varepsilon]$, then clip to $[0,1]$.",
+    "key_hyperparams": [
+      {"name": "steps", "value": "40", "role": "PGD iterations", "learnable": false},
+      {"name": "alpha", "value": "eps/4", "role": "step size", "learnable": false},
+      {"name": "random_start", "value": "Uniform(-eps,eps)", "role": "initialization noise", "learnable": false}
+    ],
+    "diff_from_baseline": "Madry et al., 'Towards Deep Learning Models Resistant to Adversarial Attacks' (ICLR 2018). Canonical iterative whitebox $L_\\infty$ attack.",
+    "confidence": "high"
+  }
+]

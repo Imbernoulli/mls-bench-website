@@ -1,0 +1,38 @@
+[
+  {
+    "model": "Focal Loss",
+    "name": "Focal Loss",
+    "tagline": "Down-weights easy (well-classified) examples by modulating cross-entropy with a (1 - p_t)^gamma factor.",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}_{\\text{focal}} = \\frac{1}{N}\\sum_i (1 - p_t^{(i)})^{\\gamma}\\, \\mathrm{CE}(z_i, y_i),\\quad p_t^{(i)} = \\exp(-\\mathrm{CE}(z_i, y_i)),\\quad \\gamma = 2$$",
+    "key_hyperparams": [
+      {"name": "gamma", "value": "2.0", "role": "focusing exponent", "learnable": false}
+    ],
+    "diff_from_baseline": "Lin et al., ICCV 2017 (Focal Loss for Dense Object Detection). Reduces relative loss on easy examples so training focuses on hard misclassified ones; widely adopted for imbalanced classification.",
+    "confidence": "high"
+  },
+  {
+    "model": "Label Smoothing",
+    "name": "Label Smoothing",
+    "tagline": "Replaces one-hot targets with a soft mixture (1 - eps) one-hot + eps/C, preventing overconfident logits.",
+    "kind": "formula",
+    "formula": "$$\\tilde{y}_k = (1 - \\varepsilon)\\,\\mathbb{1}[k = y] + \\frac{\\varepsilon}{C},\\quad \\mathcal{L} = -\\sum_k \\tilde{y}_k \\log\\mathrm{softmax}(z)_k,\\quad \\varepsilon = 0.1$$",
+    "key_hyperparams": [
+      {"name": "epsilon", "value": "0.1", "role": "label smoothing strength", "learnable": false}
+    ],
+    "diff_from_baseline": "Szegedy et al., CVPR 2016 (Rethinking the Inception Architecture). Standard regularizer that softens hard targets; default in many ResNet/Transformer training recipes. Implemented via PyTorch's F.cross_entropy(label_smoothing=0.1).",
+    "confidence": "high"
+  },
+  {
+    "model": "PolyLoss",
+    "name": "PolyLoss",
+    "tagline": "Adds a first-order polynomial correction to cross-entropy: CE + epsilon * (1 - p_t).",
+    "kind": "formula",
+    "formula": "$$\\mathcal{L}_{\\text{poly}} = \\mathrm{CE}(z, y) + \\varepsilon\\,\\mathbb{E}\\big[1 - p_t\\big],\\quad p_t = \\mathrm{softmax}(z)_y,\\quad \\varepsilon = 2.0$$",
+    "key_hyperparams": [
+      {"name": "epsilon", "value": "2.0", "role": "first polynomial coefficient", "learnable": false}
+    ],
+    "diff_from_baseline": "Leng et al., ICLR 2022 (PolyLoss: A Polynomial Expansion Perspective of Classification Loss Functions). Re-weights the leading term of the CE Taylor expansion - simple drop-in often improving generalization across CV tasks.",
+    "confidence": "high"
+  }
+]

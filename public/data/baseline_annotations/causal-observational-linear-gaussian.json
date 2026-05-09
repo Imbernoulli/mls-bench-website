@@ -1,0 +1,53 @@
+[
+  {
+    "model": "BOSS",
+    "name": "BOSS",
+    "tagline": "Best Order Score Search: permutation-based DAG learner using grow-shrink trees and BIC scoring on iid linear-Gaussian data.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Initialize permutation $\\pi = (1, 2, \\ldots, p)$ and BIC score with grow-shrink trees per variable\n2. repeat\n3.   Shuffle variables $V$\n4.   for each $v \\in V$ do better_mutation: try inserting $v$ at every position in $\\pi$, keep position with highest score\n5.   end for\n6. until no insertion improves the total BIC\n7. Recover parents per variable from final order via $\\mathrm{GST}_v.\\mathrm{trace}(\\pi_{<v})$\n8. Convert DAG to CPDAG via $\\mathrm{dag2cpdag}$",
+    "key_hyperparams": [
+      {"name": "lambda_value", "value": "2", "role": "BIC penalty coefficient", "learnable": false}
+    ],
+    "diff_from_baseline": "Andrews, Ramsey, Cooper, Spirtes 2023 (NeurIPS). Permutation-based DAG search that scores each ordering via grow-shrink trees and accepts variable-position swaps as long as the BIC improves. Strong default for linear-Gaussian observational data when N >> p.",
+    "confidence": "high"
+  },
+  {
+    "model": "GRaSP",
+    "name": "GRaSP",
+    "tagline": "Greedy Relaxations of the Sparsest Permutation algorithm: depth-bounded DFS over orderings via covered-edge tucks.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Initialize a random permutation $\\pi$ and set parents via grow-shrink trees\n2. repeat\n3.   For each $(i,j)$ in $\\pi$ with $j < i$ such that edge $j\\to i$ is covered (or unconditionally at depth 0):\n4.     Tuck: move ancestors of $\\pi[i]$ up to position $j$ to form a new order\n5.     Recompute local BIC on positions $j..i$; if score strictly improves, accept\n6.     If score is tied, recurse depth-first up to depth $d=3$ on flipped covered edges\n7.   On no improvement, revert order and continue\n8. until no tuck improves the score\n9. Build DAG from final $\\pi$ and project to CPDAG via $\\mathrm{dag2cpdag}$",
+    "key_hyperparams": [
+      {"name": "depth", "value": "3", "role": "max DFS recursion depth over covered tucks", "learnable": false},
+      {"name": "lambda_value", "value": "2", "role": "BIC penalty coefficient", "learnable": false}
+    ],
+    "diff_from_baseline": "Lam, Andrews, Ramsey 2022 (UAI). Permutation-search DAG learner that explores tuck-based neighborhoods by following score-equal moves under a depth bound, providing a tractable surrogate to Sparsest-Permutation search.",
+    "confidence": "high"
+  },
+  {
+    "model": "PC",
+    "name": "PC (constraint-based)",
+    "tagline": "Classical PC algorithm: Fisher-Z conditional-independence skeleton then Meek rules to recover the CPDAG.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Run stable skeleton discovery on $X$ using Fisher-Z $\\mathrm{CIT}$ at level $\\alpha=0.05$\n2. Maintain separating sets for each removed edge\n3. Orient unshielded colliders $a-c-b$ if $c \\notin \\mathrm{sepset}(a,b)$ (UC-sepset, priority 2)\n4. Apply Meek rules iteratively to propagate orientations to the maximal CPDAG\n5. Return the resulting GeneralGraph",
+    "key_hyperparams": [
+      {"name": "alpha", "value": "0.05", "role": "Fisher-Z CI test significance level", "learnable": false},
+      {"name": "stable", "value": "true", "role": "order-independent skeleton search", "learnable": false}
+    ],
+    "diff_from_baseline": "Spirtes, Glymour & Scheines, Causation, Prediction, and Search (2000). Canonical constraint-based causal discovery: skeleton via CI tests, then collider orientation and Meek propagation. Standard reference baseline for observational linear-Gaussian recovery.",
+    "confidence": "high"
+  },
+  {
+    "model": "ges",
+    "name": "GES",
+    "tagline": "Greedy Equivalence Search: forward Insert and backward Delete operators over CPDAGs scored by BIC.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Initialize $G$ as the empty CPDAG and compute $\\mathrm{score}(G)$\n2. Forward phase: while best Insert$(i,j,T)$ strictly improves BIC, apply it, project via pdag2dag and dag2cpdag\n3. Each Insert respects validity tests (clique-formation $V_1$, semi-elementary chain $V_2$) and a max-parent cap $\\mathrm{maxP} = N/2$\n4. Backward phase: while best Delete$(i,j,H)$ strictly improves BIC, apply it and reproject to CPDAG\n5. Stop when no Insert/Delete in the current equivalence class improves the score; return $G$",
+    "key_hyperparams": [
+      {"name": "lambda_value", "value": "2", "role": "BIC penalty coefficient", "learnable": false},
+      {"name": "maxP", "value": "N/2", "role": "max parents per node in forward phase", "learnable": false}
+    ],
+    "diff_from_baseline": "Chickering 2002, JMLR. Two-phase greedy CPDAG search using local BIC: forward Insert until no operator improves the score, then backward Delete. Optimal in the large-sample limit under faithfulness for linear-Gaussian models.",
+    "confidence": "high"
+  }
+]

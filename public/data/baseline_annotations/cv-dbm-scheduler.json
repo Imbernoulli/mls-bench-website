@@ -1,0 +1,51 @@
+[
+  {
+    "model": "Karras EDM (rho=7)",
+    "name": "Karras (rho=7)",
+    "tagline": "Power-law (ρ=7) noise schedule from EDM that concentrates steps in higher-noise regions.",
+    "kind": "formula",
+    "formula": "$$\\sigma_i = \\Big(\\sigma_{\\max}^{1/\\rho} + \\tfrac{i}{n}\\,(\\sigma_{\\min}^{1/\\rho} - \\sigma_{\\max}^{1/\\rho})\\Big)^{\\rho}, \\quad \\rho=7$$",
+    "key_hyperparams": [
+      {"name": "rho", "value": "7", "role": "ramp curvature", "learnable": false},
+      {"name": "n", "value": "5", "role": "function evaluations", "learnable": false}
+    ],
+    "diff_from_baseline": "Karras et al. 2022 (EDM, NeurIPS). Inverse-power-law warp on noise levels; ρ=7 is the recommended default. Standard schedule for low-step EDM-style diffusion sampling.",
+    "confidence": "high"
+  },
+  {
+    "model": "Uniform (linear)",
+    "name": "Uniform (linear)",
+    "tagline": "Evenly spaced time steps from t_max down to t_min via torch.linspace.",
+    "kind": "formula",
+    "formula": "$$\\sigma_i = \\sigma_{\\max} + \\frac{i}{n}\\,(\\sigma_{\\min} - \\sigma_{\\max}),\\; i=0,\\dots,n$$",
+    "key_hyperparams": [
+      {"name": "n", "value": "5", "role": "function evaluations", "learnable": false}
+    ],
+    "diff_from_baseline": "Trivial linear interpolation of the bridge time variable. Default fallback schedule when no schedule research is performed.",
+    "confidence": "high"
+  },
+  {
+    "model": "Cosine (Nichol-Dhariwal)",
+    "name": "Cosine (Nichol-Dhariwal)",
+    "tagline": "Cosine warp that places denser steps in the mid-noise region where perceptual changes are largest.",
+    "kind": "formula",
+    "formula": "$$\\sigma_i = \\sigma_{\\max} + (\\sigma_{\\min} - \\sigma_{\\max})\\cdot\\frac{1 - \\cos(\\pi i/n)}{2}$$",
+    "key_hyperparams": [
+      {"name": "n", "value": "5", "role": "function evaluations", "learnable": false}
+    ],
+    "diff_from_baseline": "Nichol & Dhariwal 2021 (Improved DDPM, ICML). Smooth cosine schedule originally proposed for the noise variance ᾱ_t; here re-purposed as a (1-cos)/2 warp on bridge times.",
+    "confidence": "high"
+  },
+  {
+    "model": "Log-linear (geometric)",
+    "name": "Log-linear (geometric)",
+    "tagline": "Geometrically spaced steps (uniform in log–σ) that emphasise low-noise resolution.",
+    "kind": "formula",
+    "formula": "$$\\log \\sigma_i = \\log \\sigma_{\\max} + \\frac{i}{n}\\,(\\log \\sigma_{\\min} - \\log \\sigma_{\\max})$$",
+    "key_hyperparams": [
+      {"name": "n", "value": "5", "role": "function evaluations", "learnable": false}
+    ],
+    "diff_from_baseline": "Classic log-uniform / geometric schedule used by VP-style and score-based diffusion samplers; gives proportional density across decades of noise.",
+    "confidence": "high"
+  }
+]

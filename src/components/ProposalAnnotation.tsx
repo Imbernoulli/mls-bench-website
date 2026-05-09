@@ -65,27 +65,23 @@ function renderMath(latex: string, displayMode: boolean): string {
   }
 }
 
-/** Strip outer `$$` or `$` so KaTeX gets the bare LaTeX. */
-function stripDollars(s: string): string {
-  const trimmed = s.trim();
-  if (trimmed.startsWith("$$") && trimmed.endsWith("$$")) {
-    return trimmed.slice(2, -2).trim();
-  }
-  if (trimmed.startsWith("$") && trimmed.endsWith("$")) {
-    return trimmed.slice(1, -1).trim();
-  }
-  return trimmed;
-}
-
-/** Render a block formula (inside or outside `$$ ... $$`). */
+/** Render a block-formula string. Annotators sometimes pack MULTIPLE equations
+ *  into one `formula` field as `$$ a $$ $$ b $$ $$ c $$` — split on every `$$`
+ *  separator and render each non-empty piece as its own KaTeX block, stacked
+ *  vertically. Single-equation strings work too because the split yields just
+ *  one piece after filtering blanks. */
 function FormulaBlock({ latex }: { latex: string }) {
-  const inner = stripDollars(latex);
-  const html = renderMath(inner, true);
+  const pieces = latex
+    .split(/\$\$/g)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (pieces.length === 0) return null;
   return (
-    <div
-      className="overflow-x-auto rounded-md border border-border bg-muted/30 px-3 py-3 text-[13px]"
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <div className="space-y-2 overflow-x-auto rounded-md border border-border bg-muted/30 px-3 py-3 text-[13px]">
+      {pieces.map((p, i) => (
+        <div key={i} dangerouslySetInnerHTML={{ __html: renderMath(p, true) }} />
+      ))}
+    </div>
   );
 }
 

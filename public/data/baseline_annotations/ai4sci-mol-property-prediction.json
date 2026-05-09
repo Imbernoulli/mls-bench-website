@@ -1,0 +1,104 @@
+[
+  {
+    "model": "D-MPNN",
+    "name": "D-MPNN + RDKit features",
+    "tagline": "Directed Message Passing Neural Network with RDKit 2D normalized molecular descriptors concatenated at the readout (Chemprop default).",
+    "kind": "hybrid",
+    "formula": "$$h_{vw}^{t+1} = \\sigma\\!\\left(h_{vw}^{0} + W_h \\sum_{k \\in N(v)\\setminus w} h_{kv}^{t}\\right),\\; \\hat{y} = \\mathrm{FFN}\\!\\left(\\sum_v W_o[x_v \\| m_v] \\,\\Big\\|\\, \\mathrm{RDKit2D}(\\mathrm{SMILES})\\right)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "atoms", "label": "Atom features"},
+        {"id": "bonds", "label": "Bond features"},
+        {"id": "init", "label": "W_i [x_src||e]"},
+        {"id": "mp", "label": "Directed MP x3 (no reverse msg)"},
+        {"id": "agg", "label": "Atom hidden W_o"},
+        {"id": "sum", "label": "Sum readout"},
+        {"id": "rdkit", "label": "RDKit 2D descriptors (17)"},
+        {"id": "ffn", "label": "2-layer FFN head"}
+      ],
+      "edges": [
+        {"from": "atoms", "to": "init"},
+        {"from": "bonds", "to": "init"},
+        {"from": "init", "to": "mp"},
+        {"from": "mp", "to": "agg"},
+        {"from": "agg", "to": "sum"},
+        {"from": "sum", "to": "ffn"},
+        {"from": "rdkit", "to": "ffn"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "300", "role": "bond/atom message dim", "learnable": false},
+      {"name": "depth", "value": "3", "role": "message passing steps", "learnable": false},
+      {"name": "readout", "value": "sum", "role": "graph pooling", "learnable": false},
+      {"name": "rdkit_feats", "value": "17", "role": "appended descriptors", "learnable": false}
+    ],
+    "diff_from_baseline": "Yang et al. 2019 (JCIM). Directed bond-level message passing avoiding reverse-edge collisions; \"D-MPNN + features\" uses RDKit 2D normalized descriptors concatenated at readout. Standard Chemprop benchmark configuration.",
+    "confidence": "high"
+  },
+  {
+    "model": "GIN",
+    "name": "GIN with mean pooling",
+    "tagline": "Graph Isomorphism Network with edge-feature-aware aggregation, BatchNorm, residual stack, and mean readout.",
+    "kind": "hybrid",
+    "formula": "$$h_v^{(k+1)} = \\mathrm{MLP}^{(k)}\\!\\left((1+\\epsilon)\\, h_v^{(k)} + \\sum_{u \\in N(v)} (h_u^{(k)} + W_e\\, e_{uv})\\right)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "atom", "label": "Atom embed (Linear)"},
+        {"id": "gin", "label": "GINConv x4 + BN + residual"},
+        {"id": "edge", "label": "Edge proj W_e"},
+        {"id": "mean", "label": "Mean pooling"},
+        {"id": "head", "label": "2-layer FFN head"}
+      ],
+      "edges": [
+        {"from": "atom", "to": "gin"},
+        {"from": "edge", "to": "gin"},
+        {"from": "gin", "to": "mean"},
+        {"from": "mean", "to": "head"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "256", "role": "node hidden", "learnable": false},
+      {"name": "num_layers", "value": "4", "role": "GIN convolutions", "learnable": false},
+      {"name": "eps", "value": "0", "role": "self-weight", "learnable": true},
+      {"name": "dropout", "value": "0.1", "role": "regularization", "learnable": false}
+    ],
+    "diff_from_baseline": "Xu et al. 2019 (ICLR). Provably maximally expressive 1-WL GNN: sum-aggregation followed by MLP, here with edge-feature injection, BN, residual links, and mean graph pooling.",
+    "confidence": "high"
+  },
+  {
+    "model": "Uni-Mol",
+    "name": "Uni-Mol pretrained encoder",
+    "tagline": "SE(3)-invariant 15-layer Transformer with edge-type-dependent Gaussian distance encoding and pair-representation tracking, loaded from pretrained checkpoint.",
+    "kind": "hybrid",
+    "formula": "$$\\mathrm{attn\\_bias}_{ij} = \\mathrm{NonLinHead}\\!\\big( \\mathrm{Gauss}_{(t_i,t_j)}(d_{ij})\\big),\\quad x' = \\mathrm{Encoder}(x, \\mathrm{attn\\_bias}),\\quad \\hat{y} = \\mathrm{Linear}(\\mathrm{Dropout}(x'_{\\mathrm{[CLS]}}))$$",
+    "diagram": {
+      "nodes": [
+        {"id": "tok", "label": "Atomic-num tokens [CLS] ... [SEP]"},
+        {"id": "emb", "label": "Embed_tokens (D=512)"},
+        {"id": "gauss", "label": "Edge-type Gaussian (K=128)"},
+        {"id": "proj", "label": "GBF proj -> heads"},
+        {"id": "enc", "label": "Transformer x15 (PreLN, pair track)"},
+        {"id": "cls", "label": "[CLS] dropout + linear"},
+        {"id": "ckpt", "label": "Load pretrained weights"}
+      ],
+      "edges": [
+        {"from": "tok", "to": "emb"},
+        {"from": "tok", "to": "gauss"},
+        {"from": "gauss", "to": "proj"},
+        {"from": "emb", "to": "enc"},
+        {"from": "proj", "to": "enc"},
+        {"from": "enc", "to": "cls"},
+        {"from": "ckpt", "to": "enc"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "embed_dim", "value": "512", "role": "hidden size", "learnable": false},
+      {"name": "layers", "value": "15", "role": "encoder depth", "learnable": false},
+      {"name": "heads", "value": "64", "role": "attention heads", "learnable": false},
+      {"name": "K", "value": "128", "role": "Gaussian basis", "learnable": false},
+      {"name": "ckpt", "value": "mol_pre_all_h_220816.pt", "role": "pretrained weights", "learnable": false}
+    ],
+    "diff_from_baseline": "Zhou et al. 2023 (ICLR). 3D molecular Transformer where pairwise distances feed edge-type-conditioned Gaussian basis kernels into attention bias; pair representation updates layer-by-layer. Pretrained on 209M molecules.",
+    "confidence": "high"
+  }
+]

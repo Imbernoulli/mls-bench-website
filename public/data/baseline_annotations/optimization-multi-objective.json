@@ -1,0 +1,82 @@
+[
+  {
+    "model": "AGE-MOEA",
+    "name": "AGE-MOEA",
+    "tagline": "Adaptive geometry-aware MOEA: estimates Pareto-front Lp curvature, then uses Lp-distance crowding for survival.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Tournament-select parents on non-domination rank; produce offspring via SBX (η=20, p=0.9) + polynomial mutation (η=20, p=1/n).\n2. Non-dominated sort the combined pop.\n3. Add full fronts greedily until adding the next exceeds N.\n4. On the critical front: estimate geometry $p$ via binary search on $\\sum_i (\\tilde f_i)^p = 1$ at the median normalised point.\n5. Compute Lp nearest-neighbour distance $d_i = \\min_{j\\neq i}\\|F_i - F_j\\|_p$.\n6. Pick individuals with the largest $d_i$ to fill the population.",
+    "key_hyperparams": [
+      {"name": "p", "value": "estimated", "role": "Pareto-front Lp curvature", "learnable": true},
+      {"name": "η_cx", "value": "20", "role": "SBX distribution index", "learnable": false}
+    ],
+    "diff_from_baseline": "Panichella, GECCO 2019 — AGE-MOEA. Replaces NSGA-II crowding with a non-Euclidean diversity score whose Lp norm is fit per generation to the front geometry; strong many-objective baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "MOEA/D",
+    "name": "MOEA/D (Tchebycheff)",
+    "tagline": "Decomposes the MOP into N scalar Tchebycheff subproblems with neighborhood-mating updates.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Generate $N$ uniformly spread weight vectors $\\{w^i\\}$ and form $T$-nearest neighborhoods.\n2. Initialise the ideal $z^* = \\min_i F_i$.\n3. for each subproblem $i$: with prob $\\delta=0.9$ sample two parents from $N(i)$ else from the whole pop.\n4. Apply SBX + polynomial mutation to obtain a child $y$; update $z^*_j \\leftarrow \\min(z^*_j, F_j(y))$.\n5. for each $j \\in N(i)$: if $g^{te}(y\\,|\\,w^j,z^*) < g^{te}(x^j\\,|\\,w^j,z^*)$ replace $x^j \\leftarrow y$, where $g^{te}=\\max_k w_k|F_k - z^*_k|$.",
+    "key_hyperparams": [
+      {"name": "T", "value": "20", "role": "neighborhood size", "learnable": false},
+      {"name": "δ", "value": "0.9", "role": "neighborhood mating prob", "learnable": false},
+      {"name": "scalarization", "value": "Tchebycheff", "role": "subproblem aggregation", "learnable": false}
+    ],
+    "diff_from_baseline": "Zhang & Li, IEEE TEVC 2007 — MOEA/D. Decomposes a MOP into scalar subproblems solved cooperatively along uniform weight vectors; canonical decomposition-based baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "NSGA-II",
+    "name": "NSGA-II",
+    "tagline": "Fast non-dominated sorting + crowding-distance survival; binary tournament on rank/crowding.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Tournament-select parents using rank then crowding distance (selTournamentDCD).\n2. Apply SBX crossover (η=20, p=0.9) and polynomial mutation (η=20, p=1/n).\n3. Combine $P_t \\cup Q_t$ and run fast non-dominated sort to get fronts $F_1, F_2, \\ldots$.\n4. Add whole fronts to $P_{t+1}$ until adding the next would exceed $N$.\n5. On the critical front, compute crowding distance and pick the individuals with the largest crowding to fill $P_{t+1}$.",
+    "key_hyperparams": [
+      {"name": "η_cx", "value": "20", "role": "SBX distribution index", "learnable": false},
+      {"name": "η_mut", "value": "20", "role": "PM distribution index", "learnable": false},
+      {"name": "p_cx", "value": "0.9", "role": "crossover prob", "learnable": false}
+    ],
+    "diff_from_baseline": "Deb, Pratap, Agarwal & Meyarivan, IEEE TEVC 2002 — NSGA-II. Fast non-dominated sorting with crowding distance; the de-facto multi-objective EA baseline for two-/three-objective problems.",
+    "confidence": "high"
+  },
+  {
+    "model": "NSGA-III",
+    "name": "NSGA-III",
+    "tagline": "NSGA-II with reference-point niching instead of crowding distance — for many-objective fronts.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Generate uniform reference points $R$ on the simplex (Das-Dennis).\n2. Random mating + SBX (η=20) + polynomial mutation (η=20, p=1/n) to produce $Q_t$.\n3. Fast non-dominated sort $P_t \\cup Q_t$.\n4. Add full fronts to $P_{t+1}$ until adding the next exceeds $N$.\n5. On the critical front, normalise objectives, associate each candidate with the closest reference line in $R$, then niche-preserve by selecting individuals from underrepresented reference points.",
+    "key_hyperparams": [
+      {"name": "p (divisions)", "value": "12 (3-obj)", "role": "reference-point density", "learnable": false},
+      {"name": "ref points", "value": "Das-Dennis", "role": "uniform simplex grid", "learnable": false}
+    ],
+    "diff_from_baseline": "Deb & Jain, IEEE TEVC 2014 — NSGA-III. Reference-point-based diversity preservation extending NSGA-II to many-objective settings; standard 3+ objective baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "RVEA",
+    "name": "RVEA",
+    "tagline": "Reference-vector-guided EA with angle-penalised distance and periodic reference-vector adaptation.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Generate unit reference vectors $V$ (Das-Dennis), random mating + SBX (η=20) + polynomial mutation.\n2. Translate objectives by ideal $z^*$, compute cosine angles between each $F_i - z^*$ and every $v \\in V$, associate each individual to its nearest $v$.\n3. APD: $d_i = \\|F_i - z^*\\| (1 + \\gamma\\cdot\\theta_i)$ where $\\gamma = \\alpha (g/g_{\\max})^2$.\n4. For each reference vector keep the candidate with smallest APD.\n5. Every $\\lfloor f_r g_{\\max}\\rfloor$ generations, rescale reference vectors by current $z_{\\max}-z_{\\min}$.",
+    "key_hyperparams": [
+      {"name": "α", "value": "2.0", "role": "APD penalty exponent", "learnable": false},
+      {"name": "f_r", "value": "0.1", "role": "reference adaptation freq", "learnable": false}
+    ],
+    "diff_from_baseline": "Cheng, Jin, Olhofer & Sendhoff, IEEE TEVC 2016 — RVEA. Reference-vector-guided survival with an angle-penalised distance; common many-objective baseline that adapts vectors to objective scale.",
+    "confidence": "high"
+  },
+  {
+    "model": "SPEA2",
+    "name": "SPEA2",
+    "tagline": "Strength-Pareto EA 2: strength + raw fitness + kNN density, with an external archive of elites.",
+    "kind": "pseudocode",
+    "pseudocode": "1. For each individual compute strength $S(i) = |\\{j : i \\succ j\\}|$ and raw fitness $R(i) = \\sum_{j \\succ i} S(j)$.\n2. Add a kNN density term $D(i) = 1/(\\sigma^k_i + 2)$ to obtain $F(i) = R(i)+D(i)$.\n3. Binary tournament on dominance from the archive to pick parents.\n4. SBX (η=20, p=0.9) + polynomial mutation (η=20).\n5. Survive via DEAP's selSPEA2: keep $N$ best by $F$, truncating crowded archive members.\n6. Maintain a non-dominated archive across generations.",
+    "key_hyperparams": [
+      {"name": "archive size", "value": "pop_size", "role": "external elite archive", "learnable": false},
+      {"name": "k (kNN)", "value": "√(2N)", "role": "density estimator", "learnable": false}
+    ],
+    "diff_from_baseline": "Zitzler, Laumanns & Thiele, TIK-Report 103 (ETH 2001) — SPEA2. Strength-based fitness with kNN crowding and external archive; classic Pareto-archive baseline alongside NSGA-II.",
+    "confidence": "high"
+  }
+]

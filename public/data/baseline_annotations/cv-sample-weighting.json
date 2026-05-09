@@ -1,0 +1,40 @@
+[
+  {
+    "model": "Balanced Softmax",
+    "name": "Balanced Softmax weights",
+    "tagline": "Balanced-Softmax-inspired log-prior weights derived from the gap between log(n_max) and log(n_c).",
+    "kind": "formula",
+    "formula": "$$w_c \\propto 1 + \\alpha\\cdot\\frac{\\log n_{\\max} - \\log n_c}{\\max_c (\\log n_{\\max} - \\log n_c)},\\quad \\alpha{=}4 \\;\\Rightarrow\\; \\tfrac{w_{\\max}}{w_{\\min}}\\!\\le\\!5$$",
+    "key_hyperparams": [
+      {"name": "alpha", "value": "4.0", "role": "log-gap scale (max:min ~5:1)", "learnable": false},
+      {"name": "normalize", "value": "sum=C", "role": "weights renormalized to num_classes", "learnable": false}
+    ],
+    "diff_from_baseline": "Inspired by Ren et al., 'Balanced Meta-Softmax' (NeurIPS 2020). Adapts the log-prior shift log(pi_c) into the class-weight API as gentle log-frequency weights, gentler than raw inverse frequency.",
+    "confidence": "high"
+  },
+  {
+    "model": "Class-Balanced (Effective Number)",
+    "name": "Class-Balanced Loss",
+    "tagline": "Effective-number reweighting w_c = (1 - beta) / (1 - beta^{n_c}) with beta=0.9999 and sqrt dampening for stability.",
+    "kind": "formula",
+    "formula": "$$E_{n_c} = \\frac{1-\\beta^{n_c}}{1-\\beta},\\quad w_c \\propto \\sqrt{\\,\\frac{1-\\beta}{1-\\beta^{n_c}}\\,},\\;\\beta=0.9999$$",
+    "key_hyperparams": [
+      {"name": "beta", "value": "0.9999", "role": "effective-number smoothing", "learnable": false},
+      {"name": "dampening", "value": "sqrt", "role": "VGG-stable dynamic-range cap", "learnable": false}
+    ],
+    "diff_from_baseline": "Cui et al., 'Class-Balanced Loss Based on Effective Number of Samples' (CVPR 2019). Treats samples as occupying volume; weight is the inverse expected effective number per class.",
+    "confidence": "high"
+  },
+  {
+    "model": "Inverse Frequency",
+    "name": "Inverse-frequency weights",
+    "tagline": "Standard w_c = N / (C * n_c), with sqrt dampening to prevent VGG-style instability.",
+    "kind": "formula",
+    "formula": "$$w_c \\propto \\sqrt{\\frac{N}{C\\,n_c}},\\quad \\sum_c w_c = C$$",
+    "key_hyperparams": [
+      {"name": "form", "value": "sqrt(N/(C n_c))", "role": "dampened inverse frequency", "learnable": false}
+    ],
+    "diff_from_baseline": "Standard statistical reweighting baseline for imbalanced classification. Sqrt dampening reduces dynamic range (e.g. 100x -> 10x on CIFAR-100-LT) while preserving rank ordering.",
+    "confidence": "high"
+  }
+]

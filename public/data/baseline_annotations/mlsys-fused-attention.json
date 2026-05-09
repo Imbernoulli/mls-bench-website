@@ -1,0 +1,44 @@
+[
+  {
+    "model": "FlashAttention",
+    "name": "FlashAttention (FA1)",
+    "tagline": "Single-pass tiled causal attention with online softmax — Dao et al.'s original FA1 algorithm in Triton.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Wrapper: 64×64 BLOCK_M/BLOCK_N, grid = (cdiv(seq, 64), batch*heads).\n2. Inside kernel: load Q tile, init m_i = -inf, l_i = 0, acc = 0.\n3. For start_n in [0, hi): load K/V tile, compute $qk = (Q\\cdot K^T)\\cdot \\text{sm\\_scale}$.\n4. Causal mask via tl.where every block; online softmax update $(m_i, l_i, \\text{acc})$ using $\\exp_2$ rescaling.\n5. After loop, divide acc by l_i and store output tile.",
+    "key_hyperparams": [
+      {"name": "BLOCK_M", "value": "64", "role": "query tile rows", "learnable": false},
+      {"name": "BLOCK_N", "value": "64", "role": "key tile cols", "learnable": false},
+      {"name": "sm_scale", "value": "1/sqrt(headdim)", "role": "softmax scale", "learnable": false}
+    ],
+    "diff_from_baseline": "Dao, Fu, Ermon, Rudra & Ré, NeurIPS 2022 — FlashAttention. Reference fused tiled softmax+attention with online softmax; canonical single-pass causal Triton baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "FlashAttention-2",
+    "name": "FlashAttention-2 (FA2)",
+    "tagline": "Two-pass causal split (no-mask blocks + boundary blocks), softmax scale fused into Q, per-headdim block sizes.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Pre-multiply $Q \\leftarrow Q \\cdot (\\text{sm\\_scale} \\cdot \\log_2 e)$ in the wrapper to fuse scale + base-2 conversion.\n2. Choose per-headdim tiles: 128×64 for hdim ≤128, 64×64 otherwise.\n3. Pass 1 (non-causal blocks): iterate $0 \\to (\\lfloor m/BLOCK_N\\rfloor)\\cdot BLOCK_N$, do $qk = Q K^T$ without any mask, online softmax with $\\exp_2$.\n4. Pass 2 (boundary blocks): iterate the remainder up to $(m+1)\\cdot BLOCK_M$ with tl.where causal mask.\n5. Divide acc by l_i and store; saves a multiply per element and removes the mask in ~half the iterations.",
+    "key_hyperparams": [
+      {"name": "BLOCK_M (hdim<=128)", "value": "128", "role": "query tile rows", "learnable": false},
+      {"name": "BLOCK_N", "value": "64", "role": "key tile cols", "learnable": false},
+      {"name": "scale_in_Q", "value": "true", "role": "fused softmax scale", "learnable": false}
+    ],
+    "diff_from_baseline": "Dao, ICLR 2024 — FlashAttention-2. Two-pass causal splitting + per-headdim block tuning + fused softmax scale; the de-facto fused attention baseline before FA3.",
+    "confidence": "high"
+  },
+  {
+    "model": "FlashAttention-3",
+    "name": "FlashAttention-3 (Triton-approx)",
+    "tagline": "Two-pass causal + fused scale + Triton autotuner with software pipelining (num_stages, num_warps) approximating FA3 GEMM-softmax overlap.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Wrapper fuses sm_scale·log2 e into Q exactly like FA2.\n2. `@triton.autotune` over 8 configs of (BLOCK_M, BLOCK_N, num_stages, num_warps), keyed on (seqlen, BLOCK_DMODEL, IS_CAUSAL).\n3. Software pipelining via num_stages=3-4 prefetches the next K/V tile during the current matmul.\n4. Same two-pass causal split as FA2: a non-causal pass (no tl.where) and a boundary pass (with tl.where).\n5. Hopper-specific TMA / warp-specialised async copies are not exposed in Triton, so async overlap is approximated through staged pipelining and larger tiles.",
+    "key_hyperparams": [
+      {"name": "num_stages", "value": "3-4", "role": "software pipelining depth", "learnable": false},
+      {"name": "num_warps", "value": "4-8", "role": "warps per program", "learnable": false},
+      {"name": "autotune_configs", "value": "8", "role": "tile/stage grid", "learnable": false}
+    ],
+    "diff_from_baseline": "Shah, Bikshandi, Zhang, Thakkar, Ramani & Dao, NeurIPS 2024 — FlashAttention-3. True FA3 uses Hopper warp-specialisation + TMA + FP8; this Triton baseline approximates the asynchronous GEMM-softmax pipelining via num_stages and aggressive autotuning.",
+    "confidence": "high"
+  }
+]

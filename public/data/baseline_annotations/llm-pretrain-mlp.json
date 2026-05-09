@@ -1,0 +1,42 @@
+[
+  {
+    "model": "GeGLU",
+    "name": "GeGLU MLP",
+    "tagline": "Gated Linear Unit with GELU gate; hidden dim ~ (8/3)d to keep parameters near GELU baseline.",
+    "kind": "formula",
+    "formula": "$$\\text{GeGLU}(x) = \\bigl(\\mathrm{GELU}(xW_1)\\odot xW_3\\bigr)\\,W_2,\\quad d_{\\text{hid}} \\approx \\tfrac{8}{3}\\,d_{\\text{model}}$$",
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "round_to_64(8/3 * n_embd)", "role": "param-matched expansion", "learnable": false},
+      {"name": "gate", "value": "GELU", "role": "nonlinear gate", "learnable": false},
+      {"name": "bias", "value": "False", "role": "(per nanoGPT default)", "learnable": false}
+    ],
+    "diff_from_baseline": "Shazeer, 'GLU Variants Improve Transformer' (2020). Used in Gemma and other modern LMs; multiplicative gating consistently improves perplexity over plain GELU at matched parameters.",
+    "confidence": "high"
+  },
+  {
+    "model": "ReLU-Squared",
+    "name": "ReLU squared MLP",
+    "tagline": "Two-layer MLP with ReLU(x)^2 in place of GELU; same 4d expansion as the baseline.",
+    "kind": "formula",
+    "formula": "$$\\text{MLP}(x) = \\bigl(\\mathrm{ReLU}(xW_1)^{2}\\bigr)\\,W_2,\\quad d_{\\text{hid}} = 4\\,d_{\\text{model}}$$",
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "4 * n_embd", "role": "standard expansion", "learnable": false},
+      {"name": "activation", "value": "ReLU(x)^2", "role": "Squared ReLU activation", "learnable": false}
+    ],
+    "diff_from_baseline": "So et al., 'Primer: Searching for Efficient Transformers' (2021). Inspired by modded-nanogpt records; cheap drop-in replacement for GELU often matching/improving perplexity.",
+    "confidence": "high"
+  },
+  {
+    "model": "SwiGLU",
+    "name": "SwiGLU MLP",
+    "tagline": "Gated Linear Unit with SiLU gate; hidden dim ~ (8/3)d to match parameter count of the GELU baseline.",
+    "kind": "formula",
+    "formula": "$$\\text{SwiGLU}(x) = \\bigl(\\mathrm{SiLU}(xW_1)\\odot xW_3\\bigr)\\,W_2,\\quad d_{\\text{hid}} \\approx \\tfrac{8}{3}\\,d_{\\text{model}}$$",
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "round_to_64(8/3 * n_embd)", "role": "param-matched expansion", "learnable": false},
+      {"name": "gate", "value": "SiLU (Swish-1)", "role": "nonlinear gate", "learnable": false}
+    ],
+    "diff_from_baseline": "Shazeer, 'GLU Variants Improve Transformer' (2020); the FFN choice in LLaMA, PaLM, Mistral, Llama-2/3. Default modern FFN baseline against which new MLP variants are compared.",
+    "confidence": "high"
+  }
+]

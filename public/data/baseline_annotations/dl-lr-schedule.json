@@ -1,0 +1,43 @@
+[
+  {
+    "model": "Cosine",
+    "name": "Cosine annealing",
+    "tagline": "Smoothly decays learning rate from base_lr to zero following a half-cosine over the full epoch budget.",
+    "kind": "formula",
+    "formula": "$$\\eta_t = \\eta_0\\,\\tfrac{1}{2}\\!\\left(1 + \\cos\\!\\left(\\pi\\,\\tfrac{t}{T}\\right)\\right)$$",
+    "key_hyperparams": [
+      {"name": "$\\eta_0$ (base_lr)", "value": "training default", "role": "initial learning rate", "learnable": false},
+      {"name": "$T$ (total_epochs)", "value": "training default", "role": "total schedule length", "learnable": false},
+      {"name": "$\\eta_{\\min}$", "value": "0", "role": "final learning rate", "learnable": false}
+    ],
+    "diff_from_baseline": "Loshchilov & Hutter, ICLR 2017 (SGDR). Standard cosine annealing without warmup or restarts; a default schedule for vision classifiers.",
+    "confidence": "high"
+  },
+  {
+    "model": "OneCycle",
+    "name": "One-Cycle (Smith)",
+    "tagline": "Cosine ramp from base_lr/25 up to base_lr in the first 30% of training, then cosine anneal back to base_lr/25.",
+    "kind": "formula",
+    "formula": "$$\\eta_t = \\begin{cases} \\eta_{\\min} + (\\eta_0 - \\eta_{\\min})\\,\\tfrac{1}{2}\\big(1 + \\cos(\\pi(1 - t/T_w))\\big) & t/T \\le 0.3 \\\\ \\eta_{f} + (\\eta_0 - \\eta_{f})\\,\\tfrac{1}{2}\\big(1 + \\cos(\\pi\\,(t/T - 0.3)/0.7)\\big) & \\text{otherwise} \\end{cases}$$",
+    "key_hyperparams": [
+      {"name": "pct_start", "value": "0.3", "role": "fraction of training spent ramping up", "learnable": false},
+      {"name": "div_factor", "value": "25", "role": "$\\eta_{\\min} = \\eta_0/25$", "learnable": false},
+      {"name": "final_div", "value": "25", "role": "$\\eta_f = \\eta_0/25$ at end", "learnable": false}
+    ],
+    "diff_from_baseline": "Smith & Topin 2019 ('Super-Convergence'). Single warm-up + decay cycle that often enables larger peak learning rates and faster convergence.",
+    "confidence": "high"
+  },
+  {
+    "model": "WarmupCosine",
+    "name": "Warmup + cosine",
+    "tagline": "Linear warmup for 5 epochs from base_lr/5 to base_lr, then cosine anneal to zero over the remaining schedule.",
+    "kind": "formula",
+    "formula": "$$\\eta_t = \\begin{cases} \\eta_0\\cdot\\tfrac{t+1}{T_w} & t < T_w \\\\ \\eta_0\\cdot\\tfrac{1}{2}\\!\\left(1 + \\cos\\!\\left(\\pi\\,\\tfrac{t-T_w}{T-T_w}\\right)\\right) & t \\ge T_w \\end{cases}$$",
+    "key_hyperparams": [
+      {"name": "$T_w$ (warmup)", "value": "5 epochs", "role": "linear ramp duration", "learnable": false},
+      {"name": "$T$ (total_epochs)", "value": "training default", "role": "total schedule length", "learnable": false}
+    ],
+    "diff_from_baseline": "Goyal et al. 2017 ('Accurate, Large Minibatch SGD'). Linear warmup before cosine decay; common starting point for large-batch SGD training.",
+    "confidence": "high"
+  }
+]

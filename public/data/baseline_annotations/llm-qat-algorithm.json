@@ -1,0 +1,108 @@
+[
+  {
+    "model": "No QAT",
+    "name": "No QAT (PTQ-only)",
+    "tagline": "Skip fine-tuning entirely (num_steps=0); rely solely on the fixed real per-group symmetric round-to-nearest QDQ pass.",
+    "kind": "formula",
+    "formula": "$$s = \\frac{\\max|w_g|}{q_{\\max}},\\quad w_q = \\mathrm{clip}\\!\\left(\\mathrm{round}\\!\\big(w/s\\big), q_{\\min}, q_{\\max}\\right)\\cdot s,\\quad \\text{num\\_steps}=0$$",
+    "key_hyperparams": [
+      {"name": "num_steps", "value": "0", "role": "no fine-tuning", "learnable": false},
+      {"name": "group_size", "value": "128", "role": "weight grouping", "learnable": false}
+    ],
+    "diff_from_baseline": "Pure RTN PTQ control (Jacob et al. 2018, CVPR). Applies symmetric per-group round-to-nearest after no training; isolates the share of error attributable to quantization alone.",
+    "confidence": "high"
+  },
+  {
+    "model": "STE",
+    "name": "Straight-Through Estimator",
+    "tagline": "Vanilla STE QAT: per-row, per-group symmetric fake-quant in the forward pass with identity gradient through round/clamp.",
+    "kind": "formula",
+    "formula": "$$\\text{forward: } \\tilde{w} = w + (\\mathrm{Quant}(w)-w)_{\\text{detach}},\\quad \\text{backward: } \\frac{\\partial \\tilde{w}}{\\partial w} = 1$$",
+    "key_hyperparams": [
+      {"name": "num_steps", "value": "500", "role": "QAT steps", "learnable": false},
+      {"name": "lr", "value": "2e-5", "role": "AdamW LR", "learnable": false},
+      {"name": "scale", "value": "max|w|/qmax", "role": "per-group, recomputed every forward", "learnable": false}
+    ],
+    "diff_from_baseline": "Bengio, Léonard & Courville 2013 (arXiv:1308.3432). Baseline gradient estimator for non-differentiable quantizers; treats round as identity in the backward pass.",
+    "confidence": "high"
+  },
+  {
+    "model": "LSQ",
+    "name": "Learned Step Size Quantization",
+    "tagline": "Per-group quantization scale s is a trainable parameter with the LSQ-paper gradient (g_scale = 1/sqrt(N·qmax)); STE pass-through inside the clip range.",
+    "kind": "hybrid",
+    "formula": "$$\\hat{w} = \\mathrm{round}\\!\\big(\\mathrm{clip}(w/s, q_{\\min}, q_{\\max})\\big)\\cdot s,\\;\\; \\frac{\\partial \\hat{w}}{\\partial s} = \\begin{cases} q_{\\min}/q_{\\max} & w/s\\le q_{\\min} \\\\ q_{\\max}/q_{\\max} & w/s\\ge q_{\\max} \\\\ \\mathrm{round}(w/s) - w/s & \\text{else}\\end{cases}\\cdot \\frac{1}{\\sqrt{N\\,q_{\\max}}}$$",
+    "pseudocode": "// 1. init s = 2 |W|.mean() / sqrt(qmax)  per group\n// 2. forward: w_q = round(clip(w/s, qmin, qmax)) * s  (custom autograd)\n// 3. grad_w  = grad_out  if w/s in (qmin, qmax) else 0\n// 4. grad_s  = sum(...)·(1/sqrt(N·qmax))   per LSQ Eq. 5\n// 5. eval:    materialise QDQ on the learned grid",
+    "key_hyperparams": [
+      {"name": "scale_init", "value": "2|W|.mean()/sqrt(qmax)", "role": "LSQ init", "learnable": true},
+      {"name": "g_scale", "value": "1/sqrt(N·qmax)", "role": "LSQ scale-grad damping", "learnable": false},
+      {"name": "num_steps", "value": "500", "role": "QAT steps", "learnable": false}
+    ],
+    "diff_from_baseline": "Esser et al. 2020 (LSQ, ICLR). Learns per-channel/per-group quantization scales jointly with weights using a custom-derived gradient; widely used reference for low-bit weight QAT.",
+    "confidence": "high"
+  },
+  {
+    "model": "Finetune + PTQ",
+    "name": "Finetune then PTQ (control)",
+    "tagline": "Full-precision fine-tune on the calibration text under the same schedule as QAT, then apply RTN PTQ to isolate the contribution of fake-quant signal.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. fake_quantize_weight = identity (no QAT signal)\n// 2. run 500 FP fine-tune steps on WikiText-2 train\n// 3. apply real per-group symmetric RTN QDQ to every linear weight\n// 4. evaluate WikiText-2 PPL",
+    "key_hyperparams": [
+      {"name": "num_steps", "value": "500", "role": "FP fine-tune steps", "learnable": false},
+      {"name": "lr", "value": "2e-5", "role": "AdamW LR", "learnable": false}
+    ],
+    "diff_from_baseline": "Diagnostic control disentangling \"better fine-tuned weights\" from \"genuine fake-quant signal\". Same RTN PTQ as Jacob et al. 2018 but applied to fine-tuned weights.",
+    "confidence": "high"
+  },
+  {
+    "model": "adaround",
+    "name": "AdaRound",
+    "tagline": "Layer-wise adaptive rounding: learn per-weight up/down rounding decisions by minimising the squared output reconstruction error after PTQ.",
+    "kind": "formula",
+    "formula": "$$\\min_{V}\\;\\|Wx - \\tilde{W}(V)\\,x\\|_2^2 + \\lambda \\sum_i\\!\\big(1 - |2\\sigma(V_i) - 1|^\\beta\\big),\\quad \\tilde{W} = s\\,\\big[\\lfloor W/s\\rfloor + h(V)\\big]$$",
+    "key_hyperparams": [
+      {"name": "h(V)", "value": "rectified sigmoid", "role": "soft up/down rounding", "learnable": true},
+      {"name": "beta", "value": "annealed 20→2", "role": "regularizer sharpness", "learnable": false}
+    ],
+    "diff_from_baseline": "Nagel et al. 2020 (AdaRound, ICML). Optimises rounding direction per weight rather than naïve nearest-rounding, recovering substantial PTQ accuracy at low bit-widths.",
+    "confidence": "high"
+  },
+  {
+    "model": "lr_qat",
+    "name": "LR-QAT",
+    "tagline": "Low-rank Quantization-Aware Training: train only a low-rank update on top of a quantized backbone, drastically reducing QAT memory.",
+    "kind": "formula",
+    "formula": "$$\\tilde{W} = \\mathrm{Quant}(W_0) + B A,\\quad B\\in\\mathbb{R}^{d_o\\times r},\\; A\\in\\mathbb{R}^{r\\times d_i},\\; r \\ll \\min(d_o,d_i)$$",
+    "key_hyperparams": [
+      {"name": "rank r", "value": "low", "role": "LoRA-style adapters", "learnable": true},
+      {"name": "backbone", "value": "frozen, fake-quantized", "role": "weight base", "learnable": false}
+    ],
+    "diff_from_baseline": "Bondarenko et al. 2024 (LR-QAT, NeurIPS / arXiv:2406.06385). Memory-efficient QAT for LLMs combining low-rank residuals with weight-quantization-aware forward.",
+    "confidence": "medium"
+  },
+  {
+    "model": "pact",
+    "name": "PACT",
+    "tagline": "Parameterised Clipping Activation: learn a per-layer clipping threshold α that bounds activations before fake-quantization (gradient via STE).",
+    "kind": "formula",
+    "formula": "$$y = 0.5\\big(|x| - |x-\\alpha| + \\alpha\\big),\\quad \\hat{y} = \\mathrm{round}\\!\\left(\\frac{y}{\\alpha}(2^k\\!-\\!1)\\right)\\cdot\\frac{\\alpha}{2^k\\!-\\!1}$$",
+    "key_hyperparams": [
+      {"name": "alpha", "value": "per-layer", "role": "learnable clip threshold", "learnable": true},
+      {"name": "bits k", "value": "task-set", "role": "activation precision", "learnable": false}
+    ],
+    "diff_from_baseline": "Choi et al. 2018 (PACT, arXiv:1805.06085). Learnable activation clipping range; canonical low-bit activation-QAT method (also adapted for weight QAT).",
+    "confidence": "high"
+  },
+  {
+    "model": "stableqat",
+    "name": "Stable QAT",
+    "tagline": "QAT variant focused on training stability at very low bit-widths via warm-up of fake-quant strength and gradient/scale clipping.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. start training with full-precision (or wide-bit) forward\n// 2. linearly anneal toward target low bit-width over warm-up steps\n// 3. clip gradients and per-group scales for numerical stability\n// 4. apply standard fake-quantize forward / STE backward\n// 5. eval with real RTN QDQ on stabilised scales",
+    "key_hyperparams": [
+      {"name": "warm-up", "value": "anneal bit-width", "role": "stabilise training", "learnable": false}
+    ],
+    "diff_from_baseline": "Generic 'stabilised QAT' family; refers to recipes that warm up quantization strength to avoid catastrophic loss spikes at sub-4-bit precisions. Exact variant unclear without source.",
+    "confidence": "medium"
+  }
+]

@@ -1,0 +1,57 @@
+[
+  {
+    "model": "DBIM",
+    "name": "DBIM",
+    "tagline": "Diffusion Bridge Implicit Model: deterministic-stochastic transition with eta-controlled noise that interpolates between bridge endpoints.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. $x \\leftarrow x_T$; first denoise: $\\hat{x}_0 = D_\\theta(x_T, t_{\\max})$\n// 2. Bridge-sample $x \\sim p(x_{t_0} \\mid \\hat{x}_0, x_T)$ with shared noise\n// 3. For each step $i$ with $s = t_i$, $t = t_{i+1}$:\n// 4.   $\\hat{x}_0 = D_\\theta(x, s)$\n// 5.   Get $(a_s, b_s, c_s)$ and $(a_t, b_t, c_t)$ from VP schedule\n// 6.   $\\omega = \\eta\\,a_t\\rho_t\\sqrt{1 - \\rho_t^2/\\rho_s^2}$, $v = \\sqrt{c_t^2 - \\omega^2}/c_s$\n// 7.   $x \\leftarrow (b_t - vb_s)\\hat{x}_0 + (a_t - va_s)x_T + v\\,x + \\omega\\,\\xi$",
+    "key_hyperparams": [
+      {"name": "eta", "value": "1.0", "role": "stochasticity (0=deterministic, 1=stochastic bridge)", "learnable": false},
+      {"name": "NFE", "value": "5", "role": "denoiser calls", "learnable": false}
+    ],
+    "diff_from_baseline": "Zheng et al. 2024 (ICLR). Diffusion Bridge Implicit Models: deterministic/stochastic generalization of DDIM for diffusion bridges, supporting low-NFE sampling.",
+    "confidence": "high"
+  },
+  {
+    "model": "DBIM-HO (high-order)",
+    "name": "DBIM (high-order)",
+    "tagline": "DBIM with multistep predictor-corrector updates: 2nd/3rd-order extrapolation in log-SNR using cached past denoiser outputs.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Bootstrap: 1st-order DBIM step at $i=0$\n// 2. For $i \\ge 1$ (2nd-order branch):\n// 3.   $\\hat{x}_0 = D_\\theta(x, s)$\n// 4.   $\\lambda_u, \\lambda_s, \\lambda_t = \\log(b/c)$ at $u, s, t$\n// 5.   $h = \\lambda_t - \\lambda_s$, $h_2 = \\lambda_s - \\lambda_u$\n// 6.   $I = e^{\\lambda_t}\\big[(1 - e^{-h})\\hat{x}_0 + (e^{-h}+h-1)\\,(\\hat{x}_0 - \\hat{x}_u)/h_2\\big]$\n// 7.   $x \\leftarrow (c_t/c_s)x + (a_t - a_s c_t/c_s)x_T + c_t\\,I$\n// 8. Lower-order final step for stability",
+    "key_hyperparams": [
+      {"name": "order", "value": "2 (or 3)", "role": "multistep extrapolation order", "learnable": false},
+      {"name": "lower_order_final", "value": "true", "role": "drop to 1st order on final step", "learnable": false},
+      {"name": "NFE", "value": "5", "role": "denoiser calls", "learnable": false}
+    ],
+    "diff_from_baseline": "Zheng et al. 2024. High-order variant of DBIM analogous to DPM-Solver-2/3: uses cached past $\\hat{x}_0$ predictions and exponential-integrator coefficients in log-SNR for higher accuracy at low NFE.",
+    "confidence": "high"
+  },
+  {
+    "model": "DDBM (50 NFE reference)",
+    "name": "DDBM (50 NFE)",
+    "tagline": "Denoising Diffusion Bridge Models reference sampler: Karras-style ρ=7 schedule with churn (Euler) + Heun second-order steps, 50 total denoiser calls.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Build EDM/Karras $\\rho=7$ schedule with 17 iters (terminal $t=0$)\n// 2. churn_step_ratio = 0.33\n// 3. For each $i$:\n// 4.   if churn>0: $t_{\\text{hat}} = t_i + r(t_{i+1}-t_i)$; stochastic Euler step (1 NFE)\n// 5.   if $t_{i+1}=0$: deterministic Euler step (1 NFE)\n// 6.   else: Heun's 2nd-order method (2 NFE)\n// 7. Total: 16 Heun (3 NFE) + 1 Euler (2 NFE) = 50 NFE",
+    "key_hyperparams": [
+      {"name": "churn_step_ratio", "value": "0.33", "role": "stochastic-Euler fraction in each iteration", "learnable": false},
+      {"name": "rho", "value": "7", "role": "EDM schedule curvature", "learnable": false},
+      {"name": "NFE", "value": "50", "role": "high-NFE reference budget", "learnable": false}
+    ],
+    "diff_from_baseline": "Zhou et al. 2024 (ICML). Denoising Diffusion Bridge Models reference sampler. Provided as the 50-NFE upper-bound reference; agents target similar quality at 5 NFE.",
+    "confidence": "high"
+  },
+  {
+    "model": "ECSI",
+    "name": "ECSI",
+    "tagline": "Endpoint-Conditioned Stochastic Interpolant sampler: Euler-SDE with analytic VP derivatives plus a final 2-step deterministic DBIM tail for inpainting safety.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Karras $\\rho=0.6$ schedule between $t_{\\text{lo}}, t_{\\text{hi}}$ (sweep params)\n// 2. For each step $i$ except last 2:\n// 3.   $\\hat{x}_0 = D_\\theta(x, s)$; compute $(a,b,c)$ and analytic derivatives at $s$\n// 4.   $\\epsilon = \\text{churn}\\cdot(c_s c'_s - (b'_s/b_s) c_s^2)$, clipped $\\ge 0$\n// 5.   $z = (x - b_s\\hat{x}_0 - a_s x_T)/c_s$\n// 6.   drift $= b'_s\\hat{x}_0 + a'_s x_T + (c'_s + \\epsilon/c_s)\\,z$\n// 7.   $x \\leftarrow x + \\text{drift}\\,\\Delta t + \\sqrt{2\\epsilon}\\,\\xi\\,\\sqrt{|\\Delta t|}$\n// 8. Last 2 steps: deterministic DBIM transition",
+    "key_hyperparams": [
+      {"name": "churn", "value": "0.3", "role": "stochasticity in Euler-SDE drift", "learnable": false},
+      {"name": "rho", "value": "0.6", "role": "ECSI's native time-warp curvature", "learnable": false},
+      {"name": "NFE", "value": "5", "role": "denoiser calls", "learnable": false}
+    ],
+    "diff_from_baseline": "Zhang et al. 2024 (arXiv:2410.21553, 'Exploring the Design Space of Diffusion Bridge Models'). Endpoint-conditioned stochastic interpolant sampler with VP-analytic derivatives; reference implementation github.com/szhan311/ECSI.",
+    "confidence": "high"
+  }
+]

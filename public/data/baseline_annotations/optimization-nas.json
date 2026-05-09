@@ -1,0 +1,43 @@
+[
+  {
+    "model": "BANANAS",
+    "name": "BANANAS (predictor-guided NAS)",
+    "tagline": "Warm-start with random architectures, then iteratively fit an MLP ensemble on path-encoded $(\\text{arch},\\text{val acc})$ pairs and query the predicted-best unseen candidate.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Warm start: query $N_0=10$ random architectures.\n2. Each subsequent step: fit ensemble of $M=5$ tiny MLPs (1 hidden layer, 64 units, ReLU, Adam, 200 epochs) on path-encoded seen archs.\n3. Sample 500-architecture random pool of unseen candidates.\n4. Score each with ensemble mean; pick $\\arg\\max$ predicted val acc.\n5. Query its true val acc, add to seen, refit ensemble; track best so far.",
+    "key_hyperparams": [
+      {"name": "warm_start", "value": "10", "role": "initial random queries", "learnable": false},
+      {"name": "ensemble_size", "value": "5", "role": "predictor MLPs", "learnable": false},
+      {"name": "candidate_pool", "value": "500", "role": "random pool per acquisition step", "learnable": false},
+      {"name": "MLP", "value": "64 hidden, 200 epochs, lr=1e-2 Adam", "role": "tiny numpy regressor", "learnable": false}
+    ],
+    "diff_from_baseline": "White, Neiswanger & Savani, 'BANANAS: Bayesian Optimization with Neural Architectures for NAS' (AAAI 2021). Predictor-guided NAS with path encoding and ensemble surrogate.",
+    "confidence": "high"
+  },
+  {
+    "model": "REA",
+    "name": "REA (Regularized Evolution)",
+    "tagline": "Maintain a small population, mutate the tournament winner, evict the oldest member ('regularization'). Tuned to population=10 for the K=30 budget.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Seed population P (size 10) with random architectures, querying val acc each.\n2. For each remaining step:\n3.   Sample 3 candidates from P uniformly; pick the one with best val acc as parent.\n4.   child = mutate(parent); resample until is_valid_arch(child).\n5.   Query child's val acc; append to P, pop oldest. Update best so far.",
+    "key_hyperparams": [
+      {"name": "population_size", "value": "10", "role": "circular evolution buffer", "learnable": false},
+      {"name": "tournament_size", "value": "3", "role": "selection sample", "learnable": false},
+      {"name": "mutation", "value": "single-edge", "role": "neighborhood operator", "learnable": false}
+    ],
+    "diff_from_baseline": "Real et al., 'Regularized Evolution for Image Classifier Architecture Search' (AAAI 2019). Aging-based evolutionary search; the standard NAS-Bench-Suite low-budget recipe.",
+    "confidence": "high"
+  },
+  {
+    "model": "Random Search",
+    "name": "Random Search",
+    "tagline": "Uniformly sample architectures, query each, return the best by val accuracy. The simplest NAS baseline and a strong lower bound.",
+    "kind": "pseudocode",
+    "pseudocode": "1. best_arch = None; best_val = -inf.\n2. For step in 1..K:\n3.   arch = random_architecture().\n4.   val = api.query_val_accuracy(arch).\n5.   If val > best_val: update best.\n6. Return best_arch.",
+    "key_hyperparams": [
+      {"name": "K", "value": "30", "role": "validation-query budget", "learnable": false}
+    ],
+    "diff_from_baseline": "Li & Talwalkar, 'Random Search and Reproducibility for Neural Architecture Search' (UAI 2019). Standard random-search reference for NAS-Bench-201.",
+    "confidence": "high"
+  }
+]

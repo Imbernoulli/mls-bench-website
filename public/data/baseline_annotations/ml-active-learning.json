@@ -1,0 +1,67 @@
+[
+  {
+    "model": "BADGE",
+    "name": "BADGE",
+    "tagline": "Batch active learning that runs k-means++ seeding in the (probability-residual x penultimate-embedding) space — diverse and uncertain.",
+    "kind": "pseudocode",
+    "pseudocode": "1. For each unlabeled point, compute embedding $e_i$ and softmax probs $p_i$\n2. Form gradient-embedding signal: residual $r_i = -p_i + \\mathbb{1}[\\arg\\max p_i]$\n3. Distance $d(i,c) = \\|r_i\\|^2\\|e_i\\|^2 + \\|r_c\\|^2\\|e_c\\|^2 - 2 (r_i^\\top r_c)(e_i^\\top e_c)$\n4. Seed first center as the point maximizing $\\|r\\|^2 \\|e\\|^2$\n5. Iteratively sample next centers with prob $\\propto d^2$ (k-means++ on rank-1 outer products)\n6. Return the $n$ chosen indices",
+    "key_hyperparams": [
+      {"name": "embedding", "value": "penultimate layer", "role": "feature space", "learnable": false},
+      {"name": "scoring", "value": "$r \\otimes e$ (gradient embedding)", "role": "diversity + uncertainty", "learnable": false},
+      {"name": "seeding", "value": "k-means++", "role": "batch selection", "learnable": false}
+    ],
+    "diff_from_baseline": "Ash et al., ICLR 2020 ('Deep Batch Active Learning by Diverse, Uncertain Gradient Lower Bounds'). Standard reference for batch-mode deep active learning.",
+    "confidence": "high"
+  },
+  {
+    "model": "BAIT",
+    "name": "BAIT (Fisher embeddings)",
+    "tagline": "Picks a batch that maximally reduces a Fisher-information trace objective via forward selection plus backward pruning.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Stream-build per-class Fisher embeddings $X_i \\in \\mathbb{R}^{C \\times d}$ (random-projected to $d=128$ for memory)\n2. Aggregate population Fisher $F$ and labeled Fisher $F_\\ell$; init $M^{-1} = (\\lambda I + (n_\\ell/n_{tot}) F_\\ell)^{-1}$\n3. Filter to a candidate pool by entropy (top $4n$ or 512)\n4. Forward selection: greedily add the candidate maximizing trace$(F\\,M^{-1}\\,X^\\top(I + X M^{-1} X^\\top)^{-1} X\\,M^{-1})$ via Woodbury updates\n5. Over-sample to $2K$, then backward-prune lowest-utility picks back to $K$\n6. Return $K$ selected indices",
+    "key_hyperparams": [
+      {"name": "$\\lambda$", "value": "1", "role": "Fisher regularizer", "learnable": false},
+      {"name": "proj_dim", "value": "128", "role": "random-projection target dim", "learnable": false},
+      {"name": "candidate_pool", "value": "max(4n, 512)", "role": "entropy-filtered candidates", "learnable": false},
+      {"name": "over_sample", "value": "2x", "role": "forward-selection oversampling", "learnable": false}
+    ],
+    "diff_from_baseline": "Ash et al., NeurIPS 2021 ('Gone Fishing: Neural Active Learning with Fisher Embeddings'). Memory-adapted (CPU-friendly) port of the original BAIT for the MLS-Bench harness.",
+    "confidence": "high"
+  },
+  {
+    "model": "BALD",
+    "name": "BALD (MC-Dropout)",
+    "tagline": "Selects examples maximizing mutual information between model parameters and predictions, estimated via N MC-dropout passes.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{BALD}(x) = H[\\bar{p}(y\\mid x)] - \\mathbb{E}_{\\theta\\sim q}\\big[H[p(y\\mid x,\\theta)]\\big]$$",
+    "key_hyperparams": [
+      {"name": "n_drop", "value": "10", "role": "MC-dropout samples", "learnable": false}
+    ],
+    "diff_from_baseline": "Houlsby et al. 2011 (BALD); Gal et al. 2017 / Kirsch et al. NeurIPS 2019 (BatchBALD). Greedy single-point BALD with MC-dropout — disagreement-based informational acquisition.",
+    "confidence": "high"
+  },
+  {
+    "model": "Least Confidence",
+    "name": "Least Confidence",
+    "tagline": "Pick the n unlabeled examples whose top-class probability is the lowest under the current classifier — pure uncertainty sampling.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{score}(x) = -\\,\\max_y\\,p(y\\mid x;\\theta)$$",
+    "key_hyperparams": [
+      {"name": "scoring", "value": "$-\\max p$", "role": "uncertainty signal", "learnable": false}
+    ],
+    "diff_from_baseline": "Lewis & Gale 1994 ('A Sequential Algorithm for Training Text Classifiers'). Classical uncertainty-sampling baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "Random",
+    "name": "Random sampling",
+    "tagline": "Pick n unlabeled indices uniformly at random — control / lower-bound baseline.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Let $U = \\{i : \\text{idxs\\_lb}[i] = \\text{False}\\}$\n2. Permute $U$ uniformly at random\n3. Return the first $n$ entries",
+    "key_hyperparams": [
+      {"name": "scoring", "value": "uniform", "role": "no informed scoring", "learnable": false}
+    ],
+    "diff_from_baseline": "Standard random-acquisition control. Reference baseline measured against any informed strategy.",
+    "confidence": "high"
+  }
+]

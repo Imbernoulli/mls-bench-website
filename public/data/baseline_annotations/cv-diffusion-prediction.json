@@ -1,0 +1,32 @@
+[
+  {
+    "model": "Epsilon Prediction",
+    "name": "Epsilon prediction",
+    "tagline": "DDPM-original target: model regresses the added noise epsilon; x0 recovered analytically from x_t.",
+    "kind": "formula",
+    "formula": "$$ \\text{target} = \\epsilon, \\qquad \\hat{x}_0 = \\frac{x_t - \\sqrt{1-\\bar\\alpha_t}\\,\\epsilon_\\theta(x_t,t)}{\\sqrt{\\bar\\alpha_t}} $$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Ho, Jain & Abbeel 2020 (DDPM, NeurIPS). Standard noise-prediction parameterization used by the vast majority of pixel-space DDPMs and the original CIFAR-10 baselines.",
+    "confidence": "high"
+  },
+  {
+    "model": "V-Prediction",
+    "name": "V-prediction",
+    "tagline": "Velocity target $v=\\sqrt{\\bar\\alpha}\\epsilon-\\sqrt{1-\\bar\\alpha}x_0$; x0 recovered by an inverse rotation.",
+    "kind": "formula",
+    "formula": "$$ v = \\sqrt{\\bar\\alpha_t}\\,\\epsilon - \\sqrt{1-\\bar\\alpha_t}\\,x_0, \\qquad \\hat{x}_0 = \\sqrt{\\bar\\alpha_t}\\,x_t - \\sqrt{1-\\bar\\alpha_t}\\,v_\\theta(x_t,t) $$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Salimans & Ho 2022 (Progressive Distillation, ICLR). Velocity parameterization that smoothly interpolates between epsilon and x0 prediction; widely used in Stable Diffusion v2 and modern DDIM samplers.",
+    "confidence": "high"
+  },
+  {
+    "model": "X0 Prediction",
+    "name": "x0 prediction",
+    "tagline": "Direct clean-image target: model outputs x0 itself, no inverse conversion needed for DDIM sampling.",
+    "kind": "formula",
+    "formula": "$$ \\text{target} = x_0, \\qquad \\hat{x}_0 = x_\\theta(x_t,t) $$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Sohl-Dickstein et al. 2015; revisited by Ho et al. 2020. Direct mean-prediction baseline; simple and DDIM-compatible but yields unstable gradients at high noise where signal $\\sqrt{\\bar\\alpha_t}\\to0$.",
+    "confidence": "high"
+  }
+]

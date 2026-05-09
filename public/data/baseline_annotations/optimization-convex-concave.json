@@ -1,0 +1,55 @@
+[
+  {
+    "model": "SEG",
+    "name": "Stochastic Extragradient (SEG)",
+    "tagline": "Korpelevich-style two-step extragradient: take a stochastic look-ahead gradient at z, then update z with the gradient at the look-ahead point.",
+    "kind": "formula",
+    "formula": "$$w_t = z_t - \\tau\\,g(z_t) + \\xi_t,\\qquad z_{t+1} = z_t - \\tau\\,g(w_t) + \\xi'_t$$",
+    "key_hyperparams": [
+      {"name": "tau (bilinear)", "value": "0.1", "role": "step size", "learnable": false},
+      {"name": "tau (delta_nu)", "value": "1.0", "role": "step size", "learnable": false}
+    ],
+    "diff_from_baseline": "Korpelevich 1976 / Juditsky-Nemirovski-Tauvel 2011 (stochastic version). Canonical extragradient method for monotone variational inequalities and convex-concave saddle problems.",
+    "confidence": "high"
+  },
+  {
+    "model": "R-SEG",
+    "name": "Restarted-SEG",
+    "tagline": "SEG with an anchoring (proximal) pull λ(anchor − iterate) toward the initial point at every half-step.",
+    "kind": "formula",
+    "formula": "$$w_t = z_t - \\tau g(z_t) + \\tau\\lambda(z_0 - z_t) + \\xi_t,\\quad z_{t+1} = z_t - \\tau g(w_t) + \\tau\\lambda(z_0 - w_t) + \\xi'_t$$",
+    "key_hyperparams": [
+      {"name": "tau", "value": "0.1 / 1.0", "role": "step (bilinear / delta_nu)", "learnable": false},
+      {"name": "lambda", "value": "0.1 / 0.01", "role": "anchoring strength", "learnable": false}
+    ],
+    "diff_from_baseline": "Halpern-style anchored extragradient (Yoon & Ryu 2021; Diakonikolas 2020). SEG augmented with a fixed anchor pull yields accelerated last-iterate rates for monotone inclusions.",
+    "confidence": "high"
+  },
+  {
+    "model": "SEAG",
+    "name": "Stochastic Extra-Anchor GD",
+    "tagline": "SEG with a 1/(t+3) anchor coefficient: time-decaying pull toward the initial point at every step.",
+    "kind": "formula",
+    "formula": "$$\\eta_t = \\frac{1}{t+3},\\quad w_t = z_t - \\tau g(z_t) + \\eta_t (z_0 - z_t) + \\xi_t,\\quad z_{t+1} = z_t - \\tau g(w_t) + \\eta_t (z_0 - z_t) + \\xi'_t$$",
+    "key_hyperparams": [
+      {"name": "tau", "value": "0.1 / 1.0", "role": "step (bilinear / delta_nu)", "learnable": false},
+      {"name": "anchor_coeff", "value": "1/(t+3)", "role": "Halpern schedule", "learnable": false}
+    ],
+    "diff_from_baseline": "Halpern (1967) iteration applied to SEG. Time-varying anchoring coefficient 1/(t+3) is the standard Halpern weight; gives O(1/t) gradient-norm rate for monotone problems.",
+    "confidence": "high"
+  },
+  {
+    "model": "RAIN",
+    "name": "RAIN (Re-Anchoring via Iterate Nesting)",
+    "tagline": "SEG variant whose anchor is a running geometric-weighted average of past iterates rather than the fixed initial point.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. maintain weight_sum S_t and weighted_flow_sum F_t = Σ w_k z_k\n// 2. anchor_z = tau·lam·(F_t - S_t·z_t)\n// 3. w_t = z_t - tau·g(z_t) + anchor_z + ξ_t\n// 4. anchor_w = tau·lam·(F_t - S_t·w_t)\n// 5. z_{t+1} = z_t - tau·g(w_t) + anchor_w + ξ'_t\n// 6. update weight w_{t+1} = γ·(1+γ)^{t+1};  S_{t+1}=S_t+w_{t+1};  F_{t+1}=F_t+w_{t+1}·z_{t+1}",
+    "key_hyperparams": [
+      {"name": "tau", "value": "0.1 / 1.0", "role": "step", "learnable": false},
+      {"name": "lambda", "value": "0.1 / 0.01", "role": "anchor strength", "learnable": false},
+      {"name": "gamma", "value": "1e-3 / 1e-4", "role": "geometric weight rate", "learnable": false}
+    ],
+    "diff_from_baseline": "Reference RAIN method (problem package namesake). Replaces the fixed Halpern anchor with a geometric-weighted running average, improving robustness to noise on ill-conditioned saddle problems.",
+    "confidence": "high"
+  }
+]

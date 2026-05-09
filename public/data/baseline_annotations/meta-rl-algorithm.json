@@ -1,0 +1,65 @@
+[
+  {
+    "model": "FOCAL",
+    "name": "FOCAL",
+    "tagline": "Deterministic context encoder with mean aggregation; trains task embeddings using a deep metric learning contrastive loss alongside SAC.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Encoder $\\phi$: 3-layer MLP mapping per-step transitions $(s, a, r [, s'])$ to deterministic embeddings (no information bottleneck)\n2. Aggregate per-task embedding by mean over context: $z = \\mathrm{mean}_t \\phi(c_t)$\n3. Condition SAC policy $\\pi(a\\,|\\,s, z)$ and twin critics $Q_{1,2}(s, a, z)$, $V(s, z)$ on the deterministic $z$\n4. Sample meta-batch of tasks; for same-task pairs minimize $\\|z_i - z_j\\|^2$\n5. For different-task pairs, apply inverse-power distance penalty (FOCAL Eq. 13)\n6. Standard SAC updates for actor, twin critics, and value with soft target update",
+    "key_hyperparams": [
+      {"name": "latent_dim", "value": "5", "role": "task embedding size", "learnable": false},
+      {"name": "context_encoder", "value": "3-layer MLP, hidden=200", "role": "deterministic encoder", "learnable": false},
+      {"name": "aggregation", "value": "mean over transitions", "role": "permutation-invariant", "learnable": false}
+    ],
+    "diff_from_baseline": "Li et al., ICLR 2021 (FOCAL: Efficient Fully-Offline Meta-RL via Distance Metric Learning and Behavior Regularization). Replaces PEARL's probabilistic Product-of-Gaussians with a deterministic encoder and a metric-learning contrastive loss; runs online here because the paper's offline datasets are unavailable.",
+    "confidence": "high"
+  },
+  {
+    "model": "PEARL",
+    "name": "PEARL",
+    "tagline": "Probabilistic context encoder with Product-of-Gaussians aggregation and SAC actor-critic; KL-regularized information bottleneck on z.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Encoder $\\phi$ outputs per-transition Gaussian factors $(\\mu_t, \\sigma_t^2)$\n2. Aggregate: $1/\\sigma^2 = \\sum_t 1/\\sigma_t^2$, $\\mu = \\sigma^2 \\sum_t \\mu_t/\\sigma_t^2$ (PoG)\n3. Sample $z \\sim \\mathcal{N}(\\mu, \\sigma^2)$ via reparameterization\n4. SAC policy $\\pi(a\\,|\\,s, z)$, twin Qs, V; soft target $V'$ with $\\tau = 0.005$\n5. Encoder loss = KL$(\\mathcal{N}(\\mu, \\sigma^2) \\,\\|\\, \\mathcal{N}(0, I))$ * $\\beta_{kl}$ + Q-loss gradient through $z$\n6. Per iteration: collect prior + posterior + extra-RL data, sample meta-batch, run multiple inner updates",
+    "key_hyperparams": [
+      {"name": "latent_dim", "value": "5", "role": "task latent z", "learnable": false},
+      {"name": "kl_lambda", "value": "0.1", "role": "information bottleneck weight", "learnable": false},
+      {"name": "meta_batch", "value": "16", "role": "tasks per update", "learnable": false},
+      {"name": "embedding_batch_size", "value": "64", "role": "context window per task", "learnable": false},
+      {"name": "soft_target_tau", "value": "0.005", "role": "target value soft update", "learnable": false},
+      {"name": "lr", "value": "3e-4", "role": "actor/critic/encoder Adam lr", "learnable": false},
+      {"name": "reward_scale", "value": "5.0", "role": "Q-target scaling", "learnable": false}
+    ],
+    "diff_from_baseline": "Rakelly et al., ICML 2019 (Efficient Off-Policy Meta-Reinforcement Learning via Probabilistic Context Variables). Canonical PEARL agent: amortized PoG inference over per-transition factors with SAC inner-loop and KL-regularized z, ported faithfully from the oyster reference.",
+    "confidence": "high"
+  },
+  {
+    "model": "VariBAD",
+    "name": "VariBAD",
+    "tagline": "GRU-based sequential context encoder with reward-decoder ELBO objective; belief state = GRU hidden state used to condition policy and Q.",
+    "kind": "hybrid",
+    "pseudocode": "1. Pre-process each transition $(s, a, r [, s'])$ with a 2-layer MLP to dim $h$\n2. Run GRU over the temporally-ordered sequence; head outputs $(\\mu_t, \\log\\sigma_t^2)$ at every step\n3. Sample $z_t \\sim \\mathcal{N}(\\mu_t, \\sigma_t^2)$ as the current belief\n4. Reward decoder $\\hat{r}(s, a, z)$ predicts reward conditional on belief\n5. ELBO: reconstruct rewards across the trajectory + KL$(q(z_t|\\tau_{1:t}) \\,\\|\\, \\mathcal{N}(0, I))$\n6. Condition SAC policy and Qs on $z_t$ from the latest GRU hidden state",
+    "diagram": {
+      "nodes": [
+        {"id": "ctx", "label": "context (s,a,r,[s'])"},
+        {"id": "mlp", "label": "MLP pre-process"},
+        {"id": "gru", "label": "GRU encoder"},
+        {"id": "z", "label": "(mu_t, sigma_t)"},
+        {"id": "rdec", "label": "Reward decoder"},
+        {"id": "sac", "label": "SAC actor + twin Q (z-cond)"}
+      ],
+      "edges": [
+        {"from": "ctx", "to": "mlp"},
+        {"from": "mlp", "to": "gru"},
+        {"from": "gru", "to": "z"},
+        {"from": "z", "to": "rdec"},
+        {"from": "z", "to": "sac"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "latent_dim", "value": "5", "role": "belief size", "learnable": false},
+      {"name": "encoder", "value": "GRU (sequential)", "role": "ordered context processing", "learnable": false},
+      {"name": "decoder", "value": "Reward only", "role": "ELBO auxiliary loss", "learnable": false}
+    ],
+    "diff_from_baseline": "Zintgraf et al., ICLR 2020 (VariBAD: A Very Good Method for Bayes-Adaptive Deep RL via Meta-Learning). Replaces PEARL's permutation-invariant PoG aggregation with a GRU + reward-decoder ELBO so that the belief evolves with trajectory order.",
+    "confidence": "high"
+  }
+]

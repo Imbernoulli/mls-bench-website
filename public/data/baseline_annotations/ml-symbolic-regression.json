@@ -1,0 +1,45 @@
+[
+  {
+    "model": "Lexicase GP",
+    "name": "Epsilon-lexicase GP",
+    "tagline": "Standard GP operators with epsilon-lexicase selection: filter candidates case-by-case using min-error + MAD epsilon.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Score each tree by MSE on $X,y$; cache per-case absolute errors $E\\!\\in\\!\\mathbb R^{P\\times n}$.\n2. To pick a parent:\n3. \\quad Candidates $\\leftarrow$ all trees; shuffle the $n$ training cases.\n4. \\quad For each case in shuffled order (until $|$candidates$|\\le 1$):\n5. \\quad\\quad $\\epsilon \\leftarrow \\mathrm{MAD}(E_{\\text{cand},c})$, $e_{\\min}\\leftarrow\\min E_{\\text{cand},c}$.\n6. \\quad\\quad Keep candidates with $E_{\\text{cand},c}\\le e_{\\min}+\\epsilon$ (semi-dynamic lexicase).\n7. \\quad Return random survivor.\n8. Variation: subtree crossover ($p{=}0.9$), subtree mutation ($p{=}0.05$), elitism on raw MSE.",
+    "key_hyperparams": [
+      {"name": "selection", "value": "epsilon-lexicase (semi-dynamic, MAD)", "role": "case-based parent selection", "learnable": false},
+      {"name": "tournament fallback", "value": "size 7", "role": "if errors unavailable", "learnable": false},
+      {"name": "max_depth", "value": "17", "role": "tree depth cap", "learnable": false}
+    ],
+    "diff_from_baseline": "Spector (2012); La Cava, Spector, Helmuth, 'Epsilon-Lexicase Selection for Regression' (GECCO 2016/2019). Selects parents that excel on individual cases instead of aggregate fitness, preserving solution diversity.",
+    "confidence": "high"
+  },
+  {
+    "model": "Parsimony GP",
+    "name": "Parsimony-pressure GP",
+    "tagline": "Standard tournament GP plus an adaptive parsimony coefficient (gplearn 'auto' rule) penalizing tree length during selection.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Compute raw fitness $f_i =\\!\\text{MSE}(\\text{tree}_i,X,y)$ and length $\\ell_i$.\n2. Adaptive coefficient: $c=\\mathrm{Cov}(\\ell,f)/\\mathrm{Var}(\\ell)$, clamp to $[0, 10^{-3}]$.\n3. Penalized fitness: $\\tilde f_i = f_i + c\\cdot \\ell_i$ (used only for selection).\n4. Elitism by raw $f$ (best-fit tree always preserved).\n5. Tournament selection (size 7) on $\\tilde f$.\n6. Subtree crossover ($p{=}0.9$) / mutation ($p{=}0.05$); reject children with depth $>17$.",
+    "key_hyperparams": [
+      {"name": "parsimony_coefficient", "value": "auto, clamped to [0, 1e-3]", "role": "length penalty", "learnable": false},
+      {"name": "selection", "value": "tournament size 7", "role": "parent selection", "learnable": false},
+      {"name": "crossover/mutation", "value": "0.9 / 0.05", "role": "variation rates", "learnable": false}
+    ],
+    "diff_from_baseline": "Poli, Langdon, McPhee, 'A Field Guide to Genetic Programming' (2008); gplearn auto-parsimony reference (parsimony_coefficient='auto'). Standard bloat-control baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "Standard GP",
+    "name": "Standard GP",
+    "tagline": "Koza-style GP: tournament selection, subtree crossover/mutation, raw MSE fitness, depth-capped trees, elitism.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Evaluate fitness $f_i = \\text{MSE}(\\text{tree}_i, X, y)$.\n2. Elitism: copy best tree to next generation.\n3. While population not full:\n4. \\quad $r \\sim \\mathrm{Uniform}(0,1)$.\n5. \\quad If $r<0.9$: pick 2 parents by tournament (size 7), apply subtree crossover.\n6. \\quad Else if $r<0.95$: pick 1 parent, apply subtree mutation (replace random subtree with a 'grow'-tree of depth 3).\n7. \\quad Else: clone the parent.\n8. \\quad Reject children with depth $>17$.",
+    "key_hyperparams": [
+      {"name": "tournament_size", "value": "7", "role": "selection pressure", "learnable": false},
+      {"name": "crossover_rate", "value": "0.9", "role": "subtree crossover prob.", "learnable": false},
+      {"name": "mutation_rate", "value": "0.05", "role": "subtree mutation prob.", "learnable": false},
+      {"name": "max_depth", "value": "17", "role": "Koza depth cap", "learnable": false}
+    ],
+    "diff_from_baseline": "Koza, 'Genetic Programming' (1992); the canonical tree-GP reference. Default symbolic-regression baseline before complexity control or selection-rule changes.",
+    "confidence": "high"
+  }
+]

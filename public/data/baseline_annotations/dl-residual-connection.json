@@ -1,0 +1,41 @@
+[
+  {
+    "model": "Gated Residual",
+    "name": "Gated Residual",
+    "tagline": "Residual block with a single learnable scalar gate alpha (init=1.0) on the residual branch.",
+    "kind": "formula",
+    "formula": "$$y = \\mathrm{ReLU}(\\,\\mathrm{shortcut}(x) + \\alpha \\cdot \\mathrm{BN}_2(W_2 \\,\\mathrm{ReLU}(\\mathrm{BN}_1(W_1 x)))\\,), \\quad \\alpha \\in \\mathbb{R} \\text{ learnable, init } 1.0$$",
+    "key_hyperparams": [
+      {"name": "α", "value": "1.0", "role": "residual gate (init at standard residual)", "learnable": true},
+      {"name": "kernel", "value": "3x3", "role": "two conv layers", "learnable": false}
+    ],
+    "diff_from_baseline": "Inspired by learnable residual scaling (cf. ReZero, transformer resid-lambdas). Unlike ReZero (init=0), starts from standard residual behavior with α=1.0 and lets training adjust the gate.",
+    "confidence": "high"
+  },
+  {
+    "model": "Pre-Activation",
+    "name": "Pre-Activation",
+    "tagline": "He et al. 2016 v2: BN-ReLU-Conv ordering with residual scaling for cleaner gradient flow through identity shortcuts.",
+    "kind": "formula",
+    "formula": "$$y = \\mathrm{shortcut}(x) + \\alpha \\cdot W_2\\,\\mathrm{ReLU}(\\mathrm{BN}_2(W_1\\,\\mathrm{ReLU}(\\mathrm{BN}_1(x)))), \\quad \\alpha = 0.1 \\text{ (learnable)}$$",
+    "key_hyperparams": [
+      {"name": "order", "value": "BN→ReLU→Conv", "role": "pre-activation ordering", "learnable": false},
+      {"name": "α", "value": "0.1", "role": "residual scale init", "learnable": true}
+    ],
+    "diff_from_baseline": "He et al. 2016 (ECCV) — \"Identity Mappings in Deep Residual Networks\". Pre-activation ordering yields cleaner gradient flow through identity shortcuts, beneficial for very deep networks.",
+    "confidence": "high"
+  },
+  {
+    "model": "Stochastic Depth",
+    "name": "Stochastic Depth",
+    "tagline": "Randomly drop the residual branch per block during training with linearly-decaying survival probability.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Index each residual block $i \\in \\{1,...,L\\}$.\n2. Survival prob $p_i = 1 - \\frac{i}{L}(1 - p_L)$, where $p_L = 0.5$.\n3. Compute $F(x) = \\mathrm{BN}_2(W_2\\mathrm{ReLU}(\\mathrm{BN}_1(W_1 x)))$.\n4. If training: with prob $p_i$ output $\\mathrm{ReLU}(F(x) + \\mathrm{shortcut}(x))$, else output $\\mathrm{ReLU}(\\mathrm{shortcut}(x))$.\n5. If eval: output $\\mathrm{ReLU}(p_i \\cdot F(x) + \\mathrm{shortcut}(x))$.",
+    "key_hyperparams": [
+      {"name": "p_L", "value": "0.5", "role": "survival prob of deepest block", "learnable": false},
+      {"name": "schedule", "value": "linear decay", "role": "p_i interpolated 1.0 → p_L", "learnable": false}
+    ],
+    "diff_from_baseline": "Huang et al. 2016 (ECCV) — \"Deep Networks with Stochastic Depth\". Implicit ensembling regularizer; shortens expected depth at training time and is a standard recipe for very deep ResNets (110+).",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,60 @@
+[
+  {
+    "model": "CAM",
+    "name": "CAM (Causal Additive Models)",
+    "tagline": "Order-search baseline that picks a topological order via gradient-boosted residual variance, then prunes spurious parents using residual correlations.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Pick first variable as the lowest-marginal-variance node (likely root).\n2. Greedily extend ordering: for each remaining $j$, fit GBR on current parents and pick the one minimizing residual variance.\n3. For each child $j$ in order, fit GBR on candidate parents; keep parents with feature_importance $> 0.05$.\n4. Prune: for each pair $(j,p)$ regress both on other parents and drop $p$ if $|\\mathrm{corr}(\\mathrm{resid}_j,\\mathrm{resid}_p)| < 0.05$.\n5. Return adjacency $B$ where $B_{j,p}=1$ iff $p\\to j$.",
+    "key_hyperparams": [
+      {"name": "n_estimators", "value": "50-100", "role": "GBR trees per regression", "learnable": false},
+      {"name": "importance threshold", "value": "0.05", "role": "edge inclusion cutoff", "learnable": false},
+      {"name": "pruning corr threshold", "value": "0.05", "role": "partial-residual independence cutoff", "learnable": false}
+    ],
+    "diff_from_baseline": "Buehlmann et al., 'CAM: Causal Additive Models, high-dimensional order search and penalized regression' (Annals of Statistics, 2014). Order-then-prune nonlinear DAG learner; this implementation uses gradient-boosted regression in place of additive splines.",
+    "confidence": "high"
+  },
+  {
+    "model": "DirectLiNGAM",
+    "name": "DirectLiNGAM",
+    "tagline": "Linear non-Gaussian causal-order search by maximizing residual independence; included as a deliberately mis-specified linear reference on nonlinear data.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Standardize variables; initialize unordered set $U=\\{1,\\dots,d\\}$.\n2. For each $i \\in U$, score $M_i = -\\sum_{j\\ne i}\\min(0, \\Delta I(x_i,x_j))^2$ using approximate mutual-info via $\\log\\cosh$ entropy.\n3. Choose $m=\\arg\\max_i M_i$ as next in causal order $K$.\n4. Replace $x_i \\leftarrow x_i - \\frac{\\mathrm{Cov}(x_i,x_m)}{\\mathrm{Var}(x_m)} x_m$ for all $i\\ne m$; remove $m$ from $U$.\n5. Repeat until $|U|=0$; estimate adjacency by linear regression along $K$.",
+    "key_hyperparams": [
+      {"name": "entropy approx", "value": "k1=79.047, k2=7.4129, gamma=0.37457", "role": "Hyvarinen log-cosh entropy estimator constants", "learnable": false}
+    ],
+    "diff_from_baseline": "Shimizu et al., 'DirectLiNGAM: A direct method for learning a linear non-Gaussian structural equation model' (JMLR 2011). Linear-SEM baseline; included here to show that linear methods degrade on nonlinear data.",
+    "confidence": "high"
+  },
+  {
+    "model": "GraN-DAG",
+    "name": "GraN-DAG",
+    "tagline": "Differentiable DAG learning: per-variable MLPs trained with augmented Lagrangian on a path-normalized weighted-adjacency acyclicity constraint.",
+    "kind": "hybrid",
+    "formula": "$$\\min_{\\theta}\\;-\\mathbb{E}_x\\!\\big[\\log p_\\theta(x)\\big] + \\tfrac{\\mu}{2} h(W_\\theta)^2 + \\lambda h(W_\\theta),\\quad h(W)=\\mathrm{tr}(e^{W})-d$$",
+    "pseudocode": "1. Build per-variable MLP (2 hidden layers, dim 10, leaky-ReLU); store an explicit adjacency mask $A\\in\\{0,1\\}^{d\\times d}$ with zero diagonal.\n2. Each step: sample minibatch, compute Gaussian-ANM log-likelihood and the augmented Lagrangian above using path-normalized $W_\\theta$.\n3. Optimize with RMSprop (lr=1e-3); every 500 iters clamp $A \\mathrel{*}= \\mathbb{1}[W_\\theta>10^{-3}]$.\n4. On constraint stagnation: update $\\lambda \\mathrel{+}= \\mu h$, multiply $\\mu$ by 10 if $h$ does not shrink.\n5. After convergence, compute Jacobian saliency and remove smallest-magnitude edges until acyclic.",
+    "key_hyperparams": [
+      {"name": "hidden", "value": "2 layers x 10 units", "role": "per-variable MLP capacity", "learnable": false},
+      {"name": "mu_init / lambda_init", "value": "0.001 / 0.0", "role": "augmented Lagrangian penalties", "learnable": true},
+      {"name": "lr", "value": "1e-3 (RMSprop)", "role": "optimizer step", "learnable": false},
+      {"name": "edge clamp threshold", "value": "1e-3 every 500 iters", "role": "weight pruning", "learnable": false}
+    ],
+    "diff_from_baseline": "Lachapelle et al., 'Gradient-Based Neural DAG Learning' (ICLR 2020). Continuous-optimization DAG learner with NonLinGaussANM likelihood and a path-normalized weight-product adjacency; gcastle defaults reproduced here.",
+    "confidence": "high"
+  },
+  {
+    "model": "NOTEARS-MLP",
+    "name": "NOTEARS-MLP",
+    "tagline": "Continuous DAG optimization: solve a smooth acyclicity-constrained least-squares with augmented Lagrangian, then refine the linear skeleton with nonlinear regression.",
+    "kind": "hybrid",
+    "formula": "$$\\min_W \\tfrac{1}{2n}\\|X-XW\\|_F^2 + \\lambda_1\\|W\\|_1 + \\tfrac{\\rho}{2}h(W)^2 + \\alpha h(W),\\quad h(W)=\\mathrm{tr}(e^{W\\circ W})-d$$",
+    "pseudocode": "1. Standardize $X$; initialize $W$ small-random with zero diagonal.\n2. Augmented-Lagrangian outer loop (up to 30 iters): solve the inner objective with L-BFGS-B.\n3. Update $\\alpha \\mathrel{+}= \\rho\\, h(W)$; if $h$ not shrinking by $0.25\\times$, set $\\rho\\mathrel{*}=10$. Stop when $|h|<10^{-8}$ or $\\rho>10^{16}$.\n4. Threshold $|W|$ at 0.3; for each $j$, refit a GBR using these candidates plus correlation-screened parents and keep features with importance $>0.05$.\n5. Enforce DAG by topological ordering from $\\sum_i |W_{ij}|$ and drop violating edges.",
+    "key_hyperparams": [
+      {"name": "lambda1", "value": "0.01", "role": "L1 sparsity penalty", "learnable": false},
+      {"name": "w_threshold", "value": "0.3", "role": "edge thresholding", "learnable": false},
+      {"name": "max_iter", "value": "30", "role": "augmented-Lagrangian outer iters", "learnable": false},
+      {"name": "rho_max / h_tol", "value": "1e16 / 1e-8", "role": "AL stopping", "learnable": false}
+    ],
+    "diff_from_baseline": "Zheng et al., 'DAGs with NO TEARS' (NeurIPS 2018) and 'Learning Sparse Nonparametric DAGs' (AISTATS 2020). Linear NOTEARS skeleton followed by gradient-boosted nonlinear refinement.",
+    "confidence": "high"
+  }
+]

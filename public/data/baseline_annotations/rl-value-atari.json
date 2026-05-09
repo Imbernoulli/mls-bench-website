@@ -1,0 +1,45 @@
+[
+  {
+    "model": "C51",
+    "name": "C51",
+    "tagline": "Categorical DQN: predict a discrete distribution over a fixed atom support and minimize cross-entropy after Bellman projection.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Network outputs logits over $N\\!=\\!51$ atoms $z_k\\in[V_{\\min},V_{\\max}]=[-10,10]$ per action; pmf $p_a = \\mathrm{softmax}(\\text{logits}_a)$, $Q(s,a)=\\sum_k z_k p_a(s,k)$.\n2. Greedy action: $a^*=\\arg\\max_a Q(s',a)$ from target net.\n3. Bellman atoms: $T z_k = r + \\gamma(1-d) z_k$, clamp to $[V_{\\min},V_{\\max}]$.\n4. Categorical projection $\\Phi$ onto $\\{z_k\\}$ via floor/ceil interpolation.\n5. Loss: $-\\sum_k (\\Phi p_{\\text{target}})_k \\log p_{\\text{online}}(s,a;k)$.\n6. Hard target update every 10000 steps; Adam lr $=2.5\\!\\times\\!10^{-4}$, eps $=0.01/B$.",
+    "key_hyperparams": [
+      {"name": "n_atoms", "value": "51", "role": "support size", "learnable": false},
+      {"name": "v_min, v_max", "value": "-10, 10", "role": "support range", "learnable": false},
+      {"name": "target_network_frequency", "value": "10000", "role": "C51 default", "learnable": false},
+      {"name": "lr", "value": "2.5e-4", "role": "Adam (cleanrl c51_atari)", "learnable": false}
+    ],
+    "diff_from_baseline": "Bellemare, Dabney, Munos, 'A Distributional Perspective on Reinforcement Learning' (ICML 2017). Distributional value head over a fixed support — replaces scalar Q regression with categorical cross-entropy.",
+    "confidence": "high"
+  },
+  {
+    "model": "Double-DQN",
+    "name": "Double DQN",
+    "tagline": "Decouples action selection (online net) from action evaluation (target net) to reduce overestimation bias.",
+    "kind": "formula",
+    "formula": "$$y = r + \\gamma\\,(1-d)\\,Q_{\\bar\\theta}\\!\\bigl(s', \\arg\\max_{a'} Q_\\theta(s',a')\\bigr),\\quad \\mathcal L = \\mathrm{MSE}\\bigl(y,\\,Q_\\theta(s,a)\\bigr)$$",
+    "key_hyperparams": [
+      {"name": "target_network_frequency", "value": "args.target_network_frequency", "role": "Polyak/hard sync period", "learnable": false},
+      {"name": "tau", "value": "args.tau", "role": "Polyak coefficient at sync", "learnable": false},
+      {"name": "loss", "value": "MSE (Huber not used here)", "role": "TD loss", "learnable": false}
+    ],
+    "diff_from_baseline": "van Hasselt, Guez, Silver, 'Deep Reinforcement Learning with Double Q-learning' (AAAI 2016). Same encoder/head as DQN; only the bootstrap target changes.",
+    "confidence": "high"
+  },
+  {
+    "model": "QR-DQN",
+    "name": "QR-DQN",
+    "tagline": "Distributional DQN with quantile regression: learn N quantile values per action and optimize the quantile Huber loss.",
+    "kind": "formula",
+    "formula": "$$\\mathcal L = \\mathbb E\\!\\left[\\sum_{i,j} \\bigl|\\tau_i - \\mathbf 1\\{\\delta_{ij}<0\\}\\bigr|\\,\\frac{\\rho_\\kappa(\\delta_{ij})}{\\kappa}\\right],\\;\\delta_{ij}=y_j-q_i(s,a),\\;\\tau_i=\\tfrac{2i-1}{2N}$$",
+    "key_hyperparams": [
+      {"name": "n_quantiles", "value": "200", "role": "Atari setting from Dabney et al.", "learnable": false},
+      {"name": "kappa", "value": "1.0", "role": "Huber threshold", "learnable": false},
+      {"name": "lr", "value": "args.learning_rate (eps=0.01/B)", "role": "Adam", "learnable": false}
+    ],
+    "diff_from_baseline": "Dabney, Rowland, Bellemare, Munos, 'Distributional Reinforcement Learning with Quantile Regression' (AAAI 2018). Drops C51's bounded support requirement by representing the distribution as quantiles instead of categorical atoms.",
+    "confidence": "high"
+  }
+]

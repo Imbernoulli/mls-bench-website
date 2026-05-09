@@ -1,0 +1,43 @@
+[
+  {
+    "model": "QK-Norm",
+    "name": "QK-Norm",
+    "tagline": "Apply RMSNorm independently to per-head queries and keys before the scaled dot-product attention; positional info still comes from learned absolute embeddings.",
+    "kind": "formula",
+    "formula": "$$\\tilde{Q} = \\mathrm{RMSNorm}(Q),\\;\\; \\tilde{K} = \\mathrm{RMSNorm}(K);\\quad A = \\mathrm{softmax}\\!\\Big(\\frac{\\tilde{Q}\\tilde{K}^\\top}{\\sqrt{d_h}} + M_{\\text{causal}}\\Big);\\;\\; O = AV$$",
+    "key_hyperparams": [
+      {"name": "norm", "value": "F.rms_norm over last dim (head_dim)", "role": "stabilize attention logits", "learnable": false},
+      {"name": "use_pos_emb", "value": "True", "role": "keeps learned absolute positional embeddings", "learnable": true}
+    ],
+    "diff_from_baseline": "Henry et al., \"Query-Key Normalization for Transformers\" (EMNLP Findings 2020). Inspired by modded-nanogpt record #5. RMSNorm-ing Q and K separately before softmax bounds attention logits, stabilizing pretraining at higher learning rates without changing positional handling.",
+    "confidence": "high"
+  },
+  {
+    "model": "RoPE",
+    "name": "RoPE",
+    "tagline": "Replace learned absolute position embeddings with rotary position embeddings applied to per-head Q and K via paired-half (split-then-rotate) rotation.",
+    "kind": "formula",
+    "formula": "$$\\theta_i = 10000^{-2i/d_h},\\;\\; \\mathrm{RoPE}(x, t)_{[:d/2]} = x_{1}\\cos(t\\theta) - x_{2}\\sin(t\\theta),\\;\\; _{[d/2:]} = x_{1}\\sin(t\\theta) + x_{2}\\cos(t\\theta);\\;\\; A = \\mathrm{softmax}\\!\\big(\\mathrm{RoPE}(Q)\\,\\mathrm{RoPE}(K)^\\top / \\sqrt{d_h}\\big)V$$",
+    "key_hyperparams": [
+      {"name": "base", "value": "10000", "role": "RoPE frequency base", "learnable": false},
+      {"name": "use_pos_emb", "value": "False", "role": "wpe (learned absolute) is disabled", "learnable": false},
+      {"name": "rotation", "value": "split-half (x1=first d/2, x2=last d/2)", "role": "rotary application", "learnable": false}
+    ],
+    "diff_from_baseline": "Su et al., RoFormer (Neurocomputing 2024 / arXiv 2021); inspired by modded-nanogpt record #2. Encodes positions through complex-plane rotations so that q·k depends only on relative positions; learned wpe is dropped from the GPT forward.",
+    "confidence": "high"
+  },
+  {
+    "model": "RoPE + QK-Norm",
+    "name": "RoPE + QK-Norm",
+    "tagline": "Combines rotary position embeddings with RMSNorm of Q and K (norm before rotation), matching the strongest modded-nanogpt attention recipe.",
+    "kind": "formula",
+    "formula": "$$\\tilde{Q} = \\mathrm{RoPE}(\\mathrm{RMSNorm}(Q)),\\;\\; \\tilde{K} = \\mathrm{RoPE}(\\mathrm{RMSNorm}(K));\\quad A = \\mathrm{softmax}\\!\\Big(\\frac{\\tilde{Q}\\tilde{K}^\\top}{\\sqrt{d_h}} + M_{\\text{causal}}\\Big)V$$",
+    "key_hyperparams": [
+      {"name": "order", "value": "RMSNorm -> RoPE", "role": "norm before rotation (modded-nanogpt convention)", "learnable": false},
+      {"name": "base", "value": "10000", "role": "RoPE frequency base", "learnable": false},
+      {"name": "use_pos_emb", "value": "False", "role": "drop learned wpe", "learnable": false}
+    ],
+    "diff_from_baseline": "Combination of Su et al. RoFormer + Henry et al. QK-Norm (modded-nanogpt records #2 + #5). Applies RMSNorm to Q and K and then rotates them with RoPE, jointly improving stability and relative-position handling. Strongest fixed-recipe attention baseline at this scale.",
+    "confidence": "high"
+  }
+]

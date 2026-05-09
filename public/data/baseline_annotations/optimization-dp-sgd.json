@@ -1,0 +1,61 @@
+[
+  {
+    "model": "Adaptive Quantile Clipping",
+    "name": "Adaptive Quantile Clipping",
+    "tagline": "Track the median per-sample gradient norm with a geometric exponential update on the clip threshold, then standard DP-SGD clip+noise around the adaptive C_t.",
+    "kind": "formula",
+    "formula": "$$\\text{frac}_t = \\tfrac{1}{B}\\sum_i \\mathbb{1}[\\|g_i\\|_2 > C_{t-1}],\\;\\; C_t = \\mathrm{clip}\\big(C_{t-1}\\,e^{\\eta_C(\\text{frac}_t - q^*)},\\; [C_{\\min},C_{\\max}]\\big)$$\n$$\\tilde{g}_t = \\tfrac{1}{B}\\sum_i g_i\\cdot \\min\\!\\Big(1, \\tfrac{C_t}{\\|g_i\\|_2}\\Big) + \\mathcal{N}\\!\\big(0,\\,(\\sigma C_t/B)^2 I\\big)$$",
+    "key_hyperparams": [
+      {"name": "q* (target_quantile)", "value": "0.5", "role": "median target", "learnable": false},
+      {"name": "eta_C (clip_lr)", "value": "0.2", "role": "geometric update rate", "learnable": false},
+      {"name": "C0", "value": "config max_grad_norm", "role": "initial threshold", "learnable": false},
+      {"name": "[C_min, C_max]", "value": "[0.01, 100.0]", "role": "safety bounds", "learnable": false},
+      {"name": "noise scale", "value": "sigma * C_t / B", "role": "noise tied to current threshold", "learnable": false}
+    ],
+    "diff_from_baseline": "Andrew et al., \"Differentially Private Learning with Adaptive Clipping\" (NeurIPS 2021). Adapts the L2 clip threshold to a target quantile of observed per-sample norms via a geometric EMA; noise scale is recalibrated each step to the new C_t.",
+    "confidence": "high"
+  },
+  {
+    "model": "Automatic Clipping (AUTO-S)",
+    "name": "AUTO-S Automatic Clipping",
+    "tagline": "Per-sample normalization g_i / (||g_i|| + gamma): bounds sensitivity to 1 with no clipping threshold, then standard Gaussian noise calibrated to C=1.",
+    "kind": "formula",
+    "formula": "$$\\tilde{g}_i = \\frac{g_i}{\\|g_i\\|_2 + \\gamma};\\quad \\tilde{g}_t = \\frac{1}{B}\\sum_i \\tilde{g}_i + \\mathcal{N}\\!\\big(0,\\,(\\sigma\\cdot 1/B)^2 I\\big)$$",
+    "key_hyperparams": [
+      {"name": "gamma", "value": "1.0", "role": "denominator stabilizer; trades bias vs scale", "learnable": false},
+      {"name": "sensitivity (C)", "value": "1.0 (implicit)", "role": "no tunable clip threshold", "learnable": false},
+      {"name": "noise multiplier", "value": "sigma (=config noise_multiplier)", "role": "calibrated to C=1", "learnable": false}
+    ],
+    "diff_from_baseline": "Bu et al., \"Automatic Clipping: DP Deep Learning Made Easier and Stronger\" (NeurIPS 2023). Replaces flat clipping with smooth per-sample normalization, eliminating the clip-threshold hyperparameter while keeping the same privacy guarantee.",
+    "confidence": "high"
+  },
+  {
+    "model": "Standard DP-SGD",
+    "name": "Standard DP-SGD",
+    "tagline": "Canonical Abadi-style DP-SGD: flat L2 clip per sample to C and add constant Gaussian noise sigma*C/B to the batch-averaged gradient.",
+    "kind": "formula",
+    "formula": "$$\\bar{g}_i = g_i\\cdot \\min\\!\\Big(1, \\tfrac{C}{\\|g_i\\|_2}\\Big),\\quad \\tilde{g}_t = \\frac{1}{B}\\sum_i \\bar{g}_i + \\mathcal{N}\\!\\big(0,\\,(\\sigma C/B)^2 I\\big)$$",
+    "key_hyperparams": [
+      {"name": "C (max_grad_norm)", "value": "config", "role": "flat L2 clip threshold", "learnable": false},
+      {"name": "sigma", "value": "config noise_multiplier", "role": "Gaussian noise scale", "learnable": false},
+      {"name": "schedule", "value": "constant", "role": "no decay over training", "learnable": false}
+    ],
+    "diff_from_baseline": "Abadi et al., \"Deep Learning with Differential Privacy\" (CCS 2016). The reference DP-SGD mechanism: fixed-norm clipping plus calibrated Gaussian noise, with constant sigma over training. Default comparator for this benchmark.",
+    "confidence": "high"
+  },
+  {
+    "model": "Step-Decay Noise Schedule",
+    "name": "Step-Decay Noise + Clip",
+    "tagline": "Decay both noise multiplier and clip threshold every epochs/4 steps; sigma_0 is rescaled so the harmonic-mean-equivalent sigma matches the calibrated budget.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Schedule: $\\Delta = \\max(1, E/4)$ epochs per stage; $\\rho_\\sigma = 0.8$, $\\rho_C = 0.85$.\n2. Pre-compute $\\sigma_0 = \\sigma^\\star\\cdot \\sqrt{\\sum_e \\text{steps}_e/\\rho_\\sigma^{2k(e)}\\;/\\;\\text{total\\_steps}}$ so harmonic-mean sigma equals the budget $\\sigma^\\star$.\n3. At step $(s, e)$: stage $k = (e-1)//\\Delta$; $\\sigma_t = \\sigma_0\\rho_\\sigma^k$, $C_t = C_0\\rho_C^k$.\n4. Per-sample clip to $C_t$, batch-average, add $\\mathcal{N}(0,(\\sigma_t C_t/B)^2)$.\n5. Privacy accounting: return $\\sigma_{\\text{eff}} = \\sqrt{s / \\sum_{t\\le s} 1/\\sigma_t^2}$ so the external Abadi accountant sees the correct equivalent sigma.",
+    "key_hyperparams": [
+      {"name": "noise_decay_factor", "value": "0.8", "role": "per-stage sigma multiplier", "learnable": false},
+      {"name": "clip_decay_factor", "value": "0.85", "role": "per-stage C multiplier", "learnable": false},
+      {"name": "decay_interval", "value": "max(1, epochs/4)", "role": "stages per training run", "learnable": false},
+      {"name": "sigma_0", "value": "rescaled from budget", "role": "preserves total privacy spend", "learnable": false}
+    ],
+    "diff_from_baseline": "DP-SGD-Global-Adapt-V2-S (Esipova/Vinzamuri/Pejo et al., ECRA 2025; arXiv:2312.02400). Step-decays noise and clip thresholds together to allocate more privacy budget to later (more useful) steps, while keeping cumulative RDP within the calibrated epsilon via a harmonic-mean-equivalent sigma.",
+    "confidence": "high"
+  }
+]

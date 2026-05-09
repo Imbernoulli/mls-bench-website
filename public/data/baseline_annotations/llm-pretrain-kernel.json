@@ -1,0 +1,70 @@
+[
+  {
+    "model": "ReLU-Squared (Torch)",
+    "name": "ReLU$^2$ (PyTorch)",
+    "tagline": "Custom torch.autograd.Function: linear $\\to$ ReLU$^2$ $\\to$ linear with hand-rolled backward saving the pre-activation.",
+    "kind": "formula",
+    "formula": "$$ y = (\\mathrm{ReLU}(xW_{fc}^\\top))^2\\, W_{proj}^\\top, \\qquad \\frac{\\partial y}{\\partial h} = 2\\,\\mathrm{ReLU}(h) $$",
+    "key_hyperparams": [
+      {"name": "activation", "value": "x \\cdot ReLU(x)^2 / x", "role": "ReLU squared elementwise", "learnable": false}
+    ],
+    "diff_from_baseline": "So et al. 2021 (Primer). Squared-ReLU MLP activation; here implemented as a custom torch.autograd.Function that saves only the pre-activation and ReLU output to make backward cheaper than autograd's default. No Triton.",
+    "confidence": "high"
+  },
+  {
+    "model": "Triton GELU",
+    "name": "Triton GELU MLP",
+    "tagline": "Triton elementwise kernel for tanh-approx GELU between two PyTorch matmuls; analytical FP32 backward.",
+    "kind": "hybrid",
+    "formula": "$$ \\mathrm{GELU}(x) \\approx 0.5\\,x\\,\\big(1 + \\tanh\\!\\big(\\sqrt{\\tfrac{2}{\\pi}}\\,(x + 0.044715\\,x^3)\\big)\\big) $$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Input $x$"},
+        {"id": "fc", "label": "$h = x W_{fc}^\\top$ (PyTorch matmul)"},
+        {"id": "kernel", "label": "Triton elementwise GELU (FP32 inside)"},
+        {"id": "proj", "label": "$y = \\mathrm{act}\\,W_{proj}^\\top$ (PyTorch matmul)"},
+        {"id": "back", "label": "Custom backward: analytical $\\partial\\mathrm{GELU}/\\partial h$"}
+      ],
+      "edges": [
+        {"from": "x", "to": "fc"},
+        {"from": "fc", "to": "kernel"},
+        {"from": "kernel", "to": "proj"},
+        {"from": "proj", "to": "back"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "BLOCK_SIZE", "value": "1024", "role": "Triton block size", "learnable": false},
+      {"name": "approx", "value": "tanh", "role": "GELU approximation", "learnable": false}
+    ],
+    "diff_from_baseline": "Tillet et al. 2019 (Triton). Drop-in tanh-GELU MLP that runs the activation through a custom Triton kernel between PyTorch matmuls; backward computes the analytical GELU gradient in FP32 to avoid bf16 precision loss.",
+    "confidence": "high"
+  },
+  {
+    "model": "Triton ReLU-Squared (Fused)",
+    "name": "Triton fused linear+ReLU$^2$",
+    "tagline": "Triton matmul kernel that fuses $xW_{fc}^\\top$ with ReLU$^2$ and saves the pre-activation for a custom backward.",
+    "kind": "hybrid",
+    "formula": "$$ \\mathrm{post}_{m,n} = \\big(\\max(0,\\, (xW_{fc}^\\top)_{m,n})\\big)^2,\\qquad y = \\mathrm{post}\\,W_{proj}^\\top $$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Input $x$"},
+        {"id": "fused", "label": "Triton matmul + ReLU$^2$ (block 64x64x32)"},
+        {"id": "save", "label": "Save pre-activation for backward"},
+        {"id": "proj", "label": "$y = \\mathrm{post}\\,W_{proj}^\\top$"},
+        {"id": "back", "label": "Custom backward with $2\\,\\mathrm{ReLU}(\\mathrm{pre})$"}
+      ],
+      "edges": [
+        {"from": "x", "to": "fused"},
+        {"from": "fused", "to": "save"},
+        {"from": "fused", "to": "proj"},
+        {"from": "save", "to": "back"},
+        {"from": "proj", "to": "back"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "BLOCK_M, BLOCK_N, BLOCK_K", "value": "64, 64, 32", "role": "Triton tile sizes", "learnable": false}
+    ],
+    "diff_from_baseline": "modded-nanoGPT-style fused squared-ReLU MLP. Triton kernel computes $\\mathrm{ReLU}^2(xW_{fc}^\\top)$ in one pass, avoiding materializing the bf16 intermediate; backward reuses the saved pre-activation.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,115 @@
+[
+  {
+    "model": "GraphVAE",
+    "name": "GraphVAE",
+    "tagline": "Variational autoencoder for graphs: GCN encoder pools to a graph-level latent; MLP decoder reconstructs symmetric adjacency probabilities.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "adj", "label": "$A \\in \\{0,1\\}^{N\\times N}$"},
+        {"id": "gcn", "label": "2-layer GCN"},
+        {"id": "pool", "label": "Mean Pool"},
+        {"id": "z", "label": "$z \\sim \\mathcal{N}(\\mu,\\sigma^2)$"},
+        {"id": "dec", "label": "MLP Decoder"},
+        {"id": "node", "label": "Node-existence Head"},
+        {"id": "out", "label": "$\\hat{A}$ + node mask"}
+      ],
+      "edges": [
+        {"from": "adj", "to": "gcn"},
+        {"from": "gcn", "to": "pool"},
+        {"from": "pool", "to": "z"},
+        {"from": "z", "to": "dec"},
+        {"from": "z", "to": "node"},
+        {"from": "dec", "to": "out"},
+        {"from": "node", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "256", "role": "GCN/MLP width", "learnable": false},
+      {"name": "latent_dim", "value": "64", "role": "graph-level latent size", "learnable": false},
+      {"name": "$\\beta_{KL}$", "value": "0.001", "role": "KL weight in ELBO", "learnable": false}
+    ],
+    "diff_from_baseline": "Simonovsky & Komodakis, 'GraphVAE: Towards Generation of Small Graphs Using Variational Autoencoders' (ICANN 2018, arXiv:1802.03480). Graph-level VAE with GCN encoder, mean pooling, and MLP decoder over flattened adjacency; classic latent-variable baseline for small-graph generation.",
+    "confidence": "high"
+  },
+  {
+    "model": "GRAN",
+    "name": "GRAN",
+    "tagline": "Graph Recurrent Attention Network: alternating attention-based node updates and pairwise edge-MLP updates, refined for several iterations.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "init", "label": "Random $A_0$ (Bernoulli 0.3)"},
+        {"id": "embed", "label": "Identity Node Embed"},
+        {"id": "attn", "label": "Multi-head Attention"},
+        {"id": "edge", "label": "Edge-update MLP"},
+        {"id": "agg", "label": "Edge $\\to$ Node Agg"},
+        {"id": "pred", "label": "Edge-pred MLP"},
+        {"id": "out", "label": "Sampled $\\hat{A}$ (refine $K$ steps)"}
+      ],
+      "edges": [
+        {"from": "init", "to": "embed"},
+        {"from": "embed", "to": "attn"},
+        {"from": "attn", "to": "edge"},
+        {"from": "edge", "to": "agg"},
+        {"from": "agg", "to": "attn"},
+        {"from": "agg", "to": "pred"},
+        {"from": "pred", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "128", "role": "node embedding width", "learnable": false},
+      {"name": "n_layers", "value": "3", "role": "GRAN attention blocks", "learnable": false},
+      {"name": "n_heads", "value": "4", "role": "attention heads", "learnable": false},
+      {"name": "n_refine_steps", "value": "5", "role": "iterative sampling refinements", "learnable": false}
+    ],
+    "diff_from_baseline": "Liao et al., 'Efficient Graph Generation with Graph Recurrent Attention Networks' (NeurIPS 2019). One-shot generator with iterative attention-based message passing over node-pair edge features; reference attention-based graph generator.",
+    "confidence": "high"
+  },
+  {
+    "model": "DiGress",
+    "name": "DiGress (discrete diffusion)",
+    "tagline": "Discrete denoising diffusion: edge flips with cosine $\\alpha$ schedule, graph-transformer denoiser predicts the clean adjacency at each step.",
+    "kind": "hybrid",
+    "formula": "$$q(A_t \\mid A_0): A_t = A_0 \\oplus B_t,\\;\\; B_t \\sim \\mathrm{Bernoulli}\\!\\left(\\tfrac{1}{2}(1-\\bar{\\alpha}_t)\\right),\\;\\; \\bar{\\alpha}_t \\propto \\cos^2\\!\\left(\\tfrac{t/T+0.008}{1.008}\\cdot\\tfrac{\\pi}{2}\\right)$$",
+    "pseudocode": "1. Sample timestep $t \\sim U(0,T)$ and corrupt $A_t = A_0 \\oplus B_t$ (XOR flip)\n2. Symmetrize $A_t$ and zero its diagonal\n3. Graph transformer (with edge-bias attention) reads $A_t$ and time-embed and outputs edge logits + node-existence logits\n4. Train with binary cross-entropy on the clean adjacency and node mask\n5. Sample: start from random binary $A_T$ then iteratively re-denoise via the predicted $p(A_0\\mid A_t)$ down to $A_0$",
+    "key_hyperparams": [
+      {"name": "$T$", "value": "50", "role": "diffusion steps", "learnable": false},
+      {"name": "schedule", "value": "cosine $\\bar{\\alpha}$", "role": "noise corruption", "learnable": false},
+      {"name": "hidden_dim", "value": "128", "role": "transformer width", "learnable": false},
+      {"name": "n_layers", "value": "4", "role": "transformer depth", "learnable": false}
+    ],
+    "diff_from_baseline": "Vignac et al., 'DiGress: Discrete Denoising Diffusion for Graph Generation' (ICLR 2023). Discrete absorbing/edge-flip diffusion with a graph-transformer denoiser; the canonical discrete-diffusion reference for graph generation.",
+    "confidence": "high"
+  },
+  {
+    "model": "gdss",
+    "name": "GDSS",
+    "tagline": "Score-based generative model for graphs via VP-SDE on adjacency entries with denoising score matching and Euler-Maruyama reverse sampling.",
+    "kind": "hybrid",
+    "formula": "$$\\bar{\\alpha}(t) = \\exp\\!\\left(-\\tfrac{1}{4}t^2(\\beta_{\\max}-\\beta_{\\min}) - \\tfrac{1}{2}t\\beta_{\\min}\\right),\\;\\; A_t = \\sqrt{\\bar{\\alpha}}\\,A_0 + \\sqrt{1-\\bar{\\alpha}}\\,\\epsilon$$",
+    "pseudocode": "1. Sample $t \\in [0.001, 0.999]$ and add VP-SDE noise to $A_0$ (symmetrize $\\epsilon$, zero diagonal)\n2. Score net $s_\\theta(A_t,t)$ runs GCN aggregation + MLP and predicts the score\n3. Score-matching loss: minimize $\\lVert s_\\theta + \\epsilon/\\sigma_t\\rVert^2$ on off-diagonal entries\n4. Reverse SDE (Euler-Maruyama): $A \\leftarrow A - \\tfrac{1}{2}\\beta(t)(A + s_\\theta)\\,dt + \\sqrt{\\beta(t)\\,dt}\\,\\eta$\n5. Threshold final $A$ at zero, symmetrize, derive node mask from row-sums",
+    "key_hyperparams": [
+      {"name": "$\\beta_{\\min}, \\beta_{\\max}$", "value": "0.1 / 1.0", "role": "VP-SDE schedule", "learnable": false},
+      {"name": "n_diffusion_steps", "value": "100", "role": "reverse-SDE steps", "learnable": false},
+      {"name": "hidden_dim", "value": "256", "role": "score-net width", "learnable": false}
+    ],
+    "diff_from_baseline": "Jo, Lee & Hwang, 'Score-based Generative Modeling of Graphs via the System of Stochastic Differential Equations' (ICML 2022). VP-SDE on adjacency with denoising score matching; canonical score-based reference for graph generation.",
+    "confidence": "high"
+  },
+  {
+    "model": "moflow",
+    "name": "MoFlow (flow)",
+    "tagline": "Normalizing flow over upper-triangular adjacency entries: stack of ActNorm + affine coupling blocks trained by maximum likelihood.",
+    "kind": "hybrid",
+    "formula": "$$\\log p(A) = \\log \\mathcal{N}(z; 0, I) + \\sum_k \\log\\!\\left|\\det \\frac{\\partial f_k}{\\partial \\cdot}\\right|, \\quad z = (f_K \\circ \\cdots \\circ f_1)(\\mathrm{vec}_{\\Delta}(A) + \\xi),\\; \\xi \\sim \\mathcal{N}(0, 0.05^2 I)$$",
+    "pseudocode": "1. Vectorize the strict upper triangle $\\mathrm{vec}_\\Delta(A)$ and add $\\xi \\sim \\mathcal{N}(0, 0.05^2)$ dequantization noise\n2. Pass through $K$ Glow-style blocks (ActNorm + affine coupling) producing $z$ and $\\sum \\log|\\det J|$\n3. Maximize log-likelihood under $\\mathcal{N}(0, I)$ prior\n4. Side head from $\\mathrm{vec}_\\Delta(A)$ predicts node-existence (BCE)\n5. Sample $z \\sim 0.6\\cdot\\mathcal{N}(0,I)$, invert flow, threshold at zero, scatter back into symmetric $\\hat{A}$",
+    "key_hyperparams": [
+      {"name": "n_flow_layers", "value": "6", "role": "ActNorm + coupling blocks", "learnable": false},
+      {"name": "hidden_dim", "value": "256", "role": "coupling MLP width", "learnable": false},
+      {"name": "temperature", "value": "0.6", "role": "sampling latent scale", "learnable": false}
+    ],
+    "diff_from_baseline": "Zang & Wang, 'MoFlow: An Invertible Flow Model for Generating Molecular Graphs' (KDD 2020). Normalizing-flow reference adapted here to upper-triangular adjacency entries with Glow-style ActNorm + affine coupling blocks.",
+    "confidence": "high"
+  }
+]

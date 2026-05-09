@@ -1,0 +1,51 @@
+[
+  {
+    "model": "Cross-Attention",
+    "name": "Cross-Attention",
+    "tagline": "ClimaX default — a learnable query token attends to all variable tokens via multi-head cross-attention at each spatial location.",
+    "kind": "hybrid",
+    "formula": "$$\\mathrm{out}_{b,l} = \\mathrm{MHA}(q,\\, x_{b,:,l},\\, x_{b,:,l}),\\qquad q\\in\\mathbb{R}^{1\\times D}\\ \\text{learnable}$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x [B,V,L,D]"},
+        {"id": "q", "label": "Learnable query q [1,D]"},
+        {"id": "mha", "label": "MultiheadAttention (heads=H)"},
+        {"id": "out", "label": "out [B,L,D]"}
+      ],
+      "edges": [
+        {"from": "x", "to": "mha", "label": "K,V (per location)"},
+        {"from": "q", "to": "mha", "label": "Q"},
+        {"from": "mha", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "embed_dim", "value": "D", "role": "token width", "learnable": false},
+      {"name": "num_heads", "value": "H", "role": "MHA heads", "learnable": false},
+      {"name": "var_query", "value": "[1,1,D]", "role": "learnable query token", "learnable": true}
+    ],
+    "diff_from_baseline": "Nguyen et al., ClimaX (ICML 2023). Default aggregation in ClimaX: a single learnable query attends across V variable tokens with multi-head attention to produce one fused token per spatial patch.",
+    "confidence": "high"
+  },
+  {
+    "model": "Learned Weighted Sum",
+    "name": "Learned Weighted Sum",
+    "tagline": "Per-variable scalar weights normalized via softmax, then weighted sum across variable tokens.",
+    "kind": "formula",
+    "formula": "$$w = \\mathrm{softmax}(\\theta)\\in\\mathbb{R}^V,\\qquad \\mathrm{out}_{b,l,d} = \\sum_{v=1}^{V} w_v\\, x_{b,v,l,d}$$",
+    "key_hyperparams": [
+      {"name": "var_weights", "value": "θ ∈ ℝ^V", "role": "per-variable scalar weight (softmax-normalized)", "learnable": true}
+    ],
+    "diff_from_baseline": "Standard attention-free fusion (cf. weighted feature fusion in FPN, multi-view aggregation). Learns one scalar per variable, softmax over V.",
+    "confidence": "high"
+  },
+  {
+    "model": "Mean Pooling",
+    "name": "Mean Pooling",
+    "tagline": "Simple average across the V variable tokens at each spatial location, no learnable parameters.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{out}_{b,l,d} = \\frac{1}{V}\\sum_{v=1}^{V} x_{b,v,l,d}$$",
+    "key_hyperparams": [],
+    "diff_from_baseline": "Parameter-free permutation-invariant pool. Standard lower-bound aggregator.",
+    "confidence": "high"
+  }
+]

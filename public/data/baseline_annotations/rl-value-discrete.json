@@ -1,0 +1,92 @@
+[
+  {
+    "model": "C51",
+    "name": "C51 (Categorical DQN)",
+    "tagline": "Distributional DQN with 51 fixed support atoms in [-500, 500]; learns the full return distribution via projected Bellman update.",
+    "kind": "hybrid",
+    "formula": "$$\\mathcal{L} = -\\sum_a \\Phi\\!\\left(\\hat{T}\\,Z(s', a^*)\\right)\\log p_a(s, a), \\quad Z(s, a) = \\sum_{i=0}^{50} z_i\\,p_i(s, a)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "enc", "label": "Fixed MLPEncoder"},
+        {"id": "head", "label": "Linear -> n_actions × 51 atoms"},
+        {"id": "softmax", "label": "Softmax over atoms (per action)"},
+        {"id": "q", "label": "Q(s,a) = sum p · z"},
+        {"id": "proj", "label": "Categorical Bellman projection"},
+        {"id": "loss", "label": "Cross-entropy on projected target"}
+      ],
+      "edges": [
+        {"from": "enc", "to": "head"},
+        {"from": "head", "to": "softmax"},
+        {"from": "softmax", "to": "q"},
+        {"from": "softmax", "to": "proj"},
+        {"from": "proj", "to": "loss"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "n_atoms", "value": "51", "role": "categorical support size", "learnable": false},
+      {"name": "v_min, v_max", "value": "-500, 500", "role": "support range for classic control", "learnable": false},
+      {"name": "gamma", "value": "args.gamma", "role": "discount", "learnable": false}
+    ],
+    "diff_from_baseline": "Bellemare, Dabney & Munos, ICML 2017 — A Distributional Perspective on RL (C51). Categorical-distributional DQN with cross-entropy on a projected Bellman target.",
+    "confidence": "high"
+  },
+  {
+    "model": "Dueling-DQN",
+    "name": "Dueling-DQN",
+    "tagline": "DQN with separate value and advantage heads on a shared encoder, recombined as Q = V + A − mean(A).",
+    "kind": "hybrid",
+    "formula": "$$Q(s, a) = V(s) + A(s, a) - \\frac{1}{|\\mathcal{A}|}\\sum_{a'} A(s, a')$$",
+    "diagram": {
+      "nodes": [
+        {"id": "enc", "label": "Fixed MLPEncoder"},
+        {"id": "v", "label": "Value head: Linear -> 1"},
+        {"id": "a", "label": "Advantage head: Linear -> n_actions"},
+        {"id": "comb", "label": "Q = V + A − mean(A)"},
+        {"id": "loss", "label": "MSE TD loss"}
+      ],
+      "edges": [
+        {"from": "enc", "to": "v"},
+        {"from": "enc", "to": "a"},
+        {"from": "v", "to": "comb"},
+        {"from": "a", "to": "comb"},
+        {"from": "comb", "to": "loss"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "grad_clip", "value": "10.0", "role": "L2 grad-norm clip", "learnable": false},
+      {"name": "loss", "value": "MSE TD", "role": "Bellman regression", "learnable": false},
+      {"name": "gamma", "value": "args.gamma", "role": "discount", "learnable": false}
+    ],
+    "diff_from_baseline": "Wang, Schaul, Hessel, van Hasselt, Lanctot & de Freitas, ICML 2016 — Dueling Network Architectures for DRL. Decomposes Q into state-value and advantage streams while sharing features.",
+    "confidence": "high"
+  },
+  {
+    "model": "QR-DQN",
+    "name": "QR-DQN",
+    "tagline": "Distributional DQN that regresses N=50 fixed quantiles using the asymmetric quantile-Huber loss.",
+    "kind": "hybrid",
+    "formula": "$$\\mathcal{L} = \\frac{1}{N} \\sum_{i=1}^{N}\\!\\left[\\big|\\tau_i - \\mathbb{1}[u_{ij} < 0]\\big|\\,\\frac{\\mathcal{L}_\\kappa^H(u_{ij})}{\\kappa}\\right], \\quad u_{ij} = T q_j - q_i,\\; \\tau_i = (2i - 1)/(2N)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "enc", "label": "Fixed MLPEncoder"},
+        {"id": "head", "label": "Linear -> n_actions × N quantiles"},
+        {"id": "q", "label": "Q(s,a) = mean over quantiles"},
+        {"id": "td", "label": "Pairwise TD: target_q − pred_q"},
+        {"id": "loss", "label": "Quantile-Huber (κ=1)"}
+      ],
+      "edges": [
+        {"from": "enc", "to": "head"},
+        {"from": "head", "to": "q"},
+        {"from": "head", "to": "td"},
+        {"from": "td", "to": "loss"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "n_quantiles", "value": "50", "role": "number of fixed midpoints τ_i", "learnable": false},
+      {"name": "kappa", "value": "1.0", "role": "Huber transition", "learnable": false},
+      {"name": "gamma", "value": "args.gamma", "role": "discount", "learnable": false}
+    ],
+    "diff_from_baseline": "Dabney, Rowland, Bellemare & Munos, AAAI 2018 — Distributional RL with Quantile Regression (QR-DQN). Learns midpoint quantiles via asymmetric Huber loss; no need to specify v_min/v_max.",
+    "confidence": "high"
+  }
+]

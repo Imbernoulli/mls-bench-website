@@ -1,0 +1,44 @@
+[
+  {
+    "model": "DPS",
+    "name": "DPS",
+    "tagline": "Diffusion Posterior Sampling: gradient-of-likelihood guidance applied to the predicted clean signal at every reverse step.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Sample $x_T \\sim \\mathcal{N}(0, \\sigma_{\\max}^2 I)$\n// 2. For $i = 0, \\dots, T-1$:\n// 3.   $\\hat{x}_0 = D_\\theta(x_i / s_i, \\sigma_i)$\n// 4.   $g, \\ell = \\nabla_{\\hat{x}_0}\\,\\mathcal{L}(\\mathcal{A}(\\hat{x}_0), y)$\n// 5.   $g_x = \\partial \\hat{x}_0 / \\partial x_i \\cdot g \\;/\\; (2\\sqrt{\\ell})$\n// 6.   $x_{i+1} = s\\,x_i + f\\,\\text{score} + \\sqrt{f}\\,\\epsilon - \\zeta\\,g_x$\n// 7. Return $x_T$",
+    "key_hyperparams": [
+      {"name": "guidance_scale", "value": "50 / 1e-3 / 1.0", "role": "step-size on data-fidelity gradient (per-problem)", "learnable": false},
+      {"name": "num_steps", "value": "1000", "role": "VP reverse-diffusion steps", "learnable": false},
+      {"name": "sde", "value": "true", "role": "stochastic reverse process", "learnable": false}
+    ],
+    "diff_from_baseline": "Chung et al. 2023 (ICLR). Score-based posterior sampling that adds the gradient of the measurement log-likelihood at each reverse-diffusion step. Standard reference for differentiable forward operators.",
+    "confidence": "high"
+  },
+  {
+    "model": "LGD",
+    "name": "LGD (Loss-Guided Diffusion)",
+    "tagline": "Replaces DPS's deterministic gradient with a Monte-Carlo average over noisy samples around the denoised estimate.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. Sample $x_T \\sim \\mathcal{N}(0, \\sigma_{\\max}^2 I)$\n// 2. For $i = 0, \\dots, T-1$:\n// 3.   $\\hat{x}_0 = D_\\theta(x_i/s_i, \\sigma_i)$\n// 4.   Draw $K$ samples $z_k = \\hat{x}_0 + r_t\\,\\xi_k$, $\\xi_k\\sim\\mathcal{N}$\n// 5.   $\\bar{g} = \\tfrac{1}{K}\\sum_k \\nabla_{\\hat{x}_0}\\mathcal{L}(\\mathcal{A}(z_k), y)$\n// 6.   $g_x = \\partial \\hat{x}_0/\\partial x_i \\cdot \\bar{g}\\;/\\;(2\\sqrt{\\bar\\ell})$\n// 7.   $x_{i+1} = s\\,x_i + f\\,\\text{score} + \\sqrt{f}\\,\\epsilon - \\zeta\\,g_x$",
+    "key_hyperparams": [
+      {"name": "num_mc_samples", "value": "20 / 5 / 3", "role": "Monte-Carlo samples for gradient (per-problem)", "learnable": false},
+      {"name": "guidance_scale", "value": "3200 / 1.0", "role": "data-fidelity step size (per-problem)", "learnable": false},
+      {"name": "num_steps", "value": "1000", "role": "VP reverse-diffusion steps", "learnable": false}
+    ],
+    "diff_from_baseline": "Song et al. 2023 (NeurIPS). Loss-Guided Diffusion: Monte-Carlo expectation of the measurement gradient under the diffusion posterior, reducing variance versus DPS for non-differentiable or noisy losses.",
+    "confidence": "high"
+  },
+  {
+    "model": "REDDiff",
+    "name": "REDDiff",
+    "tagline": "Optimization-based reconstruction: Adam updates a clean-image variable with diffusion-denoised regularization plus a measurement-fidelity term.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. $\\mu \\leftarrow 0$, init Adam(lr)\n// 2. For $t = 0, \\dots, T-1$:\n// 3.   $\\sigma_t, s_t$ from VP schedule; sample $\\epsilon \\sim \\mathcal{N}$\n// 4.   $x_t = s_t(\\mu + \\sigma_t \\epsilon)$\n// 5.   $\\hat\\epsilon = (x_t - D_\\theta(x_t,\\sigma_t))/\\sigma_t$\n// 6.   $g_{\\text{meas}}, \\ell = \\nabla_\\mu\\,\\|\\mathcal{A}(\\mu) - y\\|^2$\n// 7.   $\\mu.\\text{grad} = w_{\\text{obs}}\\,g_{\\text{meas}} + \\lambda(\\sigma_t)(\\hat\\epsilon - \\epsilon)$\n// 8.   Adam.step()",
+    "key_hyperparams": [
+      {"name": "observation_weight", "value": "1500 / 1e-4 / -", "role": "weight on data-fidelity term (per-problem)", "learnable": false},
+      {"name": "base_lambda", "value": "5e-4 / 0.25", "role": "diffusion regularizer scale", "learnable": false},
+      {"name": "base_lr", "value": "0.04 / 1e-2", "role": "Adam learning rate on $\\mu$", "learnable": false}
+    ],
+    "diff_from_baseline": "Mardani et al. 2023 (NeurIPS). Regularization-by-Denoising with diffusion priors: optimizes a clean-image variable with Adam, using the diffusion score as a denoising regularizer rather than running a reverse SDE.",
+    "confidence": "high"
+  }
+]

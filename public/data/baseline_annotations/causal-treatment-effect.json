@@ -1,0 +1,84 @@
+[
+  {
+    "model": "Causal Forest",
+    "name": "Causal Forest (DML)",
+    "tagline": "Generalized random forest CATE estimator with double-machine-learning residualization (econml CausalForestDML).",
+    "kind": "pseudocode",
+    "pseudocode": "1. Cross-fit nuisance: $\\hat m(X)=E[Y|X]$ via GBR, $\\hat e(X)=E[T|X]$ via GBR\n2. Residualize: $\\tilde Y=Y-\\hat m(X)$, $\\tilde T=T-\\hat e(X)$\n3. Fit GeneralizedRandomForest on residuals with honest splitting (n_estimators=500, min_samples_leaf=5, cv=3)\n4. Predict: $\\hat\\tau(x) = \\text{forest.effect}(x)$\n5. Sklearn fallback: manual KFold residualization, R-Learner pseudo-outcome with weights $\\tilde T^2$, fit RandomForestRegressor",
+    "key_hyperparams": [
+      {"name": "n_estimators", "value": "500", "role": "forest size", "learnable": false},
+      {"name": "min_samples_leaf", "value": "5", "role": "leaf size for honest splits", "learnable": false},
+      {"name": "cv", "value": "3", "role": "cross-fitting folds", "learnable": false}
+    ],
+    "diff_from_baseline": "Athey, Tibshirani & Wager 2019, Annals of Statistics (originally Wager & Athey 2018, JASA). Combines DML (Chernozhukov et al. 2018) with honest random forests for heterogeneous CATE; default tree-based CATE benchmark.",
+    "confidence": "high"
+  },
+  {
+    "model": "DR-Learner",
+    "name": "DR-Learner",
+    "tagline": "Doubly-robust meta-learner: combines outcome and propensity models via cross-fit pseudo-outcomes, then regresses on X.",
+    "kind": "formula",
+    "formula": "$$\\varphi_i = \\hat\\mu_1(X_i) - \\hat\\mu_0(X_i) + \\frac{T_i(Y_i-\\hat\\mu_1(X_i))}{\\hat e(X_i)} - \\frac{(1-T_i)(Y_i-\\hat\\mu_0(X_i))}{1-\\hat e(X_i)},\\qquad \\hat\\tau = \\arg\\min_\\tau \\sum_i (\\varphi_i - \\tau(X_i))^2$$",
+    "key_hyperparams": [
+      {"name": "K-folds", "value": "5", "role": "cross-fitting nuisance estimation", "learnable": false},
+      {"name": "propensity clip", "value": "[0.05, 0.95]", "role": "stability of inverse weights", "learnable": false},
+      {"name": "pseudo clip", "value": "97th pct", "role": "trim heavy tails before final fit", "learnable": false}
+    ],
+    "diff_from_baseline": "Kennedy 2023 (EJS); Chernozhukov et al. 2018. Doubly-robust pseudo-outcome consistent if either nuisance model is correct. Standard CATE meta-learner; uses GradientBoosting for $\\mu_0,\\mu_1,e$ and the final $\\tau$ regression.",
+    "confidence": "high"
+  },
+  {
+    "model": "IPW",
+    "name": "IPW",
+    "tagline": "Horvitz-Thompson inverse-propensity reweighting, then regress weighted pseudo-outcome on X for CATE.",
+    "kind": "formula",
+    "formula": "$$Y^{IPW}_i = \\frac{T_i Y_i}{\\hat e(X_i)} - \\frac{(1-T_i)Y_i}{1-\\hat e(X_i)},\\quad \\hat e\\in[0.05,0.95];\\qquad \\hat\\tau = \\arg\\min_\\tau \\sum_i (Y^{IPW}_i - \\tau(X_i))^2$$",
+    "key_hyperparams": [
+      {"name": "propensity clip", "value": "[0.05, 0.95]", "role": "weight stability", "learnable": false},
+      {"name": "base learner", "value": "GBR (n_est=200, depth=4)", "role": "outcome regression on $Y^{IPW}$", "learnable": false}
+    ],
+    "diff_from_baseline": "Horvitz & Thompson 1952; Hirano, Imbens & Ridder 2003 (Econometrica). Reweights observations by inverse propensity to remove selection bias, then fits an outcome model. Classical baseline for ATE/CATE estimation.",
+    "confidence": "high"
+  },
+  {
+    "model": "R-Learner",
+    "name": "R-Learner",
+    "tagline": "Robinson-decomposition meta-learner: regress Y residual on T residual times tau(X) with weights $\\tilde T^2$.",
+    "kind": "formula",
+    "formula": "$$\\hat\\tau = \\arg\\min_\\tau \\sum_i \\big(Y_i-\\hat m(X_i)\\big) - \\big(T_i-\\hat e(X_i)\\big)\\,\\tau(X_i)\\big)^2,\\quad \\text{equivalently use pseudo } \\tilde Y_i/\\tilde T_i \\text{ with weight } \\tilde T_i^2$$",
+    "key_hyperparams": [
+      {"name": "K-folds", "value": "5", "role": "cross-fit $\\hat m, \\hat e$", "learnable": false},
+      {"name": "propensity clip", "value": "[0.05, 0.95]", "role": "denominator stability", "learnable": false},
+      {"name": "pseudo clip", "value": "95th pct", "role": "trim outliers", "learnable": false}
+    ],
+    "diff_from_baseline": "Nie & Wager 2021 (Biometrika). Uses Robinson (1988) residualization for orthogonal CATE estimation; quasi-oracle rate independent of nuisance estimation rate. Standard CATE baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "S-Learner",
+    "name": "S-Learner",
+    "tagline": "Single regression model with treatment as a feature; CATE = predict(X,T=1) - predict(X,T=0).",
+    "kind": "formula",
+    "formula": "$$\\hat\\mu(x,t) = \\text{GBR}([x; t]),\\qquad \\hat\\tau(x) = \\hat\\mu(x,1) - \\hat\\mu(x,0)$$",
+    "key_hyperparams": [
+      {"name": "n_estimators", "value": "200", "role": "GradientBoosting trees", "learnable": false},
+      {"name": "max_depth", "value": "4", "role": "tree depth", "learnable": false},
+      {"name": "learning_rate", "value": "0.1", "role": "shrinkage", "learnable": false}
+    ],
+    "diff_from_baseline": "Kunzel et al. 2019 (PNAS). Simplest meta-learner: a single outcome model trained on stacked (X,T). Default starting baseline; can underestimate CATE if treatment effect is small relative to feature signal.",
+    "confidence": "high"
+  },
+  {
+    "model": "T-Learner",
+    "name": "T-Learner",
+    "tagline": "Two separate outcome models, one per treatment arm; CATE = mu1(X) - mu0(X).",
+    "kind": "formula",
+    "formula": "$$\\hat\\mu_0 \\leftarrow \\text{GBR fit on } \\{(X_i,Y_i):T_i=0\\},\\quad \\hat\\mu_1 \\leftarrow \\text{GBR fit on } \\{(X_i,Y_i):T_i=1\\};\\qquad \\hat\\tau(x) = \\hat\\mu_1(x) - \\hat\\mu_0(x)$$",
+    "key_hyperparams": [
+      {"name": "n_estimators", "value": "200", "role": "GBR trees per arm", "learnable": false},
+      {"name": "max_depth", "value": "4", "role": "tree depth", "learnable": false}
+    ],
+    "diff_from_baseline": "Kunzel et al. 2019 (PNAS). Two-model baseline; works well when treatment groups are balanced but suffers under propensity overlap issues. Standard CATE meta-learner.",
+    "confidence": "high"
+  }
+]

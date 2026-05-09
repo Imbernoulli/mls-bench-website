@@ -1,0 +1,129 @@
+[
+  {
+    "model": "DLinear",
+    "name": "DLinear",
+    "tagline": "Decomposition + linear forecaster: split series into trend (moving average) and seasonal residual; predict each with its own per-channel linear projection.",
+    "kind": "hybrid",
+    "formula": "$$x^{tr}_t = \\frac{1}{k}\\sum_{i=t-k/2}^{t+k/2} x_i,\\;\\; x^{se}_t = x_t - x^{tr}_t,\\quad \\hat{y}_{1:H} = W_{tr}\\,x^{tr}_{1:L} + W_{se}\\,x^{se}_{1:L}$$",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "Input $x_{1:L}$"},
+        {"id": "trend", "label": "Moving Avg (trend)"},
+        {"id": "seas", "label": "Residual (seasonal)"},
+        {"id": "wt", "label": "Linear $W_{tr}$"},
+        {"id": "ws", "label": "Linear $W_{se}$"},
+        {"id": "out", "label": "Forecast $\\hat{y}_{1:H}$"}
+      ],
+      "edges": [
+        {"from": "in", "to": "trend"},
+        {"from": "in", "to": "seas"},
+        {"from": "trend", "to": "wt"},
+        {"from": "seas", "to": "ws"},
+        {"from": "wt", "to": "out"},
+        {"from": "ws", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "kernel size", "value": "25", "role": "moving-average window", "learnable": false},
+      {"name": "channel mode", "value": "channel-independent", "role": "per-channel linear weights", "learnable": false},
+      {"name": "input/horizon", "value": "96 / 96", "role": "look-back / prediction length", "learnable": false}
+    ],
+    "diff_from_baseline": "Zeng et al., 'Are Transformers Effective for Time Series Forecasting?' (AAAI 2023, DLinear). Strong decomposition-only linear baseline that exposed weaknesses of early Transformer forecasters; the standard simple-linear reference in TSLib.",
+    "confidence": "high"
+  },
+  {
+    "model": "PatchTST",
+    "name": "PatchTST",
+    "tagline": "Channel-independent Transformer over non-overlapping patches of each univariate series; RevIN normalization and shared encoder.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "Multivariate $X \\in \\mathbb{R}^{L\\times C}$"},
+        {"id": "rev", "label": "RevIN per channel"},
+        {"id": "patch", "label": "Patchify (size 16, stride 8)"},
+        {"id": "embed", "label": "Linear + Pos Embed"},
+        {"id": "enc", "label": "Transformer Encoder (shared)"},
+        {"id": "head", "label": "Flatten + Linear Head"},
+        {"id": "out", "label": "Forecast $\\hat{Y}$"}
+      ],
+      "edges": [
+        {"from": "in", "to": "rev"},
+        {"from": "rev", "to": "patch"},
+        {"from": "patch", "to": "embed"},
+        {"from": "embed", "to": "enc"},
+        {"from": "enc", "to": "head"},
+        {"from": "head", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "patch_len", "value": "16", "role": "tokenization window", "learnable": false},
+      {"name": "stride", "value": "8", "role": "patch overlap", "learnable": false},
+      {"name": "channel mode", "value": "independent", "role": "no cross-channel attention", "learnable": false},
+      {"name": "norm", "value": "RevIN", "role": "instance normalization", "learnable": false}
+    ],
+    "diff_from_baseline": "Nie et al., 'A Time Series is Worth 64 Words: Long-term Forecasting with Transformers' (ICLR 2023, PatchTST). Patch tokenization + channel-independent Transformer with RevIN; strong long-horizon forecasting baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "TimeXer",
+    "name": "TimeXer",
+    "tagline": "Endogenous patches with exogenous variate tokens: patch-attention over the target series plus cross-attention to per-channel exogenous embeddings.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "endo", "label": "Endogenous $x^{tgt}$"},
+        {"id": "exo", "label": "Exogenous variates"},
+        {"id": "epatch", "label": "Patchify endogenous"},
+        {"id": "vtok", "label": "Variate tokens (per channel)"},
+        {"id": "self", "label": "Self-Attn (patches + global)"},
+        {"id": "cross", "label": "Cross-Attn (patches $\\leftarrow$ variates)"},
+        {"id": "head", "label": "Forecast Head"}
+      ],
+      "edges": [
+        {"from": "endo", "to": "epatch"},
+        {"from": "exo", "to": "vtok"},
+        {"from": "epatch", "to": "self"},
+        {"from": "self", "to": "cross"},
+        {"from": "vtok", "to": "cross"},
+        {"from": "cross", "to": "head"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "patch_len", "value": "16", "role": "endogenous patch width", "learnable": false},
+      {"name": "exo tokens", "value": "1 per variate", "role": "channel-as-token", "learnable": false},
+      {"name": "fusion", "value": "cross-attention", "role": "endogenous $\\leftarrow$ exogenous", "learnable": false}
+    ],
+    "diff_from_baseline": "Wang et al., 'TimeXer: Empowering Transformers for Time Series Forecasting with Exogenous Variables' (NeurIPS 2024). Hybrid endogenous-patch + exogenous-variate Transformer designed exactly for the multivariate-input/target-output setup of this task.",
+    "confidence": "high"
+  },
+  {
+    "model": "iTransformer",
+    "name": "iTransformer",
+    "tagline": "Inverted Transformer: each variate's full time series becomes one token; self-attention runs across variates and FFN runs along time inside tokens.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "$X \\in \\mathbb{R}^{L\\times C}$"},
+        {"id": "embed", "label": "Variate Token Embed: $\\mathbb{R}^L\\to\\mathbb{R}^{d}$"},
+        {"id": "vattn", "label": "Self-Attn across variates"},
+        {"id": "ffn", "label": "FFN per variate token"},
+        {"id": "proj", "label": "Linear $\\to$ horizon $H$"},
+        {"id": "out", "label": "Forecast $\\hat{Y}\\in\\mathbb{R}^{H\\times C}$"}
+      ],
+      "edges": [
+        {"from": "in", "to": "embed"},
+        {"from": "embed", "to": "vattn"},
+        {"from": "vattn", "to": "ffn"},
+        {"from": "ffn", "to": "proj"},
+        {"from": "proj", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "token granularity", "value": "1 token / variate", "role": "inverted dimension", "learnable": false},
+      {"name": "attention axis", "value": "across variates", "role": "models cross-channel correlations", "learnable": false},
+      {"name": "input/horizon", "value": "96 / 96", "role": "look-back / prediction length", "learnable": false}
+    ],
+    "diff_from_baseline": "Liu et al., 'iTransformer: Inverted Transformers Are Effective for Time Series Forecasting' (ICLR 2024). Swaps the role of time and variate dimensions so attention models cross-variate dependencies — strong reference for multivariate forecasting.",
+    "confidence": "high"
+  }
+]

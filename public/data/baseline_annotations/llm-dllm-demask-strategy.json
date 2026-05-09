@@ -1,0 +1,81 @@
+[
+  {
+    "model": "Confidence Greedy",
+    "name": "Confidence Greedy (low_confidence remask)",
+    "tagline": "Each step, unmask the top-k positions by max-probability confidence using LLaDA's uniform num_transfer_tokens schedule; greedy argmax tokens.",
+    "kind": "pseudocode",
+    "pseudocode": "1. For each block $b$, compute per-step quota $k_t = \\mathrm{num\\_transfer\\_tokens}(M_b, S)$\n2. logits $= \\mathrm{model}(x)$;  $p = \\mathrm{softmax}(\\mathrm{logits})$;  $x_0 = \\arg\\max_v p$\n3. confidence $c_i = p_{i, x_{0,i}}$ over masked positions only\n4. Pick top-$k_t$ positions by $c_i$; commit $x_{0,i}$ at those positions\n5. Repeat until block fully unmasked",
+    "key_hyperparams": [
+      {"name": "temperature", "value": "0", "role": "argmax token decoding", "learnable": false},
+      {"name": "schedule", "value": "uniform num_transfer_tokens", "role": "fixed positions/step", "learnable": false}
+    ],
+    "diff_from_baseline": "LLaDA default 'low_confidence' remasking (Nie et al., LLaDA, arXiv:2502.09992). Standard confidence-greedy reference for masked diffusion LMs.",
+    "confidence": "high"
+  },
+  {
+    "model": "KLASS",
+    "name": "KLASS (KL-stable confidence)",
+    "tagline": "Unmask positions whose top-1 distribution is both stable across the recent KL history and confident; falls back to top-k confidence otherwise.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Track running KL between current and previous step distributions per position\n2. logits $= \\mathrm{model}(x)$;  $p = \\mathrm{softmax}$;  $x_0 = \\arg\\max p$;  conf $= p_{x_0}$\n3. $\\mathrm{stable}_i = \\mathbb{1}[\\max\\text{ of last }H\\text{ KLs} < \\tau_{KL}]$\n4. ready $=$ stable $\\wedge$ (conf $> \\tau_c$) $\\wedge$ masked\n5. If any ready: commit those; else fall back to top-$k_t$ by confidence\n6. Update KL history; commit greedy tokens at chosen positions",
+    "key_hyperparams": [
+      {"name": "$\\tau_c$ (conf_threshold)", "value": "0.9", "role": "confidence gate", "learnable": false},
+      {"name": "$\\tau_{KL}$ (kl_threshold)", "value": "0.01", "role": "stability gate on KL", "learnable": false},
+      {"name": "$H$ (history_length)", "value": "2", "role": "KL window for stability", "learnable": false}
+    ],
+    "diff_from_baseline": "Kim et al., NeurIPS 2025 (KLASS, arXiv:2511.05664). State-of-the-art demask strategy combining KL-based stability with confidence to early-commit positions.",
+    "confidence": "high"
+  },
+  {
+    "model": "Top-K Margin",
+    "name": "Top-K Margin (Dream)",
+    "tagline": "Unmask the top-k positions by the margin between top-1 and top-2 token probabilities; no KL stability check.",
+    "kind": "pseudocode",
+    "pseudocode": "1. For each block, compute per-step quota $k_t$\n2. logits $= \\mathrm{model}(x)$;  $p = \\mathrm{softmax}$;  $x_0 = \\arg\\max p$\n3. Sort $p$ descending: margin $m_i = p_{(1),i} - p_{(2),i}$\n4. Restrict to masked positions; pick top-$k_t$ positions by $m_i$\n5. Commit greedy tokens $x_0$ at those positions",
+    "key_hyperparams": [
+      {"name": "scoring", "value": "$p_{(1)} - p_{(2)}$", "role": "position selection criterion", "learnable": false},
+      {"name": "schedule", "value": "uniform num_transfer_tokens", "role": "positions per step", "learnable": false}
+    ],
+    "diff_from_baseline": "Ye et al., 'Dream 7B: Diffusion Large Language Models' (arXiv:2508.15487). The 'topk_margin' algorithm from Dream's decoding suite; corresponds to the 'prophet' heuristic (margin) without KLASS's stability term.",
+    "confidence": "high"
+  },
+  {
+    "model": "klass_kl",
+    "name": "KLASS (cmd alias)",
+    "tagline": "Same KL-stable + confidence demasking as the KLASS edit baseline, run as a cmd-style entry alias.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Maintain KL history of length $H$ between consecutive per-position distributions\n2. Each step: stable $= \\max_H \\mathrm{KL} < \\tau_{KL}$; ready = stable $\\wedge$ conf $> \\tau_c$\n3. If ready set non-empty, commit those positions only\n4. Otherwise commit top-$k_t$ positions ranked by confidence\n5. Greedy tokens at chosen positions; update KL history",
+    "key_hyperparams": [
+      {"name": "$\\tau_c$", "value": "0.9", "role": "confidence gate", "learnable": false},
+      {"name": "$\\tau_{KL}$", "value": "0.01", "role": "stability gate", "learnable": false},
+      {"name": "$H$", "value": "2", "role": "KL history length", "learnable": false}
+    ],
+    "diff_from_baseline": "Kim et al., NeurIPS 2025 (arXiv:2511.05664). Reference KLASS strategy (cmd-style alias for the same algorithm as the 'KLASS' edit baseline).",
+    "confidence": "high"
+  },
+  {
+    "model": "prophet",
+    "name": "Prophet (top-k margin)",
+    "tagline": "Top-k margin position selection — the 'prophet' / Dream-style heuristic that picks positions by top1 minus top2 probability.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Compute logits $\\to p = \\mathrm{softmax}$ at every step\n2. margin $m_i = p_{(1),i} - p_{(2),i}$ over masked positions\n3. Pick top-$k_t$ positions by margin\n4. Commit greedy argmax tokens there",
+    "key_hyperparams": [
+      {"name": "scoring", "value": "$p_{(1)} - p_{(2)}$", "role": "position selection criterion", "learnable": false}
+    ],
+    "diff_from_baseline": "Dream 7B (Ye et al., arXiv:2508.15487), 'topk_margin' option. Often called 'prophet' in masked-diffusion literature for its lookahead-style margin scoring.",
+    "confidence": "high"
+  },
+  {
+    "model": "random",
+    "name": "Random demask",
+    "tagline": "Uniform random position selection with a linear quota schedule and argmax token assignment — the template default.",
+    "kind": "pseudocode",
+    "pseudocode": "1. For each step compute remaining masked $n$ and required new picks $k = \\lceil n / (S - t) \\rceil$\n2. Sample $k$ masked positions uniformly at random\n3. Commit $\\arg\\max p$ tokens at those positions\n4. Continue until all positions are unmasked",
+    "key_hyperparams": [
+      {"name": "schedule", "value": "linear remaining/steps", "role": "positions per step", "learnable": false},
+      {"name": "temperature", "value": "argmax (0)", "role": "token decoding", "learnable": false}
+    ],
+    "diff_from_baseline": "Trivial random-position baseline shipped as the LLaDA template default. Lower-bound reference with no informed scoring.",
+    "confidence": "high"
+  }
+]

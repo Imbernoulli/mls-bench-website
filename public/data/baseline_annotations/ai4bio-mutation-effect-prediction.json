@@ -1,0 +1,73 @@
+[
+  {
+    "model": "MLP",
+    "name": "MLP probe",
+    "tagline": "Single-hidden-layer ReLU MLP head over the delta embedding (mutant - wildtype).",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "delta", "label": "$\\Delta e$ (1280)"},
+        {"id": "fc1", "label": "Linear 1280$\\to$512"},
+        {"id": "drop", "label": "Dropout 0.1"},
+        {"id": "relu", "label": "ReLU"},
+        {"id": "fc2", "label": "Linear 512$\\to$1"},
+        {"id": "y", "label": "$\\hat y$"}
+      ],
+      "edges": [
+        {"from": "delta", "to": "fc1"},
+        {"from": "fc1", "to": "drop"},
+        {"from": "drop", "to": "relu"},
+        {"from": "relu", "to": "fc2"},
+        {"from": "fc2", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_dim", "value": "512", "role": "MLP width", "learnable": false},
+      {"name": "dropout", "value": "0.1", "role": "regularization", "learnable": false}
+    ],
+    "diff_from_baseline": "Standard supervised PLM-probing baseline (TAPE; ProteinNPT/ProteinGym). Maps the mutation-induced ESM-2 embedding shift to fitness via one nonlinear hidden layer.",
+    "confidence": "high"
+  },
+  {
+    "model": "Reshape CNN",
+    "name": "Reshape CNN probe",
+    "tagline": "Reshapes the concatenated [embed, delta] (2560) into a 64x40 'image' and applies residual 1D convs over embedding channels.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "concat", "label": "[$e$, $\\Delta e$] (2560)"},
+        {"id": "proj", "label": "Linear $\\to$ 64$\\times$40"},
+        {"id": "conv", "label": "3x ResConv1D (k=3,5,7) + GELU"},
+        {"id": "pool", "label": "Global avg pool"},
+        {"id": "head", "label": "MLP head $\\to$ 1"},
+        {"id": "y", "label": "$\\hat y$"}
+      ],
+      "edges": [
+        {"from": "concat", "to": "proj"},
+        {"from": "proj", "to": "conv"},
+        {"from": "conv", "to": "pool"},
+        {"from": "pool", "to": "head"},
+        {"from": "head", "to": "y"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "channels", "value": "64", "role": "conv channel dim after reshape", "learnable": false},
+      {"name": "kernels", "value": "{3,5,7}", "role": "stacked conv block sizes", "learnable": false}
+    ],
+    "diff_from_baseline": "Convolutional probe in the classic CNN/MLP/linear baseline triplet. Note: convs run over reshaped embedding dims (no per-residue features available), enforcing weight sharing across channel blocks rather than over a real sequence axis.",
+    "confidence": "high"
+  },
+  {
+    "model": "Ridge Regression",
+    "name": "Ridge head",
+    "tagline": "Single nn.Linear over the delta embedding, trained end-to-end with AdamW weight_decay=5e-2 (L2 = ridge).",
+    "kind": "formula",
+    "formula": "$$\\hat y = w^{\\top}\\,\\Delta e + b,\\quad \\mathcal L = \\tfrac{1}{N}\\sum_i (y_i-\\hat y_i)^2 + \\lambda\\|w\\|_2^2,\\;\\lambda=5\\!\\times\\!10^{-2}$$",
+    "key_hyperparams": [
+      {"name": "weight_decay", "value": "5e-2", "role": "L2 / ridge regularization", "learnable": false},
+      {"name": "input", "value": "delta_embedding", "role": "feature = mutant - WT ESM-2 embedding", "learnable": false}
+    ],
+    "diff_from_baseline": "ProteinNPT/ProteinGym 'Embeddings' supervised linear baseline. Linear probe of frozen PLM features under ridge regularization; standard reference for nonlinear protein-fitness heads.",
+    "confidence": "high"
+  }
+]

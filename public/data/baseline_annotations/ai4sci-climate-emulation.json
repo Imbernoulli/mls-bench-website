@@ -1,0 +1,145 @@
+[
+  {
+    "model": "CNN",
+    "name": "1D CNN (residual blocks)",
+    "tagline": "1D convolutional network with residual blocks operating over 60 vertical levels of atmospheric profiles.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "x  (B, 556)"},
+        {"id": "split", "label": "split: profile (9x60) | scalar (16-17)"},
+        {"id": "cat", "label": "Conv1d in: 10 ch x 60"},
+        {"id": "stem", "label": "Conv1d 10->128, ReLU"},
+        {"id": "blocks", "label": "8x Residual{BN,Conv,ReLU,Drop,Conv}"},
+        {"id": "ml", "label": "Conv1x1 -> 6x60 multi-level"},
+        {"id": "sl", "label": "AvgPool+MLP -> 8 single-level"},
+        {"id": "out", "label": "concat -> y (B, 368)"}
+      ],
+      "edges": [
+        {"from": "in", "to": "split"},
+        {"from": "split", "to": "cat"},
+        {"from": "cat", "to": "stem"},
+        {"from": "stem", "to": "blocks"},
+        {"from": "blocks", "to": "ml"},
+        {"from": "blocks", "to": "sl"},
+        {"from": "ml", "to": "out"},
+        {"from": "sl", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden_channels", "value": "128", "role": "Conv1d width", "learnable": false},
+      {"name": "n_blocks", "value": "8", "role": "residual depth", "learnable": false},
+      {"name": "kernel_size", "value": "3", "role": "1D conv receptive field", "learnable": false},
+      {"name": "dropout", "value": "0.1", "role": "intra-block regularization", "learnable": false}
+    ],
+    "diff_from_baseline": "Yu et al. 2023 (NeurIPS D&B). Treats vertical profiles as a 60-step sequence and uses ResNet-style 1D conv blocks plus a scalar projection branch. Conventional CNN baseline in the ClimSim emulator suite.",
+    "confidence": "high"
+  },
+  {
+    "model": "Encoder-Decoder",
+    "name": "Encoder-Decoder (5-node bottleneck)",
+    "tagline": "Wide six-layer fully-connected encoder compressing the 556-dim state to a 5-node latent, then a symmetric decoder.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "x (B, 556)"},
+        {"id": "enc", "label": "Encoder: 768->512->384->256->128"},
+        {"id": "lat", "label": "Linear -> latent (5)"},
+        {"id": "dec", "label": "Decoder: 128->256->384->512->768"},
+        {"id": "out", "label": "Linear -> y (B, 368)"}
+      ],
+      "edges": [
+        {"from": "in", "to": "enc"},
+        {"from": "enc", "to": "lat"},
+        {"from": "lat", "to": "dec"},
+        {"from": "dec", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "latent_dim", "value": "5", "role": "bottleneck width", "learnable": false},
+      {"name": "enc_dims", "value": "[768,512,384,256,128]", "role": "encoder ladder widths", "learnable": false},
+      {"name": "block", "value": "Linear+LayerNorm+ELU+Dropout", "role": "per-rung block", "learnable": false},
+      {"name": "dropout", "value": "0.1", "role": "regularization", "learnable": false}
+    ],
+    "diff_from_baseline": "Yu et al. 2023 (NeurIPS D&B). Paper-faithful ED baseline: very wide MLP funnels the atmospheric column to a tiny latent code and reconstructs the tendency vector.",
+    "confidence": "high"
+  },
+  {
+    "model": "HSR",
+    "name": "Heteroskedastic Regression (HSR)",
+    "tagline": "Shared MLP backbone with twin heads for mean and log-variance, trained with Gaussian negative-log-likelihood.",
+    "kind": "hybrid",
+    "formula": "$$\\mathcal{L}_{\\text{NLL}}(x,y) = \\tfrac{1}{2}\\big(\\log\\sigma^2(x) + \\frac{(y-\\mu(x))^2}{\\sigma^2(x)}\\big)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "x (B, 556)"},
+        {"id": "bb", "label": "5x{Linear+LN+Drop+ReLU}, hidden=768"},
+        {"id": "mu", "label": "head_mean -> mu"},
+        {"id": "lv", "label": "head_logvar -> log var (clamped [-10,10])"},
+        {"id": "out", "label": "predict mu (NLL trains both)"}
+      ],
+      "edges": [
+        {"from": "in", "to": "bb"},
+        {"from": "bb", "to": "mu"},
+        {"from": "bb", "to": "lv"},
+        {"from": "mu", "to": "out"},
+        {"from": "lv", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "hidden", "value": "768", "role": "MLP width", "learnable": false},
+      {"name": "n_layers", "value": "5", "role": "shared backbone depth", "learnable": false},
+      {"name": "logvar_clamp", "value": "[-10, 10]", "role": "numerical stability", "learnable": false}
+    ],
+    "diff_from_baseline": "Nix & Weigend 1994; ClimSim HSR baseline (Yu et al. 2023). Single backbone + twin (mean, log-variance) heads trained with Gaussian NLL, predicting only the mean at inference.",
+    "confidence": "high"
+  },
+  {
+    "model": "U-Net",
+    "name": "1D U-Net (with attention)",
+    "tagline": "1D U-Net over vertical profiles with residual blocks, downsampling, self-attention bottleneck, and skip connections.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "reshape -> [B, 25, 60] -> pad to 64"},
+        {"id": "e1", "label": "Conv stem + 3x ResBlock1d (128ch)"},
+        {"id": "e2", "label": "Down 2x + 3x ResBlock1d (256ch)"},
+        {"id": "mid", "label": "Down + ResBlock + Self-Attn + ResBlock"},
+        {"id": "d2", "label": "Up 2x + concat skip + 3x ResBlock"},
+        {"id": "d1", "label": "Up 2x + concat skip + 3x ResBlock"},
+        {"id": "out", "label": "GroupNorm + Conv -> profile/scalar split"}
+      ],
+      "edges": [
+        {"from": "in", "to": "e1"},
+        {"from": "e1", "to": "e2"},
+        {"from": "e2", "to": "mid"},
+        {"from": "mid", "to": "d2"},
+        {"from": "e2", "to": "d2"},
+        {"from": "d2", "to": "d1"},
+        {"from": "e1", "to": "d1"},
+        {"from": "d1", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "base_channels", "value": "128", "role": "encoder/decoder width", "learnable": false},
+      {"name": "depth_levels", "value": "3", "role": "encoder/decoder resolutions", "learnable": false},
+      {"name": "attn_heads", "value": "4", "role": "bottleneck self-attention heads", "learnable": false},
+      {"name": "norm", "value": "GroupNorm + SiLU", "role": "normalization/activation", "learnable": false}
+    ],
+    "diff_from_baseline": "Hu, Subramaniam, Kuang et al. 2024 (arXiv:2407.00124). ClimsimUnet (Unet_v4) adapted to 1D vertical profiles with attention at the bottleneck and skip connections.",
+    "confidence": "high"
+  },
+  {
+    "model": "mlp",
+    "name": "MLP",
+    "tagline": "Plain feed-forward multilayer perceptron predicting tendencies and diagnostics from the flat input vector.",
+    "kind": "formula",
+    "formula": "$$\\hat{y} = W_L\\,\\sigma(\\dots\\sigma(W_1 x + b_1)\\dots) + b_L$$",
+    "key_hyperparams": [
+      {"name": "activation", "value": "ReLU/GELU", "role": "nonlinearity", "learnable": false},
+      {"name": "hidden_width", "value": "package default", "role": "FC layer width", "learnable": false}
+    ],
+    "diff_from_baseline": "ClimSim MLP baseline (Yu et al., NeurIPS 2023 D&B). Standard feed-forward network as the simplest deep emulator and the reference comparison the task description calls out for structured architectures to beat.",
+    "confidence": "medium"
+  }
+]

@@ -1,0 +1,67 @@
+[
+  {
+    "model": "absgrad",
+    "name": "AbsGS",
+    "tagline": "Replaces signed-mean gradient densification with the absolute (per-pixel) image-space gradient magnitude.",
+    "kind": "formula",
+    "formula": "$$\\bar g_i \\;=\\; \\frac{1}{C_i}\\sum_{v}\\bigl\\|\\,|\\nabla_{\\mu^{2D}_i} L_v|\\,\\bigr\\|_2,\\quad \\text{split/clone if } \\bar g_i > \\tau_g$$",
+    "key_hyperparams": [
+      {"name": "grow_grad2d", "value": "0.0006", "role": "image-space |grad| threshold for densify", "learnable": false},
+      {"name": "prune_opa", "value": "0.005", "role": "opacity prune cutoff", "learnable": false},
+      {"name": "refine_every", "value": "100", "role": "refinement period (steps)", "learnable": false}
+    ],
+    "diff_from_baseline": "Ye et al. 2024, AbsGS (arXiv:2404.10484). Uses |grad| (no sign cancellation across views) so under-reconstructed regions accumulate signal; otherwise the standard 3DGS clone/split/prune loop on Mip-NeRF 360.",
+    "confidence": "high"
+  },
+  {
+    "model": "AbsGS + Taming-3DGS + New Split",
+    "name": "Taming + AbsGS + RevSplit",
+    "tagline": "Stacks AbsGS, Taming-3DGS max-grad blending, and the Revised-Densification split-opacity rule on the same densifier.",
+    "kind": "hybrid",
+    "formula": "$$g_i = 0.7\\,\\bar g_i + 0.3\\,\\max_v g_{i,v},\\qquad \\alpha_{\\text{child}} = 1-\\sqrt{1-\\alpha_{\\text{parent}}}$$",
+    "diagram": {
+      "nodes": [
+        {"id": "abs", "label": "AbsGS |grad|"},
+        {"id": "blend", "label": "0.7 mean + 0.3 max"},
+        {"id": "thr", "label": "threshold $\\tau_g$"},
+        {"id": "clone", "label": "clone (small)"},
+        {"id": "split", "label": "split (large)"},
+        {"id": "rev", "label": "rev. opacity $1-\\sqrt{1-\\alpha}$"},
+        {"id": "prune", "label": "opacity / scale prune"}
+      ],
+      "edges": [
+        {"from": "abs", "to": "blend"},
+        {"from": "blend", "to": "thr"},
+        {"from": "thr", "to": "clone"},
+        {"from": "thr", "to": "split"},
+        {"from": "split", "to": "rev"},
+        {"from": "rev", "to": "prune"},
+        {"from": "clone", "to": "prune"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "avg_weight", "value": "0.7", "role": "Taming mean-grad mix", "learnable": false},
+      {"name": "max_weight", "value": "0.3", "role": "Taming per-view max-grad mix", "learnable": false},
+      {"name": "refine_stop_iter", "value": "18000", "role": "max-grad keeps splitting useful longer", "learnable": false},
+      {"name": "revised_opacity", "value": "True", "role": "Rota Bulo et al. 2024 split rule", "learnable": false}
+    ],
+    "diff_from_baseline": "AbsGS (Ye et al. 2024) + Taming-3DGS (Mallick et al. 2024, arXiv:2406.15643) + Revised Densification (Rota Bulo et al., ECCV 2024). Mean+max grad catches view-specific spikes; revised split keeps cumulative alpha invariant.",
+    "confidence": "high"
+  },
+  {
+    "model": "EDC-TamingGS-Abs",
+    "name": "EDC + Taming + AbsGS",
+    "tagline": "On top of Taming+AbsGS, adds EDC long-axis deterministic split and recovery-aware pruning after each opacity reset.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Accumulate AbsGS gradients; track mean and per-view max ($g = 0.7\\,\\bar g + 0.3\\,g_{\\max}$).\n2. Every refine_every steps, mark Gaussians with $g > \\tau_g$.\n3. If small: clone. If large: long-axis split — children at $\\mu \\pm 0.5\\,s_{\\max}\\hat e_{\\max}$, longest scale $/{1.6}$, $\\alpha_{\\text{child}}{=}0.6\\,\\sigma(\\alpha_{\\text{par}})$.\n4. Prune Gaussians with $\\sigma(\\alpha)<\\tau_o$ (or oversize after first reset).\n5. At step $k\\!\\cdot\\!T_{\\text{reset}}+300$ (recovery-aware): also prune any with $\\sigma(\\alpha)<0.05$ — overfit ones never recover.\n6. Reset opacity every $T_{\\text{reset}}=3000$.\n7. Stop densification at iter 22k.",
+    "key_hyperparams": [
+      {"name": "long_axis_offset", "value": "0.5", "role": "child placement along longest axis", "learnable": false},
+      {"name": "long_axis_scale_div", "value": "1.6", "role": "longest-axis scale divisor", "learnable": false},
+      {"name": "long_axis_opa_factor", "value": "0.6", "role": "child opacity factor (EDC rule)", "learnable": false},
+      {"name": "recovery_offset", "value": "300", "role": "iters after reset for early prune", "learnable": false},
+      {"name": "recovery_opa", "value": "0.05", "role": "early-prune opacity cutoff", "learnable": false}
+    ],
+    "diff_from_baseline": "Deng et al., EDC (arXiv:2411.10133), stacked on the local Taming-3DGS-Abs base. Replaces stochastic covariance-sampled split with deterministic long-axis split and adds opacity-reset-aware early pruning.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,103 @@
+[
+  {
+    "model": "DLinear",
+    "name": "DLinear",
+    "tagline": "Decomposition-Linear: split each channel into trend (moving average) and seasonal residual, then forecast each with an independent Linear layer; sum the outputs.",
+    "kind": "hybrid",
+    "formula": "$$\\bar{x} = \\mathrm{AvgPool}_{k}(x),\\;\\; s = x - \\bar{x};\\quad \\hat{y} = W_T\\bar{x}^\\top + W_S s^\\top,\\;\\; W_T, W_S \\in \\mathbb{R}^{L\\times L}$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Window x in R^{L x C}"},
+        {"id": "avg", "label": "Moving-avg trend"},
+        {"id": "res", "label": "Seasonal residual"},
+        {"id": "lt", "label": "Linear (trend) per channel"},
+        {"id": "ls", "label": "Linear (seasonal) per channel"},
+        {"id": "sum", "label": "Sum -> reconstruction"}
+      ],
+      "edges": [
+        {"from": "x", "to": "avg"},
+        {"from": "x", "to": "res"},
+        {"from": "avg", "to": "lt"},
+        {"from": "res", "to": "ls"},
+        {"from": "lt", "to": "sum"},
+        {"from": "ls", "to": "sum"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "seq_len", "value": "100", "role": "input window", "learnable": false},
+      {"name": "kernel_size", "value": "25 (moving avg)", "role": "trend smoothing", "learnable": false},
+      {"name": "channel-independent", "value": "True", "role": "no cross-channel mixing", "learnable": false},
+      {"name": "epochs", "value": "PSM/SMAP=3, MSL=10", "role": "TSLib defaults", "learnable": false}
+    ],
+    "diff_from_baseline": "Zeng et al., \"Are Transformers Effective for Time Series Forecasting?\" (AAAI 2023). The decomposition-linear baseline (DLinear) adapted for anomaly detection in TSLib: trend+seasonal decomposition then a single Linear per channel; reconstruction error scores anomalies.",
+    "confidence": "high"
+  },
+  {
+    "model": "PatchTST",
+    "name": "PatchTST",
+    "tagline": "Channel-independent Transformer that splits each series into overlapping patches as tokens and encodes them with a vanilla multi-head attention encoder.",
+    "kind": "hybrid",
+    "formula": "$$\\text{Patches}: x \\to P\\in\\mathbb{R}^{N\\times d_p};\\;\\; z = \\mathrm{Encoder}_{L}\\big(\\mathrm{Embed}(P) + \\text{PE}\\big);\\;\\; \\hat{y} = W_o\\,\\mathrm{Flatten}(z)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Series per channel (L=100)"},
+        {"id": "patch", "label": "Patchify (length P, stride S)"},
+        {"id": "embed", "label": "Linear embed -> d_model=128"},
+        {"id": "enc", "label": "Transformer Enc x3 (h=8)"},
+        {"id": "head", "label": "Flatten + Linear head"},
+        {"id": "rec", "label": "Reconstruction"}
+      ],
+      "edges": [
+        {"from": "x", "to": "patch"},
+        {"from": "patch", "to": "embed"},
+        {"from": "embed", "to": "enc"},
+        {"from": "enc", "to": "head"},
+        {"from": "head", "to": "rec"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "d_model", "value": "128", "role": "token hidden", "learnable": false},
+      {"name": "d_ff", "value": "256", "role": "FFN width", "learnable": false},
+      {"name": "e_layers", "value": "3", "role": "encoder depth", "learnable": false},
+      {"name": "n_heads", "value": "8", "role": "attention heads", "learnable": false},
+      {"name": "dropout", "value": "0.1", "role": "regularization", "learnable": false},
+      {"name": "lr", "value": "1e-4", "role": "Adam learning rate", "learnable": false}
+    ],
+    "diff_from_baseline": "Nie et al., \"A Time Series is Worth 64 Words: Long-term Forecasting with Transformers\" (ICLR 2023). PatchTST = patching + channel-independence + vanilla Transformer encoder; reused here for reconstruction-based anomaly detection in TSLib.",
+    "confidence": "high"
+  },
+  {
+    "model": "TimesNet",
+    "name": "TimesNet",
+    "tagline": "TimesBlock: FFT-derived top-k periods reshape 1D series into 2D (period x freq) tensors; Inception-style 2D convs model intra/inter-period dependencies.",
+    "kind": "hybrid",
+    "formula": "$$\\{p_k\\}_{k=1}^{K} = \\mathrm{TopK}\\big(|\\mathrm{FFT}(x)|\\big);\\;\\; X^{(2D)}_k = \\mathrm{reshape}_{p_k\\times \\lceil L/p_k\\rceil}(x);\\;\\; z = \\sum_k \\alpha_k\\,\\mathrm{Inception2D}(X^{(2D)}_k)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "Series x in R^L"},
+        {"id": "fft", "label": "FFT amplitude top-K"},
+        {"id": "shape", "label": "Reshape to 2D per period"},
+        {"id": "incp", "label": "Inception 2D conv blocks"},
+        {"id": "agg", "label": "Period-weighted sum"},
+        {"id": "rec", "label": "Reconstruction"}
+      ],
+      "edges": [
+        {"from": "x", "to": "fft"},
+        {"from": "x", "to": "shape"},
+        {"from": "fft", "to": "shape"},
+        {"from": "shape", "to": "incp"},
+        {"from": "incp", "to": "agg"},
+        {"from": "agg", "to": "rec"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "top_k", "value": "3", "role": "dominant periods kept per block", "learnable": false},
+      {"name": "d_model", "value": "PSM=64 / MSL=8 / SMAP=128", "role": "token hidden (per-dataset TSLib defaults)", "learnable": false},
+      {"name": "d_ff", "value": "PSM=64 / MSL=16 / SMAP=128", "role": "FFN width", "learnable": false},
+      {"name": "e_layers", "value": "PSM=2 / MSL=1 / SMAP=3", "role": "TimesBlocks", "learnable": false},
+      {"name": "epochs", "value": "PSM=3 / MSL=1 / SMAP=3", "role": "TSLib defaults", "learnable": false}
+    ],
+    "diff_from_baseline": "Wu et al., \"TimesNet: Temporal 2D-Variation Modeling for General Time Series Analysis\" (ICLR 2023). Uses FFT-discovered periods to reshape 1D series into 2D tensors and applies Inception convolutions, generalizing across forecasting / classification / anomaly detection. TSLib reference baseline.",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,40 @@
+[
+  {
+    "model": "Dr. GRPO",
+    "name": "Dr. GRPO",
+    "tagline": "GRPO without standard-deviation normalization: subtract only the per-prompt group mean reward.",
+    "kind": "formula",
+    "formula": "$$s_i = \\sum_t r_{i,t}, \\quad \\bar{s}_g = \\frac{1}{|g|} \\sum_{j \\in g} s_j \\\\ A_i = (s_i - \\bar{s}_g) \\cdot M_i \\quad \\text{(broadcast to all response tokens)}$$",
+    "key_hyperparams": [
+      {"name": "normalize", "value": "mean only", "role": "no division by std", "learnable": false}
+    ],
+    "diff_from_baseline": "Liu et al. 2025 — \"Understanding R1-Zero-Like Training: A Critical Perspective\". Drops the std-normalization step from GRPO to remove length/variance bias; outcome-level group baseline only.",
+    "confidence": "high"
+  },
+  {
+    "model": "GRPO",
+    "name": "GRPO",
+    "tagline": "Group Relative Policy Optimization: per-prompt group mean and std normalization of outcome rewards.",
+    "kind": "formula",
+    "formula": "$$s_i = \\sum_t r_{i,t}, \\quad \\bar{s}_g = \\frac{1}{|g|} \\sum_{j \\in g} s_j, \\quad \\sigma_g = \\mathrm{std}(\\{s_j\\}_{j \\in g}) \\\\ A_i = \\frac{s_i - \\bar{s}_g}{\\sigma_g + \\epsilon} \\cdot M_i \\quad \\text{(broadcast to all response tokens)}$$",
+    "key_hyperparams": [
+      {"name": "ε", "value": "1e-6", "role": "std denom stabilizer", "learnable": false},
+      {"name": "normalize", "value": "mean + std", "role": "z-score within prompt group", "learnable": false}
+    ],
+    "diff_from_baseline": "Shao et al. 2024 (DeepSeekMath). Group-relative policy optimization: outcome-level z-score across multiple sampled responses per prompt; no value model needed.",
+    "confidence": "high"
+  },
+  {
+    "model": "Reinforce++ Baseline",
+    "name": "REINFORCE++-baseline",
+    "tagline": "Per-prompt group mean baseline followed by token-level batch whitening over valid response tokens.",
+    "kind": "pseudocode",
+    "pseudocode": "1. $s_i = \\sum_t r_{i,t}$ (sum of token rewards).\n2. $\\bar{s}_g = \\frac{1}{|g|} \\sum_{j \\in g} s_j$ (per-prompt group mean).\n3. $\\hat{s}_i = s_i - \\bar{s}_g$ (group-centered).\n4. Broadcast: $A_{i,t} = \\hat{s}_i \\cdot M_{i,t}$ (per-token).\n5. Masked whiten across batch's valid tokens: $A \\leftarrow \\frac{A - \\mu_M(A)}{\\sigma_M(A) + \\epsilon} \\cdot M$.\n6. Returns = advantages.",
+    "key_hyperparams": [
+      {"name": "centering", "value": "per-prompt group mean", "role": "variance reduction baseline", "learnable": false},
+      {"name": "whitening", "value": "token-level batch", "role": "length-weighted", "learnable": false}
+    ],
+    "diff_from_baseline": "Hu et al. 2025 (REINFORCE++, arxiv 2501.03262) — verl reference implementation in core_algos.py. Combines group-baseline with global token-level whitening; longer responses dominate whitening statistics.",
+    "confidence": "high"
+  }
+]

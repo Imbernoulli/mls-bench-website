@@ -1,0 +1,101 @@
+[
+  {
+    "model": "DLinear",
+    "name": "DLinear",
+    "tagline": "Decomposition Linear: split each channel into trend (moving avg) + seasonal residual, then apply a per-channel linear projection.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x [B,L,C]"},
+        {"id": "decomp", "label": "Series decomposition (moving-avg)"},
+        {"id": "trend", "label": "trend [B,L,C]"},
+        {"id": "season", "label": "seasonal [B,L,C]"},
+        {"id": "lin", "label": "Per-channel Linear (L→T) ×2"},
+        {"id": "sum", "label": "trend + seasonal"},
+        {"id": "head", "label": "Flatten + Linear → class logits"}
+      ],
+      "edges": [
+        {"from": "x", "to": "decomp"},
+        {"from": "decomp", "to": "trend"},
+        {"from": "decomp", "to": "season"},
+        {"from": "trend", "to": "lin"},
+        {"from": "season", "to": "lin"},
+        {"from": "lin", "to": "sum"},
+        {"from": "sum", "to": "head"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "d_model", "value": "128", "role": "feature width", "learnable": false},
+      {"name": "moving_avg kernel", "value": "25 (TSLib default)", "role": "trend smoothing window", "learnable": false},
+      {"name": "lr / batch", "value": "1e-3 / 16", "role": "TSLib classification training", "learnable": false}
+    ],
+    "diff_from_baseline": "Zeng et al., AAAI 2023 — \"Are Transformers Effective for Time Series Forecasting?\" Decomposition + per-channel linear baseline. Surprisingly competitive forecaster; included here as a minimalist time-series classifier.",
+    "confidence": "high"
+  },
+  {
+    "model": "PatchTST",
+    "name": "PatchTST",
+    "tagline": "Channel-independent transformer that splits each univariate series into overlapping patches and applies a vanilla encoder.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x [B,L,C]"},
+        {"id": "ci", "label": "Channel-independent: reshape to [B·C, L, 1]"},
+        {"id": "patch", "label": "Patchify (size P, stride S)"},
+        {"id": "embed", "label": "Linear → tokens [B·C, N, D]"},
+        {"id": "tx", "label": "Transformer Encoder × e_layers"},
+        {"id": "pool", "label": "Flatten / mean over patches"},
+        {"id": "head", "label": "Per-class Linear"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ci"},
+        {"from": "ci", "to": "patch"},
+        {"from": "patch", "to": "embed"},
+        {"from": "embed", "to": "tx"},
+        {"from": "tx", "to": "pool"},
+        {"from": "pool", "to": "head"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "d_model / d_ff", "value": "128 / 256", "role": "transformer widths", "learnable": false},
+      {"name": "e_layers", "value": "3", "role": "encoder depth", "learnable": false},
+      {"name": "n_heads", "value": "16", "role": "attention heads", "learnable": false},
+      {"name": "dropout", "value": "0.1", "role": "regularization", "learnable": false}
+    ],
+    "diff_from_baseline": "Nie et al., ICLR 2023 — \"A Time Series is Worth 64 Words\". Channel-independent patch-based transformer; strong forecasting/classification baseline in the Time-Series-Library.",
+    "confidence": "high"
+  },
+  {
+    "model": "TimesNet",
+    "name": "TimesNet",
+    "tagline": "Reshapes 1D series into 2D tensors at top-k FFT-detected periods, then applies a 2D Inception block per period.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x [B,L,C]"},
+        {"id": "fft", "label": "FFT → top-k periods p₁..p_k"},
+        {"id": "fold", "label": "Reshape to 2D [B,k,p,L/p,C]"},
+        {"id": "incep", "label": "Inception 2D (num_kernels) per period"},
+        {"id": "agg", "label": "Adaptive aggregation by period weights"},
+        {"id": "stack", "label": "Stack TimesBlock × e_layers"},
+        {"id": "head", "label": "Pool + Linear → class logits"}
+      ],
+      "edges": [
+        {"from": "x", "to": "fft"},
+        {"from": "fft", "to": "fold"},
+        {"from": "fold", "to": "incep"},
+        {"from": "incep", "to": "agg"},
+        {"from": "agg", "to": "stack"},
+        {"from": "stack", "to": "head"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "top_k", "value": "3", "role": "number of dominant periods used", "learnable": false},
+      {"name": "num_kernels", "value": "4–6 per dataset", "role": "Inception kernel count", "learnable": false},
+      {"name": "e_layers", "value": "2", "role": "TimesBlock depth", "learnable": false},
+      {"name": "d_model / d_ff", "value": "16-64 / 32-256", "role": "per-dataset widths", "learnable": false}
+    ],
+    "diff_from_baseline": "Wu et al., ICLR 2023 — \"TimesNet: Temporal 2D-Variation Modeling\". General time-series backbone using FFT-discovered periods to fold 1D into 2D for Inception convolutions; strong TSLib baseline across forecasting, classification, anomaly tasks.",
+    "confidence": "high"
+  }
+]

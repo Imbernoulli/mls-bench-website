@@ -1,0 +1,113 @@
+[
+  {
+    "model": "GAT",
+    "name": "GAT (Graph Attention)",
+    "tagline": "Multi-head self-attention over graph neighbors: each edge weight is a softmax over LeakyReLU-scored source/destination feature projections.",
+    "kind": "hybrid",
+    "formula": "$$\\alpha_{ij}=\\mathrm{softmax}_j\\!\\big(\\mathrm{LeakyReLU}(\\mathbf{a}_s^\\top h_i + \\mathbf{a}_d^\\top h_j)\\big),\\quad h_i' = \\sigma\\!\\Big(\\sum_{j\\in\\mathcal{N}(i)\\cup\\{i\\}}\\alpha_{ij} W h_j\\Big)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "node features"},
+        {"id": "lin", "label": "linear (H heads x D)"},
+        {"id": "att", "label": "attention coeffs $\\alpha_{ij}$"},
+        {"id": "agg", "label": "weighted sum over neighbors"},
+        {"id": "elu", "label": "ELU + dropout"},
+        {"id": "head", "label": "concat / mean heads"},
+        {"id": "logits", "label": "class logits"}
+      ],
+      "edges": [
+        {"from": "x", "to": "lin"},
+        {"from": "lin", "to": "att"},
+        {"from": "att", "to": "agg"},
+        {"from": "lin", "to": "agg"},
+        {"from": "agg", "to": "elu"},
+        {"from": "elu", "to": "head"},
+        {"from": "head", "to": "logits"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "heads", "value": "8 (1 final layer)", "role": "multi-head attention", "learnable": false},
+      {"name": "negative_slope", "value": "0.2", "role": "LeakyReLU for attention scores", "learnable": false},
+      {"name": "dropout", "value": "0.6 (features and attention)", "role": "regularization", "learnable": false}
+    ],
+    "diff_from_baseline": "Velickovic et al., 'Graph Attention Networks' (ICLR 2018). Default attention-based GNN baseline; widely used as a Planetoid reference.",
+    "confidence": "high"
+  },
+  {
+    "model": "GCN",
+    "name": "GCN",
+    "tagline": "Symmetric-normalized graph convolution: each node's update is a degree-scaled mean of self-and-neighbor projected features.",
+    "kind": "formula",
+    "formula": "$$H^{(l+1)} = \\sigma\\!\\big(\\tilde{D}^{-1/2}\\tilde{A}\\tilde{D}^{-1/2} H^{(l)} W^{(l)}\\big),\\quad \\tilde{A}=A+I$$",
+    "key_hyperparams": [
+      {"name": "num_layers", "value": "2", "role": "depth", "learnable": false},
+      {"name": "dropout", "value": "0.5", "role": "feature dropout between layers", "learnable": false},
+      {"name": "aggregator", "value": "add (with $D^{-1/2}$ norm)", "role": "message aggregation", "learnable": false}
+    ],
+    "diff_from_baseline": "Kipf & Welling, 'Semi-Supervised Classification with Graph Convolutional Networks' (ICLR 2017). Canonical first-order spectral GCN baseline for Planetoid citation networks.",
+    "confidence": "high"
+  },
+  {
+    "model": "GraphSAGE",
+    "name": "GraphSAGE (mean)",
+    "tagline": "Inductive GNN: aggregate neighbors with mean, concatenate self/neighbor projections, and L2-normalize the resulting embedding.",
+    "kind": "formula",
+    "formula": "$$h_i' = \\mathrm{normalize}\\!\\Big(W_{\\text{self}} h_i + W_{\\text{neigh}}\\,\\mathrm{mean}_{j\\in\\mathcal{N}(i)} h_j\\Big)$$",
+    "key_hyperparams": [
+      {"name": "aggregator", "value": "mean", "role": "neighborhood aggregator", "learnable": false},
+      {"name": "normalize", "value": "L2 (p=2, dim=-1)", "role": "post-aggregation normalization", "learnable": false},
+      {"name": "dropout", "value": "0.5", "role": "feature dropout", "learnable": false}
+    ],
+    "diff_from_baseline": "Hamilton et al., 'Inductive Representation Learning on Large Graphs' (NeurIPS 2017). Standard mean-aggregator SAGE; uses separate weights for self vs. neighbor features and L2 normalization.",
+    "confidence": "high"
+  },
+  {
+    "model": "gps",
+    "name": "GPS (Graph Transformer)",
+    "tagline": "Each layer combines a local GCN-style MPNN with global multi-head self-attention, plus a residual FFN, following the GPS recipe.",
+    "kind": "architecture",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "input proj"},
+        {"id": "mpnn", "label": "local MPNN (GCN)"},
+        {"id": "n1", "label": "norm + residual"},
+        {"id": "attn", "label": "global multi-head self-attn"},
+        {"id": "n2", "label": "norm + residual"},
+        {"id": "ffn", "label": "FFN (GELU)"},
+        {"id": "out", "label": "norm + residual"}
+      ],
+      "edges": [
+        {"from": "in", "to": "mpnn"},
+        {"from": "mpnn", "to": "n1"},
+        {"from": "n1", "to": "attn"},
+        {"from": "attn", "to": "n2"},
+        {"from": "n2", "to": "ffn"},
+        {"from": "ffn", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "heads", "value": "4", "role": "global attention heads", "learnable": false},
+      {"name": "attn_dropout", "value": "0.2", "role": "attention dropout (raised for seed stability)", "learnable": false},
+      {"name": "ffn_expansion", "value": "2x", "role": "FFN hidden ratio", "learnable": false},
+      {"name": "lr / wd", "value": "5e-4 / 1e-3", "role": "tuned for transformer stability on Planetoid", "learnable": false}
+    ],
+    "diff_from_baseline": "Rampasek et al., 'Recipe for a General, Powerful, Scalable Graph Transformer' (NeurIPS 2022). Hybrid MPNN+Transformer block; here used without positional/structural encodings.",
+    "confidence": "high"
+  },
+  {
+    "model": "nagphormer",
+    "name": "NAGphormer",
+    "tagline": "Hop2Token: build per-node sequences of K-hop normalized aggregations, then run a Transformer with attention-readout over hop tokens.",
+    "kind": "hybrid",
+    "formula": "$$\\text{tokens}_i = [h_i^{(0)}, h_i^{(1)}, \\dots, h_i^{(K)}],\\quad h^{(k)} = (\\tilde D^{-1/2}\\tilde A\\tilde D^{-1/2})^k W x;\\quad z_i = \\sum_k \\mathrm{softmax}(a^\\top T_i)_k\\,T_i^k$$",
+    "pseudocode": "1. Project $x \\to W x$; build hop tokens $T_i \\in \\mathbb{R}^{(K+1)\\times D}$ via repeated GCN-norm propagation.\n2. Add learnable hop-type embedding; LayerNorm + dropout.\n3. Apply a Transformer encoder (8 heads, GELU, FFN=2D, norm-first) over each node's token sequence.\n4. Compute attention weights $a^\\top T_i$, softmax over hops, and read out $z_i = \\sum_k w_{ik} T_i^k$.\n5. MLP classifier on $z_i$.",
+    "key_hyperparams": [
+      {"name": "K", "value": "7 hops", "role": "tokenization depth", "learnable": false},
+      {"name": "heads", "value": "8", "role": "transformer heads", "learnable": false},
+      {"name": "dropout", "value": "0.1", "role": "transformer dropout", "learnable": false},
+      {"name": "lr / wd", "value": "5e-4 / 1e-5", "role": "transformer optimization", "learnable": false}
+    ],
+    "diff_from_baseline": "Chen et al., 'NAGphormer: A Tokenized Graph Transformer for Node Classification in Large Graphs' (ICLR 2023). Replaces direct message passing with multi-hop tokenization plus Transformer encoder.",
+    "confidence": "high"
+  }
+]

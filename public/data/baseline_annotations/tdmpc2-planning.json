@@ -1,0 +1,46 @@
+[
+  {
+    "model": "CEM",
+    "name": "Cross-Entropy Method (CEM)",
+    "tagline": "Top-k elite sampler: Gaussian shoot, evaluate via learned value, refit (mean, std) to elite trajectories — no temperature weighting.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. roll num_pi_trajs policy-prior trajectories from world model (warm start)\n// 2. init mean = warm-shifted previous mean; std = max_std\n// 3. for it in range(iterations):\n//      x_i = mean + std * eps_i, clipped to [-1,1]\n//      value_i = agent._estimate_value(z, x)\n//      elite = top_k(value, num_elites)\n//      mean = elite.mean(); std = clamp(elite.std(), min_std, max_std)\n// 4. action = mean[0] (+ std[0]·eps if not eval)",
+    "key_hyperparams": [
+      {"name": "iterations", "value": "cfg.iterations", "role": "outer refit loops", "learnable": false},
+      {"name": "num_samples", "value": "cfg.num_samples", "role": "Monte-Carlo shoots", "learnable": false},
+      {"name": "num_elites", "value": "cfg.num_elites", "role": "top-k", "learnable": false},
+      {"name": "warm_start", "value": "shift previous mean", "role": "temporal consistency", "learnable": false}
+    ],
+    "diff_from_baseline": "Rubinstein & Kroese 2004. Classical importance-sampling-by-elites planner; the simplest refit-on-top-k variant compared against MPPI's softmax-weighted update.",
+    "confidence": "high"
+  },
+  {
+    "model": "MPPI",
+    "name": "MPPI (default TD-MPC2)",
+    "tagline": "TD-MPC2 default: MPPI with softmax-weighted elite update on the learned value, Gumbel-sampled action from elites; matches the original TD-MPC2 planner.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. warm-start with num_pi_trajs policy-prior rollouts\n// 2. for it in range(iterations):\n//      sample x_i ~ N(mean, std^2), eval V_i\n//      elite_idx = top_k(V); score = softmax(temperature * (V_e - V_e.max()))\n//      mean = sum(score · x_e) / sum(score)\n//      std  = sqrt( sum(score · (x_e - mean)^2) / sum(score) )\n// 3. j ~ gumbel_softmax(score)\n// 4. action = elite_actions[0, j] (+ std·eps if not eval)",
+    "key_hyperparams": [
+      {"name": "temperature", "value": "cfg.temperature", "role": "softmax sharpness", "learnable": false},
+      {"name": "num_samples", "value": "cfg.num_samples", "role": "shoots per iter", "learnable": false},
+      {"name": "num_elites", "value": "cfg.num_elites", "role": "weighted set size", "learnable": false},
+      {"name": "warm_start", "value": "shift previous mean", "role": "temporal consistency", "learnable": false}
+    ],
+    "diff_from_baseline": "Williams et al. 2017 (ICRA), used as the default planner in Hansen et al. 2024 TD-MPC2. Information-theoretic MPC: exponentiated-value soft-elite update.",
+    "confidence": "high"
+  },
+  {
+    "model": "iCEM",
+    "name": "iCEM (improved CEM)",
+    "tagline": "CEM with temporally-correlated (colored) noise, kept elites across iterations, and per-iteration noise decay for refinement.",
+    "kind": "pseudocode",
+    "pseudocode": "// 1. init noise_scale=1; n_keep = max(1, num_elites·0.1)\n// 2. for it in range(iterations):\n//      eps[t] = β·eps[t-1] + (1-β)·white_noise[t]   # β=0.5 colored noise\n//      x_new = mean + noise_scale·std·eps; clipped to [-1,1]\n//      pool = pi_trajs ∪ kept_actions ∪ x_new\n//      elite = top_k(value(pool), num_elites)\n//      kept_actions = elite[:, :n_keep]\n//      mean = elite.mean(); std = clamp(elite.std())\n//      noise_scale *= 0.9  # decay\n// 3. action = mean[0] (+ std[0]·eps if not eval)",
+    "key_hyperparams": [
+      {"name": "beta", "value": "0.5", "role": "colored-noise temporal correlation", "learnable": false},
+      {"name": "noise_decay", "value": "0.9", "role": "per-iteration noise shrink", "learnable": false},
+      {"name": "keep_fraction", "value": "0.1", "role": "elites carried across iters", "learnable": false}
+    ],
+    "diff_from_baseline": "Pinneri et al. 2020 (iCEM, CoRL). Adds three sample-efficiency tricks to CEM: colored (Beta-decay) noise, elite carry-over, and noise annealing.",
+    "confidence": "high"
+  }
+]

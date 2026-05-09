@@ -1,0 +1,57 @@
+[
+  {
+    "model": "AdaGrad",
+    "name": "AdaGrad",
+    "tagline": "Per-parameter adaptive learning rate scaled by inverse $\\sqrt{}$ of accumulated squared gradients.",
+    "kind": "formula",
+    "formula": "$$G^{(t)} = G^{(t-1)} + g_t \\odot g_t \\\\ \\theta_{t+1} = \\theta_t - \\frac{\\eta}{\\sqrt{G^{(t)}} + \\varepsilon} \\odot g_t, \\quad \\eta = 0.01,\\ \\varepsilon = 10^{-6}$$",
+    "key_hyperparams": [
+      {"name": "η", "value": "0.01", "role": "global learning rate", "learnable": false},
+      {"name": "ε", "value": "1e-6", "role": "denominator stabilizer", "learnable": false}
+    ],
+    "diff_from_baseline": "Duchi, Hazan, Singer 2011 (JMLR). Per-coordinate adaptive step size proportional to $1/\\sqrt{\\sum_t g_t^2}$; standard sparse-gradient baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "Adam",
+    "name": "Adam",
+    "tagline": "Adaptive moment estimation (lr=0.05, β2=0.999) without bias correction.",
+    "kind": "formula",
+    "formula": "$$m_t = \\beta_1 m_{t-1} + (1-\\beta_1) g_t \\\\ s_t = \\beta_2 s_{t-1} + (1-\\beta_2) g_t \\odot g_t \\\\ \\theta_{t+1} = \\theta_t - \\frac{\\eta\\, m_t}{\\sqrt{s_t} + \\varepsilon}$$",
+    "key_hyperparams": [
+      {"name": "η", "value": "0.05", "role": "learning rate", "learnable": false},
+      {"name": "β1", "value": "0.9", "role": "first moment decay", "learnable": false},
+      {"name": "β2", "value": "0.999", "role": "second moment decay (Adam default)", "learnable": false},
+      {"name": "ε", "value": "1e-6", "role": "denominator stabilizer", "learnable": false}
+    ],
+    "diff_from_baseline": "Kingma & Ba 2015 (ICLR). Standard Adam momenta with default β2=0.999. Bias-correction terms omitted in this implementation.",
+    "confidence": "high"
+  },
+  {
+    "model": "Adam (Alt.)",
+    "name": "Adam (β2=0.95)",
+    "tagline": "Adam variant with shorter second-moment memory (lr=0.1, β2=0.95) — more responsive to recent gradients.",
+    "kind": "formula",
+    "formula": "$$m_t = \\beta_1 m_{t-1} + (1-\\beta_1) g_t \\\\ s_t = \\beta_2 s_{t-1} + (1-\\beta_2) g_t \\odot g_t \\\\ \\theta_{t+1} = \\theta_t - \\frac{\\eta\\, m_t}{\\sqrt{s_t} + \\varepsilon}, \\quad \\eta=0.1,\\ \\beta_2=0.95$$",
+    "key_hyperparams": [
+      {"name": "η", "value": "0.1", "role": "learning rate", "learnable": false},
+      {"name": "β1", "value": "0.9", "role": "first moment decay", "learnable": false},
+      {"name": "β2", "value": "0.95", "role": "shorter second moment memory", "learnable": false},
+      {"name": "ε", "value": "1e-6", "role": "denominator stabilizer", "learnable": false}
+    ],
+    "diff_from_baseline": "Kingma & Ba 2015 (ICLR), with non-default β2=0.95. Larger lr / shorter second-moment memory acts more like RMSProp; intended as a sparser-friendly Adam configuration.",
+    "confidence": "high"
+  },
+  {
+    "model": "SGD",
+    "name": "SGD",
+    "tagline": "Vanilla full-batch gradient descent with constant learning rate (lr=0.1).",
+    "kind": "formula",
+    "formula": "$$\\theta_{t+1} = \\theta_t - \\eta\\, g_t, \\quad \\eta = 0.1$$",
+    "key_hyperparams": [
+      {"name": "η", "value": "0.1", "role": "learning rate", "learnable": false}
+    ],
+    "diff_from_baseline": "Robbins & Monro 1951. Plain gradient descent on the diagonal-net parameters $(u, v)$; the canonical implicit-bias optimizer in the Woodworth et al. 2020 / Pesme & Flammarion analyses.",
+    "confidence": "high"
+  }
+]

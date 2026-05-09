@@ -1,0 +1,44 @@
+[
+  {
+    "model": "AdaBoost",
+    "name": "AdaBoost",
+    "tagline": "Adaptive boosting: classification reweights samples by exponential loss, regression uses AdaBoost.R2 with normalized linear loss.",
+    "kind": "formula",
+    "formula": "$$\\text{cls: } \\alpha_m = \\eta\\cdot\\tfrac{1}{2}\\log\\!\\frac{1-\\epsilon_m}{\\epsilon_m},\\;\\; w_i \\leftarrow w_i\\,e^{\\alpha_m\\,\\mathbb{1}[h_m(x_i)\\neq y_i]}; \\qquad \\text{reg: } e_i = |h_m(x_i)-r_i|/\\max_j|\\cdot|,\\; \\beta = \\bar{e}/(1-\\bar{e}),\\; w_i \\leftarrow w_i\\,\\beta^{1-e_i}$$",
+    "key_hyperparams": [
+      {"name": "learning_rate ($\\eta$)", "value": "config", "role": "$\\alpha$ shrinkage in classification", "learnable": false},
+      {"name": "loss (regression)", "value": "linear (R2)", "role": "AdaBoost.R2 weighting", "learnable": false}
+    ],
+    "diff_from_baseline": "Freund & Schapire, 'A Decision-Theoretic Generalization of On-Line Learning and an Application to Boosting' (JCSS 1997); regression is Drucker, 'Improving Regressors using Boosting Techniques' (1997, AdaBoost.R2). Original adaptive boosting; reweights samples toward errors.",
+    "confidence": "high"
+  },
+  {
+    "model": "Gradient Boosting",
+    "name": "Gradient Boosting",
+    "tagline": "Friedman gradient boosting: each round fits a weak learner to the negative gradient of the loss (residuals for SE, $y - \\sigma(F)$ for log-loss).",
+    "kind": "formula",
+    "formula": "$$\\tilde{y}_i^{(m)} = -\\left.\\frac{\\partial L(y_i, F)}{\\partial F}\\right|_{F=F_{m-1}(x_i)}, \\quad \\text{reg: } \\tilde{y}=y-\\hat{y};\\;\\; \\text{cls: } \\tilde{y}=y-\\sigma(F),\\;\\; \\alpha_m^{cls} = \\frac{\\sum \\tilde{y}_i h_m(x_i)}{\\sum \\sigma(F_i)(1-\\sigma(F_i)) h_m(x_i)^2}$$",
+    "key_hyperparams": [
+      {"name": "learning_rate", "value": "config", "role": "shrinkage on each $\\alpha_m h_m$", "learnable": false},
+      {"name": "loss (cls)", "value": "log-loss", "role": "logistic gradient $y-\\sigma(F)$", "learnable": false},
+      {"name": "loss (reg)", "value": "squared error", "role": "residual fitting", "learnable": false},
+      {"name": "sample weights", "value": "uniform", "role": "no reweighting; signal in residuals", "learnable": false}
+    ],
+    "diff_from_baseline": "Friedman, 'Greedy Function Approximation: A Gradient Boosting Machine' (Annals of Statistics 2001). Sample weights stay uniform; the boosting signal comes from fitting weak learners to pseudo-residuals. Newton line search for classification step size.",
+    "confidence": "high"
+  },
+  {
+    "model": "XGBoost-style",
+    "name": "XGBoost-style (Newton)",
+    "tagline": "Second-order boosting: leaf weights $\\alpha_m$ from Newton step using gradient $g$ and Hessian $h$, with L2 regularization $\\lambda$.",
+    "kind": "formula",
+    "formula": "$$\\alpha_m = \\frac{\\sum_i g_i\\,h_m(x_i)}{\\sum_i h_i\\,h_m(x_i)^2 + \\lambda},\\quad \\text{reg: } h_i = 1;\\;\\; \\text{cls: } h_i = \\sigma(F_i)\\bigl(1-\\sigma(F_i)\\bigr)$$",
+    "key_hyperparams": [
+      {"name": "$\\lambda$", "value": "1.0", "role": "L2 on leaf weights (reg_lambda)", "learnable": false},
+      {"name": "learning_rate", "value": "config", "role": "shrinkage on each round", "learnable": false},
+      {"name": "Hessian", "value": "1 (reg) / $p(1-p)$ (cls)", "role": "second-order denominator", "learnable": false}
+    ],
+    "diff_from_baseline": "Chen & Guestrin, 'XGBoost: A Scalable Tree Boosting System' (KDD 2016). Newton-style weighted leaf updates with L2 regularization; the foundation of modern gradient boosting libraries (XGBoost, LightGBM, CatBoost).",
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,84 @@
+[
+  {
+    "model": "BOHB",
+    "name": "BOHB",
+    "tagline": "Hyperband bracket scheduler whose configuration sampler is replaced with a TPE KDE model on all completed trials.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Initialize $s_{\\max} = \\lfloor \\log_\\eta(\\text{budget}) \\rfloor$ Hyperband brackets ($\\eta = 3$)\n2. For each bracket sample its $n$ initial configs from a TPE model: l(x)/g(x) using $\\gamma=0.15$ split\n3. Run successive halving inside each bracket: keep top $1/\\eta$, multiply fidelity by $\\eta$\n4. After every observed (config, score, fidelity), append to the global TPE history\n5. When all bracket queues empty, propose new configs from the TPE model at fidelity $1.0$",
+    "key_hyperparams": [
+      {"name": "eta", "value": "3", "role": "halving rate", "learnable": false},
+      {"name": "gamma", "value": "0.15", "role": "fraction kept as 'good' for TPE KDE", "learnable": false},
+      {"name": "n_startup", "value": "8", "role": "random configs before TPE kicks in", "learnable": false},
+      {"name": "n_candidates", "value": "24", "role": "EI candidates scored per suggest", "learnable": false}
+    ],
+    "diff_from_baseline": "Falkner, Klein & Hutter 2018 (BOHB, ICML). Combines Hyperband's multi-fidelity successive halving with TPE-style KDE-based config sampling, using all observed (config, fidelity) trials to bias future proposals.",
+    "confidence": "high"
+  },
+  {
+    "model": "DEHB",
+    "name": "DEHB",
+    "tagline": "Differential Evolution operates on per-fidelity populations; Hyperband promotes top configs to higher fidelities.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Build deduplicated fidelity ladder $\\{1/\\eta^s\\}_{s\\le 3}$ with floor 0.1; initialise random pop per fidelity\n2. For each new (config, score), match to the pending DE trial and run DE selection: keep better of target/trial\n3. When the lowest fidelity finishes a generation, evolve via DE/rand/1/bin: $v = x_a + F(x_b - x_c)$, crossover with prob $C_r$\n4. Every $\\eta$ generations, promote top $1/\\eta$ of a fidelity to the next; their populations replace the higher-fidelity pop\n5. Loop until budget exhausted; fall back to random at full fidelity if queue empties",
+    "key_hyperparams": [
+      {"name": "eta", "value": "3", "role": "halving rate", "learnable": false},
+      {"name": "F (mutation)", "value": "0.5", "role": "DE differential weight", "learnable": false},
+      {"name": "Cr", "value": "0.5", "role": "DE crossover probability", "learnable": false}
+    ],
+    "diff_from_baseline": "Awad, Mallik & Hutter 2021 (DEHB, IJCAI). Multi-fidelity hyperparameter optimizer that replaces Hyperband's random sampling with Differential Evolution evolving distinct populations per fidelity, with cross-fidelity SH promotion.",
+    "confidence": "high"
+  },
+  {
+    "model": "Hyperband",
+    "name": "Hyperband",
+    "tagline": "Bandit-based multi-fidelity scheduler running successive halving over an outer grid of (n configs, budget per config).",
+    "kind": "pseudocode",
+    "pseudocode": "1. $s_{\\max} = \\lfloor \\log_\\eta(\\text{budget})\\rfloor$, capped at 4\n2. For each bracket $s = s_{\\max} \\ldots 0$:\n3.   $n = \\lceil (s_{\\max}+1)/(s+1) \\rceil \\eta^s$ random configs at fidelity $r = \\max(1/\\eta^s, 0.1)$\n4. After each round, advance bracket by SH: keep top $\\lfloor n/\\eta \\rfloor$, multiply fidelity by $\\eta$ (capped at 1.0)\n5. Pop one (config, fidelity) per call; fall back to uniform random when queue is empty",
+    "key_hyperparams": [
+      {"name": "eta", "value": "3", "role": "halving rate", "learnable": false},
+      {"name": "s_max cap", "value": "4", "role": "max brackets", "learnable": false}
+    ],
+    "diff_from_baseline": "Li, Jamieson, DeSalvo, Rostamizadeh & Talwalkar 2017 (Hyperband, JMLR). Multi-fidelity HPO that runs successive halving inside several outer brackets trading off n vs r; non-model-based but adapts resource allocation to performance.",
+    "confidence": "high"
+  },
+  {
+    "model": "Optuna CMA-ES",
+    "name": "CMA-ES (Optuna-style)",
+    "tagline": "(mu/mu_w, lambda)-CMA-ES on the unit-cube encoding: adapts the full covariance and step size with rank-one and rank-mu updates.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Encode each parameter to $[0,1]$ (log/categorical-aware), set $\\mathbf{m}=0.5\\mathbf{1}$, $C=I$, $\\sigma=0.3$, $\\lambda = 4 + \\lfloor 3\\ln d\\rfloor$, $\\mu = \\lfloor\\lambda/2\\rfloor$\n2. Sample $\\lambda$ candidates: $x_i = \\mathbf{m} + \\sigma\\, C^{1/2} z_i,\\; z_i \\sim \\mathcal{N}(0,I)$, clipped to $[0,1]$\n3. After all $\\lambda$ scored, sort descending; recompute mean as weighted avg of top $\\mu$\n4. Update evolution paths $p_\\sigma, p_c$ with cumulation constants $c_\\sigma, c_c$\n5. Update $C$ via rank-one ($p_c p_c^\\top$) and rank-$\\mu$ (weighted outer products of normalized differences)\n6. Update step size $\\sigma \\leftarrow \\sigma \\exp((c_\\sigma/d_\\sigma)(\\|p_\\sigma\\|/\\chi_n - 1))$, then resample",
+    "key_hyperparams": [
+      {"name": "sigma_0", "value": "0.3", "role": "initial step size in [0,1] cube", "learnable": false},
+      {"name": "lambda", "value": "4 + 3 ln d", "role": "population size", "learnable": false},
+      {"name": "mu", "value": "lambda // 2", "role": "selected parents", "learnable": false}
+    ],
+    "diff_from_baseline": "Hansen & Ostermeier 2001 (CMA-ES); also Nomura et al. 2021 (warm-start CMA-ES). Standard $(\\mu/\\mu_w,\\lambda)$-CMA-ES on the encoded unit cube with rank-one + rank-$\\mu$ covariance updates and CSA step-size control, matching Optuna's CmaEsSampler.",
+    "confidence": "high"
+  },
+  {
+    "model": "Random Search",
+    "name": "Random Search",
+    "tagline": "Sample each suggestion uniformly at random from the typed search space; ignore history.",
+    "kind": "formula",
+    "formula": "$$ x_t \\sim \\mathrm{Uniform}(\\mathcal{X}),\\qquad \\text{fidelity} = 1.0 $$",
+    "key_hyperparams": [
+      {"name": "fidelity", "value": "1.0", "role": "always evaluate at full budget", "learnable": false}
+    ],
+    "diff_from_baseline": "Bergstra & Bengio 2012 (JMLR). Sample configurations uniformly from the typed space ignoring history; surprisingly strong baseline on high-dim spaces with low effective dimensionality.",
+    "confidence": "high"
+  },
+  {
+    "model": "TPE",
+    "name": "TPE",
+    "tagline": "Tree-structured Parzen Estimator: split history into good/bad by the top-gamma quantile and pick candidates maximizing log l(x) - log g(x).",
+    "kind": "pseudocode",
+    "pseudocode": "1. While $|\\text{history}| < n_{\\text{startup}} = 10$, sample uniformly\n2. Encode each observed config to $[0,1]^d$ (log-aware for log_scale params; index/(K-1) for categoricals)\n3. Threshold $y^*$ at the top-$\\gamma$ quantile; build Gaussian KDEs $l, g$ over good/bad sets\n4. Bandwidth $\\sigma = \\max(0.05,\\, \\mathrm{std}(\\text{set}) + \\epsilon)$ (Scott's rule proxy)\n5. Sample 24 random candidates and pick the one maximizing $\\log l(x) - \\log g(x)$; return at fidelity 1.0",
+    "key_hyperparams": [
+      {"name": "gamma", "value": "0.25", "role": "fraction of best obs assigned to l(x)", "learnable": false},
+      {"name": "n_startup", "value": "10", "role": "random samples before modelling", "learnable": false},
+      {"name": "n_ei_candidates", "value": "24", "role": "candidates scored per suggestion", "learnable": false}
+    ],
+    "diff_from_baseline": "Bergstra, Bardenet, Bengio & Kegl 2011 (NeurIPS). Models p(x|y<y*) and p(x|y>=y*) via KDEs and proposes candidates maximizing l(x)/g(x), equivalent to maximizing Expected Improvement under TPE's modeling assumptions.",
+    "confidence": "high"
+  }
+]

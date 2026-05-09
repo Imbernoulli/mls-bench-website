@@ -1,0 +1,53 @@
+[
+  {
+    "model": "DirectLiNGAM",
+    "name": "DirectLiNGAM",
+    "tagline": "Direct method that recovers a causal ordering by iteratively choosing the most exogenous variable via residual mutual-information.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Standardize data $X \\in \\mathbb{R}^{n\\times d}$; init pool $U=\\{1,\\dots,d\\}$, order $K=[]$.\n2. for $t=1$ to $d$:\n3.  for each $i \\in U$, sum $\\sum_{j\\neq i}\\min(0, \\Delta MI(i,j))^2$ over residuals $r_{i\\mid j}=x_i - \\mathrm{cov}(x_i,x_j)/\\mathrm{var}(x_j)\\,x_j$.\n4.  pick exogenous $m=\\arg\\max_i M_i$, append to $K$, replace $x_i \\leftarrow r_{i\\mid m}$ for $i\\neq m$, drop $m$ from $U$.\n5. Given order $K$, fit $B$ by lower-triangular OLS regression of each variable on its predecessors.",
+    "key_hyperparams": [
+      {"name": "entropy approx", "value": "Hyvärinen k1=79.047, k2=7.4129", "role": "non-Gaussian entropy estimate", "learnable": false}
+    ],
+    "diff_from_baseline": "Shimizu et al., JMLR 2011 — DirectLiNGAM. Closed-form, hyperparameter-free LiNGAM that builds the causal order by repeatedly picking the variable whose residuals are most independent of all others; default LiNGAM-family reference for linear non-Gaussian SCMs.",
+    "confidence": "high"
+  },
+  {
+    "model": "ICA-LiNGAM",
+    "name": "ICA-LiNGAM",
+    "tagline": "Original LiNGAM: estimate ICA mixing matrix, permute and rescale to recover B = I - W.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Run FastICA on $X$ to get demixing $W_{ICA}$.\n2. Permute rows so diagonal of $W_{ICA}$ is maximal (Hungarian on $1/|W_{ICA}|$).\n3. Rescale by $D=\\mathrm{diag}(W_{perm})$: $W = W_{perm}/D$, then $B = I - W$.\n4. Search a causal order by zeroing the smallest entries of $B$ until rows of zeros yield a valid permutation.\n5. Re-estimate adjacency by OLS along the recovered order.",
+    "key_hyperparams": [
+      {"name": "ICA max_iter", "value": "1000", "role": "FastICA iterations", "learnable": false}
+    ],
+    "diff_from_baseline": "Shimizu et al., JMLR 2006 — original LiNGAM. Uses ICA to demix non-Gaussian sources, then converts the mixing matrix into a DAG. First identifiable LiNGAM method and standard non-Gaussian baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "NOTEARS",
+    "name": "NOTEARS (linear)",
+    "tagline": "Continuous DAG-structure learning via L-BFGS with the smooth acyclicity constraint h(W) = tr(exp(W∘W)) - d.",
+    "kind": "hybrid",
+    "formula": "$$\\min_W\\;\\tfrac{1}{2n}\\|X-XW\\|_F^2 + \\lambda_1\\|W\\|_1 \\;\\;\\text{s.t.}\\;\\; h(W)=\\mathrm{tr}\\,e^{W\\circ W}-d=0$$",
+    "pseudocode": "1. Init $W=0$, penalty $\\rho=1$, dual $\\alpha=0$.\n2. Repeat (augmented Lagrangian outer loop):\n3.  solve $W \\leftarrow \\arg\\min\\,\\ell(W) + \\tfrac12\\rho h(W)^2 + \\alpha h(W) + \\lambda_1\\|W\\|_1$ via L-BFGS-B with $w^{+}-w^{-}$ split for $\\ell_1$.\n4.  if $h$ shrinks <4×, accept; else $\\rho \\leftarrow 10\\rho$.\n5.  $\\alpha \\leftarrow \\alpha + \\rho h(W)$; stop when $h \\leq 10^{-8}$ or $\\rho \\geq 10^{16}$.\n6. Threshold $|W_{ij}| < 0.3$ to zero, transpose to causal-learn convention.",
+    "key_hyperparams": [
+      {"name": "λ1", "value": "0.1", "role": "L1 sparsity", "learnable": false},
+      {"name": "w_threshold", "value": "0.3", "role": "post-hoc edge prune", "learnable": false},
+      {"name": "max_iter", "value": "100", "role": "outer ALM iters", "learnable": false}
+    ],
+    "diff_from_baseline": "Zheng, Aragam, Ravikumar & Xing, NeurIPS 2018 — DAGs with NO TEARS. Transforms combinatorial DAG learning into a smooth constrained optimization; canonical continuous-optimization baseline for linear SCMs.",
+    "confidence": "high"
+  },
+  {
+    "model": "rcd",
+    "name": "RCD",
+    "tagline": "Repetitive Causal Discovery: LiNGAM variant that handles latent confounders by repeated independence tests on residuals.",
+    "kind": "pseudocode",
+    "pseudocode": "1. For every pair $(x_i, x_j)$, regress out one on the other and test residual independence (HSIC).\n2. Build initial ancestor relations: if both directions show dependence with the residual, mark a latent confounder.\n3. Iteratively prune ancestor candidates until a stable set of direct causal relations remains.\n4. Run multiple-testing correction (Bonferroni) on accepted edges.\n5. Output a directed adjacency where unresolved pairs are flagged as confounded.",
+    "key_hyperparams": [
+      {"name": "α", "value": "0.01 (default)", "role": "independence test threshold", "learnable": false}
+    ],
+    "diff_from_baseline": "Maeda & Shimizu, AISTATS 2020 — RCD (Repetitive Causal Discovery). Causal-learn's LiNGAM-family routine that targets linear non-Gaussian SCMs with possible latent confounders by iteratively testing residual independence.",
+    "confidence": "medium"
+  }
+]

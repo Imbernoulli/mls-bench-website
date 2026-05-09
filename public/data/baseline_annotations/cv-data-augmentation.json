@@ -1,0 +1,40 @@
+[
+  {
+    "model": "Cutout",
+    "name": "Cutout",
+    "tagline": "Random square pixel mask zeroed out on the tensor after standard crop+flip; encourages broader spatial context use.",
+    "kind": "pseudocode",
+    "pseudocode": "1. RandomCrop(img_size, padding=4); RandomHorizontalFlip\n2. ToTensor; Normalize prep\n3. Sample center $(y, x) \\sim \\text{Uniform}(H) \\times \\text{Uniform}(W)$\n4. Set patch $[y-L/2, y+L/2] \\times [x-L/2, x+L/2]$ to zero\n5. Normalize with channel mean/std",
+    "key_hyperparams": [
+      {"name": "n_holes", "value": "1", "role": "number of erased patches", "learnable": false},
+      {"name": "length", "value": "16 px", "role": "patch side length", "learnable": false}
+    ],
+    "diff_from_baseline": "DeVries & Taylor 2017 ('Improved Regularization of CNNs with Cutout'). Standard regularization baseline on small-image classification.",
+    "confidence": "high"
+  },
+  {
+    "model": "RandAugment",
+    "name": "RandAugment",
+    "tagline": "Randomly selects N=2 augmentation ops at fixed magnitude M=9 from a curated bank, applied before the geometric transforms.",
+    "kind": "pseudocode",
+    "pseudocode": "1. For each image, sample $n = 2$ ops uniformly from the RandAugment bank\n2. Apply each op with magnitude $M = 9$ (fixed)\n3. RandomCrop(img_size, padding=4)\n4. RandomHorizontalFlip\n5. ToTensor + Normalize",
+    "key_hyperparams": [
+      {"name": "num_ops (N)", "value": "2", "role": "ops sampled per image", "learnable": false},
+      {"name": "magnitude (M)", "value": "9", "role": "shared op magnitude", "learnable": false}
+    ],
+    "diff_from_baseline": "Cubuk et al., CVPR 2020. Reduced search-space alternative to AutoAugment; (N, M) is the only tuning knob.",
+    "confidence": "high"
+  },
+  {
+    "model": "TrivialAugmentWide",
+    "name": "TrivialAugmentWide",
+    "tagline": "Single random op with random magnitude per image from a wide bank; tuning-free strong augmentation.",
+    "kind": "pseudocode",
+    "pseudocode": "1. For each image, sample 1 op uniformly from the wide TrivialAugment bank\n2. Sample its magnitude $m \\sim \\mathrm{Uniform}\\{0, \\dots, 30\\}$\n3. Apply the chosen op\n4. RandomCrop(img_size, padding=4); RandomHorizontalFlip\n5. ToTensor + Normalize",
+    "key_hyperparams": [
+      {"name": "num_magnitude_bins", "value": "31 (wide)", "role": "magnitude resolution", "learnable": false}
+    ],
+    "diff_from_baseline": "Mueller & Hutter, ICCV 2021. Hyperparameter-free policy that often matches RandAugment / AutoAugment on standard image classification.",
+    "confidence": "high"
+  }
+]

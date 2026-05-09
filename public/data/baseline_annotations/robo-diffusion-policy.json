@@ -1,0 +1,47 @@
+[
+  {
+    "model": "Diffusion Policy",
+    "name": "Diffusion Policy (BC only)",
+    "tagline": "Pure behavior-cloning with a discrete-time diffusion actor — no critic, no Q-loss, no candidate reranking at inference.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Init actor = DiscreteDiffusionSDE(DQLMlp, IdentityCondition(obs))\n2. For each batch: $L = \\mathrm{actor.update}(a, s)$ (denoising BC loss only)\n3. EMA-update actor weights every K steps (after warmup)\n4. Cosine LR schedule on actor optimizer\n5. At inference: $a \\sim \\mathrm{actor.sample}(\\text{prior}=0,\\,\\text{cond}=s)$, clip to $[-1,1]$\n6. Single sample per env, no candidate reranking",
+    "key_hyperparams": [
+      {"name": "actor_backbone", "value": "DQLMlp(emb_dim=64)", "role": "denoising network", "learnable": true},
+      {"name": "diffusion_steps", "value": "args.diffusion_steps", "role": "discrete schedule length", "learnable": false},
+      {"name": "ema_rate", "value": "args.ema_rate", "role": "actor EMA", "learnable": false},
+      {"name": "cfg_weight $w$", "value": "1.0", "role": "classifier-free guidance scale at inference", "learnable": false}
+    ],
+    "diff_from_baseline": "Chi et al., RSS 2023 ('Diffusion Policy', arXiv:2303.04137). Diffusion-only behavior cloning baseline; reduces dql_d4rl_mujoco.py to its BC component.",
+    "confidence": "high"
+  },
+  {
+    "model": "IDQL",
+    "name": "IDQL (Implicit Q-Learning)",
+    "tagline": "Diffusion actor trained with BC plus an IQL twin-Q + value critic; at inference, sample N candidates and resample by softmax(advantage * beta).",
+    "kind": "pseudocode",
+    "pseudocode": "1. Actor: DiscreteDiffusionSDE(IDQLMlp); critics: IDQLQNet (twin) + IDQLVNet\n2. Every other step train V with expectile loss: $|\\tau - \\mathbb{1}[(Q-V)<0]|\\,(Q-V)^2$\n3. TD target $y = r + \\gamma(1-d) V(s')$; Q with $(q_1-y)^2 + (q_2-y)^2$; soft target update $\\tau=0.005$\n4. Actor: BC loss only on diffusion denoising, decoupled from critic\n5. Inference: sample $N$ candidate actions per state\n6. Score with adv $= Q(s,a) - V(s)$; resample $a$ via $\\mathrm{multinomial}(\\mathrm{softmax}(\\beta\\,\\mathrm{adv}))$",
+    "key_hyperparams": [
+      {"name": "$\\tau$ (iql_tau)", "value": "args.iql_tau", "role": "expectile quantile for V", "learnable": false},
+      {"name": "$\\gamma$ (discount)", "value": "args.discount", "role": "TD discount", "learnable": false},
+      {"name": "polyak", "value": "0.995", "role": "Q-target soft update", "learnable": false},
+      {"name": "$\\beta$ (weight_temperature)", "value": "args.task.weight_temperature", "role": "advantage softmax temp at inference", "learnable": false},
+      {"name": "$N$ (num_candidates)", "value": "args.num_candidates", "role": "sampled actions per state", "learnable": false}
+    ],
+    "diff_from_baseline": "Hansen-Estruch et al., 2023 (IDQL, arXiv:2304.10573). Diffusion actor + IQL critic; advantage-weighted resampling at inference.",
+    "confidence": "high"
+  },
+  {
+    "model": "DQL (Diffusion Q-Learning)",
+    "name": "Diffusion Q-Learning (DQL)",
+    "tagline": "Diffusion actor trained jointly with BC denoising loss and a guidance term that maximizes a learned twin-Q critic.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Actor: DiscreteDiffusionSDE(DQLMlp); critic: twin-Q learned with TD on offline tuples\n2. Per step: BC denoising loss $L_{BC}$ on $(s, a)$\n3. Sample $\\hat a \\sim \\mathrm{actor}(s)$; Q loss term $L_Q = -Q(s, \\hat a)$\n4. Actor loss: $L = L_{BC} + \\eta\\, L_Q$ (Q-guided diffusion)\n5. Critic update with TD target $y = r + \\gamma(1-d)\\min_i Q'_i(s', a')$\n6. Inference: single diffusion sample per env, no reranking",
+    "key_hyperparams": [
+      {"name": "$\\eta$ (q_loss weight)", "value": "args.eta", "role": "balance BC vs Q-guidance", "learnable": false},
+      {"name": "diffusion_steps", "value": "args.diffusion_steps", "role": "schedule length", "learnable": false},
+      {"name": "ema_rate", "value": "args.ema_rate", "role": "actor EMA", "learnable": false}
+    ],
+    "diff_from_baseline": "Wang et al., ICLR 2023 ('Diffusion Policies as an Expressive Policy Class for Offline RL', arXiv:2208.06193). Cleandiffuser's dql_d4rl_mujoco template — BC + Q-guided diffusion actor with twin-Q critic.",
+    "confidence": "high"
+  }
+]

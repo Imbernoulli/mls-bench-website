@@ -1,0 +1,54 @@
+[
+  {
+    "model": "Confidence Thresholding",
+    "name": "Confidence Thresholding",
+    "tagline": "Accept when max softmax probability exceeds a single global threshold tuned on calibration data to hit the target coverage quantile.",
+    "kind": "pseudocode",
+    "pseudocode": "1. score(x) = $\\max_c p_c(x)$ (max softmax).\n2. On calibration: compute scores; set $\\tau = Q_{1-c^*}(\\{\\text{scores}\\})$ where $c^*$ is the target coverage.\n3. At test: accept iff $\\max_c p_c(x) \\ge \\tau$.\n4. Return accepted predictions.",
+    "key_hyperparams": [
+      {"name": "score", "value": "max softmax", "role": "confidence statistic", "learnable": false},
+      {"name": "threshold", "value": "$Q_{1-c^*}$ on calibration", "role": "coverage-controlled cutoff", "learnable": false}
+    ],
+    "diff_from_baseline": "Geifman & El-Yaniv, 'Selective Classification for Deep Neural Networks' (NeurIPS 2017). Default selective-prediction baseline using max softmax probability.",
+    "confidence": "high"
+  },
+  {
+    "model": "Conformal Abstention",
+    "name": "Split-Conformal Abstention",
+    "tagline": "Pick the threshold by the split-conformal $\\lceil(n+1)(1-\\alpha)\\rceil$ rank of nonconformity scores, giving a finite-sample coverage guarantee.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Compute nonconformity $s_i = 1 - \\max_c p_c(x_i)$ on calibration data.\n2. $\\alpha = 1 - c^*$; $r = \\mathrm{clip}(\\lceil(n+1)(1-\\alpha)\\rceil-1, 0, n-1)$.\n3. $\\tau = 1 - \\mathrm{sort}(s)[r]$.\n4. At test: accept iff $\\max_c p_c(x) \\ge \\tau$.",
+    "key_hyperparams": [
+      {"name": "nonconformity", "value": "1 - max softmax", "role": "score function", "learnable": false},
+      {"name": "rank", "value": "$\\lceil(n+1)(1-\\alpha)\\rceil-1$", "role": "split-conformal rank", "learnable": false}
+    ],
+    "diff_from_baseline": "Vovk et al., 'Algorithmic Learning in a Random World' (2005); Angelopoulos & Bates conformal-prediction tutorial (2023). Distribution-free coverage via the calibration-set rank threshold.",
+    "confidence": "high"
+  },
+  {
+    "model": "Group-wise Thresholding",
+    "name": "Group-wise Thresholding",
+    "tagline": "Per-subgroup confidence threshold: each group gets its own quantile-based cutoff, equalizing within-group coverage.",
+    "kind": "pseudocode",
+    "pseudocode": "1. score(x) = $\\max_c p_c(x)$.\n2. On calibration, set global $\\tau = Q_{1-c^*}(\\text{all scores})$ (fallback).\n3. For each group $g$: $\\tau_g = Q_{1-c^*}(\\text{scores in } g)$.\n4. At test: accept iff $\\mathrm{score}(x) \\ge \\tau_{g(x)}$ (else $\\tau$).",
+    "key_hyperparams": [
+      {"name": "score", "value": "max softmax", "role": "per-example confidence", "learnable": false},
+      {"name": "group quantile", "value": "$1-c^*$", "role": "per-group coverage target", "learnable": false}
+    ],
+    "diff_from_baseline": "Standard subgroup-aware selective-prediction baseline (e.g., Jones et al., 'Selective Classification Can Magnify Disparities Across Groups', ICLR 2021). Per-group thresholds equalize coverage across subgroups.",
+    "confidence": "high"
+  },
+  {
+    "model": "Learned Deferral",
+    "name": "Learned Deferral",
+    "tagline": "Train a logistic-regression meta-model on confidence features to predict correctness; threshold the meta-model probability for acceptance.",
+    "kind": "pseudocode",
+    "pseudocode": "1. features $\\phi(x) = $ confidence-feature stack (probs, group ids, optional $X$).\n2. labels $y_i^* = \\mathbf{1}[\\arg\\max_c p_c(x_i) = y_i]$ on calibration.\n3. Fit StandardScaler + balanced LogisticRegression on $(\\phi(x_i), y_i^*)$.\n4. score(x) = meta_model.predict_proba($\\phi(x)$)$_{,1}$.\n5. $\\tau = Q_{1-c^*}(\\text{scores})$; accept iff score(x) $\\ge \\tau$.",
+    "key_hyperparams": [
+      {"name": "meta-model", "value": "StandardScaler + LogisticRegression(class_weight='balanced')", "role": "correctness predictor", "learnable": true},
+      {"name": "max_iter", "value": "1000", "role": "LBFGS iterations", "learnable": false}
+    ],
+    "diff_from_baseline": "Madras et al., 'Predict Responsibly: Improving Fairness and Accuracy by Learning to Defer' (NeurIPS 2018). Classic learned-rejector baseline using a meta-classifier on calibration features.",
+    "confidence": "high"
+  }
+]

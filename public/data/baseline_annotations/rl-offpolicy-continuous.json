@@ -1,0 +1,64 @@
+[
+  {
+    "model": "DDPG",
+    "name": "DDPG",
+    "tagline": "Deterministic actor + single Q-critic with Gaussian exploration noise and Polyak target updates.",
+    "kind": "pseudocode",
+    "pseudocode": "1. At env step: $a = \\mu_\\theta(s) + \\mathcal{N}(0, \\sigma\\,a_{\\max})$, clip to $\\pm a_{\\max}$.\n2. Sample minibatch $(s, a, r, s', d)$ from replay.\n3. $y = r + \\gamma(1-d)\\,Q_{\\bar\\phi}(s', \\mu_{\\bar\\theta}(s'))$.\n4. Critic loss $\\mathcal{L}_Q = \\mathbb{E}[(Q_\\phi(s,a) - y)^2]$; one Adam step.\n5. Every `policy_frequency` steps: actor loss $\\mathcal{L}_\\mu = -\\mathbb{E}[Q_\\phi(s,\\mu_\\theta(s))]$; soft-update $\\bar\\phi \\leftarrow \\tau\\phi + (1-\\tau)\\bar\\phi$ for actor and critic.",
+    "key_hyperparams": [
+      {"name": "γ", "value": "0.99 (default)", "role": "discount", "learnable": false},
+      {"name": "τ", "value": "0.005 (default)", "role": "Polyak rate", "learnable": false},
+      {"name": "exploration σ", "value": "args.exploration_noise", "role": "Gaussian action noise", "learnable": false}
+    ],
+    "diff_from_baseline": "Lillicrap et al., ICLR 2016 — DDPG. Deep deterministic policy gradient: single critic, deterministic actor, replay buffer + soft target networks. CleanRL ddpg_continuous_action.py reference; classic off-policy continuous-control baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "SAC",
+    "name": "SAC (auto α)",
+    "tagline": "Stochastic Tanh-Gaussian actor, twin Q-critics, entropy-regularized soft Bellman target, automatic temperature tuning.",
+    "kind": "hybrid",
+    "diagram": {
+      "nodes": [
+        {"id": "s", "label": "state s"},
+        {"id": "actor", "label": "Tanh-Gaussian actor π(·|s)"},
+        {"id": "rsample", "label": "rsample → a, log π"},
+        {"id": "twin", "label": "Twin Q1, Q2"},
+        {"id": "soft", "label": "y = r + γ[min Q' - α log π']"},
+        {"id": "alpha", "label": "α auto-tune (target H = -|A|)"},
+        {"id": "out", "label": "Update actor, critics, α"}
+      ],
+      "edges": [
+        {"from": "s", "to": "actor"},
+        {"from": "actor", "to": "rsample"},
+        {"from": "rsample", "to": "twin"},
+        {"from": "twin", "to": "soft"},
+        {"from": "soft", "to": "out"},
+        {"from": "alpha", "to": "soft"},
+        {"from": "alpha", "to": "out"}
+      ]
+    },
+    "formula": "$$y = r + \\gamma(1-d)\\big[\\min_{i=1,2}Q_{\\bar\\phi_i}(s', a') - \\alpha\\,\\log\\pi_\\theta(a'|s')\\big],\\quad \\mathcal{L}_\\pi = \\mathbb{E}\\big[\\alpha\\log\\pi_\\theta(a|s) - \\min_i Q_{\\phi_i}(s,a)\\big]$$",
+    "key_hyperparams": [
+      {"name": "target H", "value": "-|A|", "role": "auto-α target entropy", "learnable": false},
+      {"name": "log_std clamp", "value": "[-5, 2]", "role": "stability bound", "learnable": false},
+      {"name": "twin critics", "value": "Q1, Q2", "role": "min for target", "learnable": false}
+    ],
+    "diff_from_baseline": "Haarnoja et al., ICML 2018 + 2019 update — SAC with automatic α tuning. Stochastic Tanh-squashed Gaussian policy, twin Qs, entropy-augmented Bellman backup. CleanRL sac_continuous_action.py reference; default modern off-policy continuous control baseline.",
+    "confidence": "high"
+  },
+  {
+    "model": "TD3",
+    "name": "TD3",
+    "tagline": "Twin critics + clipped target-policy smoothing + delayed policy/target updates on top of DDPG.",
+    "kind": "pseudocode",
+    "pseudocode": "1. Act $a = \\mu_\\theta(s) + \\mathcal{N}(0, \\sigma\\,a_{\\max})$, clip to $\\pm a_{\\max}$.\n2. Build smoothed target action: $\\tilde a = \\mathrm{clip}(\\mu_{\\bar\\theta}(s') + \\mathrm{clip}(\\epsilon, -c, c)\\cdot a_{\\max}, -a_{\\max}, a_{\\max})$ with $\\epsilon\\sim\\mathcal{N}(0, 0.2)$, $c=0.5$.\n3. Target: $y = r + \\gamma(1-d)\\min_{i=1,2}Q_{\\bar\\phi_i}(s', \\tilde a)$.\n4. Update both critics on MSE to $y$.\n5. Every `policy_frequency` steps: actor $\\mathcal{L}_\\mu = -\\mathbb{E}[Q_{\\phi_1}(s, \\mu_\\theta(s))]$; soft-update all targets.",
+    "key_hyperparams": [
+      {"name": "policy_noise", "value": "0.2", "role": "target smoothing σ", "learnable": false},
+      {"name": "noise_clip", "value": "0.5", "role": "smoothing clip", "learnable": false},
+      {"name": "policy_frequency", "value": "args.policy_frequency", "role": "delayed actor updates", "learnable": false}
+    ],
+    "diff_from_baseline": "Fujimoto, van Hoof & Meger, ICML 2018 — TD3. Twin clipped critics + target-policy smoothing + delayed actor updates address DDPG's overestimation bias. CleanRL td3_continuous_action.py reference.",
+    "confidence": "high"
+  }
+]

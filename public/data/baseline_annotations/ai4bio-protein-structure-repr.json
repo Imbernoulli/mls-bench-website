@@ -1,0 +1,105 @@
+[
+  {
+    "model": "EGNN",
+    "name": "EGNN",
+    "tagline": "E(n)-equivariant message passing that jointly updates node features and 3D coordinates using Euclidean distances between nodes.",
+    "kind": "hybrid",
+    "formula": "$$m_{ij} = \\psi_h(h_i, h_j, \\|x_i - x_j\\|^2),\\;\\; x_i' = x_i + \\sum_{j} \\frac{x_i - x_j}{\\|x_i-x_j\\|+1} \\psi_x(m_{ij}),\\;\\; h_i' = h_i + \\phi(h_i, \\sum_j m_{ij})$$",
+    "diagram": {
+      "nodes": [
+        {"id": "in", "label": "(pos, node feat, batch)"},
+        {"id": "knn", "label": "kNN graph (k=16)"},
+        {"id": "emb", "label": "Linear emb_in -> 512"},
+        {"id": "egnn", "label": "6 x EGNNLayer (sum aggr, BN, ReLU)"},
+        {"id": "proj", "label": "Linear -> out_dim"},
+        {"id": "pool", "label": "Mean pool"}
+      ],
+      "edges": [
+        {"from": "in", "to": "knn"},
+        {"from": "in", "to": "emb"},
+        {"from": "knn", "to": "egnn"},
+        {"from": "emb", "to": "egnn"},
+        {"from": "egnn", "to": "proj"},
+        {"from": "proj", "to": "pool"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "num_layers", "value": "6", "role": "EGNN message-passing depth", "learnable": false},
+      {"name": "emb_dim", "value": "512", "role": "hidden feature width", "learnable": false},
+      {"name": "aggr", "value": "sum", "role": "neighborhood aggregation", "learnable": false},
+      {"name": "pool", "value": "mean", "role": "graph readout", "learnable": false},
+      {"name": "norm", "value": "batch", "role": "MLP normalization", "learnable": false},
+      {"name": "dropout", "value": "0.1", "role": "MLP dropout", "learnable": false}
+    ],
+    "diff_from_baseline": "Satorras et al., ICML 2021 (E(n) Equivariant Graph Neural Networks). Standard E(n)-equivariant encoder used as a strong geometry-aware reference for protein-graph representation learning. Hyperparameters match ProteinWorkshop's egnn.yaml.",
+    "confidence": "high"
+  },
+  {
+    "model": "GearNet",
+    "name": "GearNet",
+    "tagline": "Geometric relational GNN with seven edge types (sequential offsets, radius, kNN) and per-relation linear updates with concat-hidden readout.",
+    "kind": "hybrid",
+    "pseudocode": "1. Build edges: 5 sequential offsets {-2,-1,0,1,2}, radius graph (cutoff=10), kNN graph (k=16)\n2. Build edge feature $e_{ij} = [h_i \\| h_j \\| \\text{onehot}(r) \\| |i-j| \\| \\|p_i-p_j\\|]$\n3. For each layer $\\ell$ and relation $r$:\n   $\\quad m_{ij}^{(r)} = h_i \\cdot \\sigma(W_e e_{ij})$\n   $\\quad u_{j}^{(r)} = \\sum_{i: r(i,j)=r} m_{ij}^{(r)}$\n4. $h_j' = \\text{ReLU}(W \\cdot \\text{concat}_r(u_j^{(r)}) + W_{self} h_j)$\n5. Add short-cut residual, BatchNorm, dropout\n6. Readout = sum-pool over concatenated hidden states from all layers",
+    "diagram": {
+      "nodes": [
+        {"id": "edges", "label": "7-relation edges"},
+        {"id": "rconv", "label": "6 x GeometricRelationalConv"},
+        {"id": "concat", "label": "Concat hidden layers"},
+        {"id": "proj", "label": "Linear out"},
+        {"id": "pool", "label": "Sum pool"}
+      ],
+      "edges": [
+        {"from": "edges", "to": "rconv"},
+        {"from": "rconv", "to": "concat"},
+        {"from": "concat", "to": "proj"},
+        {"from": "proj", "to": "pool"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "num_layers", "value": "6", "role": "depth", "learnable": false},
+      {"name": "hidden_dim", "value": "512", "role": "per-layer width", "learnable": false},
+      {"name": "num_relation", "value": "7", "role": "edge types: 5 seq + radius + kNN", "learnable": false},
+      {"name": "cutoff", "value": "10.0 A", "role": "radius graph radius", "learnable": false},
+      {"name": "max_neighbors", "value": "16", "role": "kNN neighbours", "learnable": false},
+      {"name": "pool", "value": "sum", "role": "graph readout", "learnable": false},
+      {"name": "concat_hidden", "value": "true", "role": "use all-layer features", "learnable": false}
+    ],
+    "diff_from_baseline": "Zhang et al., ICLR 2023 (Protein Representation Learning by Geometric Structure Pretraining). Multi-relational geometric encoder with sequential, radius, and kNN edge types - the canonical GNN baseline on ProteinWorkshop. Hyperparameters match gear_net.yaml.",
+    "confidence": "high"
+  },
+  {
+    "model": "SchNet",
+    "name": "SchNet",
+    "tagline": "Continuous-filter convolutions over a kNN graph with Gaussian RBF distance expansion and shifted-softplus nonlinearity, invariant to rotation/translation.",
+    "kind": "hybrid",
+    "formula": "$$h_i^{(\\ell+1)} = h_i^{(\\ell)} + \\sum_{j\\in\\mathcal{N}(i)} h_j^{(\\ell)} \\odot W_{cf}(\\mathrm{RBF}(\\|x_i - x_j\\|))$$",
+    "diagram": {
+      "nodes": [
+        {"id": "knn", "label": "kNN graph (k=32)"},
+        {"id": "rbf", "label": "Gaussian RBF (50)"},
+        {"id": "emb", "label": "Linear -> 512"},
+        {"id": "ib", "label": "6 x InteractionBlock (CFConv)"},
+        {"id": "out", "label": "Linear-SSP-Linear -> out_dim"},
+        {"id": "pool", "label": "Sum scatter"}
+      ],
+      "edges": [
+        {"from": "knn", "to": "rbf"},
+        {"from": "rbf", "to": "ib"},
+        {"from": "emb", "to": "ib"},
+        {"from": "ib", "to": "out"},
+        {"from": "out", "to": "pool"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "num_layers", "value": "6", "role": "InteractionBlock depth", "learnable": false},
+      {"name": "hidden_channels", "value": "512", "role": "node embedding width", "learnable": false},
+      {"name": "num_filters", "value": "128", "role": "CFConv filter size", "learnable": false},
+      {"name": "num_gaussians", "value": "50", "role": "RBF basis count", "learnable": false},
+      {"name": "cutoff", "value": "10.0 A", "role": "max edge distance", "learnable": false},
+      {"name": "max_neighbors", "value": "32", "role": "kNN neighbours", "learnable": false},
+      {"name": "readout", "value": "add", "role": "graph pooling", "learnable": false}
+    ],
+    "diff_from_baseline": "Schutt et al., NeurIPS 2017 (SchNet: A continuous-filter convolutional neural network for modeling quantum interactions). Distance-only invariant encoder; widely used baseline for atom/residue-graph representation. Reuses PyG's InteractionBlock + GaussianSmearing + ShiftedSoftplus, hyperparameters match schnet.yaml.",
+    "confidence": "high"
+  }
+]

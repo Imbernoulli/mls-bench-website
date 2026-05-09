@@ -1,0 +1,80 @@
+[
+  {
+    "model": "RMSNorm",
+    "name": "RMSNorm",
+    "tagline": "Replace LayerNorm with RMSNorm (no mean centring, scale-only) while keeping the standard Pre-LN block.",
+    "kind": "formula",
+    "formula": "$$\\mathrm{RMSNorm}(x) = \\frac{x}{\\sqrt{\\overline{x^2} + \\varepsilon}} \\odot g, \\quad \\varepsilon = 10^{-5}$$",
+    "key_hyperparams": [
+      {"name": "eps", "value": "1e-5", "role": "numerical floor", "learnable": false},
+      {"name": "weight g", "value": "ones init", "role": "per-feature scale", "learnable": true}
+    ],
+    "diff_from_baseline": "Zhang & Sennrich, NeurIPS 2019 — RMSNorm. Drops the mean subtraction and bias of LayerNorm, leaving only RMS scaling; default normalisation in LLaMA, Gemma, Mistral, and most modern open-weights LLMs.",
+    "confidence": "high"
+  },
+  {
+    "model": "RMSNorm (Parallel Block)",
+    "name": "RMSNorm + Parallel block",
+    "tagline": "Single RMSNorm shared by attention and MLP, whose outputs are summed in one residual (GPT-J / PaLM style).",
+    "kind": "hybrid",
+    "formula": "$$h = \\mathrm{RMSNorm}(x), \\quad x \\leftarrow x + \\mathrm{Attn}(h) + \\mathrm{MLP}(h)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x"},
+        {"id": "ln", "label": "RMSNorm"},
+        {"id": "attn", "label": "Causal Self-Attn"},
+        {"id": "mlp", "label": "MLP"},
+        {"id": "add", "label": "+"},
+        {"id": "out", "label": "x + Attn(h) + MLP(h)"}
+      ],
+      "edges": [
+        {"from": "x", "to": "ln"},
+        {"from": "ln", "to": "attn"},
+        {"from": "ln", "to": "mlp"},
+        {"from": "x", "to": "add"},
+        {"from": "attn", "to": "add"},
+        {"from": "mlp", "to": "add"},
+        {"from": "add", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "eps", "value": "1e-5", "role": "RMSNorm floor", "learnable": false}
+    ],
+    "diff_from_baseline": "Wang & Komatsuzaki 2021 (GPT-J) and Chowdhery et al. 2022 (PaLM) — parallel residual block. One norm, attention and MLP share inputs; saves a matmul/norm and stabilises large-scale training.",
+    "confidence": "high"
+  },
+  {
+    "model": "RMSNorm + Sandwich-Norm",
+    "name": "RMSNorm + Sandwich-LN",
+    "tagline": "Pre- and post-norm wrap each sublayer (CogView-style sandwich) using RMSNorm.",
+    "kind": "hybrid",
+    "formula": "$$x \\leftarrow x + \\mathrm{RMSNorm}\\!\\big(\\mathrm{Attn}(\\mathrm{RMSNorm}(x))\\big), \\quad x \\leftarrow x + \\mathrm{RMSNorm}\\!\\big(\\mathrm{MLP}(\\mathrm{RMSNorm}(x))\\big)$$",
+    "diagram": {
+      "nodes": [
+        {"id": "x", "label": "x"},
+        {"id": "pre1", "label": "RMSNorm pre"},
+        {"id": "attn", "label": "Self-Attn"},
+        {"id": "post1", "label": "RMSNorm post"},
+        {"id": "pre2", "label": "RMSNorm pre"},
+        {"id": "mlp", "label": "MLP"},
+        {"id": "post2", "label": "RMSNorm post"},
+        {"id": "out", "label": "+ residual (twice)"}
+      ],
+      "edges": [
+        {"from": "x", "to": "pre1"},
+        {"from": "pre1", "to": "attn"},
+        {"from": "attn", "to": "post1"},
+        {"from": "post1", "to": "pre2"},
+        {"from": "pre2", "to": "mlp"},
+        {"from": "mlp", "to": "post2"},
+        {"from": "post2", "to": "out"}
+      ]
+    },
+    "key_hyperparams": [
+      {"name": "norms_per_block", "value": "4", "role": "pre+post for each of attn and MLP", "learnable": false},
+      {"name": "eps", "value": "1e-5", "role": "RMSNorm floor", "learnable": false}
+    ],
+    "diff_from_baseline": "Ding et al., NeurIPS 2021 — CogView (Sandwich-LN). Combines Pre-LN's optimisation stability with Post-LN's regularisation effect; widely used for stabilising deep transformer training.",
+    "confidence": "high"
+  }
+]
