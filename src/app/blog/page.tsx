@@ -352,6 +352,16 @@ export default function BlogPage() {
           <a href={RESOURCE_LINKS.github.href}>GitHub repository</a> for the
           executable benchmark.
         </p>
+
+        <h2>Citation</h2>
+        <pre className="overflow-x-auto rounded-lg border border-border bg-muted/40 p-4 text-xs leading-relaxed">
+{`@misc{lyu2026mlsbench,
+  title  = {{MLS-Bench}: A Holistic and Rigorous Assessment of AI Systems on Building Better AI},
+  author = {Bohan Lyu and Yucheng Yang and Siqiao Huang and Jiaru Zhang and Qixin Xu and Xinghan Li and David Han and Huaqing Zhang and Yicheng Zhang and Runhan Huang and Kaicheng Yang and Zitao Chen and Wentao Guo and Junlin Yang and Xinyue Ai and Wenhao Chai and Yadi Cao and Ziran Yang and Kun Wang and Dapeng Jiang and Huan-ang Gao and Shange Tang and Chengshuai Shi and Simon S. Du and Max Simchowitz and Jiantao Jiao and Dawn Song and Chi Jin},
+  year   = {2026},
+  url    = {https://mls-bench.com}
+}`}
+        </pre>
       </div>
     </article>
   );
