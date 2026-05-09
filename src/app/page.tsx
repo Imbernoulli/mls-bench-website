@@ -252,7 +252,7 @@ export default function HomePage() {
       </section>
 
       <section className="border-t border-border py-14">
-        <div className="mx-auto max-w-5xl px-4">
+        <div className="mx-auto max-w-4xl px-4">
           <div className="text-center">
             <h2 className="text-2xl font-semibold">
               Model Performance by Category
@@ -273,7 +273,7 @@ export default function HomePage() {
       </section>
 
       <section className="border-t border-border pt-12 pb-10">
-        <div className="mx-auto max-w-5xl px-4">
+        <div className="mx-auto max-w-4xl px-4">
           <div className="text-center">
             <h2 className="text-2xl font-semibold">Task Categories</h2>
             <p className="mx-auto mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">

@@ -203,8 +203,8 @@ export default function CategoryPerformanceCharts({ data, series }: Props) {
             ))}
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <div className="h-[420px] min-w-[640px]">
+        <div className="w-full">
+          <div className="h-[360px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data} margin={{ top: 8, right: 16, bottom: 60, left: 8 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.35} />
