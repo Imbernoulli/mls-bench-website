@@ -144,72 +144,12 @@ export default function MethodSummary({
 
   return (
     <div>
-      {/* Picker — agents first (with brand-color dot + 🏆 if swept), then
-          baselines. Same visual language as the Code section's tabs but
-          state is independent. */}
-      <div className="mb-3 flex flex-wrap gap-2">
-        {agentEntries.length > 0 && (
-          <span className="self-center text-[11px] uppercase tracking-wide text-muted-foreground">
-            Agents
-          </span>
-        )}
-        {agentEntries.map((e) => {
-          const isActive = active.key === e.key;
-          const swept =
-            e.canonicalId ? sweepByCanonical.has(e.canonicalId) : false;
-          return (
-            <button
-              key={e.key}
-              onClick={() => setActiveKey(e.key)}
-              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                isActive
-                  ? "bg-foreground text-background"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              <span
-                aria-hidden
-                className="inline-block h-2 w-2 rounded-full"
-                style={{ backgroundColor: e.color }}
-              />
-              {e.label}
-              {swept && <span aria-hidden>🏆</span>}
-            </button>
-          );
-        })}
-        {baselineEntries.length > 0 && (
-          <span className="ml-2 self-center text-[11px] uppercase tracking-wide text-muted-foreground">
-            Baselines
-          </span>
-        )}
-        {baselineEntries.map((e) => {
-          const isActive = active.key === e.key;
-          return (
-            <button
-              key={e.key}
-              onClick={() => setActiveKey(e.key)}
-              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                isActive
-                  ? "bg-foreground text-background"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              <span
-                aria-hidden
-                className="inline-block h-2 w-2 rounded-full"
-                style={{ backgroundColor: e.color }}
-              />
-              {e.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Caption + sweep badge (sweep only on agent entries that swept). */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+      {/* Caption goes first, just under the section heading, with a sweep
+          badge on the right when applicable. */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
         <span>
           Auto-summarized from each method's code by an LLM reviewer — not the
-          model's original output. Browse via the picker above; the Code section
+          model's original output. Browse via the picker below; the Code section
           is independent.
         </span>
         {sweep && (
@@ -219,6 +159,69 @@ export default function MethodSummary({
           </span>
         )}
       </div>
+
+      {/* Picker — Baselines on row 1, Agents on row 2. Each row has its own
+          inline label so the kinds stay visually distinct even when there are
+          many entries. */}
+      {baselineEntries.length > 0 && (
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            Baselines
+          </span>
+          {baselineEntries.map((e) => {
+            const isActive = active.key === e.key;
+            return (
+              <button
+                key={e.key}
+                onClick={() => setActiveKey(e.key)}
+                className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  isActive
+                    ? "bg-foreground text-background"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+              >
+                <span
+                  aria-hidden
+                  className="inline-block h-2 w-2 rounded-full"
+                  style={{ backgroundColor: e.color }}
+                />
+                {e.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {agentEntries.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            Agents
+          </span>
+          {agentEntries.map((e) => {
+            const isActive = active.key === e.key;
+            const swept =
+              e.canonicalId ? sweepByCanonical.has(e.canonicalId) : false;
+            return (
+              <button
+                key={e.key}
+                onClick={() => setActiveKey(e.key)}
+                className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  isActive
+                    ? "bg-foreground text-background"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+              >
+                <span
+                  aria-hidden
+                  className="inline-block h-2 w-2 rounded-full"
+                  style={{ backgroundColor: e.color }}
+                />
+                {e.label}
+                {swept && <span aria-hidden>🏆</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {annotation ? (
         <ProposalAnnotation
