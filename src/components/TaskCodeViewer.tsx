@@ -6,6 +6,7 @@ import type { TaskFile, BaselineOp, StandardModel } from "@/lib/types";
 import AnnotatedCodeBlock, { applyBaselineOps } from "./AnnotatedCodeBlock";
 import { resolveCanonicalModel } from "@/lib/display";
 import ProposalAnnotation, { type Annotation } from "./ProposalAnnotation";
+import type { ModelSweep } from "@/lib/sweep";
 
 /** model_name → { filename → content } */
 type Proposals = Record<string, Record<string, string>>;
@@ -48,6 +49,8 @@ interface Props {
   annotations?: Annotation[];
   /** Standardized human-readable baseline annotations, keyed by baseline name. */
   baselineAnnotations?: Annotation[];
+  /** Models that swept all baselines on every metric of this task. */
+  sweeps?: ModelSweep[];
 }
 
 type ViewKind = "source" | "baseline" | "agent";
@@ -197,7 +200,11 @@ export default function TaskCodeViewer({
   models,
   annotations,
   baselineAnnotations,
+  sweeps,
 }: Props) {
+  const sweepByCanonical = new Map<string, ModelSweep>(
+    (sweeps ?? []).map((s) => [s.modelId, s]),
+  );
   const baselineAnnotationByName = new Map<string, Annotation>(
     (baselineAnnotations ?? []).map((a) => [a.model, a]),
   );
@@ -299,23 +306,37 @@ export default function TaskCodeViewer({
             language; a small colored dot encodes the kind so source/baseline/
             agent are distinguishable without colored backgrounds. */}
         {!diffMode &&
-          views.map((v) => (
-            <button
-              key={v.key}
-              onClick={() => setActiveView(v.key)}
-              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${tabClass(
-                v,
-                activeView === v.key,
-              )}`}
-            >
-              <span
-                aria-hidden
-                className="inline-block h-2 w-2 rounded-full"
-                style={{ backgroundColor: tabDotColor(v) }}
-              />
-              {v.kind === "source" ? "Source" : v.label}
-            </button>
-          ))}
+          views.map((v) => {
+            const sweep =
+              v.kind === "agent" && v.name
+                ? sweepByCanonical.get(
+                    resolveCanonicalModel(v.name, models)?.id ?? "",
+                  )
+                : null;
+            return (
+              <button
+                key={v.key}
+                onClick={() => setActiveView(v.key)}
+                className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${tabClass(
+                  v,
+                  activeView === v.key,
+                )}`}
+                title={
+                  sweep
+                    ? "This model's final submission strictly beats every baseline on every metric"
+                    : undefined
+                }
+              >
+                <span
+                  aria-hidden
+                  className="inline-block h-2 w-2 rounded-full"
+                  style={{ backgroundColor: tabDotColor(v) }}
+                />
+                {v.kind === "source" ? "Source" : v.label}
+                {sweep && <span aria-hidden>🏆</span>}
+              </button>
+            );
+          })}
 
         {/* Diff mode selectors */}
         {diffMode && (
@@ -368,40 +389,6 @@ export default function TaskCodeViewer({
           </button>
         )}
       </div>
-
-      {/* Annotation card (only when an agent tab is active and we have an annotation for it) */}
-      {!diffMode && activeEntry.kind === "agent" && activeEntry.name && (() => {
-        const ann = annotationByModel.get(activeEntry.name);
-        if (!ann) return null;
-        const canonical = resolveCanonicalModel(activeEntry.name, models);
-        const color = canonical?.color ?? "var(--muted-foreground)";
-        return (
-          <div className="mb-4">
-            <ProposalAnnotation
-              annotation={ann}
-              modelName={activeEntry.label}
-              modelColor={color}
-              mode="proposal"
-            />
-          </div>
-        );
-      })()}
-
-      {/* Baseline annotation card (when a baseline tab is active and we have an annotation) */}
-      {!diffMode && activeEntry.kind === "baseline" && activeEntry.name && (() => {
-        const ann = baselineAnnotationByName.get(activeEntry.name);
-        if (!ann) return null;
-        return (
-          <div className="mb-4">
-            <ProposalAnnotation
-              annotation={ann}
-              modelName={activeEntry.label}
-              modelColor="#6b7280"
-              mode="baseline"
-            />
-          </div>
-        );
-      })()}
 
       {/* Code display */}
       <div className="space-y-4">
@@ -493,6 +480,49 @@ export default function TaskCodeViewer({
           );
         })}
       </div>
+
+      {/* Auto-summarized annotation card (below the code; not shown in diff mode).
+          Renders for either an active agent or baseline tab when an annotation exists. */}
+      {!diffMode && (() => {
+        let ann: Annotation | undefined;
+        let mode: "proposal" | "baseline" = "proposal";
+        let cardColor = "var(--muted-foreground)";
+        let sweep: ModelSweep | undefined;
+        if (activeEntry.kind === "agent" && activeEntry.name) {
+          ann = annotationByModel.get(activeEntry.name);
+          const canonical = resolveCanonicalModel(activeEntry.name, models);
+          if (canonical) cardColor = canonical.color;
+          if (canonical) sweep = sweepByCanonical.get(canonical.id);
+          mode = "proposal";
+        } else if (activeEntry.kind === "baseline" && activeEntry.name) {
+          ann = baselineAnnotationByName.get(activeEntry.name);
+          cardColor = "#6b7280";
+          mode = "baseline";
+        }
+        if (!ann) return null;
+        return (
+          <div className="mt-6">
+            <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: cardColor }} />
+                Auto-summarized from the code above by an LLM reviewer — not the model's original output.
+              </span>
+              {sweep && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                  <span aria-hidden>🏆</span>
+                  Beats every baseline on every metric
+                </span>
+              )}
+            </div>
+            <ProposalAnnotation
+              annotation={ann}
+              modelName={activeEntry.label}
+              modelColor={cardColor}
+              mode={mode}
+            />
+          </div>
+        );
+      })()}
 
       {/* Files without content */}
       {files.filter((f) => !f.content).length > 0 && (

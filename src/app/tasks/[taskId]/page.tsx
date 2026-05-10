@@ -13,6 +13,7 @@ import TaskDescription from "@/components/TaskDescription";
 import TaskCodeViewer from "@/components/TaskCodeViewer";
 import { categoryStyle } from "@/lib/display";
 import { tileSrc } from "@/lib/tile-versions";
+import { computeSweeps } from "@/lib/sweep";
 
 export function generateStaticParams() {
   const tasks = getTasksStatic().filter((t) => t.category !== "demo");
@@ -44,6 +45,7 @@ export default async function TaskDetailPage({
   const proposals = getProposalsStatic(taskId);
   const annotations = getAnnotationsStatic(taskId);
   const baselineAnnotations = getBaselineAnnotationsStatic(taskId);
+  const sweeps = leaderboard ? computeSweeps(leaderboard, models) : [];
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
@@ -82,6 +84,19 @@ export default async function TaskDetailPage({
                 {pkg}
               </span>
             ))}
+            {sweeps.length > 0 && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800"
+                title={sweeps
+                  .map((s) => `${s.modelName} beats every baseline on every metric`)
+                  .join("; ")}
+              >
+                <span aria-hidden>🏆</span>
+                {sweeps.length === 1
+                  ? `${sweeps[0].modelName} beats every baseline`
+                  : `${sweeps.length} agents beat every baseline`}
+              </span>
+            )}
           </div>
           <div className="mt-5">
             <span className="rounded-md border border-border bg-muted px-2.5 py-1 font-mono text-xs text-muted-foreground">
@@ -118,6 +133,7 @@ export default async function TaskDetailPage({
             models={models}
             annotations={annotations}
             baselineAnnotations={baselineAnnotations}
+            sweeps={sweeps}
           />
         </section>
       )}
