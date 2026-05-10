@@ -104,39 +104,35 @@ function MetricBarShape(props: any) {
     typeof payload?.vanilla === "number" ? payload.vanilla : null;
   const agent = typeof payload?.agent === "number" ? payload.agent : null;
   const color: string = payload?.color ?? BASELINE_COLOR;
+  const direction: "higher" | "lower" = payload?.direction ?? "higher";
   const vH = vanilla != null ? vanilla * pxPerUnit : 0;
   const aH = agent != null ? agent * pxPerUnit : 0;
   const agentColor = lighten(color, 0.55);
-  // Side-by-side mini bars at the same x-slot: vanilla on the left, agent on
-  // the right. Both fully opaque, both the same width — no overlap and no
-  // asymmetric width artifacts. A small gap separates the two so they read
-  // as distinct.
-  const gap = Math.max(1, Math.round(width * 0.05));
-  const subW = Math.max(2, Math.floor((width - gap) / 2));
-  // If only one of (vanilla, agent) is present, draw it as a single full-width
-  // bar so we don't waste half the slot.
-  const both = vanilla != null && agent != null;
-  if (!both) {
-    if (vanilla != null) {
-      return (
-        <rect x={x} y={baseY - vH} width={width} height={vH}
-          rx={3} ry={3} fill={color} />
-      );
-    }
-    if (agent != null) {
-      return (
-        <rect x={x} y={baseY - aH} width={width} height={aH}
-          rx={3} ry={3} fill={agentColor} />
-      );
-    }
-    return <g />;
+  // Both bars share the SAME x-position and the SAME width — they fully
+  // overlap. Both are fully opaque. Z-order is direction-aware so the
+  // (typically) SHORTER one renders in front: lower-is-better → agent in
+  // front, higher-is-better → vanilla in front. The taller one's top portion
+  // peeks up above the front bar, making the gap visible.
+  const vanillaRect = (
+    <rect x={x} y={baseY - vH} width={width} height={vH}
+      rx={3} ry={3} fill={color} />
+  );
+  const agentRect = (
+    <rect x={x} y={baseY - aH} width={width} height={aH}
+      rx={3} ry={3} fill={agentColor} />
+  );
+  if (direction === "lower") {
+    return (
+      <g>
+        {vanilla != null && vanillaRect}
+        {agent != null && agentRect}
+      </g>
+    );
   }
   return (
     <g>
-      <rect x={x} y={baseY - vH} width={subW} height={vH}
-        rx={3} ry={3} fill={color} />
-      <rect x={x + subW + gap} y={baseY - aH} width={subW} height={aH}
-        rx={3} ry={3} fill={agentColor} />
+      {agent != null && agentRect}
+      {vanilla != null && vanillaRect}
     </g>
   );
 }
