@@ -104,50 +104,39 @@ function MetricBarShape(props: any) {
     typeof payload?.vanilla === "number" ? payload.vanilla : null;
   const agent = typeof payload?.agent === "number" ? payload.agent : null;
   const color: string = payload?.color ?? BASELINE_COLOR;
-  const direction: "higher" | "lower" = payload?.direction ?? "higher";
   const vH = vanilla != null ? vanilla * pxPerUnit : 0;
   const aH = agent != null ? agent * pxPerUnit : 0;
-  // Inset the on-top rect slightly so the back rect's outline stays visible
-  // along the sides even when the front bar is taller.
-  const inset = Math.max(2, Math.round(width * 0.18));
-  // Both bars are fully opaque, distinguished by SHADE (no transparency):
-  //   Vanilla = original model color (darker)
-  //   Agent   = lightened model color (mix with white)
-  // The "back" bar is full-width; the "front" bar is inset on both sides so
-  // the back's vertical edges peek out — so even when the front is taller,
-  // both bars are visually present.
-  const innerW = Math.max(2, width - 2 * inset);
   const agentColor = lighten(color, 0.55);
-  const vanillaBack = (
-    <rect x={x} y={baseY - vH} width={width} height={vH}
-      rx={3} ry={3} fill={color} />
-  );
-  const vanillaFront = (
-    <rect x={x + inset} y={baseY - vH} width={innerW} height={vH}
-      rx={3} ry={3} fill={color} />
-  );
-  const agentBack = (
-    <rect x={x} y={baseY - aH} width={width} height={aH}
-      rx={3} ry={3} fill={agentColor} />
-  );
-  const agentFront = (
-    <rect x={x + inset} y={baseY - aH} width={innerW} height={aH}
-      rx={3} ry={3} fill={agentColor} />
-  );
-  // Lower-is-better → agent in front (agent typically shorter, sits inset on
-  // top of the wider vanilla bar). Higher-is-better → vanilla in front.
-  if (direction === "lower") {
-    return (
-      <g>
-        {vanilla != null && vanillaBack}
-        {agent != null && agentFront}
-      </g>
-    );
+  // Side-by-side mini bars at the same x-slot: vanilla on the left, agent on
+  // the right. Both fully opaque, both the same width — no overlap and no
+  // asymmetric width artifacts. A small gap separates the two so they read
+  // as distinct.
+  const gap = Math.max(1, Math.round(width * 0.05));
+  const subW = Math.max(2, Math.floor((width - gap) / 2));
+  // If only one of (vanilla, agent) is present, draw it as a single full-width
+  // bar so we don't waste half the slot.
+  const both = vanilla != null && agent != null;
+  if (!both) {
+    if (vanilla != null) {
+      return (
+        <rect x={x} y={baseY - vH} width={width} height={vH}
+          rx={3} ry={3} fill={color} />
+      );
+    }
+    if (agent != null) {
+      return (
+        <rect x={x} y={baseY - aH} width={width} height={aH}
+          rx={3} ry={3} fill={agentColor} />
+      );
+    }
+    return <g />;
   }
   return (
     <g>
-      {agent != null && agentBack}
-      {vanilla != null && vanillaFront}
+      <rect x={x} y={baseY - vH} width={subW} height={vH}
+        rx={3} ry={3} fill={color} />
+      <rect x={x + subW + gap} y={baseY - aH} width={subW} height={aH}
+        rx={3} ry={3} fill={agentColor} />
     </g>
   );
 }

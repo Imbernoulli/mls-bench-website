@@ -5,7 +5,7 @@ import { diffLines, type Change } from "diff";
 import type { TaskFile, BaselineOp, StandardModel } from "@/lib/types";
 import AnnotatedCodeBlock, { applyBaselineOps } from "./AnnotatedCodeBlock";
 import { resolveCanonicalModel } from "@/lib/display";
-import ProposalAnnotation, { type Annotation } from "./ProposalAnnotation";
+import { type Annotation } from "./ProposalAnnotation";
 import type { ModelSweep } from "@/lib/sweep";
 
 /** model_name → { filename → content } */
@@ -205,9 +205,6 @@ export default function TaskCodeViewer({
   const sweepByCanonical = new Map<string, ModelSweep>(
     (sweeps ?? []).map((s) => [s.modelId, s]),
   );
-  const baselineAnnotationByName = new Map<string, Annotation>(
-    (baselineAnnotations ?? []).map((a) => [a.model, a]),
-  );
   const baselineNames = Object.keys(baselinesCode || {});
   // Filter agent proposals to the 5 canonical models from models.json,
   // dedupe so each canonical model has at most one tab (some tasks have
@@ -216,9 +213,6 @@ export default function TaskCodeViewer({
   // the canonical id, then the alphabetically-first remaining one), and
   // label each tab with the formal display name (e.g. "Claude Opus 4.6").
   const annotatedKeys = new Set(annotations?.map((a) => a.model) ?? []);
-  const annotationByModel = new Map<string, Annotation>(
-    (annotations ?? []).map((a) => [a.model, a]),
-  );
   const byCanonical = new Map<
     string,
     { rawKey: string; label: string; canonicalId: string }
@@ -480,49 +474,6 @@ export default function TaskCodeViewer({
           );
         })}
       </div>
-
-      {/* Auto-summarized annotation card (below the code; not shown in diff mode).
-          Renders for either an active agent or baseline tab when an annotation exists. */}
-      {!diffMode && (() => {
-        let ann: Annotation | undefined;
-        let mode: "proposal" | "baseline" = "proposal";
-        let cardColor = "var(--muted-foreground)";
-        let sweep: ModelSweep | undefined;
-        if (activeEntry.kind === "agent" && activeEntry.name) {
-          ann = annotationByModel.get(activeEntry.name);
-          const canonical = resolveCanonicalModel(activeEntry.name, models);
-          if (canonical) cardColor = canonical.color;
-          if (canonical) sweep = sweepByCanonical.get(canonical.id);
-          mode = "proposal";
-        } else if (activeEntry.kind === "baseline" && activeEntry.name) {
-          ann = baselineAnnotationByName.get(activeEntry.name);
-          cardColor = "#6b7280";
-          mode = "baseline";
-        }
-        if (!ann) return null;
-        return (
-          <div className="mt-6">
-            <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
-                <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: cardColor }} />
-                Auto-summarized from the code above by an LLM reviewer — not the model's original output.
-              </span>
-              {sweep && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
-                  <span aria-hidden>🏆</span>
-                  Beats every baseline on every metric
-                </span>
-              )}
-            </div>
-            <ProposalAnnotation
-              annotation={ann}
-              modelName={activeEntry.label}
-              modelColor={cardColor}
-              mode={mode}
-            />
-          </div>
-        );
-      })()}
 
       {/* Files without content */}
       {files.filter((f) => !f.content).length > 0 && (

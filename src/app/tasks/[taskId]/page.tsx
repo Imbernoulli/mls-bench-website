@@ -11,6 +11,7 @@ import {
 import MetricBarChart from "@/components/MetricBarChart";
 import TaskDescription from "@/components/TaskDescription";
 import TaskCodeViewer from "@/components/TaskCodeViewer";
+import MethodSummary from "@/components/MethodSummary";
 import { categoryStyle } from "@/lib/display";
 import { tileSrc } from "@/lib/tile-versions";
 import { computeSweeps } from "@/lib/sweep";
@@ -128,6 +129,22 @@ export default async function TaskDetailPage({
           <h2 className="text-xl font-semibold mb-4">Code</h2>
           <TaskCodeViewer
             files={task.files}
+            baselinesCode={task.baselines_code}
+            proposals={proposals}
+            models={models}
+            annotations={annotations}
+            baselineAnnotations={baselineAnnotations}
+            sweeps={sweeps}
+          />
+        </section>
+      )}
+
+      {/* Auto-summarized method writeups — independent picker; not the model's
+          original output (LLM-summarized from the code above). */}
+      {(annotations.length > 0 || baselineAnnotations.length > 0) && (
+        <section className="mt-8">
+          <h2 className="text-xl font-semibold mb-4">Method Summary</h2>
+          <MethodSummary
             baselinesCode={task.baselines_code}
             proposals={proposals}
             models={models}
