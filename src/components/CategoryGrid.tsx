@@ -23,14 +23,12 @@ function CategoryRow({
   isActive,
   onActivate,
   onScheduleClose,
-  onToggle,
   onCancelClose,
 }: {
   item: CategoryWithTasks;
   isActive: boolean;
   onActivate: () => void;
   onScheduleClose: () => void;
-  onToggle: () => void;
   onCancelClose: () => void;
 }) {
   const { category, tasks } = item;
@@ -71,14 +69,13 @@ function CategoryRow({
 
   return (
     <Fragment>
-      <button
-        type="button"
+      <Link
+        href={`/tasks?category=${encodeURIComponent(category.id)}`}
         aria-expanded={isActive}
         onMouseEnter={onActivate}
         onMouseLeave={onScheduleClose}
         onFocus={onActivate}
         onBlur={onScheduleClose}
-        onClick={onToggle}
         className="flex w-full flex-col justify-center gap-1 rounded-lg border px-4 py-3 text-left transition-[background-color,border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-foreground/20"
         style={{
           backgroundColor: style.bg,
@@ -93,7 +90,7 @@ function CategoryRow({
         <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           {tasks.length} tasks
         </span>
-      </button>
+      </Link>
 
       {mounted && (
         <div
@@ -179,11 +176,6 @@ export default function CategoryGrid({ items }: Props) {
           }}
           onScheduleClose={scheduleClose}
           onCancelClose={cancelClose}
-          onToggle={() =>
-            setActiveId((current) =>
-              current === item.category.id ? null : item.category.id,
-            )
-          }
         />
       ))}
     </div>

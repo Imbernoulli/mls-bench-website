@@ -24,8 +24,14 @@ function Badge({ children }: { children: React.ReactNode }) {
 export default function TaskBrowser({ tasks, categories }: Props) {
   const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(
+    () => searchParams.get("category") || null,
+  );
   const view = searchParams.get("view") === "cards" ? "cards" : "columns";
+
+  useEffect(() => {
+    setSelectedCategory(searchParams.get("category") || null);
+  }, [searchParams]);
 
   // Per-visit randomized task order. We compute the shuffle on mount so
   // SSR HTML stays deterministic (alphabetical) and only the client view
