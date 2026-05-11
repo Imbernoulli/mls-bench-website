@@ -86,7 +86,7 @@ export default function HomePage() {
               better AI.
             </p>
             <div className="mt-6">
-              <ResourceButtons withExplore />
+              <ResourceButtons />
             </div>
           </div>
 
