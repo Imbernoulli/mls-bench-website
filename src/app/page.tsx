@@ -23,7 +23,7 @@ const INSTITUTIONS = [
   { name: "University of Pennsylvania", src: "/data/institutions/upenn.png" },
   { name: "Shanghai Jiao Tong University", src: "/data/institutions/sjtu.png" },
   { name: "UC San Diego", src: "/data/institutions/ucsd.png" },
-  { name: "Carnegie Mellon University", src: "/data/institutions/cmu.svg" },
+  { name: "Carnegie Mellon University", src: "/data/institutions/cmu.png" },
 ];
 
 
