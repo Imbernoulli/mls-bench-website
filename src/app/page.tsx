@@ -14,11 +14,11 @@ import LiteIntelligenceChart from "@/components/LiteIntelligenceChart";
 import MethodGallery from "@/components/MethodGallery";
 
 const INSTITUTIONS = [
-  { name: "UC Berkeley", src: "/data/institutions/berkeley.svg" },
-  { name: "Princeton University", src: "/data/institutions/princeton.svg" },
+  { name: "UC Berkeley", src: "/data/institutions/berkeley.png" },
+  { name: "Princeton University", src: "/data/institutions/princeton.png" },
   { name: "Tsinghua University", src: "/data/institutions/tsinghua.svg" },
-  { name: "Purdue University", src: "/data/institutions/purdue.svg" },
-  { name: "University of Washington", src: "/data/institutions/uw.svg" },
+  { name: "Purdue University", src: "/data/institutions/purdue.png" },
+  { name: "University of Washington", src: "/data/institutions/uw.png" },
   { name: "Harvard University", src: "/data/institutions/harvard.svg" },
   { name: "University of Pennsylvania", src: "/data/institutions/upenn.svg" },
   { name: "Shanghai Jiao Tong University", src: "/data/institutions/sjtu.png" },
