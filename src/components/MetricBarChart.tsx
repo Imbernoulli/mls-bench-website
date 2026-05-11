@@ -84,55 +84,51 @@ function lighten(hex: string, t: number): string {
 function MetricBarShape(props: any) {
   const { x, y, width, height, value, payload } = props;
   if (typeof value !== "number" || height <= 0) return <g />;
-  if (payload?.kind === "baseline") {
+  // Recharts always returns positive height. For positive values y is the bar
+  // top and y+height is the zero line; for negative values y is the zero line
+  // and y+height is the bar bottom. The y-axis scale is linear and uniform
+  // across positive and negative regions, so deriving pxPerUnit from this
+  // bar's value is globally valid for sub-bars on the other side of zero.
+  const absValue = Math.abs(value);
+  if (absValue === 0) return <g />;
+  const pxPerUnit = height / absValue;
+  const zeroY = value >= 0 ? y + height : y;
+
+  const drawRect = (val: number, fill: string) => {
+    const h = Math.abs(val) * pxPerUnit;
+    const top = val >= 0 ? zeroY - h : zeroY;
     return (
-      <rect
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        rx={3}
-        ry={3}
-        fill={BASELINE_COLOR}
-      />
+      <rect x={x} y={top} width={width} height={h} rx={3} ry={3} fill={fill} />
     );
+  };
+
+  if (payload?.kind === "baseline") {
+    return drawRect(value, BASELINE_COLOR);
   }
-  // value === max(vanilla, agent) → height is the taller bar's height.
-  const baseY = y + height; // bottom of the bar in svg coords
-  const pxPerUnit = height / value;
   const vanilla =
     typeof payload?.vanilla === "number" ? payload.vanilla : null;
   const agent = typeof payload?.agent === "number" ? payload.agent : null;
   const color: string = payload?.color ?? BASELINE_COLOR;
   const direction: "higher" | "lower" = payload?.direction ?? "higher";
-  const vH = vanilla != null ? vanilla * pxPerUnit : 0;
-  const aH = agent != null ? agent * pxPerUnit : 0;
   const agentColor = lighten(color, 0.55);
   // Both bars share the SAME x-position and the SAME width — they fully
-  // overlap. Both are fully opaque. Z-order is direction-aware so the
-  // (typically) SHORTER one renders in front: lower-is-better → agent in
-  // front, higher-is-better → vanilla in front. The taller one's top portion
-  // peeks up above the front bar, making the gap visible.
-  const vanillaRect = (
-    <rect x={x} y={baseY - vH} width={width} height={vH}
-      rx={3} ry={3} fill={color} />
-  );
-  const agentRect = (
-    <rect x={x} y={baseY - aH} width={width} height={aH}
-      rx={3} ry={3} fill={agentColor} />
-  );
+  // overlap. Z-order is direction-aware so the (typically) shorter one
+  // renders in front: lower-is-better → agent in front; higher-is-better →
+  // vanilla in front. The taller one peeks out, making the gap visible.
+  const vanillaRect = vanilla != null ? drawRect(vanilla, color) : null;
+  const agentRect = agent != null ? drawRect(agent, agentColor) : null;
   if (direction === "lower") {
     return (
       <g>
-        {vanilla != null && vanillaRect}
-        {agent != null && agentRect}
+        {vanillaRect}
+        {agentRect}
       </g>
     );
   }
   return (
     <g>
-      {agent != null && agentRect}
-      {vanilla != null && vanillaRect}
+      {agentRect}
+      {vanillaRect}
     </g>
   );
 }
@@ -201,16 +197,29 @@ function buildBars(
   const orderedModels: BarPoint[] = models
     .map((m) => modelMap.get(m.id))
     .filter((e): e is NonNullable<typeof e> => e != null)
-    .map((e) => ({
-      label: e.label,
-      vanilla: e.vanilla,
-      agent: e.agent,
-      // y-axis domain & a fallback height: the larger of the two values.
-      value: Math.max(e.vanilla ?? -Infinity, e.agent ?? -Infinity),
-      color: e.color,
-      kind: "model",
-      direction,
-    }));
+    .map((e) => {
+      // Pick the sub-value with the largest |·| (preserving its sign) so that
+      // Recharts allocates a bar rect tall enough to cover the dominant side.
+      // MetricBarShape derives pxPerUnit from this and draws both vanilla and
+      // agent at their true positions relative to zero — so a positive vanilla
+      // and a negative agent both render correctly.
+      const candidates = [e.vanilla, e.agent].filter(
+        (v): v is number => typeof v === "number"
+      );
+      const value = candidates.reduce(
+        (acc, v) => (Math.abs(v) > Math.abs(acc) ? v : acc),
+        candidates[0] ?? 0
+      );
+      return {
+        label: e.label,
+        vanilla: e.vanilla,
+        agent: e.agent,
+        value,
+        color: e.color,
+        kind: "model" as const,
+        direction,
+      };
+    });
 
   return [...baselines, ...orderedModels];
 }
@@ -223,7 +232,20 @@ function formatValue(value: unknown) {
 }
 
 function metricDomain(points: BarPoint[]): [number, number] {
-  const values = points.map((point) => point.value);
+  // Use the real sub-values (vanilla, agent, or baseline value), not
+  // point.value (which is just the magnitude-dominant sub-value picked for
+  // bar-height allocation). Always include 0 so the zero baseline is visible
+  // — without this, a chart of all-negative values would render bars that
+  // appear to "grow up from below zero" with no visible zero reference.
+  const values: number[] = [0];
+  for (const p of points) {
+    if (p.kind === "baseline") {
+      values.push(p.value);
+    } else {
+      if (typeof p.vanilla === "number") values.push(p.vanilla);
+      if (typeof p.agent === "number") values.push(p.agent);
+    }
+  }
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min;
