@@ -39,8 +39,8 @@ export default function Footer() {
               <a
                 key={link.label}
                 href={link.href}
-                target={link.href === "#" ? undefined : "_blank"}
-                rel={link.href === "#" ? undefined : "noopener noreferrer"}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 hover:text-[var(--color-text)]"
               >
                 <TinyIcon />

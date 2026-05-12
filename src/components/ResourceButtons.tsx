@@ -114,8 +114,8 @@ export default function ResourceButtons({ withExplore = false }: Props) {
           <a
             key={link.label}
             href={link.href}
-            target={link.href === "#" ? undefined : "_blank"}
-            rel={link.href === "#" ? undefined : "noopener noreferrer"}
+            target="_blank"
+            rel="noopener noreferrer"
             className={PILL_BASE}
             style={{
               backgroundColor: item.bg,
