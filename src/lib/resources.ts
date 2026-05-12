@@ -8,8 +8,8 @@ export const RESOURCE_LINKS = {
     href: "https://github.com/Imbernoulli/MLS-Bench",
   },
   arxiv: {
-    label: "arXiv: <coming soon>",
-    href: "#",
+    label: "arXiv: 2605.08678",
+    href: "https://arxiv.org/abs/2605.08678",
   },
   discord: {
     label: "Discord",
