@@ -2,6 +2,8 @@ import {
   getTasksStatic,
   getCategoriesStatic,
 } from "@/lib/data";
+import Link from "next/link";
+import { RESOURCE_LINKS } from "@/lib/resources";
 import ResourceButtons from "@/components/ResourceButtons";
 import {
   getLiteIntelligenceStatic,
@@ -90,7 +92,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <figure className="mx-auto mt-8 max-w-[920px]">
+          <figure className="mx-auto mt-8 max-w-[828px]">
             <img
               src="/data/paper_figs/mls-main.webp"
               alt="MLS-Bench overview: comparison of Frontier-CS, MLE-Bench, and MLS-Bench, plus 20 representative tasks across 12 domains."
@@ -201,13 +203,30 @@ export default function HomePage() {
 
       <section className="border-t border-border py-12">
         <div className="mx-auto max-w-4xl px-4">
-          <p className="mx-auto max-w-3xl text-center text-sm leading-relaxed text-muted-foreground">
-            Lite is only a subset. We recommend evaluating your harness and
-            model on the full {totalTasks}-task benchmark.
-          </p>
-          <div className="mt-4">
+          <div>
             <LiteIntelligenceChart data={liteScores} compact />
           </div>
+          <p className="mx-auto mt-4 max-w-3xl text-center text-sm leading-relaxed text-muted-foreground">
+            Lite is only a subset. We recommend evaluating your harness and
+            model on the full {totalTasks}-task benchmark. For our in-depth
+            analysis of the 5 main models on all {totalTasks} tasks, see our{" "}
+            <Link
+              href="/blog"
+              className="font-medium text-foreground underline decoration-foreground/30 underline-offset-2 hover:decoration-foreground"
+            >
+              blog
+            </Link>{" "}
+            or the{" "}
+            <a
+              href={RESOURCE_LINKS.arxiv.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-foreground underline decoration-foreground/30 underline-offset-2 hover:decoration-foreground"
+            >
+              arXiv paper
+            </a>
+            .
+          </p>
         </div>
       </section>
 
