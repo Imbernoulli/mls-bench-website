@@ -131,8 +131,7 @@ export default function BlogPage() {
         <p className="mt-5 max-w-3xl text-lg leading-8 text-muted-foreground">
           MLS-Bench asks whether an agent can make a reusable machine-learning
           science contribution: a new component, objective, optimizer, or
-          training procedure that works beyond the exact setting where it was
-          invented.
+          training procedure that is scalable and generalizable.
         </p>
         <div className="mt-6 flex justify-start">
           <ResourceButtons />
