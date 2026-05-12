@@ -23,7 +23,8 @@
     "Hits@50_ogbl-collab",
     "MRR_ogbl-collab",
     "Hits@50_ogbl-collab_std",
-    "MRR_ogbl-collab_std"
+    "MRR_ogbl-collab_std",
+    "agent_params"
   ],
   "metric_columns": [
     "AUC_Cora",
@@ -94,7 +95,8 @@
       "Hits@50_ogbl-collab": null,
       "MRR_ogbl-collab": null,
       "Hits@50_ogbl-collab_std": null,
-      "MRR_ogbl-collab_std": null
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-23T08:58:02.661129+00:00",
@@ -119,7 +121,8 @@
       "Hits@50_ogbl-collab": 53.74,
       "MRR_ogbl-collab": 13.79,
       "Hits@50_ogbl-collab_std": null,
-      "MRR_ogbl-collab_std": null
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-03-27T01:47:54.038075+00:00",
@@ -144,7 +147,8 @@
       "Hits@50_ogbl-collab": null,
       "MRR_ogbl-collab": null,
       "Hits@50_ogbl-collab_std": null,
-      "MRR_ogbl-collab_std": null
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-23T08:58:02.661129+00:00",
@@ -169,7 +173,8 @@
       "Hits@50_ogbl-collab": 53.74,
       "MRR_ogbl-collab": 13.79,
       "Hits@50_ogbl-collab_std": 0.0,
-      "MRR_ogbl-collab_std": 0.0
+      "MRR_ogbl-collab_std": 0.0,
+      "agent_params": null
     },
     {
       "timestamp": "2026-03-25T10:47:48.674126+00:00",
@@ -194,7 +199,8 @@
       "Hits@50_ogbl-collab": null,
       "MRR_ogbl-collab": null,
       "Hits@50_ogbl-collab_std": null,
-      "MRR_ogbl-collab_std": null
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T07:36:14.893210+00:00",
@@ -219,7 +225,8 @@
       "Hits@50_ogbl-collab": 57.88,
       "MRR_ogbl-collab": 10.58,
       "Hits@50_ogbl-collab_std": null,
-      "MRR_ogbl-collab_std": null
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-03-25T10:47:48.674446+00:00",
@@ -244,7 +251,8 @@
       "Hits@50_ogbl-collab": null,
       "MRR_ogbl-collab": null,
       "Hits@50_ogbl-collab_std": null,
-      "MRR_ogbl-collab_std": null
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T07:36:14.893210+00:00",
@@ -269,7 +277,8 @@
       "Hits@50_ogbl-collab": 57.88,
       "MRR_ogbl-collab": 10.58,
       "Hits@50_ogbl-collab_std": 0.0,
-      "MRR_ogbl-collab_std": 0.0
+      "MRR_ogbl-collab_std": 0.0,
+      "agent_params": null
     },
     {
       "timestamp": "2026-03-27T01:44:54.888991+00:00",
@@ -294,7 +303,8 @@
       "Hits@50_ogbl-collab": null,
       "MRR_ogbl-collab": null,
       "Hits@50_ogbl-collab_std": null,
-      "MRR_ogbl-collab_std": null
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T07:39:47.189000+00:00",
@@ -319,7 +329,8 @@
       "Hits@50_ogbl-collab": 31.77,
       "MRR_ogbl-collab": 7.7,
       "Hits@50_ogbl-collab_std": null,
-      "MRR_ogbl-collab_std": null
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-03-27T01:44:54.889349+00:00",
@@ -344,7 +355,8 @@
       "Hits@50_ogbl-collab": null,
       "MRR_ogbl-collab": null,
       "Hits@50_ogbl-collab_std": null,
-      "MRR_ogbl-collab_std": null
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T07:39:47.189000+00:00",
@@ -369,7 +381,8 @@
       "Hits@50_ogbl-collab": 31.77,
       "MRR_ogbl-collab": 7.7,
       "Hits@50_ogbl-collab_std": 0.0,
-      "MRR_ogbl-collab_std": 0.0
+      "MRR_ogbl-collab_std": 0.0,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T17:52:21.029467+00:00",
@@ -394,7 +407,34 @@
       "Hits@50_ogbl-collab": 64.0,
       "MRR_ogbl-collab": 11.96,
       "Hits@50_ogbl-collab_std": null,
-      "MRR_ogbl-collab_std": null
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-08T12:41:00.032876+00:00",
+      "model": "vanilla:gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "AUC_Cora": 89.05,
+      "MRR_Cora": 23.87,
+      "Hits@20_Cora": 61.48,
+      "AUC_CiteSeer": 88.36,
+      "MRR_CiteSeer": 56.74,
+      "Hits@20_CiteSeer": 69.01,
+      "AUC_Cora_std": null,
+      "MRR_Cora_std": null,
+      "Hits@20_Cora_std": null,
+      "AUC_CiteSeer_std": null,
+      "MRR_CiteSeer_std": null,
+      "Hits@20_CiteSeer_std": null,
+      "elapsed_ogbl-collab": 472.0,
+      "elapsed_Cora": 18.0,
+      "elapsed_CiteSeer": 18.0,
+      "Hits@50_ogbl-collab": 58.52,
+      "MRR_ogbl-collab": 10.14,
+      "Hits@50_ogbl-collab_std": null,
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-05-06T14:22:14.096282+00:00",
@@ -419,7 +459,8 @@
       "Hits@50_ogbl-collab": 13.94,
       "MRR_ogbl-collab": 3.82,
       "Hits@50_ogbl-collab_std": null,
-      "MRR_ogbl-collab_std": null
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T21:08:07.167596+00:00",
@@ -444,7 +485,8 @@
       "Hits@50_ogbl-collab": 64.0,
       "MRR_ogbl-collab": 11.96,
       "Hits@50_ogbl-collab_std": null,
-      "MRR_ogbl-collab_std": null
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T19:34:24.385784+00:00",
@@ -469,7 +511,60 @@
       "Hits@50_ogbl-collab": null,
       "MRR_ogbl-collab": null,
       "Hits@50_ogbl-collab_std": null,
-      "MRR_ogbl-collab_std": null
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-08T12:41:12.610980+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "AUC_Cora": 90.89,
+      "MRR_Cora": 35.64,
+      "Hits@20_Cora": 71.16,
+      "AUC_CiteSeer": 90.68,
+      "MRR_CiteSeer": 39.3,
+      "Hits@20_CiteSeer": 68.35,
+      "AUC_Cora_std": null,
+      "MRR_Cora_std": null,
+      "Hits@20_Cora_std": null,
+      "AUC_CiteSeer_std": null,
+      "MRR_CiteSeer_std": null,
+      "Hits@20_CiteSeer_std": null,
+      "elapsed_ogbl-collab": 466.0,
+      "elapsed_Cora": 19.0,
+      "elapsed_CiteSeer": 19.0,
+      "Hits@50_ogbl-collab": 59.03,
+      "MRR_ogbl-collab": 9.87,
+      "Hits@50_ogbl-collab_std": null,
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-08T15:22:28.131975+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "AUC_Cora": null,
+      "MRR_Cora": null,
+      "Hits@20_Cora": null,
+      "AUC_CiteSeer": null,
+      "MRR_CiteSeer": null,
+      "Hits@20_CiteSeer": null,
+      "AUC_Cora_std": null,
+      "MRR_Cora_std": null,
+      "Hits@20_Cora_std": null,
+      "AUC_CiteSeer_std": null,
+      "MRR_CiteSeer_std": null,
+      "Hits@20_CiteSeer_std": null,
+      "elapsed_ogbl-collab": null,
+      "elapsed_Cora": null,
+      "elapsed_CiteSeer": null,
+      "Hits@50_ogbl-collab": null,
+      "MRR_ogbl-collab": null,
+      "Hits@50_ogbl-collab_std": null,
+      "MRR_ogbl-collab_std": null,
+      "agent_params": 1197057.0
     },
     {
       "timestamp": "2026-05-06T14:22:18.462123+00:00",
@@ -494,7 +589,60 @@
       "Hits@50_ogbl-collab": 13.94,
       "MRR_ogbl-collab": 3.82,
       "Hits@50_ogbl-collab_std": null,
-      "MRR_ogbl-collab_std": null
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-08T12:35:08.698989+00:00",
+      "model": "gpt-5.4",
+      "is_final": true,
+      "seed": "42",
+      "AUC_Cora": 92.89,
+      "MRR_Cora": 37.97,
+      "Hits@20_Cora": 69.26,
+      "AUC_CiteSeer": 92.73,
+      "MRR_CiteSeer": 39.36,
+      "Hits@20_CiteSeer": 78.68,
+      "AUC_Cora_std": null,
+      "MRR_Cora_std": null,
+      "Hits@20_Cora_std": null,
+      "AUC_CiteSeer_std": null,
+      "MRR_CiteSeer_std": null,
+      "Hits@20_CiteSeer_std": null,
+      "elapsed_ogbl-collab": 985.0,
+      "elapsed_Cora": 985.0,
+      "elapsed_CiteSeer": 985.0,
+      "Hits@50_ogbl-collab": 56.42,
+      "MRR_ogbl-collab": 9.72,
+      "Hits@50_ogbl-collab_std": null,
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-08T15:16:38.378688+00:00",
+      "model": "gpt-5.4",
+      "is_final": true,
+      "seed": "42",
+      "AUC_Cora": null,
+      "MRR_Cora": null,
+      "Hits@20_Cora": null,
+      "AUC_CiteSeer": null,
+      "MRR_CiteSeer": null,
+      "Hits@20_CiteSeer": null,
+      "AUC_Cora_std": null,
+      "MRR_Cora_std": null,
+      "Hits@20_Cora_std": null,
+      "AUC_CiteSeer_std": null,
+      "MRR_CiteSeer_std": null,
+      "Hits@20_CiteSeer_std": null,
+      "elapsed_ogbl-collab": null,
+      "elapsed_Cora": null,
+      "elapsed_CiteSeer": null,
+      "Hits@50_ogbl-collab": null,
+      "MRR_ogbl-collab": null,
+      "Hits@50_ogbl-collab_std": null,
+      "MRR_ogbl-collab_std": null,
+      "agent_params": 1343495.0
     },
     {
       "timestamp": "2026-04-22T17:20:50.909459+00:00",
@@ -519,7 +667,8 @@
       "Hits@50_ogbl-collab": null,
       "MRR_ogbl-collab": null,
       "Hits@50_ogbl-collab_std": null,
-      "MRR_ogbl-collab_std": null
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T17:52:21.029467+00:00",
@@ -544,7 +693,8 @@
       "Hits@50_ogbl-collab": 64.0,
       "MRR_ogbl-collab": 11.96,
       "Hits@50_ogbl-collab_std": null,
-      "MRR_ogbl-collab_std": null
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T19:32:52.423143+00:00",
@@ -569,7 +719,8 @@
       "Hits@50_ogbl-collab": 48.85,
       "MRR_ogbl-collab": 8.69,
       "Hits@50_ogbl-collab_std": null,
-      "MRR_ogbl-collab_std": null
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T21:07:12.548532+00:00",
@@ -594,7 +745,60 @@
       "Hits@50_ogbl-collab": 59.05,
       "MRR_ogbl-collab": 11.57,
       "Hits@50_ogbl-collab_std": null,
-      "MRR_ogbl-collab_std": null
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-08T12:41:00.032876+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "AUC_Cora": 89.05,
+      "MRR_Cora": 23.87,
+      "Hits@20_Cora": 61.48,
+      "AUC_CiteSeer": 88.36,
+      "MRR_CiteSeer": 56.74,
+      "Hits@20_CiteSeer": 69.01,
+      "AUC_Cora_std": null,
+      "MRR_Cora_std": null,
+      "Hits@20_Cora_std": null,
+      "AUC_CiteSeer_std": null,
+      "MRR_CiteSeer_std": null,
+      "Hits@20_CiteSeer_std": null,
+      "elapsed_ogbl-collab": 472.0,
+      "elapsed_Cora": 18.0,
+      "elapsed_CiteSeer": 18.0,
+      "Hits@50_ogbl-collab": 58.52,
+      "MRR_ogbl-collab": 10.14,
+      "Hits@50_ogbl-collab_std": null,
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-08T15:21:07.470417+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "AUC_Cora": null,
+      "MRR_Cora": null,
+      "Hits@20_Cora": null,
+      "AUC_CiteSeer": null,
+      "MRR_CiteSeer": null,
+      "Hits@20_CiteSeer": null,
+      "AUC_Cora_std": null,
+      "MRR_Cora_std": null,
+      "Hits@20_Cora_std": null,
+      "AUC_CiteSeer_std": null,
+      "MRR_CiteSeer_std": null,
+      "Hits@20_CiteSeer_std": null,
+      "elapsed_ogbl-collab": null,
+      "elapsed_Cora": null,
+      "elapsed_CiteSeer": null,
+      "Hits@50_ogbl-collab": null,
+      "MRR_ogbl-collab": null,
+      "Hits@50_ogbl-collab_std": null,
+      "MRR_ogbl-collab_std": null,
+      "agent_params": 1197057.0
     },
     {
       "timestamp": "2026-05-06T14:22:14.096282+00:00",
@@ -619,7 +823,60 @@
       "Hits@50_ogbl-collab": 13.94,
       "MRR_ogbl-collab": 3.82,
       "Hits@50_ogbl-collab_std": null,
-      "MRR_ogbl-collab_std": null
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-08T12:35:05.451132+00:00",
+      "model": "gpt-5.4",
+      "is_final": false,
+      "seed": "42",
+      "AUC_Cora": 90.59,
+      "MRR_Cora": 19.78,
+      "Hits@20_Cora": 65.09,
+      "AUC_CiteSeer": 92.74,
+      "MRR_CiteSeer": 47.48,
+      "Hits@20_CiteSeer": 68.57,
+      "AUC_Cora_std": null,
+      "MRR_Cora_std": null,
+      "Hits@20_Cora_std": null,
+      "AUC_CiteSeer_std": null,
+      "MRR_CiteSeer_std": null,
+      "Hits@20_CiteSeer_std": null,
+      "elapsed_ogbl-collab": 456.0,
+      "elapsed_Cora": 23.0,
+      "elapsed_CiteSeer": 23.0,
+      "Hits@50_ogbl-collab": 57.92,
+      "MRR_ogbl-collab": 9.37,
+      "Hits@50_ogbl-collab_std": null,
+      "MRR_ogbl-collab_std": null,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-08T15:16:36.834132+00:00",
+      "model": "gpt-5.4",
+      "is_final": false,
+      "seed": "42",
+      "AUC_Cora": null,
+      "MRR_Cora": null,
+      "Hits@20_Cora": null,
+      "AUC_CiteSeer": null,
+      "MRR_CiteSeer": null,
+      "Hits@20_CiteSeer": null,
+      "AUC_Cora_std": null,
+      "MRR_Cora_std": null,
+      "Hits@20_Cora_std": null,
+      "AUC_CiteSeer_std": null,
+      "MRR_CiteSeer_std": null,
+      "Hits@20_CiteSeer_std": null,
+      "elapsed_ogbl-collab": null,
+      "elapsed_Cora": null,
+      "elapsed_CiteSeer": null,
+      "Hits@50_ogbl-collab": null,
+      "MRR_ogbl-collab": null,
+      "Hits@50_ogbl-collab_std": null,
+      "MRR_ogbl-collab_std": null,
+      "agent_params": 992899.0
     }
   ]
 }

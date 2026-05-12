@@ -142,6 +142,24 @@
       "elapsed_d10000_k50": 18636.0
     },
     {
+      "timestamp": "2026-05-09T20:13:17.088153+00:00",
+      "model": "baseline:SGD",
+      "is_final": true,
+      "seed": "42",
+      "n_star_d200_k5_s01": 50.0,
+      "score_d200_k5_s01": -5.643856,
+      "elapsed_d200_k5_s01": 2622.0,
+      "n_star_d500_k10_s01": 62.0,
+      "score_d500_k10_s01": -5.954196,
+      "elapsed_d500_k10_s01": 9412.0,
+      "n_star_d500_k10_s02": 62.0,
+      "score_d500_k10_s02": -5.954196,
+      "elapsed_d500_k10_s02": 9195.0,
+      "n_star_d10000_k50": 487.0,
+      "score_d10000_k50": -8.927778,
+      "elapsed_d10000_k50": 16898.0
+    },
+    {
       "timestamp": "2026-04-16T05:55:35.299470+00:00",
       "model": "vanilla:claude-opus-4.6",
       "is_final": true,

@@ -13,7 +13,8 @@
     "hellaswag_lm-eval-345m",
     "piqa_lm-eval-345m",
     "winogrande_lm-eval-345m",
-    "elapsed_lm-eval-345m"
+    "elapsed_lm-eval-345m",
+    "agent_params"
   ],
   "metric_columns": [
     "val_loss_gpt-345m",
@@ -66,7 +67,8 @@
       "hellaswag_lm-eval-345m": 33.71,
       "piqa_lm-eval-345m": 63.38,
       "winogrande_lm-eval-345m": 52.25,
-      "elapsed_lm-eval-345m": 418.0
+      "elapsed_lm-eval-345m": 418.0,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-08T00:00:22.417536+00:00",
@@ -81,7 +83,8 @@
       "hellaswag_lm-eval-345m": 33.05,
       "piqa_lm-eval-345m": 63.82,
       "winogrande_lm-eval-345m": 52.01,
-      "elapsed_lm-eval-345m": 387.0
+      "elapsed_lm-eval-345m": 387.0,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-08T05:21:54.172192+00:00",
@@ -96,7 +99,24 @@
       "hellaswag_lm-eval-345m": 33.67,
       "piqa_lm-eval-345m": 65.4,
       "winogrande_lm-eval-345m": 51.62,
-      "elapsed_lm-eval-345m": 397.0
+      "elapsed_lm-eval-345m": 397.0,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-09T02:59:43.112584+00:00",
+      "model": "vanilla:claude-opus-4.6",
+      "is_final": true,
+      "seed": "42",
+      "val_loss_gpt-345m": 2.2744,
+      "wikitext2_ppl_gpt-345m": 44.11,
+      "lambada_ppl_gpt-345m": 68.94,
+      "elapsed_gpt-345m": 41329.0,
+      "arc_easy_lm-eval-345m": null,
+      "hellaswag_lm-eval-345m": null,
+      "piqa_lm-eval-345m": null,
+      "winogrande_lm-eval-345m": null,
+      "elapsed_lm-eval-345m": null,
+      "agent_params": 317541136.0
     },
     {
       "timestamp": "2026-04-20T15:36:53.652238+00:00",
@@ -111,7 +131,8 @@
       "hellaswag_lm-eval-345m": 33.35,
       "piqa_lm-eval-345m": 63.87,
       "winogrande_lm-eval-345m": 52.49,
-      "elapsed_lm-eval-345m": 406.0
+      "elapsed_lm-eval-345m": 406.0,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-11T15:50:22.188169+00:00",
@@ -126,7 +147,8 @@
       "hellaswag_lm-eval-345m": 34.34,
       "piqa_lm-eval-345m": 64.69,
       "winogrande_lm-eval-345m": 49.96,
-      "elapsed_lm-eval-345m": 469.0
+      "elapsed_lm-eval-345m": 469.0,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-20T15:36:53.664296+00:00",
@@ -141,7 +163,8 @@
       "hellaswag_lm-eval-345m": 33.3,
       "piqa_lm-eval-345m": 64.2,
       "winogrande_lm-eval-345m": 51.46,
-      "elapsed_lm-eval-345m": 410.0
+      "elapsed_lm-eval-345m": 410.0,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-09T20:26:00.943892+00:00",
@@ -156,7 +179,24 @@
       "hellaswag_lm-eval-345m": 33.19,
       "piqa_lm-eval-345m": 64.09,
       "winogrande_lm-eval-345m": 50.36,
-      "elapsed_lm-eval-345m": 406.0
+      "elapsed_lm-eval-345m": 406.0,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-09T22:24:01.947780+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": true,
+      "seed": "42",
+      "val_loss_gpt-345m": 2.2631,
+      "wikitext2_ppl_gpt-345m": 43.61,
+      "lambada_ppl_gpt-345m": 68.06,
+      "elapsed_gpt-345m": 10658.0,
+      "arc_easy_lm-eval-345m": null,
+      "hellaswag_lm-eval-345m": null,
+      "piqa_lm-eval-345m": null,
+      "winogrande_lm-eval-345m": null,
+      "elapsed_lm-eval-345m": null,
+      "agent_params": 317541136.0
     },
     {
       "timestamp": "2026-04-20T15:36:53.652224+00:00",
@@ -171,7 +211,8 @@
       "hellaswag_lm-eval-345m": 33.35,
       "piqa_lm-eval-345m": 63.87,
       "winogrande_lm-eval-345m": 52.49,
-      "elapsed_lm-eval-345m": 406.0
+      "elapsed_lm-eval-345m": 406.0,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-20T15:36:53.658300+00:00",
@@ -186,7 +227,8 @@
       "hellaswag_lm-eval-345m": 34.07,
       "piqa_lm-eval-345m": 64.15,
       "winogrande_lm-eval-345m": 50.99,
-      "elapsed_lm-eval-345m": 462.0
+      "elapsed_lm-eval-345m": 462.0,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-20T15:36:53.664274+00:00",
@@ -201,7 +243,8 @@
       "hellaswag_lm-eval-345m": 33.3,
       "piqa_lm-eval-345m": 64.2,
       "winogrande_lm-eval-345m": 51.46,
-      "elapsed_lm-eval-345m": 410.0
+      "elapsed_lm-eval-345m": 410.0,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-20T15:36:53.670854+00:00",
@@ -216,7 +259,56 @@
       "hellaswag_lm-eval-345m": 33.56,
       "piqa_lm-eval-345m": 64.42,
       "winogrande_lm-eval-345m": 52.17,
-      "elapsed_lm-eval-345m": 430.0
+      "elapsed_lm-eval-345m": 430.0,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-09T02:59:43.112584+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": false,
+      "seed": "42",
+      "val_loss_gpt-345m": 2.2744,
+      "wikitext2_ppl_gpt-345m": 44.11,
+      "lambada_ppl_gpt-345m": 68.94,
+      "elapsed_gpt-345m": 41329.0,
+      "arc_easy_lm-eval-345m": null,
+      "hellaswag_lm-eval-345m": null,
+      "piqa_lm-eval-345m": null,
+      "winogrande_lm-eval-345m": null,
+      "elapsed_lm-eval-345m": null,
+      "agent_params": 317541136.0
+    },
+    {
+      "timestamp": "2026-05-09T18:19:58.725024+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": false,
+      "seed": "42",
+      "val_loss_gpt-345m": 2.2745,
+      "wikitext2_ppl_gpt-345m": 44.5,
+      "lambada_ppl_gpt-345m": 69.06,
+      "elapsed_gpt-345m": 10896.0,
+      "arc_easy_lm-eval-345m": null,
+      "hellaswag_lm-eval-345m": null,
+      "piqa_lm-eval-345m": null,
+      "winogrande_lm-eval-345m": null,
+      "elapsed_lm-eval-345m": null,
+      "agent_params": 317541136.0
+    },
+    {
+      "timestamp": "2026-05-09T22:23:55.878125+00:00",
+      "model": "claude-opus-4.6",
+      "is_final": false,
+      "seed": "42",
+      "val_loss_gpt-345m": 2.2631,
+      "wikitext2_ppl_gpt-345m": 43.61,
+      "lambada_ppl_gpt-345m": 68.06,
+      "elapsed_gpt-345m": 10658.0,
+      "arc_easy_lm-eval-345m": null,
+      "hellaswag_lm-eval-345m": null,
+      "piqa_lm-eval-345m": null,
+      "winogrande_lm-eval-345m": null,
+      "elapsed_lm-eval-345m": null,
+      "agent_params": 317541136.0
     },
     {
       "timestamp": "2026-04-20T15:36:53.652238+00:00",
@@ -231,7 +323,8 @@
       "hellaswag_lm-eval-345m": 33.35,
       "piqa_lm-eval-345m": 63.87,
       "winogrande_lm-eval-345m": 52.49,
-      "elapsed_lm-eval-345m": 406.0
+      "elapsed_lm-eval-345m": 406.0,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-11T15:50:22.188169+00:00",
@@ -246,7 +339,8 @@
       "hellaswag_lm-eval-345m": 34.34,
       "piqa_lm-eval-345m": 64.69,
       "winogrande_lm-eval-345m": 49.96,
-      "elapsed_lm-eval-345m": 469.0
+      "elapsed_lm-eval-345m": 469.0,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-20T15:36:53.658300+00:00",
@@ -261,7 +355,8 @@
       "hellaswag_lm-eval-345m": 34.07,
       "piqa_lm-eval-345m": 64.15,
       "winogrande_lm-eval-345m": 50.99,
-      "elapsed_lm-eval-345m": 462.0
+      "elapsed_lm-eval-345m": 462.0,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-20T15:36:53.664296+00:00",
@@ -276,7 +371,8 @@
       "hellaswag_lm-eval-345m": 33.3,
       "piqa_lm-eval-345m": 64.2,
       "winogrande_lm-eval-345m": 51.46,
-      "elapsed_lm-eval-345m": 410.0
+      "elapsed_lm-eval-345m": 410.0,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-09T20:26:00.943892+00:00",
@@ -291,7 +387,8 @@
       "hellaswag_lm-eval-345m": 33.19,
       "piqa_lm-eval-345m": 64.09,
       "winogrande_lm-eval-345m": 50.36,
-      "elapsed_lm-eval-345m": 406.0
+      "elapsed_lm-eval-345m": 406.0,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-20T15:36:53.670854+00:00",
@@ -306,7 +403,8 @@
       "hellaswag_lm-eval-345m": 33.56,
       "piqa_lm-eval-345m": 64.42,
       "winogrande_lm-eval-345m": 52.17,
-      "elapsed_lm-eval-345m": 430.0
+      "elapsed_lm-eval-345m": 430.0,
+      "agent_params": null
     }
   ]
 }

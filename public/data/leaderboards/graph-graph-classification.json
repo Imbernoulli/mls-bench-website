@@ -22,7 +22,8 @@
     "elapsed_NCI1",
     "elapsed_MUTAG_std",
     "elapsed_PROTEINS_std",
-    "elapsed_NCI1_std"
+    "elapsed_NCI1_std",
+    "agent_params"
   ],
   "metric_columns": [
     "test_acc_MUTAG",
@@ -86,7 +87,8 @@
       "elapsed_NCI1": 5568.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-21T20:10:26.168199+00:00",
@@ -110,7 +112,8 @@
       "elapsed_NCI1": 10985.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T04:12:55.898441+00:00",
@@ -134,7 +137,8 @@
       "elapsed_NCI1": 3374.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-03-31T16:01:20.240802+00:00",
@@ -158,7 +162,8 @@
       "elapsed_NCI1": 5568.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T04:12:55.898441+00:00",
@@ -182,7 +187,8 @@
       "elapsed_NCI1": 4836.666666666667,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-21T11:31:42.723977+00:00",
@@ -206,7 +212,8 @@
       "elapsed_NCI1": null,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-21T12:50:57.559639+00:00",
@@ -230,7 +237,8 @@
       "elapsed_NCI1": 8.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-21T17:27:23.162392+00:00",
@@ -254,7 +262,8 @@
       "elapsed_NCI1": 3400.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T05:57:25.218421+00:00",
@@ -278,7 +287,8 @@
       "elapsed_NCI1": 3972.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-21T11:31:42.724606+00:00",
@@ -302,7 +312,8 @@
       "elapsed_NCI1": null,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-21T12:50:57.560304+00:00",
@@ -326,7 +337,8 @@
       "elapsed_NCI1": 8.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-21T12:50:57.560934+00:00",
@@ -350,7 +362,8 @@
       "elapsed_NCI1": 8.0,
       "elapsed_MUTAG_std": 0.5773502691896257,
       "elapsed_PROTEINS_std": 0.0,
-      "elapsed_NCI1_std": 0.0
+      "elapsed_NCI1_std": 0.0,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T05:57:25.218421+00:00",
@@ -374,7 +387,8 @@
       "elapsed_NCI1": 1329.3333333333333,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-03T16:32:55.779917+00:00",
@@ -398,7 +412,8 @@
       "elapsed_NCI1": 7071.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T01:08:53.458580+00:00",
@@ -422,7 +437,8 @@
       "elapsed_NCI1": 12561.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T04:32:47.259778+00:00",
@@ -446,7 +462,8 @@
       "elapsed_NCI1": 4569.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-03T16:32:55.780707+00:00",
@@ -470,7 +487,8 @@
       "elapsed_NCI1": 7071.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T04:32:47.259778+00:00",
@@ -494,7 +512,8 @@
       "elapsed_NCI1": 6237.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T06:06:06.996667+00:00",
@@ -518,7 +537,8 @@
       "elapsed_NCI1": 4506.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T04:45:38.517498+00:00",
@@ -542,7 +562,8 @@
       "elapsed_NCI1": 5350.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-21T15:07:05.850526+00:00",
@@ -566,7 +587,8 @@
       "elapsed_NCI1": null,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T04:31:50.771774+00:00",
@@ -590,7 +612,8 @@
       "elapsed_NCI1": 4522.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-21T15:07:05.851249+00:00",
@@ -614,7 +637,8 @@
       "elapsed_NCI1": null,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-21T15:07:05.851935+00:00",
@@ -638,7 +662,8 @@
       "elapsed_NCI1": null,
       "elapsed_MUTAG_std": 1.1547005383792515,
       "elapsed_PROTEINS_std": 8.082903768654761,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T18:25:39.749190+00:00",
@@ -662,7 +687,33 @@
       "elapsed_NCI1": 4368.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-08T12:14:37.806881+00:00",
+      "model": "vanilla:gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "test_acc_MUTAG": null,
+      "macro_f1_MUTAG": null,
+      "test_acc_PROTEINS": null,
+      "macro_f1_PROTEINS": null,
+      "test_acc_NCI1": null,
+      "macro_f1_NCI1": null,
+      "test_acc_MUTAG_std": null,
+      "macro_f1_MUTAG_std": null,
+      "test_acc_PROTEINS_std": null,
+      "macro_f1_PROTEINS_std": null,
+      "test_acc_NCI1_std": null,
+      "macro_f1_NCI1_std": null,
+      "elapsed_MUTAG": null,
+      "elapsed_PROTEINS": null,
+      "elapsed_NCI1": null,
+      "elapsed_MUTAG_std": null,
+      "elapsed_PROTEINS_std": null,
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T17:18:30.038571+00:00",
@@ -686,7 +737,8 @@
       "elapsed_NCI1": 5947.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T15:39:12.921410+00:00",
@@ -710,7 +762,8 @@
       "elapsed_NCI1": null,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T22:08:03.943776+00:00",
@@ -734,7 +787,33 @@
       "elapsed_NCI1": 3627.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-09T15:15:40.025505+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "test_acc_MUTAG": 82.98,
+      "macro_f1_MUTAG": 80.06,
+      "test_acc_PROTEINS": 74.22,
+      "macro_f1_PROTEINS": 73.36,
+      "test_acc_NCI1": 78.56,
+      "macro_f1_NCI1": 78.37,
+      "test_acc_MUTAG_std": null,
+      "macro_f1_MUTAG_std": null,
+      "test_acc_PROTEINS_std": null,
+      "macro_f1_PROTEINS_std": null,
+      "test_acc_NCI1_std": null,
+      "macro_f1_NCI1_std": null,
+      "elapsed_MUTAG": 464.0,
+      "elapsed_PROTEINS": 2135.0,
+      "elapsed_NCI1": 5184.0,
+      "elapsed_MUTAG_std": null,
+      "elapsed_PROTEINS_std": null,
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-23T00:06:22.474604+00:00",
@@ -758,7 +837,8 @@
       "elapsed_NCI1": 11403.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T21:18:18.807075+00:00",
@@ -782,7 +862,8 @@
       "elapsed_NCI1": 5754.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T18:25:39.749190+00:00",
@@ -806,7 +887,8 @@
       "elapsed_NCI1": 4368.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T20:50:35.434080+00:00",
@@ -830,7 +912,8 @@
       "elapsed_NCI1": 5221.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T22:07:43.715334+00:00",
@@ -854,7 +937,108 @@
       "elapsed_NCI1": 3627.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-08T12:14:37.806881+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "test_acc_MUTAG": null,
+      "macro_f1_MUTAG": null,
+      "test_acc_PROTEINS": null,
+      "macro_f1_PROTEINS": null,
+      "test_acc_NCI1": null,
+      "macro_f1_NCI1": null,
+      "test_acc_MUTAG_std": null,
+      "macro_f1_MUTAG_std": null,
+      "test_acc_PROTEINS_std": null,
+      "macro_f1_PROTEINS_std": null,
+      "test_acc_NCI1_std": null,
+      "macro_f1_NCI1_std": null,
+      "elapsed_MUTAG": null,
+      "elapsed_PROTEINS": null,
+      "elapsed_NCI1": null,
+      "elapsed_MUTAG_std": null,
+      "elapsed_PROTEINS_std": null,
+      "elapsed_NCI1_std": null,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-08T15:16:30.164709+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "test_acc_MUTAG": 89.33,
+      "macro_f1_MUTAG": 87.32,
+      "test_acc_PROTEINS": 71.87,
+      "macro_f1_PROTEINS": 68.07,
+      "test_acc_NCI1": 63.11,
+      "macro_f1_NCI1": 61.11,
+      "test_acc_MUTAG_std": null,
+      "macro_f1_MUTAG_std": null,
+      "test_acc_PROTEINS_std": null,
+      "macro_f1_PROTEINS_std": null,
+      "test_acc_NCI1_std": null,
+      "macro_f1_NCI1_std": null,
+      "elapsed_MUTAG": 498.0,
+      "elapsed_PROTEINS": 2217.0,
+      "elapsed_NCI1": 5119.0,
+      "elapsed_MUTAG_std": null,
+      "elapsed_PROTEINS_std": null,
+      "elapsed_NCI1_std": null,
+      "agent_params": 105836.0
+    },
+    {
+      "timestamp": "2026-05-08T16:41:52.548028+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "test_acc_MUTAG": 81.93,
+      "macro_f1_MUTAG": 79.32,
+      "test_acc_PROTEINS": 74.4,
+      "macro_f1_PROTEINS": 73.16,
+      "test_acc_NCI1": 81.78,
+      "macro_f1_NCI1": 81.74,
+      "test_acc_MUTAG_std": null,
+      "macro_f1_MUTAG_std": null,
+      "test_acc_PROTEINS_std": null,
+      "macro_f1_PROTEINS_std": null,
+      "test_acc_NCI1_std": null,
+      "macro_f1_NCI1_std": null,
+      "elapsed_MUTAG": 454.0,
+      "elapsed_PROTEINS": 2071.0,
+      "elapsed_NCI1": 4926.0,
+      "elapsed_MUTAG_std": null,
+      "elapsed_PROTEINS_std": null,
+      "elapsed_NCI1_std": null,
+      "agent_params": 75067.0
+    },
+    {
+      "timestamp": "2026-05-08T18:11:27.840644+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "test_acc_MUTAG": 82.98,
+      "macro_f1_MUTAG": 80.06,
+      "test_acc_PROTEINS": 74.22,
+      "macro_f1_PROTEINS": 73.36,
+      "test_acc_NCI1": 78.56,
+      "macro_f1_NCI1": 78.37,
+      "test_acc_MUTAG_std": null,
+      "macro_f1_MUTAG_std": null,
+      "test_acc_PROTEINS_std": null,
+      "macro_f1_PROTEINS_std": null,
+      "test_acc_NCI1_std": null,
+      "macro_f1_NCI1_std": null,
+      "elapsed_MUTAG": 464.0,
+      "elapsed_PROTEINS": 2135.0,
+      "elapsed_NCI1": 5184.0,
+      "elapsed_MUTAG_std": null,
+      "elapsed_PROTEINS_std": null,
+      "elapsed_NCI1_std": null,
+      "agent_params": 71052.0
     },
     {
       "timestamp": "2026-04-22T17:18:30.038571+00:00",
@@ -878,7 +1062,8 @@
       "elapsed_NCI1": 5947.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T19:41:48.679612+00:00",
@@ -902,7 +1087,8 @@
       "elapsed_NCI1": 4218.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-23T00:06:13.756516+00:00",
@@ -926,7 +1112,8 @@
       "elapsed_NCI1": 11403.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T15:39:12.921410+00:00",
@@ -950,7 +1137,8 @@
       "elapsed_NCI1": null,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T19:23:27.264585+00:00",
@@ -974,7 +1162,8 @@
       "elapsed_NCI1": null,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-22T21:17:57.476924+00:00",
@@ -998,7 +1187,8 @@
       "elapsed_NCI1": 5754.0,
       "elapsed_MUTAG_std": null,
       "elapsed_PROTEINS_std": null,
-      "elapsed_NCI1_std": null
+      "elapsed_NCI1_std": null,
+      "agent_params": null
     }
   ]
 }

@@ -56,6 +56,18 @@
       "elapsed_wind10m-7day": 12769.0
     },
     {
+      "timestamp": "2026-05-09T23:14:24.891508+00:00",
+      "model": "baseline:Cross-Attention",
+      "is_final": true,
+      "seed": "42",
+      "w_rmse_geopotential_500_z500-3day": 496.4826,
+      "w_rmse_temperature_850_t850-5day": 2.1316,
+      "w_rmse_10m_u_component_of_wind_wind10m-7day": 3.5749,
+      "elapsed_z500-3day": 19509.0,
+      "elapsed_t850-5day": 12302.0,
+      "elapsed_wind10m-7day": 11990.0
+    },
+    {
       "timestamp": "2026-05-03T21:45:59.556248+00:00",
       "model": "baseline:Learned Weighted Sum",
       "is_final": true,

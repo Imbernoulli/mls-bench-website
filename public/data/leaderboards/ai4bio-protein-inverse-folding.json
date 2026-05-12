@@ -13,7 +13,8 @@
     "recovery_CATH4.3",
     "perplexity_CATH4.3",
     "recovery_TS50",
-    "perplexity_TS50"
+    "perplexity_TS50",
+    "agent_params"
   ],
   "metric_columns": [
     "recovery_CATH4.2",
@@ -68,7 +69,8 @@
       "recovery_CATH4.3": 0.4337,
       "perplexity_CATH4.3": 5.8209,
       "recovery_TS50": 0.4602,
-      "perplexity_TS50": 5.4831
+      "perplexity_TS50": 5.4831,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-27T18:04:24.113887+00:00",
@@ -83,7 +85,8 @@
       "recovery_CATH4.3": 0.4772,
       "perplexity_CATH4.3": 5.1294,
       "recovery_TS50": 0.5228,
-      "perplexity_TS50": 4.5513
+      "perplexity_TS50": 4.5513,
+      "agent_params": null
     },
     {
       "timestamp": "2026-04-27T13:36:55.774382+00:00",
@@ -98,7 +101,24 @@
       "recovery_CATH4.3": 0.4612,
       "perplexity_CATH4.3": 5.4639,
       "recovery_TS50": 0.4829,
-      "perplexity_TS50": 5.0827
+      "perplexity_TS50": 5.0827,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-09T16:03:44.916435+00:00",
+      "model": "baseline:ProteinMPNN",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_CATH4.2": null,
+      "elapsed_CATH4.3": null,
+      "elapsed_TS50": null,
+      "recovery_CATH4.2": null,
+      "perplexity_CATH4.2": null,
+      "recovery_CATH4.3": null,
+      "perplexity_CATH4.3": null,
+      "recovery_TS50": null,
+      "perplexity_TS50": null,
+      "agent_params": 981524.0
     },
     {
       "timestamp": "2026-05-03T19:27:25.893226+00:00",
@@ -113,7 +133,8 @@
       "recovery_CATH4.3": null,
       "perplexity_CATH4.3": null,
       "recovery_TS50": null,
-      "perplexity_TS50": null
+      "perplexity_TS50": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-05-03T21:16:45.027066+00:00",
@@ -128,7 +149,24 @@
       "recovery_CATH4.3": 0.3521,
       "perplexity_CATH4.3": 7.9821,
       "recovery_TS50": 0.3867,
-      "perplexity_TS50": 7.391
+      "perplexity_TS50": 7.391,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-03T23:00:01.051686+00:00",
+      "model": "vanilla:gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_CATH4.2": 10957.0,
+      "elapsed_CATH4.3": 10447.0,
+      "elapsed_TS50": 10433.0,
+      "recovery_CATH4.2": 0.5107,
+      "perplexity_CATH4.2": 4.8639,
+      "recovery_CATH4.3": 0.5192,
+      "perplexity_CATH4.3": 4.7611,
+      "recovery_TS50": 0.5288,
+      "perplexity_TS50": 4.6359,
+      "agent_params": null
     },
     {
       "timestamp": "2026-05-03T10:22:07.440811+00:00",
@@ -143,7 +181,8 @@
       "recovery_CATH4.3": 0.4573,
       "perplexity_CATH4.3": 5.7534,
       "recovery_TS50": 0.4849,
-      "perplexity_TS50": 5.2731
+      "perplexity_TS50": 5.2731,
+      "agent_params": null
     },
     {
       "timestamp": "2026-05-03T18:28:07.528909+00:00",
@@ -158,7 +197,8 @@
       "recovery_CATH4.3": null,
       "perplexity_CATH4.3": null,
       "recovery_TS50": null,
-      "perplexity_TS50": null
+      "perplexity_TS50": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-05-03T22:43:18.827929+00:00",
@@ -173,7 +213,8 @@
       "recovery_CATH4.3": null,
       "perplexity_CATH4.3": null,
       "recovery_TS50": null,
-      "perplexity_TS50": null
+      "perplexity_TS50": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-05-04T06:53:31.641909+00:00",
@@ -188,7 +229,40 @@
       "recovery_CATH4.3": 0.4841,
       "perplexity_CATH4.3": 5.112,
       "recovery_TS50": 0.5089,
-      "perplexity_TS50": 4.8472
+      "perplexity_TS50": 4.8472,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-04T07:35:17.295864+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_CATH4.2": 10957.0,
+      "elapsed_CATH4.3": 10447.0,
+      "elapsed_TS50": 10433.0,
+      "recovery_CATH4.2": 0.5107,
+      "perplexity_CATH4.2": 4.8639,
+      "recovery_CATH4.3": 0.5192,
+      "perplexity_CATH4.3": 4.7611,
+      "recovery_TS50": 0.5288,
+      "perplexity_TS50": 4.6359,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-10T07:31:05.827412+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": true,
+      "seed": "42",
+      "elapsed_CATH4.2": 10979.0,
+      "elapsed_CATH4.3": 10922.0,
+      "elapsed_TS50": 15208.0,
+      "recovery_CATH4.2": 0.5015,
+      "perplexity_CATH4.2": 5.0605,
+      "recovery_CATH4.3": 0.5051,
+      "perplexity_CATH4.3": 5.1237,
+      "recovery_TS50": 0.5174,
+      "perplexity_TS50": 5.0655,
+      "agent_params": 4445765.0
     },
     {
       "timestamp": "2026-05-03T19:27:30.697668+00:00",
@@ -203,7 +277,8 @@
       "recovery_CATH4.3": 0.4573,
       "perplexity_CATH4.3": 5.7534,
       "recovery_TS50": 0.4849,
-      "perplexity_TS50": 5.2731
+      "perplexity_TS50": 5.2731,
+      "agent_params": null
     },
     {
       "timestamp": "2026-05-04T00:30:24.403432+00:00",
@@ -218,7 +293,8 @@
       "recovery_CATH4.3": 0.4349,
       "perplexity_CATH4.3": 5.9115,
       "recovery_TS50": 0.4403,
-      "perplexity_TS50": 5.7473
+      "perplexity_TS50": 5.7473,
+      "agent_params": null
     },
     {
       "timestamp": "2026-05-03T19:27:25.893226+00:00",
@@ -233,7 +309,8 @@
       "recovery_CATH4.3": null,
       "perplexity_CATH4.3": null,
       "recovery_TS50": null,
-      "perplexity_TS50": null
+      "perplexity_TS50": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-05-03T21:06:47.157232+00:00",
@@ -248,7 +325,8 @@
       "recovery_CATH4.3": null,
       "perplexity_CATH4.3": null,
       "recovery_TS50": null,
-      "perplexity_TS50": null
+      "perplexity_TS50": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-05-03T22:43:04.894209+00:00",
@@ -263,7 +341,8 @@
       "recovery_CATH4.3": null,
       "perplexity_CATH4.3": null,
       "recovery_TS50": null,
-      "perplexity_TS50": null
+      "perplexity_TS50": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-05-03T21:16:45.027066+00:00",
@@ -278,7 +357,8 @@
       "recovery_CATH4.3": 0.3521,
       "perplexity_CATH4.3": 7.9821,
       "recovery_TS50": 0.3867,
-      "perplexity_TS50": 7.391
+      "perplexity_TS50": 7.391,
+      "agent_params": null
     },
     {
       "timestamp": "2026-05-04T01:57:04.768811+00:00",
@@ -293,7 +373,8 @@
       "recovery_CATH4.3": 0.467,
       "perplexity_CATH4.3": 5.3832,
       "recovery_TS50": 0.4931,
-      "perplexity_TS50": 5.1757
+      "perplexity_TS50": 5.1757,
+      "agent_params": null
     },
     {
       "timestamp": "2026-05-04T06:53:13.712737+00:00",
@@ -308,7 +389,104 @@
       "recovery_CATH4.3": 0.4841,
       "perplexity_CATH4.3": 5.112,
       "recovery_TS50": 0.5089,
-      "perplexity_TS50": 4.8472
+      "perplexity_TS50": 4.8472,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-03T23:00:01.051686+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_CATH4.2": 10957.0,
+      "elapsed_CATH4.3": 10447.0,
+      "elapsed_TS50": 10433.0,
+      "recovery_CATH4.2": 0.5107,
+      "perplexity_CATH4.2": 4.8639,
+      "recovery_CATH4.3": 0.5192,
+      "perplexity_CATH4.3": 4.7611,
+      "recovery_TS50": 0.5288,
+      "perplexity_TS50": 4.6359,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-04T07:35:07.325999+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_CATH4.2": 11011.0,
+      "elapsed_CATH4.3": 10950.0,
+      "elapsed_TS50": 16296.0,
+      "recovery_CATH4.2": 0.4988,
+      "perplexity_CATH4.2": 5.0546,
+      "recovery_CATH4.3": 0.5043,
+      "perplexity_CATH4.3": 4.9558,
+      "recovery_TS50": 0.5153,
+      "perplexity_TS50": 5.1198,
+      "agent_params": null
+    },
+    {
+      "timestamp": "2026-05-08T22:56:24.065203+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_CATH4.2": 11153.0,
+      "elapsed_CATH4.3": 11155.0,
+      "elapsed_TS50": 16339.0,
+      "recovery_CATH4.2": 0.4574,
+      "perplexity_CATH4.2": 5.4461,
+      "recovery_CATH4.3": 0.4602,
+      "perplexity_CATH4.3": 5.4639,
+      "recovery_TS50": 0.4752,
+      "perplexity_TS50": 5.2745,
+      "agent_params": 3597149.0
+    },
+    {
+      "timestamp": "2026-05-09T16:20:11.058405+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_CATH4.2": null,
+      "elapsed_CATH4.3": null,
+      "elapsed_TS50": null,
+      "recovery_CATH4.2": null,
+      "perplexity_CATH4.2": null,
+      "recovery_CATH4.3": null,
+      "perplexity_CATH4.3": null,
+      "recovery_TS50": null,
+      "perplexity_TS50": null,
+      "agent_params": 1332884.0
+    },
+    {
+      "timestamp": "2026-05-10T00:02:21.234361+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_CATH4.2": null,
+      "elapsed_CATH4.3": 10990.0,
+      "elapsed_TS50": 16600.0,
+      "recovery_CATH4.2": null,
+      "perplexity_CATH4.2": null,
+      "recovery_CATH4.3": 0.5011,
+      "perplexity_CATH4.3": 4.7878,
+      "recovery_TS50": 0.5343,
+      "perplexity_TS50": 4.765,
+      "agent_params": 4445765.0
+    },
+    {
+      "timestamp": "2026-05-10T07:30:59.219923+00:00",
+      "model": "gemini-3.1-pro-preview",
+      "is_final": false,
+      "seed": "42",
+      "elapsed_CATH4.2": 10979.0,
+      "elapsed_CATH4.3": 10922.0,
+      "elapsed_TS50": 15208.0,
+      "recovery_CATH4.2": 0.5015,
+      "perplexity_CATH4.2": 5.0605,
+      "recovery_CATH4.3": 0.5051,
+      "perplexity_CATH4.3": 5.1237,
+      "recovery_TS50": 0.5174,
+      "perplexity_TS50": 5.0655,
+      "agent_params": 4445765.0
     },
     {
       "timestamp": "2026-05-03T10:22:07.440811+00:00",
@@ -323,7 +501,8 @@
       "recovery_CATH4.3": 0.4573,
       "perplexity_CATH4.3": 5.7534,
       "recovery_TS50": 0.4849,
-      "perplexity_TS50": 5.2731
+      "perplexity_TS50": 5.2731,
+      "agent_params": null
     },
     {
       "timestamp": "2026-05-03T19:27:26.752352+00:00",
@@ -338,7 +517,8 @@
       "recovery_CATH4.3": null,
       "perplexity_CATH4.3": null,
       "recovery_TS50": null,
-      "perplexity_TS50": null
+      "perplexity_TS50": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-05-03T18:28:07.528909+00:00",
@@ -353,7 +533,8 @@
       "recovery_CATH4.3": null,
       "perplexity_CATH4.3": null,
       "recovery_TS50": null,
-      "perplexity_TS50": null
+      "perplexity_TS50": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-05-03T20:41:39.667966+00:00",
@@ -368,7 +549,8 @@
       "recovery_CATH4.3": null,
       "perplexity_CATH4.3": null,
       "recovery_TS50": null,
-      "perplexity_TS50": null
+      "perplexity_TS50": null,
+      "agent_params": null
     },
     {
       "timestamp": "2026-05-04T00:30:00.746075+00:00",
@@ -383,7 +565,8 @@
       "recovery_CATH4.3": 0.4349,
       "perplexity_CATH4.3": 5.9115,
       "recovery_TS50": 0.4403,
-      "perplexity_TS50": 5.7473
+      "perplexity_TS50": 5.7473,
+      "agent_params": null
     }
   ]
 }
