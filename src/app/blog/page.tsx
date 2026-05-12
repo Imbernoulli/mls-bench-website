@@ -16,7 +16,6 @@ export const metadata: Metadata = {
 
 const FIGURES = {
   compute: "/data/blog_figs/exp_compute.png",
-  lite: "/data/blog_figs/lite_intelligence.png",
   ablations: "/data/blog_figs/exp_ablations.png",
   hack: "/data/blog_figs/exp_hack_ablation.png",
   hidden: "/data/blog_figs/exp_hidden_bias.png",
@@ -218,22 +217,6 @@ export default function BlogPage() {
           benchmark is therefore unsaturated in the capability it is designed to
           measure.
         </p>
-        <p>
-          MLS-Bench-Lite tracks a broader model set on a 30-task subset. It is
-          useful for rapid model comparisons, but it keeps the same central
-          requirement: the score should reflect a first scientific proposal, not
-          an unrestricted engineering search.
-        </p>
-      </div>
-
-      <Figure
-        src={FIGURES.lite}
-        alt="MLS-Bench-Lite bar chart ranking models by average normalized score."
-        caption="Figure: MLS-Bench-Lite intelligence chart. The Lite track gives a faster view of model progress across the same method-discovery framing."
-        wide
-      />
-
-      <div className="prose prose-neutral max-w-none prose-headings:tracking-tight prose-a:text-foreground">
         <h2>Why the Controls Matter</h2>
         <p>
           The ablations separate method discovery from easier ways to improve a
