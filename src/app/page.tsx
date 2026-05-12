@@ -90,13 +90,21 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="mx-auto mt-8 max-w-6xl">
+          <figure className="mx-auto mt-8 max-w-[920px]">
             <img
               src="/data/paper_figs/mls-main.webp"
               alt="MLS-Bench overview: comparison of Frontier-CS, MLE-Bench, and MLS-Bench, plus 20 representative tasks across 12 domains."
               className="w-full h-auto"
             />
-          </div>
+            <figcaption className="mt-3 text-center text-xs leading-relaxed text-muted-foreground">
+              <strong className="font-medium text-foreground">
+                MLS-Bench overview.
+              </strong>{" "}
+              Left: comparison of Frontier-CS, MLE-Bench, and MLS-Bench
+              task. Right: 20 representative MLS-Bench tasks from{" "}
+              {totalTasks} tasks across 12 domains.
+            </figcaption>
+          </figure>
 
           <div className="mx-auto mt-10 flex max-w-4xl flex-wrap items-center justify-center gap-x-8 gap-y-4">
             {INSTITUTIONS.map((institution) => (
@@ -191,24 +199,15 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="border-t border-border py-14">
+      <section className="border-t border-border py-12">
         <div className="mx-auto max-w-4xl px-4">
-          <div className="text-center">
-            <h2 className="text-2xl font-semibold">MLS-Bench Lite</h2>
-            <p className="mx-auto mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-              A 30-task subset spanning all 12 domains, intended for rapid
-              iteration and broader model tracking. The chart below shows the
-              average normalized score on this Lite subset.
-            </p>
-          </div>
-          <div className="mt-6">
-            <LiteIntelligenceChart data={liteScores} />
-          </div>
-          <p className="mx-auto mt-6 max-w-3xl text-center text-sm leading-relaxed text-muted-foreground">
-            <strong className="font-medium text-foreground">Note:</strong>{" "}
+          <p className="mx-auto max-w-3xl text-center text-sm leading-relaxed text-muted-foreground">
             Lite is only a subset. We recommend evaluating your harness and
             model on the full {totalTasks}-task benchmark.
           </p>
+          <div className="mt-4">
+            <LiteIntelligenceChart data={liteScores} compact />
+          </div>
         </div>
       </section>
 
