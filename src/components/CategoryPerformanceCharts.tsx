@@ -144,27 +144,29 @@ export default function CategoryPerformanceCharts({ data, series }: Props) {
     <div>
       <div className="p-4">
         <div className="mb-2 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-          {series.map((item) => (
-            <span key={item.id} className="inline-flex items-center gap-1">
-              <ModelVendorMark modelId={item.id} />
-              {item.name}
-            </span>
-          ))}
+          {series
+            .filter((item) => !isHumanSota(item.id))
+            .map((item) => (
+              <span key={item.id} className="inline-flex items-center gap-1">
+                <ModelVendorMark modelId={item.id} />
+                {item.name}
+              </span>
+            ))}
         </div>
         <div className="mb-4 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <span
               aria-hidden="true"
               className="inline-block h-3 w-3 rounded-sm"
-              style={{ backgroundColor: "#475569", opacity: 0.85 }}
+              style={{ backgroundColor: "#64748b", opacity: 0.85 }}
             />
             Vanilla (darker)
           </span>
-          <span className="inline-flex items-center gap-1.5">
+          <span className="ml-3 inline-flex items-center gap-1.5">
             <span
               aria-hidden="true"
               className="inline-block h-3 w-3 rounded-sm"
-              style={{ backgroundColor: "#475569", opacity: 0.32 }}
+              style={{ backgroundColor: "#94a3b8", opacity: 0.45 }}
             />
             Agent (lighter)
           </span>
@@ -172,7 +174,7 @@ export default function CategoryPerformanceCharts({ data, series }: Props) {
             <span
               aria-hidden="true"
               className="inline-block h-3 w-3 rounded-sm"
-              style={{ backgroundColor: "#6e6e80", opacity: 0.32 }}
+              style={{ backgroundColor: "#475569", opacity: 0.45 }}
             />
             Human SOTA
           </span>
