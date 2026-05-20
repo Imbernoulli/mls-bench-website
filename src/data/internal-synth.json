@@ -3603,6 +3603,95 @@
    "has_agent_logs": true
   },
   {
+   "id": "llm-on-policy-distillation",
+   "name": "LLM On-Policy Distillation — Custom Loss",
+   "summary": "**What distillation loss best transfers reasoning ability from a large",
+   "category": "language-models",
+   "category_label": "Language Models",
+   "category_abbr": "",
+   "description_md": "# LLM On-Policy Distillation — Custom Loss\n\n## Research Question\n**What distillation loss best transfers reasoning ability from a large\nmath-tuned teacher to a small student under an on-policy training loop?**\n\nOn-policy distillation (OPD) — the student generates rollouts, the teacher\nscores them, and the student is updated to match the teacher on its own\nsamples — is the dominant 2025/2026 recipe for compressing frontier\nreasoning models (Lu et al. *On-Policy Distillation*, Thinking Machines\n2025; Qwen3 Tech Report 2025; TAID, ICLR'25 Spotlight; DistiLLM-2,\nICML'25 oral; RS-KD, ACL'25 oral; SKD, ICLR'25). The training loop and\nthe optimization knobs (β, λ, temperature) are well-understood — the\n**loss function** is where competing methods disagree.\n\nThis task isolates that loss function.\n\n## Task\nModify the body of `compute_distill_loss` in\n`trl/experimental/gkd/custom_distill_loss.py` (lines 38–61, between the\n`EDITABLE START` and `EDITABLE END` markers). The signature is fixed:\n\n```python\ndef compute_distill_loss(\n    student_logits: torch.Tensor,    # [B, T, V]\n    teacher_logits: torch.Tensor,    # [B, T, V]\n    labels: torch.Tensor = None,     # [B, T]; -100 on padding/prompt\n    beta: float = 0.5,\n    temperature: float = 1.0,\n    reduction: str = \"batchmean\",\n    step: int = 0,                   # current training step\n    total_steps: int = 0,            # total planned steps\n    lmbda: float = 0.5,              # static on-policy mixing fraction\n) -> torch.Tensor:\n```\n\n## What this surface supports (and doesn't)\n\nMethods implementable as a single `compute_distill_loss` body:\n\n- **Loss-function variants**: forward/reverse KL, generalized JSD, divergence\n  mixtures (Hellinger, Tsallis, …), contrastive (DistiLLM-2), top-K + tail\n  bucket (RS-KD).\n- **Curriculum / scheduled losses**: anything that varies with `step` and\n  `total_steps` — TAID-style adaptive interpolation, λ ramp, temperature\n  annealing.\n- **DAgger-style on/off-policy weighting**: use `lmbda` (the static mixing\n  fraction the trainer applies upstream) together with `step` to design a\n  hybrid schedule, e.g. reverse-KL early when on-policy fraction matters\n  more, forward-KL late.\n\nMethods that require *framework-level* changes (and are therefore **out of\nscope** for this task as currently designed):\n\n- **Reference-policy KL** (Stable-OPD, arXiv 2604.08527) — needs a third\n  frozen network in compute_loss.\n- **Offline teacher-logprob caching** (Lightning-OPD, arXiv 2604.13010) —\n  needs a precomputation pass + dataloader modification.\n- **Outcome-weighted batching** (Uni-OPD, arXiv 2605.03677) — needs reward\n  signal flowing into the loss.\n- **Cold-start two-stage** (Rethinking-OPD, arXiv 2604.13016) — needs an\n  SFT phase before OPD.\n- **Multi-turn DAgger** (Revisiting-DAgger, arXiv 2605.12913) — only\n  meaningful for multi-turn agent tasks, not single-turn math.\n\n`student_logits` and `teacher_logits` are returned by the student and\nteacher forward passes over the same (prompt + completion) tokens.\n`labels` marks the completion positions (`-100` everywhere else). Padding\npositions MUST be excluded from the reduction. The result is a scalar\nthat becomes the training loss.\n\nThe function is invoked once per gradient step from\n`trl/experimental/gkd/gkd_trainer.py::compute_loss` (read-only). The\nagent can also inspect `gkd_config.py` for the meanings of `beta`,\n`lmbda`, `temperature`, etc.\n\n## Setup (fixed)\n- **Student**: `Qwen/Qwen2.5-0.5B` (494M params)\n- **Teacher**: `Qwen/Qwen2.5-Math-7B-Instruct` (7.6B params, math-tuned)\n- **Training prompts**: 10k subset of `open-r1/OpenR1-Math-220k`\n- **Trainer**: TRL `GKDTrainer` (v1.4.0) — handles on-policy generation,\n  teacher forward, optimizer step. Default `lmbda=0.5`, `beta=0.5`,\n  `temperature=0.9`, `max_steps=2000`, `per_device_train_batch_size=4`,\n  gradient accumulation = 4, bf16, gradient checkpointing on 2 GPUs.\n- **Evaluation**: vLLM-served student generation. GSM8K + MATH-500 use\n  greedy (temperature 0, n=1); AMC23 uses **avg@8** with temperature 0.6,\n  top_p 0.95 (8 independent samples per problem, averaged) — matches the\n  small-eval-set protocol DeepSeek-R1 uses for AIME/AMC. Final answer\n  extracted from `\\boxed{...}` and graded with `math-verify`.\n\n## Evaluation\nThree reasoning benchmarks (each a separate `test_cmd`):\n- **GSM8K** — grade-school math, 1319 problems\n- **MATH-500** — competition-style problems, 500 problems\n- **AMC23** — American Math Competition 2023, 40 problems\n\nReported metrics (all \"higher is better\"):\n- `gsm8k_accuracy` — exact-answer accuracy on GSM8K test\n- `math500_accuracy` — exact-answer accuracy on MATH-500\n- `amc_accuracy` — exact-answer accuracy on AMC23\n\n## Baselines\nFour single-loss reference implementations are provided:\n\n| Baseline | Reference | Loss family |\n|---|---|---|\n| `gkd` | Agarwal et al., ICLR'24 (arXiv 2306.13649) | Generalized JSD, β=0.5 |\n| `opd` | Lu et al., Thinking Machines 2025 / Qwen3 Tech Report | Per-token reverse KL on student samples |\n| `taid` | Shing et al., ICLR'25 Spotlight (arXiv 2501.16937) | Forward KL to adaptive teacher–student mixture (logit-space) |\n| `rs_kd` | Anshumann et al., ACL'25 oral (arXiv 2503.16870) | Random-sparse top-K KL (unbiased) |\n| `dagger` | arXiv 2605.12913 (Revisiting DAgger) | Cross-entropy on teacher's top-1 action (hard target) |\n\nAll four implement the same `compute_distill_loss` signature and run on\nthe identical training loop, so leaderboard differences reflect the\n*loss formulation* alone.\n\n## Hints\n- The reference `generalized_jsd_loss` lives at the top of\n  `gkd_trainer.py` (around line 225) — useful as a sanity reference.\n- `step` and `total_steps` are exposed for curriculum-style losses (e.g.\n  the TAID λ schedule).\n- For top-K methods, prefer **importance-corrected** sampling (RS-KD) over\n  naive top-K caching (which is biased; see Anshumann et al.).\n- Numerical stability: clamp probabilities/logsumexp; mask `-100` labels\n  before the reduction; consider `bf16`-friendly arithmetic (no inf/nan).\n- The student is a base model (not instruct), so the chat template used\n  in training is the simple `Question: … Answer: …` format defined by\n  the data collator. Be careful not to over-fit to the prompt template.\n- Wall-clock budget per `test`: ~4h on 2 GPUs for training + ~45 min per\n  eval split. Plan loss variants that are cheap to compute per step.\n",
+   "description_html": "<h1>LLM On-Policy Distillation — Custom Loss</h1>\n<h2>Research Question</h2>\n<p><strong>What distillation loss best transfers reasoning ability from a large\nmath-tuned teacher to a small student under an on-policy training loop?</strong></p>\n<p>On-policy distillation (OPD) — the student generates rollouts, the teacher\nscores them, and the student is updated to match the teacher on its own\nsamples — is the dominant 2025/2026 recipe for compressing frontier\nreasoning models (Lu et al. <em>On-Policy Distillation</em>, Thinking Machines\n2025; Qwen3 Tech Report 2025; TAID, ICLR'25 Spotlight; DistiLLM-2,\nICML'25 oral; RS-KD, ACL'25 oral; SKD, ICLR'25). The training loop and\nthe optimization knobs (β, λ, temperature) are well-understood — the\n<strong>loss function</strong> is where competing methods disagree.</p>\n<p>This task isolates that loss function.</p>\n<h2>Task</h2>\n<p>Modify the body of <code>compute_distill_loss</code> in\n<code>trl/experimental/gkd/custom_distill_loss.py</code> (lines 38–61, between the\n<code>EDITABLE START</code> and <code>EDITABLE END</code> markers). The signature is fixed:</p>\n<pre class=\"codehilite\"><code class=\"language-python\">def compute_distill_loss(\n    student_logits: torch.Tensor,    # [B, T, V]\n    teacher_logits: torch.Tensor,    # [B, T, V]\n    labels: torch.Tensor = None,     # [B, T]; -100 on padding/prompt\n    beta: float = 0.5,\n    temperature: float = 1.0,\n    reduction: str = &quot;batchmean&quot;,\n    step: int = 0,                   # current training step\n    total_steps: int = 0,            # total planned steps\n    lmbda: float = 0.5,              # static on-policy mixing fraction\n) -&gt; torch.Tensor:\n</code></pre>\n\n<h2>What this surface supports (and doesn't)</h2>\n<p>Methods implementable as a single <code>compute_distill_loss</code> body:</p>\n<ul>\n<li><strong>Loss-function variants</strong>: forward/reverse KL, generalized JSD, divergence\n  mixtures (Hellinger, Tsallis, …), contrastive (DistiLLM-2), top-K + tail\n  bucket (RS-KD).</li>\n<li><strong>Curriculum / scheduled losses</strong>: anything that varies with <code>step</code> and\n  <code>total_steps</code> — TAID-style adaptive interpolation, λ ramp, temperature\n  annealing.</li>\n<li><strong>DAgger-style on/off-policy weighting</strong>: use <code>lmbda</code> (the static mixing\n  fraction the trainer applies upstream) together with <code>step</code> to design a\n  hybrid schedule, e.g. reverse-KL early when on-policy fraction matters\n  more, forward-KL late.</li>\n</ul>\n<p>Methods that require <em>framework-level</em> changes (and are therefore <strong>out of\nscope</strong> for this task as currently designed):</p>\n<ul>\n<li><strong>Reference-policy KL</strong> (Stable-OPD, arXiv 2604.08527) — needs a third\n  frozen network in compute_loss.</li>\n<li><strong>Offline teacher-logprob caching</strong> (Lightning-OPD, arXiv 2604.13010) —\n  needs a precomputation pass + dataloader modification.</li>\n<li><strong>Outcome-weighted batching</strong> (Uni-OPD, arXiv 2605.03677) — needs reward\n  signal flowing into the loss.</li>\n<li><strong>Cold-start two-stage</strong> (Rethinking-OPD, arXiv 2604.13016) — needs an\n  SFT phase before OPD.</li>\n<li><strong>Multi-turn DAgger</strong> (Revisiting-DAgger, arXiv 2605.12913) — only\n  meaningful for multi-turn agent tasks, not single-turn math.</li>\n</ul>\n<p><code>student_logits</code> and <code>teacher_logits</code> are returned by the student and\nteacher forward passes over the same (prompt + completion) tokens.\n<code>labels</code> marks the completion positions (<code>-100</code> everywhere else). Padding\npositions MUST be excluded from the reduction. The result is a scalar\nthat becomes the training loss.</p>\n<p>The function is invoked once per gradient step from\n<code>trl/experimental/gkd/gkd_trainer.py::compute_loss</code> (read-only). The\nagent can also inspect <code>gkd_config.py</code> for the meanings of <code>beta</code>,\n<code>lmbda</code>, <code>temperature</code>, etc.</p>\n<h2>Setup (fixed)</h2>\n<ul>\n<li><strong>Student</strong>: <code>Qwen/Qwen2.5-0.5B</code> (494M params)</li>\n<li><strong>Teacher</strong>: <code>Qwen/Qwen2.5-Math-7B-Instruct</code> (7.6B params, math-tuned)</li>\n<li><strong>Training prompts</strong>: 10k subset of <code>open-r1/OpenR1-Math-220k</code></li>\n<li><strong>Trainer</strong>: TRL <code>GKDTrainer</code> (v1.4.0) — handles on-policy generation,\n  teacher forward, optimizer step. Default <code>lmbda=0.5</code>, <code>beta=0.5</code>,\n  <code>temperature=0.9</code>, <code>max_steps=2000</code>, <code>per_device_train_batch_size=4</code>,\n  gradient accumulation = 4, bf16, gradient checkpointing on 2 GPUs.</li>\n<li><strong>Evaluation</strong>: vLLM-served student generation. GSM8K + MATH-500 use\n  greedy (temperature 0, n=1); AMC23 uses <strong>avg@8</strong> with temperature 0.6,\n  top_p 0.95 (8 independent samples per problem, averaged) — matches the\n  small-eval-set protocol DeepSeek-R1 uses for AIME/AMC. Final answer\n  extracted from <code>\\boxed{...}</code> and graded with <code>math-verify</code>.</li>\n</ul>\n<h2>Evaluation</h2>\n<p>Three reasoning benchmarks (each a separate <code>test_cmd</code>):\n- <strong>GSM8K</strong> — grade-school math, 1319 problems\n- <strong>MATH-500</strong> — competition-style problems, 500 problems\n- <strong>AMC23</strong> — American Math Competition 2023, 40 problems</p>\n<p>Reported metrics (all \"higher is better\"):\n- <code>gsm8k_accuracy</code> — exact-answer accuracy on GSM8K test\n- <code>math500_accuracy</code> — exact-answer accuracy on MATH-500\n- <code>amc_accuracy</code> — exact-answer accuracy on AMC23</p>\n<h2>Baselines</h2>\n<p>Four single-loss reference implementations are provided:</p>\n<table>\n<thead>\n<tr>\n<th>Baseline</th>\n<th>Reference</th>\n<th>Loss family</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>gkd</code></td>\n<td>Agarwal et al., ICLR'24 (arXiv 2306.13649)</td>\n<td>Generalized JSD, β=0.5</td>\n</tr>\n<tr>\n<td><code>opd</code></td>\n<td>Lu et al., Thinking Machines 2025 / Qwen3 Tech Report</td>\n<td>Per-token reverse KL on student samples</td>\n</tr>\n<tr>\n<td><code>taid</code></td>\n<td>Shing et al., ICLR'25 Spotlight (arXiv 2501.16937)</td>\n<td>Forward KL to adaptive teacher–student mixture (logit-space)</td>\n</tr>\n<tr>\n<td><code>rs_kd</code></td>\n<td>Anshumann et al., ACL'25 oral (arXiv 2503.16870)</td>\n<td>Random-sparse top-K KL (unbiased)</td>\n</tr>\n<tr>\n<td><code>dagger</code></td>\n<td>arXiv 2605.12913 (Revisiting DAgger)</td>\n<td>Cross-entropy on teacher's top-1 action (hard target)</td>\n</tr>\n</tbody>\n</table>\n<p>All four implement the same <code>compute_distill_loss</code> signature and run on\nthe identical training loop, so leaderboard differences reflect the\n<em>loss formulation</em> alone.</p>\n<h2>Hints</h2>\n<ul>\n<li>The reference <code>generalized_jsd_loss</code> lives at the top of\n  <code>gkd_trainer.py</code> (around line 225) — useful as a sanity reference.</li>\n<li><code>step</code> and <code>total_steps</code> are exposed for curriculum-style losses (e.g.\n  the TAID λ schedule).</li>\n<li>For top-K methods, prefer <strong>importance-corrected</strong> sampling (RS-KD) over\n  naive top-K caching (which is biased; see Anshumann et al.).</li>\n<li>Numerical stability: clamp probabilities/logsumexp; mask <code>-100</code> labels\n  before the reduction; consider <code>bf16</code>-friendly arithmetic (no inf/nan).</li>\n<li>The student is a base model (not instruct), so the chat template used\n  in training is the simple <code>Question: … Answer: …</code> format defined by\n  the data collator. Be careful not to over-fit to the prompt template.</li>\n<li>Wall-clock budget per <code>test</code>: ~4h on 2 GPUs for training + ~45 min per\n  eval split. Plan loss variants that are cheap to compute per step.</li>\n</ul>",
+   "baselines": [
+    "gkd",
+    "opd",
+    "taid",
+    "rs_kd",
+    "dagger"
+   ],
+   "environments": [
+    "train",
+    "eval"
+   ],
+   "packages": [
+    "trl"
+   ],
+   "files": [
+    {
+     "filename": "trl/trl/experimental/gkd/custom_distill_loss.py",
+     "edit_ranges": [
+      {
+       "start": 42,
+       "end": 65
+      }
+     ],
+     "content": "\"\"\"Editable distillation loss for the llm-on-policy-distillation task.\n\nReplaces the default `generalized_jsd_loss` in TRL's GKDTrainer. Called once\nper gradient step by trl/experimental/gkd/gkd_trainer.py::compute_loss\ninside the standard (non-Liger) path, with:\n\n    student_logits  [B, T, V]  — student logits over completion tokens\n    teacher_logits  [B, T, V]  — teacher logits over the same tokens\n    labels          [B, T]     — completion token ids (-100 for padding)\n    beta            float      — interpolation knob from GKDConfig (0..1)\n    temperature     float      — softmax temperature\n    reduction       str        — \"batchmean\" / \"sum\" / \"mean\" / \"none\"\n    step            int        — current global training step\n    total_steps     int        — total planned training steps (for curricula)\n    lmbda           float      — GKDConfig.lmbda, fraction of on-policy batches\n                                  (use with `step` to design DAgger-style\n                                  on-policy/off-policy hybrid schedules)\n\nNotes:\n    * Padding positions (labels == -100) MUST be excluded from the reduction.\n    * Return a scalar tensor (or per-element tensor when reduction == \"none\").\n    * The reference GKD implementation is in\n      trl/experimental/gkd/gkd_trainer.py::generalized_jsd_loss.\n\"\"\"\n\nimport torch\nimport torch.nn.functional as F\n\n\ndef compute_distill_loss(\n    student_logits: torch.Tensor,\n    teacher_logits: torch.Tensor,\n    labels: torch.Tensor = None,\n    beta: float = 0.5,\n    temperature: float = 1.0,\n    reduction: str = \"batchmean\",\n    step: int = 0,\n    total_steps: int = 0,\n    lmbda: float = 0.5,\n) -> torch.Tensor:\n    # ================== EDITABLE START ==================\n    # Default = forward KL D(teacher || student). Replace this body with a\n    # novel distillation loss. Keep the signature unchanged.\n    student_logits = student_logits / temperature\n    teacher_logits = teacher_logits / temperature\n    student_log_probs = F.log_softmax(student_logits, dim=-1)\n    teacher_log_probs = F.log_softmax(teacher_logits, dim=-1)\n\n    # KL(p_T || p_S), summed over vocab → per-token KL of shape [B, T]\n    kl = F.kl_div(student_log_probs, teacher_log_probs, reduction=\"none\", log_target=True).sum(dim=-1)\n\n    if labels is not None:\n        mask = labels != -100\n        kl = kl[mask]\n        denom = mask.sum().clamp_min(1)\n    else:\n        denom = torch.tensor(max(kl.numel(), 1), device=kl.device, dtype=kl.dtype)\n\n    if reduction == \"batchmean\":\n        return kl.sum() / denom\n    elif reduction == \"sum\":\n        return kl.sum()\n    elif reduction == \"mean\":\n        return kl.mean()\n    return kl\n    # ================== EDITABLE END ==================\n"
+    },
+    {
+     "filename": "trl/trl/experimental/gkd/gkd_trainer.py",
+     "edit_ranges": []
+    },
+    {
+     "filename": "trl/trl/experimental/gkd/gkd_config.py",
+     "edit_ranges": []
+    }
+   ],
+   "baselines_code": {
+    "gkd": [
+     {
+      "file": "trl/trl/experimental/gkd/custom_distill_loss.py",
+      "start_line": 42,
+      "end_line": 65,
+      "content": "    # GKD (Agarwal et al., ICLR'24) — Generalized JSD with β = 0.5.\n    beta_use = 0.5\n    student_logits = student_logits / temperature\n    teacher_logits = teacher_logits / temperature\n    student_log_probs = F.log_softmax(student_logits, dim=-1)\n    teacher_log_probs = F.log_softmax(teacher_logits, dim=-1)\n\n    beta_t = torch.tensor(beta_use, dtype=student_log_probs.dtype, device=student_log_probs.device)\n    mixture_log_probs = torch.logsumexp(\n        torch.stack([student_log_probs + torch.log1p(-beta_t), teacher_log_probs + torch.log(beta_t)]),\n        dim=0,\n    )\n    # PyTorch's F.kl_div(input=log_q, target=log_p) computes KL(p || q).\n    kl_teacher = F.kl_div(mixture_log_probs, teacher_log_probs, reduction=\"none\", log_target=True).sum(dim=-1)\n    kl_student = F.kl_div(mixture_log_probs, student_log_probs, reduction=\"none\", log_target=True).sum(dim=-1)\n    per_token = beta_t * kl_teacher + (1 - beta_t) * kl_student  # [B, T]\n\n    if labels is not None:\n        mask = labels != -100\n        per_token = per_token[mask]\n        denom = mask.sum().clamp_min(1)\n    else:\n        denom = torch.tensor(max(per_token.numel(), 1), device=per_token.device, dtype=per_token.dtype)\n\n    if reduction == \"batchmean\":\n        return per_token.sum() / denom\n    elif reduction == \"sum\":\n        return per_token.sum()\n    elif reduction == \"mean\":\n        return per_token.mean()\n    return per_token\n"
+     }
+    ],
+    "opd": [
+     {
+      "file": "trl/trl/experimental/gkd/custom_distill_loss.py",
+      "start_line": 42,
+      "end_line": 65,
+      "content": "    # OPD (Lu et al. 2025 / Qwen3 report) — per-token reverse KL: KL(p_S || p_T).\n    student_logits = student_logits / temperature\n    teacher_logits = teacher_logits / temperature\n    student_log_probs = F.log_softmax(student_logits, dim=-1)\n    teacher_log_probs = F.log_softmax(teacher_logits, dim=-1)\n\n    # KL(p_S || p_T) per token, summed over vocab.\n    # F.kl_div(input=log_q, target=log_p, log_target=True) = Σ_v p · (log p - log q).\n    # With input=teacher_log_probs and target=student_log_probs this gives KL(p_S || p_T).\n    per_token = F.kl_div(\n        teacher_log_probs, student_log_probs, reduction=\"none\", log_target=True\n    ).sum(dim=-1)  # [B, T]\n\n    if labels is not None:\n        mask = labels != -100\n        per_token = per_token[mask]\n        denom = mask.sum().clamp_min(1)\n    else:\n        denom = torch.tensor(max(per_token.numel(), 1), device=per_token.device, dtype=per_token.dtype)\n\n    if reduction == \"batchmean\":\n        return per_token.sum() / denom\n    elif reduction == \"sum\":\n        return per_token.sum()\n    elif reduction == \"mean\":\n        return per_token.mean()\n    return per_token\n"
+     }
+    ],
+    "taid": [
+     {
+      "file": "trl/trl/experimental/gkd/custom_distill_loss.py",
+      "start_line": 42,
+      "end_line": 65,
+      "content": "    # TAID (Shing et al., ICLR'25 Spotlight) — logit-space interpolation, linear schedule.\n    t_start = 0.4\n    if total_steps and total_steps > 0:\n        t_val = t_start + (1.0 - t_start) * min(1.0, max(0.0, step / float(total_steps)))\n    else:\n        t_val = 0.7\n\n    student_logits = student_logits / temperature\n    teacher_logits = teacher_logits / temperature\n\n    # Target logits = (1-t) * student.detach() + t * teacher.  Detach is critical so\n    # the target distribution carries no gradient back through the student branch.\n    t = torch.tensor(t_val, dtype=student_logits.dtype, device=student_logits.device)\n    target_logits = (1 - t) * student_logits.detach() + t * teacher_logits\n    target_log_probs = F.log_softmax(target_logits, dim=-1)\n    student_log_probs = F.log_softmax(student_logits, dim=-1)\n\n    # KL(target || student) = Σ_v p_target · (log p_target - log p_student)\n    # F.kl_div(input=log_q, target=log_p, log_target=True) returns KL(p || q),\n    # so input=student_log_probs, target=target_log_probs gives KL(target || student).\n    per_token = F.kl_div(\n        student_log_probs, target_log_probs, reduction=\"none\", log_target=True\n    ).sum(dim=-1)\n\n    if labels is not None:\n        mask = labels != -100\n        per_token = per_token[mask]\n        denom = mask.sum().clamp_min(1)\n    else:\n        denom = torch.tensor(max(per_token.numel(), 1), device=per_token.device, dtype=per_token.dtype)\n\n    if reduction == \"batchmean\":\n        return per_token.sum() / denom\n    elif reduction == \"sum\":\n        return per_token.sum()\n    elif reduction == \"mean\":\n        return per_token.mean()\n    return per_token\n"
+     }
+    ],
+    "rs_kd": [
+     {
+      "file": "trl/trl/experimental/gkd/custom_distill_loss.py",
+      "start_line": 42,
+      "end_line": 65,
+      "content": "    # RS-KD (Anshumann et al., ACL'25) — sparse top-K KL with explicit tail bucket.\n    top_k = 128\n    eps = 1e-9\n    log_one_minus_eps = -1e-7  # ensures log(1 - sum(exp(top_k))) is finite\n\n    student_logits = student_logits / temperature\n    teacher_logits = teacher_logits / temperature\n    student_log_probs = F.log_softmax(student_logits, dim=-1)\n    teacher_log_probs = F.log_softmax(teacher_logits, dim=-1)\n\n    # Select teacher's top-K indices per position; gather student log-probs on the same support.\n    K = min(int(top_k), teacher_log_probs.size(-1))\n    teacher_topk_logp, topk_idx = torch.topk(teacher_log_probs, k=K, dim=-1)  # [B, T, K]\n    student_topk_logp = torch.gather(student_log_probs, dim=-1, index=topk_idx)\n\n    # Tail buckets: log(1 - sum(exp(top_k_logp))). Clamp the inner sum < 1 for numerical safety.\n    def _tail(logp_topk):\n        log_sum = torch.logsumexp(logp_topk, dim=-1, keepdim=True).clamp(max=log_one_minus_eps)\n        # log(1 - exp(log_sum))  via log(-expm1(log_sum))\n        return torch.log(-torch.expm1(log_sum))\n\n    teacher_full = torch.cat([teacher_topk_logp, _tail(teacher_topk_logp)], dim=-1)  # [B, T, K+1]\n    student_full = torch.cat([student_topk_logp, _tail(student_topk_logp)], dim=-1)\n\n    # Renormalise (the topk + tail decomposition is exact in expectation but\n    # numerical errors can push it slightly off; a small renorm keeps the\n    # divergence well-defined).\n    teacher_full = teacher_full - torch.logsumexp(teacher_full, dim=-1, keepdim=True)\n    student_full = student_full - torch.logsumexp(student_full, dim=-1, keepdim=True)\n\n    # KL(p_T || p_S) over the K+1 support.\n    per_token = F.kl_div(\n        student_full, teacher_full, reduction=\"none\", log_target=True\n    ).sum(dim=-1)  # [B, T]\n\n    if labels is not None:\n        mask = labels != -100\n        per_token = per_token[mask]\n        denom = mask.sum().clamp_min(1)\n    else:\n        denom = torch.tensor(max(per_token.numel(), 1), device=per_token.device, dtype=per_token.dtype)\n\n    if reduction == \"batchmean\":\n        return per_token.sum() / denom\n    elif reduction == \"sum\":\n        return per_token.sum()\n    elif reduction == \"mean\":\n        return per_token.mean()\n    return per_token\n"
+     }
+    ],
+    "dagger": [
+     {
+      "file": "trl/trl/experimental/gkd/custom_distill_loss.py",
+      "start_line": 42,
+      "end_line": 65,
+      "content": "    # DAgger (arXiv 2605.12913) — cross-entropy on teacher's top-1 action.\n    # Eq.12-13 + §A: plain CE with unit token weight (w(s,a)=1), no temperature\n    # rescaling on either side. The state distribution comes from upstream\n    # GKDTrainer's lmbda mixing (with prob lmbda, inputs are student-generated;\n    # otherwise dataset). This loss replaces OPD's reverse-KL soft target with\n    # a hard-target supervision signal at each token position.\n\n    # No temperature scaling: paper specifies plain log π_θ(ã|s).\n    # Teacher's argmax action at each position is the deterministic\n    # instantiation of the teacher's chosen action at that state.\n    target_tokens = teacher_logits.argmax(dim=-1)  # [B, T]\n\n    if labels is not None:\n        # Preserve the -100 padding mask from `labels`.\n        target_tokens = torch.where(labels == -100, labels, target_tokens)\n\n    # Token-level CE.\n    per_token = F.cross_entropy(\n        student_logits.reshape(-1, student_logits.size(-1)),\n        target_tokens.reshape(-1),\n        ignore_index=-100,\n        reduction=\"none\",\n    )  # [B*T]\n\n    if labels is not None:\n        valid_mask = (labels != -100).reshape(-1)\n        denom = valid_mask.sum().clamp_min(1)\n        loss_sum = per_token.sum()\n    else:\n        denom = torch.tensor(max(per_token.numel(), 1), device=per_token.device, dtype=per_token.dtype)\n        loss_sum = per_token.sum()\n\n    if reduction == \"batchmean\":\n        return loss_sum / denom\n    elif reduction == \"sum\":\n        return loss_sum\n    elif reduction == \"mean\":\n        return per_token.mean()\n    return per_token\n"
+     }
+    ]
+   },
+   "rigorous_codebase": true,
+   "allow_create": false,
+   "has_agent_logs": false
+  },
+  {
    "id": "llm-pretrain-attention",
    "name": "Autoregressive Attention Mechanism",
    "summary": "Studies how self-attention computation and positional handling affect autoregressive pretraining loss and downstream accuracy.",
@@ -48041,6 +48130,181 @@
      "generation_toks_per_s_lambada_gpt-345m": null,
      "generation_toks_per_s_gen-eval-345m": null,
      "elapsed_gen-eval-345m": null
+    }
+   ]
+  },
+  "llm-on-policy-distillation": {
+   "task_id": "llm-on-policy-distillation",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "final_train_loss",
+    "elapsed_train",
+    "gsm8k_accuracy",
+    "gsm8k_n_correct",
+    "gsm8k_n_total",
+    "elapsed_gsm8k",
+    "math500_accuracy",
+    "math500_n_correct",
+    "math500_n_total",
+    "elapsed_math500",
+    "amc_accuracy",
+    "amc_n_correct",
+    "amc_n_total",
+    "elapsed_amc",
+    "gsm8k_n_samples",
+    "math500_n_samples",
+    "8",
+    "amc_n_samples",
+    "elapsed_eval"
+   ],
+   "metric_columns": [
+    "gsm8k_accuracy",
+    "math500_accuracy",
+    "amc_accuracy"
+   ],
+   "metric_directions": {
+    "gsm8k_accuracy": "higher",
+    "math500_accuracy": "higher",
+    "amc_accuracy": "higher"
+   },
+   "metric_groups": [
+    {
+     "setting": "qwen2.5-0.5b",
+     "metrics": [
+      "gsm8k_accuracy",
+      "math500_accuracy",
+      "amc_accuracy"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-05-15T01:19:41.696038+00:00",
+     "model": "baseline:dagger",
+     "is_final": true,
+     "seed": "42",
+     "final_train_loss": 0.507239,
+     "elapsed_train": 8503.0,
+     "gsm8k_accuracy": 0.451099,
+     "gsm8k_n_correct": 595.0,
+     "gsm8k_n_total": 1319.0,
+     "elapsed_gsm8k": null,
+     "math500_accuracy": 0.29,
+     "math500_n_correct": 145.0,
+     "math500_n_total": 500.0,
+     "elapsed_math500": null,
+     "amc_accuracy": 0.08125,
+     "amc_n_correct": 3.0,
+     "amc_n_total": 40.0,
+     "elapsed_amc": null,
+     "gsm8k_n_samples": 1.0,
+     "math500_n_samples": 1.0,
+     "8": 40.0,
+     "amc_n_samples": 8.0,
+     "elapsed_eval": 140.0
+    },
+    {
+     "timestamp": "2026-05-14T19:54:55.453972+00:00",
+     "model": "baseline:gkd",
+     "is_final": true,
+     "seed": "42",
+     "final_train_loss": 0.077745,
+     "elapsed_train": 8873.0,
+     "gsm8k_accuracy": 0.471569,
+     "gsm8k_n_correct": 622.0,
+     "gsm8k_n_total": 1319.0,
+     "elapsed_gsm8k": 50.0,
+     "math500_accuracy": 0.312,
+     "math500_n_correct": 156.0,
+     "math500_n_total": 500.0,
+     "elapsed_math500": 51.0,
+     "amc_accuracy": 0.078125,
+     "amc_n_correct": 3.0,
+     "amc_n_total": 40.0,
+     "elapsed_amc": 45.0,
+     "gsm8k_n_samples": 1.0,
+     "math500_n_samples": 1.0,
+     "8": 40.0,
+     "amc_n_samples": 8.0,
+     "elapsed_eval": 97.0
+    },
+    {
+     "timestamp": "2026-05-14T19:56:04.600121+00:00",
+     "model": "baseline:opd",
+     "is_final": true,
+     "seed": "42",
+     "final_train_loss": 0.55841,
+     "elapsed_train": 8530.0,
+     "gsm8k_accuracy": 0.485216,
+     "gsm8k_n_correct": 640.0,
+     "gsm8k_n_total": 1319.0,
+     "elapsed_gsm8k": 70.0,
+     "math500_accuracy": 0.31,
+     "math500_n_correct": 155.0,
+     "math500_n_total": 500.0,
+     "elapsed_math500": 58.0,
+     "amc_accuracy": 0.06875,
+     "amc_n_correct": 3.0,
+     "amc_n_total": 40.0,
+     "elapsed_amc": 45.0,
+     "gsm8k_n_samples": 1.0,
+     "math500_n_samples": 1.0,
+     "8": 40.0,
+     "amc_n_samples": 8.0,
+     "elapsed_eval": 125.0
+    },
+    {
+     "timestamp": "2026-05-14T20:27:08.057234+00:00",
+     "model": "baseline:rs_kd",
+     "is_final": true,
+     "seed": "42",
+     "final_train_loss": 0.341971,
+     "elapsed_train": 8503.0,
+     "gsm8k_accuracy": 0.454132,
+     "gsm8k_n_correct": 599.0,
+     "gsm8k_n_total": 1319.0,
+     "elapsed_gsm8k": 54.0,
+     "math500_accuracy": 0.292,
+     "math500_n_correct": 146.0,
+     "math500_n_total": 500.0,
+     "elapsed_math500": 53.0,
+     "amc_accuracy": 0.046875,
+     "amc_n_correct": 2.0,
+     "amc_n_total": 40.0,
+     "elapsed_amc": 44.0,
+     "gsm8k_n_samples": 1.0,
+     "math500_n_samples": 1.0,
+     "8": 40.0,
+     "amc_n_samples": 8.0,
+     "elapsed_eval": 97.0
+    },
+    {
+     "timestamp": "2026-05-14T19:57:05.442200+00:00",
+     "model": "baseline:taid",
+     "is_final": true,
+     "seed": "42",
+     "final_train_loss": 0.362981,
+     "elapsed_train": 8580.0,
+     "gsm8k_accuracy": 0.468537,
+     "gsm8k_n_correct": 618.0,
+     "gsm8k_n_total": 1319.0,
+     "elapsed_gsm8k": 55.0,
+     "math500_accuracy": 0.28,
+     "math500_n_correct": 140.0,
+     "math500_n_total": 500.0,
+     "elapsed_math500": 52.0,
+     "amc_accuracy": 0.071875,
+     "amc_n_correct": 3.0,
+     "amc_n_total": 40.0,
+     "elapsed_amc": 45.0,
+     "gsm8k_n_samples": 1.0,
+     "math500_n_samples": 1.0,
+     "8": 40.0,
+     "amc_n_samples": 8.0,
+     "elapsed_eval": 112.0
     }
    ]
   },
