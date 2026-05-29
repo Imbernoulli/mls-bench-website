@@ -1,6 +1,8 @@
 # MLS-Bench 创新性审计报告：科学发现 vs. 基线重组
 
 > 内部报告 · 2026-05-29 · 不在公开站点导航中，且已标记 noindex
+>
+> 📎 **可点击溯源**：下方第四节的代表性例子，以及附录中每个任务名，都直接链到 [Agent Reasoning Logs](/internal/logs) 中对应的完整轨迹（reasoning + proposal）。点开即可看到模型当时的逐步思考与提案代码。
 
 ## 一句话结论
 
@@ -51,10 +53,10 @@
 
 模型往往**自己也意识到**这不是科学（agent 摘录的原话）：
 
-- Opus（权重初始化）：*"while this approach is solid, it's essentially just applying known best practices"*
-- Opus（超参搜索）：*"essentially what Hyperband already does"*
-- Opus（演化策略）：*"this is essentially L-SHADE with bounce-back boundary handling, so I need to add some genuinely novel algorithmic contributions"*——随后还是接上了一个已知算子。
-- GPT（黑盒攻击）：直接 `import torchattacks; torchattacks.Square(...)` 再包一层预算调度。
+- Opus（[权重初始化](/internal/logs?task=dl-weight-initialization&slug=anthropic--claude-opus-4.6)）：*"while this approach is solid, it's essentially just applying known best practices"*
+- Opus（[超参搜索](/internal/logs?task=optimization-hyperparameter-search&slug=anthropic--claude-opus-4.6)）：*"essentially what Hyperband already does"*
+- Opus（[演化策略](/internal/logs?task=optimization-evolution-strategy&slug=anthropic--claude-opus-4.6)）：*"this is essentially L-SHADE with bounce-back boundary handling, so I need to add some genuinely novel algorithmic contributions"*——随后还是接上了一个已知算子。
+- GPT（[黑盒攻击](/internal/logs?task=security-adversarial-attack-black-box-score&slug=openai--gpt-5.4)）：直接 `import torchattacks; torchattacks.Square(...)` 再包一层预算调度。
 
 ---
 
@@ -62,13 +64,13 @@
 
 真正从第一性原理出发的工作几乎**只**聚集在**有可被利用的数学/结构约束**的任务上——这些任务里「罗列再混合基线」明显不够用：
 
-- **security-poison-robust-learning**：Opus **和** GPT **各自独立地**从已知的标签翻转结构 `(y+1)%C` 推导出贝叶斯逆向修正 `(y−1)%C`（真正的「假设 → 机制」弧线）。
-- **optimization-variance-reduction**：GPT 的**双控制变量估计器**，按 SARAH/SVRG 两个估计的「分歧度」动态混合（一种新的估计量形式，而非流水线拼接）。
-- **optimization-diagonal-net**：GPT 的径向收缩镜像下降（*"radial shrinkage can make each coordinate commit to one sign"*）。
-- **cv-diffusion-prediction / -efficiency**：GPT 的 MMSE 残差参数化、曲率自适应求解器阻尼，均由识别出的失效模式推导而来。
-- **ml-dimensionality-reduction**：Opus **直接从 trustworthiness/continuity 度量定义**推导出 rank-alignment 目标函数（本样本中 Opus 的唯一 4 分）。
-- **ts-exogenous-forecast / stf-traffic-forecast**：Opus 诊断出「full C×C attention 中只有目标变量行获得直接梯度信号」「STID 的空间嵌入是静态的」这类具体失效，并构建了 target-centric / 数据驱动的机制。
-- **dl-activation-function**：Opus 与 Gemini 都做出了真正的机制推导（Opus 算出 `Mish'(0)≈0.6`、需再补 0.4 才能在原点达到单位导数；Gemini 用 `max_pool2d` 引入横向特征交互的 "Morphological Swish"）。
+- **security-poison-robust-learning**：Opus **和** GPT **各自独立地**从已知的标签翻转结构 `(y+1)%C` 推导出贝叶斯逆向修正 `(y−1)%C`（真正的「假设 → 机制」弧线）。轨迹：[Opus](/internal/logs?task=security-poison-robust-learning&slug=anthropic--claude-opus-4.6) · [GPT](/internal/logs?task=security-poison-robust-learning&slug=openai--gpt-5.4)。
+- **optimization-variance-reduction**：GPT 的**双控制变量估计器**，按 SARAH/SVRG 两个估计的「分歧度」动态混合（一种新的估计量形式，而非流水线拼接）。轨迹：[GPT](/internal/logs?task=optimization-variance-reduction&slug=openai--gpt-5.4)。
+- **optimization-diagonal-net**：GPT 的径向收缩镜像下降（*"radial shrinkage can make each coordinate commit to one sign"*）。轨迹：[GPT](/internal/logs?task=optimization-diagonal-net&slug=openai--gpt-5.4)。
+- **cv-diffusion-prediction / -efficiency**：GPT 的 MMSE 残差参数化、曲率自适应求解器阻尼，均由识别出的失效模式推导而来。轨迹：[GPT diffusion-prediction](/internal/logs?task=cv-diffusion-prediction&slug=openai--gpt-5.4) · [GPT diffusion-efficiency](/internal/logs?task=cv-diffusion-efficiency&slug=openai--gpt-5.4)。
+- **ml-dimensionality-reduction**：Opus **直接从 trustworthiness/continuity 度量定义**推导出 rank-alignment 目标函数（本样本中 Opus 的唯一 4 分）。轨迹：[Opus](/internal/logs?task=ml-dimensionality-reduction&slug=anthropic--claude-opus-4.6)。
+- **ts-exogenous-forecast / stf-traffic-forecast**：Opus 诊断出「full C×C attention 中只有目标变量行获得直接梯度信号」「STID 的空间嵌入是静态的」这类具体失效，并构建了 target-centric / 数据驱动的机制。轨迹：[Opus exogenous](/internal/logs?task=ts-exogenous-forecast&slug=anthropic--claude-opus-4.6) · [Opus traffic](/internal/logs?task=stf-traffic-forecast&slug=anthropic--claude-opus-4.6)。
+- **dl-activation-function**：Opus 与 Gemini 都做出了真正的机制推导（Opus 算出 `Mish'(0)≈0.6`、需再补 0.4 才能在原点达到单位导数；Gemini 用 `max_pool2d` 引入横向特征交互的 "Morphological Swish"）。轨迹：[Opus](/internal/logs?task=dl-activation-function&slug=anthropic--claude-opus-4.6) · [Gemini](/internal/logs?task=dl-activation-function&slug=google--gemini-3.1-pro-preview)。
 
 相比之下，**开放式的架构/策略类任务**（时序预测、boosting、数据增强、池化、因果发现、联邦聚合）几乎完全坍缩为重组——Gemini 的因果和联邦轨迹基本上是 ~25 个具名方法的目录。
 
@@ -110,92 +112,92 @@
 ### 批次 1
 | 任务 | Opus | Gemini | GPT |
 |---|---|---|---|
-| ts-classification | 2 · Tweak（多尺度卷积+FFT门控+三重池化，自述 "best of both worlds"） | 2 · Tweak（在 8 个具名架构间打转，最终 FNO+patch+attention 拼接） | N/A（轨迹为空） |
-| optimization-convex-concave | 3 · Modification（做了特征值谱分析，但结果=OGDA+RAIN 两步打包） | 2 · Tweak（照抄 RAIN 后做 Polyak 平均） | 4 · Novel（诊断噪声地板主导，推出零中心 Tikhonov-EG + 尾平均） |
-| security-poison-robust-learning | 4 · Novel（利用已知翻转结构做贝叶斯加权 NABLC） | 3 · Modification（ARCP「反 Focal」梯度裁剪，动机来自已知失效） | 4 · Novel（独立推出 `(y−1)%C` 逆向 + 证据比门控） |
-| security-adversarial-attack-black-box-score | 1 · Recombination（SPSA + Square「两阶段混合」，自认增益边际） | 3 · Modification（MBRSM 融合块更新与动量有限差分为单一更新算子） | 2 · Tweak（直接调用 `torchattacks.Square` + 预算编排） |
-| dl-weight-initialization | 1 · Recombination（AAHI 按架构路由 Orthogonal/Kaiming/Fixup，自认「known best practices」） | 3 · Modification（精确统计初始化：正交后中心化重标定，恰配 Kaiming 方差） | 4 · Novel（diffuse delta-orthogonal + 随深度递增的残差门 `0.1+0.12*sqrt((i+1)/L)`） |
+| [ts-classification](/internal/logs?task=ts-classification) | 2 · Tweak（多尺度卷积+FFT门控+三重池化，自述 "best of both worlds"） | 2 · Tweak（在 8 个具名架构间打转，最终 FNO+patch+attention 拼接） | N/A（轨迹为空） |
+| [optimization-convex-concave](/internal/logs?task=optimization-convex-concave) | 3 · Modification（做了特征值谱分析，但结果=OGDA+RAIN 两步打包） | 2 · Tweak（照抄 RAIN 后做 Polyak 平均） | 4 · Novel（诊断噪声地板主导，推出零中心 Tikhonov-EG + 尾平均） |
+| [security-poison-robust-learning](/internal/logs?task=security-poison-robust-learning) | 4 · Novel（利用已知翻转结构做贝叶斯加权 NABLC） | 3 · Modification（ARCP「反 Focal」梯度裁剪，动机来自已知失效） | 4 · Novel（独立推出 `(y−1)%C` 逆向 + 证据比门控） |
+| [security-adversarial-attack-black-box-score](/internal/logs?task=security-adversarial-attack-black-box-score) | 1 · Recombination（SPSA + Square「两阶段混合」，自认增益边际） | 3 · Modification（MBRSM 融合块更新与动量有限差分为单一更新算子） | 2 · Tweak（直接调用 `torchattacks.Square` + 预算编排） |
+| [dl-weight-initialization](/internal/logs?task=dl-weight-initialization) | 1 · Recombination（AAHI 按架构路由 Orthogonal/Kaiming/Fixup，自认「known best practices」） | 3 · Modification（精确统计初始化：正交后中心化重标定，恰配 Kaiming 方差） | 4 · Novel（diffuse delta-orthogonal + 随深度递增的残差门 `0.1+0.12*sqrt((i+1)/L)`） |
 
 ### 批次 2
 | 任务 | Opus | Gemini | GPT |
 |---|---|---|---|
-| graph-signal-propagation | 3 · Modification（可学习 Jacobi (a,b)，但最终=GPRGNN+Chebyshev 混合） | 3 · Modification（节点个性化 Chebyshev 系数由 NN 预测；含真实失效分析） | 3 · Modification（奇偶跳通道分离，结构假设真，但仍是低通/高通+门控） |
-| ml-federated-aggregation | 3 · Modification（cosine 门控自适应服务器动量，针对固定动量失效） | 2 · Tweak（罗列 ~25 个 Fed* 方法；FedProx+动量+方差重加权之和） | 2 · Tweak（CACM 四件套：循环采样+共识重加权+中位裁剪+轻动量） |
-| optimization-evolution-strategy | 2 · Tweak（L-SHADE 核心 + 条件数自适应特征向量旋转） | 2 · Tweak（AEC-DE：L-SHADE+特征协方差；试图把 CMA-ES 嫁接到 JADE） | 2 · Tweak（L-SHADE + rank-one EDA + OBL + 模式搜索四件套） |
-| optimization-variance-reduction | 3 · Modification（考虑 SVRG/SARAH 自适应混合，但最终发 MA-SVRG=SVRG+重球） | 2 · Tweak（SARAH + 重球，主要在调试发散） | **4 · Novel**（双控制变量估计器：按 recursive 与 anchor 估计的分歧度混合） |
-| meta-inner-loop-optimizer | 2 · Tweak（MMA-SGD=Meta-SGD+动量+拉回初值） | 2 · Tweak（PMM=Meta-SGD+动量+proximal） | 2 · Tweak（逐层选择性 Meta-SGD，Meta-SGD↔ANIL 的学习插值） |
+| [graph-signal-propagation](/internal/logs?task=graph-signal-propagation) | 3 · Modification（可学习 Jacobi (a,b)，但最终=GPRGNN+Chebyshev 混合） | 3 · Modification（节点个性化 Chebyshev 系数由 NN 预测；含真实失效分析） | 3 · Modification（奇偶跳通道分离，结构假设真，但仍是低通/高通+门控） |
+| [ml-federated-aggregation](/internal/logs?task=ml-federated-aggregation) | 3 · Modification（cosine 门控自适应服务器动量，针对固定动量失效） | 2 · Tweak（罗列 ~25 个 Fed* 方法；FedProx+动量+方差重加权之和） | 2 · Tweak（CACM 四件套：循环采样+共识重加权+中位裁剪+轻动量） |
+| [optimization-evolution-strategy](/internal/logs?task=optimization-evolution-strategy) | 2 · Tweak（L-SHADE 核心 + 条件数自适应特征向量旋转） | 2 · Tweak（AEC-DE：L-SHADE+特征协方差；试图把 CMA-ES 嫁接到 JADE） | 2 · Tweak（L-SHADE + rank-one EDA + OBL + 模式搜索四件套） |
+| [optimization-variance-reduction](/internal/logs?task=optimization-variance-reduction) | 3 · Modification（考虑 SVRG/SARAH 自适应混合，但最终发 MA-SVRG=SVRG+重球） | 2 · Tweak（SARAH + 重球，主要在调试发散） | **4 · Novel**（双控制变量估计器：按 recursive 与 anchor 估计的分歧度混合） |
+| [meta-inner-loop-optimizer](/internal/logs?task=meta-inner-loop-optimizer) | 2 · Tweak（MMA-SGD=Meta-SGD+动量+拉回初值） | 2 · Tweak（PMM=Meta-SGD+动量+proximal） | 2 · Tweak（逐层选择性 Meta-SGD，Meta-SGD↔ANIL 的学习插值） |
 
 ### 批次 3
 | 任务 | Opus | Gemini | GPT |
 |---|---|---|---|
-| llm-dllm-demask-strategy | 2 · Tweak（conf*margin 打分 + argmax 一致性替代 KL + Gumbel） | 2 · Tweak（ASGMS 保留 KLASS 的 KL，加 margin 回退 + Gumbel） | 2 · Tweak（共识自适应 demask = KLASS-KL + argmax 一致 + 进度加权） |
-| ts-short-term-forecast | 3 · Modification（MSDFAG，识别 DLinear「单一固定分解核」局限，加谱能量门控） | 1 · Recombination（Spectral-MoE：具名架构装配） | N/A（轨迹不完整） |
-| ml-dimensionality-reduction | **4 · Novel**（直接从 trust/continuity 度量定义推出 rank-alignment 目标） | 3 · Modification（识别 UMAP 斥力无视 HD 距离，加 Hooke 弹簧全局项，后又退回 PaCMAP） | 1 · Recombination（谱嵌入+landmark-MDS 三件套，坍塌到 kNN-acc 0.37） |
-| quant-concept-drift | 2 · Tweak（多时域指数加权集成 + IC 加权） | 1 · Recombination（直接移植 V-REx + CORAL） | 2 · Tweak（近因加权 Ridge + ExtraTrees 残差 + 漂移门控混合） |
-| dl-regularization | 3 · Modification（指出「标签平滑≈置信惩罚」，推非目标类熵最大化变体） | 1 · Recombination（重实现 ICT / Mean-Teacher+Mixup） | 2 · Tweak（同 Opus 的非目标想法 + 具名正交正则；首版 VGG 坍塌到 1%） |
+| [llm-dllm-demask-strategy](/internal/logs?task=llm-dllm-demask-strategy) | 2 · Tweak（conf*margin 打分 + argmax 一致性替代 KL + Gumbel） | 2 · Tweak（ASGMS 保留 KLASS 的 KL，加 margin 回退 + Gumbel） | 2 · Tweak（共识自适应 demask = KLASS-KL + argmax 一致 + 进度加权） |
+| [ts-short-term-forecast](/internal/logs?task=ts-short-term-forecast) | 3 · Modification（MSDFAG，识别 DLinear「单一固定分解核」局限，加谱能量门控） | 1 · Recombination（Spectral-MoE：具名架构装配） | N/A（轨迹不完整） |
+| [ml-dimensionality-reduction](/internal/logs?task=ml-dimensionality-reduction) | **4 · Novel**（直接从 trust/continuity 度量定义推出 rank-alignment 目标） | 3 · Modification（识别 UMAP 斥力无视 HD 距离，加 Hooke 弹簧全局项，后又退回 PaCMAP） | 1 · Recombination（谱嵌入+landmark-MDS 三件套，坍塌到 kNN-acc 0.37） |
+| [quant-concept-drift](/internal/logs?task=quant-concept-drift) | 2 · Tweak（多时域指数加权集成 + IC 加权） | 1 · Recombination（直接移植 V-REx + CORAL） | 2 · Tweak（近因加权 Ridge + ExtraTrees 残差 + 漂移门控混合） |
+| [dl-regularization](/internal/logs?task=dl-regularization) | 3 · Modification（指出「标签平滑≈置信惩罚」，推非目标类熵最大化变体） | 1 · Recombination（重实现 ICT / Mean-Teacher+Mixup） | 2 · Tweak（同 Opus 的非目标想法 + 具名正交正则；首版 VGG 坍塌到 1%） |
 
 ### 批次 4
 | 任务 | Opus | Gemini | GPT |
 |---|---|---|---|
-| security-machine-unlearning | 3 · Modification（互补标签蒸馏 + 置信门控权重） | 3 · Modification（反向交叉熵 `-log(1-p_y)`，自退火，含梯度分析） | 3 · Modification（保留感知互补遗忘 = KD + 互补目标 + 类 PCGrad 梯度手术） |
-| ts-long-term-forecast | 2 · Tweak（FC-DLinear = DLinear+RevIN+频率残差） | 1 · Recombination（TSMixer/FreTS 具名重装配） | N/A（无轨迹） |
-| cv-diffusion-efficiency | 2 · Tweak（DPM++2M + CFG++ + 动态阈值四件套） | 1 · Recombination（逐字重实现多个具名求解器，仅加 eta cutoff） | **4 · Novel**（log-SNR 多步指数积分器 + 曲率自适应三阶项阻尼 `curvature=d2²/d1²`） |
-| cv-diffusion-prediction | **4 · Novel**（从 loss-weighting 推统一 ε↔v 混合，并验证边界条件） | 3 · Modification（min-SNR 目标 + 高噪声尾部 "tail-rotated" 角度参数化） | **4 · Novel**（贝叶斯残差预测：减去 x_0 的线性 MMSE 估计 + sigma_data 先验） |
-| ml-ensemble-boosting | 2 · Tweak（自适应牛顿提升+软聚焦重加权，实为 AdaBoost/GB/Huber/focal 重组） | 1 · Recombination（确认等价 XGBoost 后再栓上具名损失） | 3 · Modification（band-pass 难度重加权 `informative=(z/(1+z))·exp(-temper·z)`，但提交退回任务自适应） |
+| [security-machine-unlearning](/internal/logs?task=security-machine-unlearning) | 3 · Modification（互补标签蒸馏 + 置信门控权重） | 3 · Modification（反向交叉熵 `-log(1-p_y)`，自退火，含梯度分析） | 3 · Modification（保留感知互补遗忘 = KD + 互补目标 + 类 PCGrad 梯度手术） |
+| [ts-long-term-forecast](/internal/logs?task=ts-long-term-forecast) | 2 · Tweak（FC-DLinear = DLinear+RevIN+频率残差） | 1 · Recombination（TSMixer/FreTS 具名重装配） | N/A（无轨迹） |
+| [cv-diffusion-efficiency](/internal/logs?task=cv-diffusion-efficiency) | 2 · Tweak（DPM++2M + CFG++ + 动态阈值四件套） | 1 · Recombination（逐字重实现多个具名求解器，仅加 eta cutoff） | **4 · Novel**（log-SNR 多步指数积分器 + 曲率自适应三阶项阻尼 `curvature=d2²/d1²`） |
+| [cv-diffusion-prediction](/internal/logs?task=cv-diffusion-prediction) | **4 · Novel**（从 loss-weighting 推统一 ε↔v 混合，并验证边界条件） | 3 · Modification（min-SNR 目标 + 高噪声尾部 "tail-rotated" 角度参数化） | **4 · Novel**（贝叶斯残差预测：减去 x_0 的线性 MMSE 估计 + sigma_data 先验） |
+| [ml-ensemble-boosting](/internal/logs?task=ml-ensemble-boosting) | 2 · Tweak（自适应牛顿提升+软聚焦重加权，实为 AdaBoost/GB/Huber/focal 重组） | 1 · Recombination（确认等价 XGBoost 后再栓上具名损失） | 3 · Modification（band-pass 难度重加权 `informative=(z/(1+z))·exp(-temper·z)`，但提交退回任务自适应） |
 
 ### 批次 5
 | 任务 | Opus | Gemini | GPT |
 |---|---|---|---|
-| optimization-nas | 2 · Tweak（自述「essentially BANANAS but with full enumeration」） | 3 · Modification（用精确 GP + 核超参贝叶斯边缘化替换 BANANAS 的 MLP 集成） | 3 · Modification（Hamming 核平滑器 + bootstrap ridge 残差集成） |
-| ml-anomaly-detection | 1 · Recombination（多范式集成：IForest/KNN/HBOS/COPOD/LODA/PCA 加权混合） | 3 · Modification（WRET：识别 ECOD 特征独立性假设失效，PCA 白化后随机旋转积分尾部） | 2 · Tweak（投影密度集成 + gap 密度代理；二版纯 ECOD+COPOD+IForest+LOF） |
-| dl-normalization | 2 · Tweak（ADS-Norm 实为 Switchable Norm + 门控注入高斯噪声） | 3 · Modification（EDBN：实例能量解耦后再 BN，含失效分析） | 3 · Modification（可靠性门控 BGL-Norm，按散度 gap 收缩门控） |
-| ml-selective-deferral | N/A（轨迹仅含 prompt，无推理/edit） | 2 · Tweak（两个具名基线的凸混合；有一处解析确认 (1-α) 收缩） | 1 · Recombination（学习元分类器 + 组阈值 + 置信混合 + 经验贝叶斯偏移堆叠） |
-| optimization-gradient-compression | 1 · Recombination（最终=教科书 PowerSGD + warm-start Q + EF，仅多几次幂迭代） | 2 · Tweak（DGC + QSGD + 自适应 K 堆叠 + 动量覆盖） | **4 · Novel**（识别「极稀疏下整列被饿死」，推 per-output-row TopK-EF） |
+| [optimization-nas](/internal/logs?task=optimization-nas) | 2 · Tweak（自述「essentially BANANAS but with full enumeration」） | 3 · Modification（用精确 GP + 核超参贝叶斯边缘化替换 BANANAS 的 MLP 集成） | 3 · Modification（Hamming 核平滑器 + bootstrap ridge 残差集成） |
+| [ml-anomaly-detection](/internal/logs?task=ml-anomaly-detection) | 1 · Recombination（多范式集成：IForest/KNN/HBOS/COPOD/LODA/PCA 加权混合） | 3 · Modification（WRET：识别 ECOD 特征独立性假设失效，PCA 白化后随机旋转积分尾部） | 2 · Tweak（投影密度集成 + gap 密度代理；二版纯 ECOD+COPOD+IForest+LOF） |
+| [dl-normalization](/internal/logs?task=dl-normalization) | 2 · Tweak（ADS-Norm 实为 Switchable Norm + 门控注入高斯噪声） | 3 · Modification（EDBN：实例能量解耦后再 BN，含失效分析） | 3 · Modification（可靠性门控 BGL-Norm，按散度 gap 收缩门控） |
+| [ml-selective-deferral](/internal/logs?task=ml-selective-deferral) | N/A（轨迹仅含 prompt，无推理/edit） | 2 · Tweak（两个具名基线的凸混合；有一处解析确认 (1-α) 收缩） | 1 · Recombination（学习元分类器 + 组阈值 + 置信混合 + 经验贝叶斯偏移堆叠） |
+| [optimization-gradient-compression](/internal/logs?task=optimization-gradient-compression) | 1 · Recombination（最终=教科书 PowerSGD + warm-start Q + EF，仅多几次幂迭代） | 2 · Tweak（DGC + QSGD + 自适应 K 堆叠 + 动量覆盖） | **4 · Novel**（识别「极稀疏下整列被饿死」，推 per-output-row TopK-EF） |
 
 ### 批次 6
 | 任务 | Opus | Gemini | GPT |
 |---|---|---|---|
-| cv-classification-loss | 2 · Tweak（标签平滑 + PolyLoss 多项式修正堆叠） | 2 · Tweak（"combines established best practices"：标签平滑+PolyLoss+动态 Focal） | 3 · Modification（top-2 margin，动机=拉大真值与最强竞争者的差距） |
-| optimization-hyperparameter-search | 2 · Tweak（自认 "essentially what Hyperband already does"） | 2 · Tweak（ASHA + 随机森林代理 + EI） | 3 · Modification（诊断低保真评估误导，加基于超参关系的参数耦合） |
-| stf-traffic-forecast | **4 · Novel**（识别「STID 空间嵌入是静态的」，改为基于实际流量计算空间嵌入） | 3 · Modification（贴近 STID，加动态时间感知图 + 恒等 MLP） | 3 · Modification（horizon 嵌入 + future-aware 解码器） |
-| optimization-dp-sgd | 3 · Modification（控制变量思路，但仍依赖 AUTO-S/噪声调度/EMA） | 3 · Modification（动量梯度中心化 + 自适应分位裁剪） | **4 · Novel**（anchor-centered 平滑裁剪 + 隐私预算噪声调度 + 精确调和均值核算） |
-| dl-lr-schedule | 2 · Tweak（power-cosine + 架构自适应 warmup，自认「straightforward」） | 2 · Tweak（WHOC/WSD/OneCycle 变体 + 启发式取值） | N/A（推理块为空） |
+| [cv-classification-loss](/internal/logs?task=cv-classification-loss) | 2 · Tweak（标签平滑 + PolyLoss 多项式修正堆叠） | 2 · Tweak（"combines established best practices"：标签平滑+PolyLoss+动态 Focal） | 3 · Modification（top-2 margin，动机=拉大真值与最强竞争者的差距） |
+| [optimization-hyperparameter-search](/internal/logs?task=optimization-hyperparameter-search) | 2 · Tweak（自认 "essentially what Hyperband already does"） | 2 · Tweak（ASHA + 随机森林代理 + EI） | 3 · Modification（诊断低保真评估误导，加基于超参关系的参数耦合） |
+| [stf-traffic-forecast](/internal/logs?task=stf-traffic-forecast) | **4 · Novel**（识别「STID 空间嵌入是静态的」，改为基于实际流量计算空间嵌入） | 3 · Modification（贴近 STID，加动态时间感知图 + 恒等 MLP） | 3 · Modification（horizon 嵌入 + future-aware 解码器） |
+| [optimization-dp-sgd](/internal/logs?task=optimization-dp-sgd) | 3 · Modification（控制变量思路，但仍依赖 AUTO-S/噪声调度/EMA） | 3 · Modification（动量梯度中心化 + 自适应分位裁剪） | **4 · Novel**（anchor-centered 平滑裁剪 + 隐私预算噪声调度 + 精确调和均值核算） |
+| [dl-lr-schedule](/internal/logs?task=dl-lr-schedule) | 2 · Tweak（power-cosine + 架构自适应 warmup，自认「straightforward」） | 2 · Tweak（WHOC/WSD/OneCycle 变体 + 启发式取值） | N/A（推理块为空） |
 
 ### 批次 7
 | 任务 | Opus | Gemini | GPT |
 |---|---|---|---|
-| ts-imputation | **4 · Novel**（识别插补局部性，attention 加距离与掩码可靠性两个归纳偏置） | 3 · Modification（PatchTST 适配 + 迭代细化，含掩码感知改动） | 2 · Tweak（无推理块，依规则封顶 2 分） |
-| quant-stock-prediction | 3 · Modification（识别「股票预测本质是排序问题」，IC 感知 GRU + 日期对齐批） | 3 · Modification（保留 Qlib 多级索引算横截面 IC；仍是 GRU+attention+排序损失） | 2 · Tweak（无推理块） |
-| cv-multitask-loss | 3 · Modification（课程调制的不确定性加权） | **4 · Novel**（RAMTV：用 fine-loss EMA 作基线调控 coarse 影响的阀门机制） | **4 · Novel**（从共享参数梯度交互推导耦合，「product term disappears」随任务解决） |
-| causal-observational-linear-gaussian | 1 · Recombination（无推理块） | 1 · Recombination（GES/GRASP/BOSS/PC 方法选购 + 随机重启） | 3 · Modification（Bootstrap-Consensus BOSS + CI Rescue） |
-| cv-sample-weighting | **4 · Novel**（从数学结构推熵目标重加权，二分搜索最优 alpha 指数） | 2 · Tweak（自认「adjusting kappa seems mere hyperparameter tuning」） | 3 · Modification（几何锚 tempered 重加权，数据相关尾部可靠性） |
+| [ts-imputation](/internal/logs?task=ts-imputation) | **4 · Novel**（识别插补局部性，attention 加距离与掩码可靠性两个归纳偏置） | 3 · Modification（PatchTST 适配 + 迭代细化，含掩码感知改动） | 2 · Tweak（无推理块，依规则封顶 2 分） |
+| [quant-stock-prediction](/internal/logs?task=quant-stock-prediction) | 3 · Modification（识别「股票预测本质是排序问题」，IC 感知 GRU + 日期对齐批） | 3 · Modification（保留 Qlib 多级索引算横截面 IC；仍是 GRU+attention+排序损失） | 2 · Tweak（无推理块） |
+| [cv-multitask-loss](/internal/logs?task=cv-multitask-loss) | 3 · Modification（课程调制的不确定性加权） | **4 · Novel**（RAMTV：用 fine-loss EMA 作基线调控 coarse 影响的阀门机制） | **4 · Novel**（从共享参数梯度交互推导耦合，「product term disappears」随任务解决） |
+| [causal-observational-linear-gaussian](/internal/logs?task=causal-observational-linear-gaussian) | 1 · Recombination（无推理块） | 1 · Recombination（GES/GRASP/BOSS/PC 方法选购 + 随机重启） | 3 · Modification（Bootstrap-Consensus BOSS + CI Rescue） |
+| [cv-sample-weighting](/internal/logs?task=cv-sample-weighting) | **4 · Novel**（从数学结构推熵目标重加权，二分搜索最优 alpha 指数） | 2 · Tweak（自认「adjusting kappa seems mere hyperparameter tuning」） | 3 · Modification（几何锚 tempered 重加权，数据相关尾部可靠性） |
 
 ### 批次 8
 | 任务 | Opus | Gemini | GPT |
 |---|---|---|---|
-| cv-data-augmentation | 1 · Recombination（在具名增强上做路由：TrivialAugmentWide + 擦除） | 3 · Modification（约束下单图空间混合，低频连续掩码） | N/A（无推理块） |
-| causal-observational-nonlinear | N/A（仅 prompt/meta） | N/A（仅 prompt/meta） | **4 · Novel**（识别 CAM「只用方差不看独立性」，定义 `J(S)=log残差方差+均值依赖项`） |
-| dl-activation-function | **4 · Novel**（算出 Mish'(0)≈0.6，需补 0.4 达单位导数的局部修正） | **4 · Novel**（Morphological Swish：用 max_pool2d 引入横向特征交互） | N/A（无推理块） |
-| security-adversarial-training | 2 · Tweak（TRADES KL + MART 加权 + AWP + 置信权重混合） | 2 · Tweak（Label-Guided TRADES：one-hot 与 detached clean prob 组合目标） | 2 · Tweak（TRADES/MART 混合 + `clean_target_mix` 插值） |
-| ml-feature-selection | 2 · Tweak（chi2/f_classif/MI 几何平均融合 + 自适应权重） | 1 · Recombination（Probe-Assisted 路由在具名打分器间选择） | 3 · Modification（自适应分箱 JS 散度 ABJS + 中位阈值穿越率，后又与 chi2/f 混合） |
+| [cv-data-augmentation](/internal/logs?task=cv-data-augmentation) | 1 · Recombination（在具名增强上做路由：TrivialAugmentWide + 擦除） | 3 · Modification（约束下单图空间混合，低频连续掩码） | N/A（无推理块） |
+| [causal-observational-nonlinear](/internal/logs?task=causal-observational-nonlinear) | N/A（仅 prompt/meta） | N/A（仅 prompt/meta） | **4 · Novel**（识别 CAM「只用方差不看独立性」，定义 `J(S)=log残差方差+均值依赖项`） |
+| [dl-activation-function](/internal/logs?task=dl-activation-function) | **4 · Novel**（算出 Mish'(0)≈0.6，需补 0.4 达单位导数的局部修正） | **4 · Novel**（Morphological Swish：用 max_pool2d 引入横向特征交互） | N/A（无推理块） |
+| [security-adversarial-training](/internal/logs?task=security-adversarial-training) | 2 · Tweak（TRADES KL + MART 加权 + AWP + 置信权重混合） | 2 · Tweak（Label-Guided TRADES：one-hot 与 detached clean prob 组合目标） | 2 · Tweak（TRADES/MART 混合 + `clean_target_mix` 插值） |
+| [ml-feature-selection](/internal/logs?task=ml-feature-selection) | 2 · Tweak（chi2/f_classif/MI 几何平均融合 + 自适应权重） | 1 · Recombination（Probe-Assisted 路由在具名打分器间选择） | 3 · Modification（自适应分箱 JS 散度 ABJS + 中位阈值穿越率，后又与 chi2/f 混合） |
 
 ### 批次 9
 | 任务 | Opus | Gemini | GPT |
 |---|---|---|---|
-| quant-graph-stock | 3 · Modification（HIST 架构 + 概念加权排序损失，自认「build on HIST's foundation」） | 3 · Modification（GAT + 把 TF-IDF 概念稀有度注入注意力 logits） | 3 · Modification（图平滑 LightGBM 校准，非新预测器族） |
-| causal-treatment-effect | N/A（无推理/edit） | 2 · Tweak（R-Learner/DR-Learner/X-Learner 集成） | 2 · Tweak（DR 伪结果 + 插补 X-learner 标签 + overlap 门控） |
-| cv-pooling-aggregation | 2 · Tweak（mean/max/var 统计 + 可学习门控混合） | 1 · Recombination（GAP+SoftPool+跨通道注意力方法选购，后退回 GAP/GMP） | 3 · Modification（方差门控软选择：variance gate 决定各通道信任度） |
-| ml-active-learning | 2 · Tweak（BADGE + 熵加权选择概率） | 3 · Modification（识别「熵过滤根本性有缺陷」，推 `score=U*min_D` 不确定性加权 CoreSet） | 2 · Tweak（MC-dropout + 梯度嵌入多样性 + 密度覆盖 + 类平衡） |
-| optimization-diagonal-net | 3 · Modification（推导安全恢复 grad_w，最终用 IHT） | 3 · Modification（权重空间动量保持对角网偏置） | **4 · Novel**（径向收缩使各坐标 commit 一个符号 = 权重空间镜像下降 + 径向收缩） |
+| [quant-graph-stock](/internal/logs?task=quant-graph-stock) | 3 · Modification（HIST 架构 + 概念加权排序损失，自认「build on HIST's foundation」） | 3 · Modification（GAT + 把 TF-IDF 概念稀有度注入注意力 logits） | 3 · Modification（图平滑 LightGBM 校准，非新预测器族） |
+| [causal-treatment-effect](/internal/logs?task=causal-treatment-effect) | N/A（无推理/edit） | 2 · Tweak（R-Learner/DR-Learner/X-Learner 集成） | 2 · Tweak（DR 伪结果 + 插补 X-learner 标签 + overlap 门控） |
+| [cv-pooling-aggregation](/internal/logs?task=cv-pooling-aggregation) | 2 · Tweak（mean/max/var 统计 + 可学习门控混合） | 1 · Recombination（GAP+SoftPool+跨通道注意力方法选购，后退回 GAP/GMP） | 3 · Modification（方差门控软选择：variance gate 决定各通道信任度） |
+| [ml-active-learning](/internal/logs?task=ml-active-learning) | 2 · Tweak（BADGE + 熵加权选择概率） | 3 · Modification（识别「熵过滤根本性有缺陷」，推 `score=U*min_D` 不确定性加权 CoreSet） | 2 · Tweak（MC-dropout + 梯度嵌入多样性 + 密度覆盖 + 类平衡） |
+| [optimization-diagonal-net](/internal/logs?task=optimization-diagonal-net) | 3 · Modification（推导安全恢复 grad_w，最终用 IHT） | 3 · Modification（权重空间动量保持对角网偏置） | **4 · Novel**（径向收缩使各坐标 commit 一个符号 = 权重空间镜像下降 + 径向收缩） |
 
 ### 批次 10
 | 任务 | Opus | Gemini | GPT |
 |---|---|---|---|
-| security-backdoor-defense | 3 · Modification（识别谱签名只用 1 个奇异向量，加有符号双空间谱打分） | 2 · Tweak（目标放大的谱/聚类/损失打分，"derived from Tran et al."） | 2 · Tweak（"combining a robust ensemble ... with baseline spectral methods"） |
-| ml-symbolic-regression | 2 · Tweak（lexicase + 简约选择 + 锦标赛 + 线性缩放，GP 组件重组） | 1 · Recombination（parsimony_gp + 标准交叉/变异 + 线性缩放） | 2 · Tweak（难度感知混合选择器 + 多模变异，已知 GP 算子组合） |
-| ts-exogenous-forecast | **4 · Novel**（识别「full C×C attention 只有目标变量行得梯度信号」，推 target-centric 注意力） | 2 · Tweak（DLinear/TSMixer/PatchTST 选购 + 变量选择） | 3 · Modification（Target-Conditioned 双分支外生混合器 + horizon 自适应分解） |
-| cv-meanflow-perceptual-loss | 3 · Modification（幅度加权相位一致性：相位误差按谱能量加权） | 2 · Tweak（MSE/Charbonnier/LPIPS/梯度/多尺度/谱损失加权和） | 3 · Modification（Fourier 空间 target-anchored 相位对齐） |
-| security-membership-inference-defense | 3 · Modification（识别 MIA 失效，per-sample loss flooding + 置信自适应熵） | 2 · Tweak（LabelSmoothing/RelaxLoss/LogitNorm/Mixup 间游走，最终 RelaxLoss 启发路由） | 3 · Modification（仅对高置信样本门控熵 + margin 压缩 + epoch 课程） |
+| [security-backdoor-defense](/internal/logs?task=security-backdoor-defense) | 3 · Modification（识别谱签名只用 1 个奇异向量，加有符号双空间谱打分） | 2 · Tweak（目标放大的谱/聚类/损失打分，"derived from Tran et al."） | 2 · Tweak（"combining a robust ensemble ... with baseline spectral methods"） |
+| [ml-symbolic-regression](/internal/logs?task=ml-symbolic-regression) | 2 · Tweak（lexicase + 简约选择 + 锦标赛 + 线性缩放，GP 组件重组） | 1 · Recombination（parsimony_gp + 标准交叉/变异 + 线性缩放） | 2 · Tweak（难度感知混合选择器 + 多模变异，已知 GP 算子组合） |
+| [ts-exogenous-forecast](/internal/logs?task=ts-exogenous-forecast) | **4 · Novel**（识别「full C×C attention 只有目标变量行得梯度信号」，推 target-centric 注意力） | 2 · Tweak（DLinear/TSMixer/PatchTST 选购 + 变量选择） | 3 · Modification（Target-Conditioned 双分支外生混合器 + horizon 自适应分解） |
+| [cv-meanflow-perceptual-loss](/internal/logs?task=cv-meanflow-perceptual-loss) | 3 · Modification（幅度加权相位一致性：相位误差按谱能量加权） | 2 · Tweak（MSE/Charbonnier/LPIPS/梯度/多尺度/谱损失加权和） | 3 · Modification（Fourier 空间 target-anchored 相位对齐） |
+| [security-membership-inference-defense](/internal/logs?task=security-membership-inference-defense) | 3 · Modification（识别 MIA 失效，per-sample loss flooding + 置信自适应熵） | 2 · Tweak（LabelSmoothing/RelaxLoss/LogitNorm/Mixup 间游走，最终 RelaxLoss 启发路由） | 3 · Modification（仅对高置信样本门控熵 + margin 压缩 + epoch 课程） |
 
 ---
 

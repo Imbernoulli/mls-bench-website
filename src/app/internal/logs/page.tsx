@@ -49,6 +49,19 @@ export default function InternalLogsPage() {
       .catch((e) => setIndexError(String(e)));
   }, []);
 
+  // Deep-linking: open a specific trace directly via
+  // /internal/logs?task=<id>&slug=<model-slug> (slug also accepts a raw
+  // provider/model path, normalized to the dashed slug). Used by the
+  // innovation-audit report to cite specific agent logs / proposals.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const p = new URLSearchParams(window.location.search);
+    const t = p.get("task");
+    const s = p.get("slug") || p.get("model");
+    if (t) setTaskId(t);
+    if (s) setSlug(s.replace(/\//g, "--"));
+  }, []);
+
   const tasks = index?.tasks ?? [];
   const filteredTasks = useMemo(() => {
     const q = query.trim().toLowerCase();
