@@ -19,7 +19,7 @@ const TOOLS = [
   {
     href: "/internal/innovation-audit",
     title: "Innovation Audit (创新性审计)",
-    desc: "2026-05-29 10-agent audit of 50 tasks × 3 models: do agents do genuine ML science or just recombine baselines? Detailed Chinese report with per-task innovation scores. (中文)",
+    desc: "2026-05-29 audit across 70 tasks × 3 models (incl. LLM-pretraining & MLSys): do agents do genuine ML science or just recombine baselines? Detailed Chinese report with per-task innovation scores, deep-linked to the agent traces. (中文)",
   },
 ];
 
