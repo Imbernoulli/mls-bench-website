@@ -75,10 +75,14 @@ export default function HomePage() {
       <HeroSplash />
       <section className="pt-10 pb-16 sm:pt-12">
         <div className="mx-auto max-w-6xl px-4">
-          <div className="text-center">
-            <h1 className="whitespace-nowrap text-4xl font-semibold tracking-tight sm:text-5xl">
-              MLS-Bench
+          <div className="mx-auto max-w-4xl text-center">
+            <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+              MLS-Bench: A Holistic and Rigorous Assessment of AI Systems on
+              Building Better AI
             </h1>
+            <div className="mt-6 flex justify-center">
+              <ResourceButtons />
+            </div>
           </div>
 
           <figure className="mx-auto mt-8 max-w-[900px]">
@@ -96,10 +100,6 @@ export default function HomePage() {
             learning, robotics, ML systems, AI for science, optimization, time
             series, causal reasoning, and more.
           </p>
-
-          <div className="mt-7 flex justify-center">
-            <ResourceButtons />
-          </div>
 
           <div className="mx-auto mt-10 flex max-w-4xl flex-wrap items-center justify-center gap-x-8 gap-y-4">
             {INSTITUTIONS.map((institution) => (

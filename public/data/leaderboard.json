@@ -3,37 +3,41 @@
   "verified": "We have verified.",
   "harnessNote": "The evaluation is based on Harbor with a 5-hour exploration budget for each agent, not the native harness used for our main paper results but is highly encouraged.",
   "source": {
-    "label": "Kimi-K2.7-Code model card",
+    "label": "Kimi K2.7 Code model card",
     "url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code"
   },
   "rows": [
     {
       "model": "Claude Opus 4.8",
       "company": "anthropic",
-      "harness": "Harbor · Claude Code (max effort)",
-      "performance": 42.8,
-      "openSource": false
+      "modelOpen": false,
+      "harness": "Claude Code (max effort)",
+      "harnessOpen": false,
+      "performance": 42.8
     },
     {
       "model": "GPT-5.5",
       "company": "openai",
-      "harness": "Harbor · Codex (xhigh)",
-      "performance": 35.5,
-      "openSource": false
+      "modelOpen": false,
+      "harness": "Codex (xhigh)",
+      "harnessOpen": true,
+      "performance": 35.5
     },
     {
-      "model": "Kimi K2.7-Code",
+      "model": "Kimi K2.7 Code",
       "company": "moonshot",
-      "harness": "Harbor · Kimi-Code",
-      "performance": 35.1,
-      "openSource": true
+      "modelOpen": true,
+      "harness": "Kimi-Code",
+      "harnessOpen": true,
+      "performance": 35.1
     },
     {
       "model": "Kimi K2.6",
       "company": "moonshot",
-      "harness": "Harbor · Kimi-Code",
-      "performance": 26.7,
-      "openSource": true
+      "modelOpen": true,
+      "harness": "Kimi-Code",
+      "harnessOpen": true,
+      "performance": 26.7
     }
   ]
 }

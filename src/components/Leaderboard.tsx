@@ -4,9 +4,24 @@ import { vendorForModel } from "@/lib/model-vendors";
 interface Row {
   model: string;
   company: string;
+  modelOpen: boolean;
   harness: string;
+  harnessOpen: boolean;
   performance: number;
-  openSource: boolean;
+}
+
+function Tag({ open }: { open: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+        open
+          ? "border-[#10A37F]/30 bg-[#10A37F]/10 text-[#10A37F]"
+          : "border-border bg-muted text-muted-foreground"
+      }`}
+    >
+      {open ? "Open" : "Closed"}
+    </span>
+  );
 }
 
 export default function Leaderboard() {
@@ -17,14 +32,13 @@ export default function Leaderboard() {
   return (
     <div>
       <div className="overflow-x-auto rounded-xl border border-border">
-        <table className="w-full min-w-[560px] text-sm">
+        <table className="w-full min-w-[620px] text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
               <th className="px-4 py-3 font-medium">#</th>
               <th className="px-4 py-3 font-medium">Model</th>
               <th className="px-4 py-3 font-medium">Harness</th>
               <th className="px-4 py-3 text-right font-medium">Performance</th>
-              <th className="px-4 py-3 font-medium">Source</th>
             </tr>
           </thead>
           <tbody>
@@ -39,31 +53,26 @@ export default function Leaderboard() {
                     {i + 1}
                   </td>
                   <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-2 font-medium text-foreground">
+                    <span className="inline-flex items-center gap-2">
                       <span
                         aria-hidden="true"
                         className="h-2.5 w-2.5 shrink-0 rounded-full"
                         style={{ backgroundColor: vendor.color }}
                       />
-                      {row.model}
+                      <span className="font-medium text-foreground">
+                        {row.model}
+                      </span>
+                      <Tag open={row.modelOpen} />
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {row.harness}
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center gap-2">
+                      <span className="text-muted-foreground">{row.harness}</span>
+                      <Tag open={row.harnessOpen} />
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-right text-base font-semibold tabular-nums text-foreground">
                     {row.performance.toFixed(1)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-                        row.openSource
-                          ? "border-[#10A37F]/30 bg-[#10A37F]/10 text-[#10A37F]"
-                          : "border-border bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {row.openSource ? "Open" : "Closed"}
-                    </span>
                   </td>
                 </tr>
               );
