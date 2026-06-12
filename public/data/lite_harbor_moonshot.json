@@ -1,0 +1,41 @@
+{
+  "source": "Moonshot AI — Kimi-K2.7-Code model card",
+  "sourceUrl": "https://huggingface.co/moonshotai/Kimi-K2.7-Code",
+  "subset": "Official 30-task MLS-Bench-Lite subset",
+  "budget": "5-hour exploration budget per task before submission",
+  "harness": "Harbor agent harness (not the native MLS-Bench harness used for the main paper results)",
+  "models": [
+    {
+      "id": "claude-opus-4-8",
+      "name": "Claude Opus 4.8",
+      "company": "anthropic",
+      "color": "#D97757",
+      "score": 42.8,
+      "agent": "Claude Code · max effort"
+    },
+    {
+      "id": "gpt-5.5",
+      "name": "GPT-5.5",
+      "company": "openai",
+      "color": "#10A37F",
+      "score": 35.5,
+      "agent": "Codex · xhigh effort"
+    },
+    {
+      "id": "kimi-k2.7-code",
+      "name": "Kimi K2.7-Code",
+      "company": "moonshot",
+      "color": "#1F1F4D",
+      "score": 35.1,
+      "agent": "Kimi-Code"
+    },
+    {
+      "id": "kimi-k2.6",
+      "name": "Kimi K2.6",
+      "company": "moonshot",
+      "color": "#6B6BB0",
+      "score": 26.7,
+      "agent": "Kimi-Code"
+    }
+  ]
+}

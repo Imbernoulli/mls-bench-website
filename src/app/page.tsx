@@ -13,6 +13,7 @@ import CategoryGrid from "@/components/CategoryGrid";
 import CategoryPerformanceCharts from "@/components/CategoryPerformanceCharts";
 import HeroTaskGallery from "@/components/HeroTaskGallery";
 import LiteIntelligenceChart from "@/components/LiteIntelligenceChart";
+import HarborLiteResults from "@/components/HarborLiteResults";
 import MethodGallery from "@/components/MethodGallery";
 
 const INSTITUTIONS = [
@@ -227,6 +228,33 @@ export default function HomePage() {
             </a>
             .
           </p>
+        </div>
+      </section>
+
+      <section className="border-t border-border py-12">
+        <div className="mx-auto max-w-4xl px-4">
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-foreground/70">
+              <span
+                aria-hidden="true"
+                className="h-1.5 w-1.5 rounded-full bg-[#1F1F4D]"
+              />
+              In the wild
+            </div>
+            <h2 className="mt-4 text-2xl font-semibold">
+              Adopted by Moonshot for the Kimi K2.7-Code release
+            </h2>
+            <p className="mx-auto mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+              Moonshot AI reports MLS-Bench-Lite results for Kimi K2.7-Code
+              alongside GPT-5.5 and Claude Opus 4.8 on its model card. These are
+              independent third-party numbers produced with the Harbor agent
+              harness, shown here in addition to — and separate from — our own
+              results above.
+            </p>
+          </div>
+          <div className="mt-6">
+            <HarborLiteResults />
+          </div>
         </div>
       </section>
 
