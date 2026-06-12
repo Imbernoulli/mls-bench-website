@@ -1,0 +1,39 @@
+{
+  "subtitle": "Score on the official 30-task MLS-Bench-Lite subset.",
+  "verified": "We have verified.",
+  "harnessNote": "The evaluation is based on Harbor with a 5-hour exploration budget for each agent, not the native harness used for our main paper results but is highly encouraged.",
+  "source": {
+    "label": "Kimi-K2.7-Code model card",
+    "url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code"
+  },
+  "rows": [
+    {
+      "model": "Claude Opus 4.8",
+      "company": "anthropic",
+      "harness": "Harbor · Claude Code (max effort)",
+      "performance": 42.8,
+      "openSource": false
+    },
+    {
+      "model": "GPT-5.5",
+      "company": "openai",
+      "harness": "Harbor · Codex (xhigh)",
+      "performance": 35.5,
+      "openSource": false
+    },
+    {
+      "model": "Kimi K2.7-Code",
+      "company": "moonshot",
+      "harness": "Harbor · Kimi-Code",
+      "performance": 35.1,
+      "openSource": true
+    },
+    {
+      "model": "Kimi K2.6",
+      "company": "moonshot",
+      "harness": "Harbor · Kimi-Code",
+      "performance": 26.7,
+      "openSource": true
+    }
+  ]
+}

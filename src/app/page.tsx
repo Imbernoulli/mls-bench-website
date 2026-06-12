@@ -2,18 +2,13 @@ import {
   getTasksStatic,
   getCategoriesStatic,
 } from "@/lib/data";
-import Link from "next/link";
-import { RESOURCE_LINKS } from "@/lib/resources";
 import ResourceButtons from "@/components/ResourceButtons";
-import {
-  getLiteIntelligenceStatic,
-  getCategoryPerformanceStatic,
-} from "@/lib/paper-results";
+import { getCategoryPerformanceStatic } from "@/lib/paper-results";
 import CategoryGrid from "@/components/CategoryGrid";
 import CategoryPerformanceCharts from "@/components/CategoryPerformanceCharts";
 import HeroTaskGallery from "@/components/HeroTaskGallery";
-import LiteIntelligenceChart from "@/components/LiteIntelligenceChart";
-import HarborLiteResults from "@/components/HarborLiteResults";
+import HeroSplash from "@/components/HeroSplash";
+import Leaderboard from "@/components/Leaderboard";
 import MethodGallery from "@/components/MethodGallery";
 
 const INSTITUTIONS = [
@@ -54,7 +49,6 @@ const HERO_TASK_IDS = [
 export default function HomePage() {
   const tasks = getTasksStatic().filter((task) => task.category !== "demo");
   const categories = getCategoriesStatic();
-  const liteScores = getLiteIntelligenceStatic();
   const categoryPerformance = getCategoryPerformanceStatic();
 
   const totalTasks = tasks.length;
@@ -78,36 +72,34 @@ export default function HomePage() {
 
   return (
     <div>
+      <HeroSplash />
       <section className="pt-10 pb-16 sm:pt-12">
         <div className="mx-auto max-w-6xl px-4">
           <div className="text-center">
-            <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+            <h1 className="whitespace-nowrap text-4xl font-semibold tracking-tight sm:text-5xl">
               MLS-Bench
             </h1>
-            <p className="mt-4 text-base text-foreground">
-              A holistic and rigorous assessment of AI systems on building
-              better AI.
-            </p>
-            <div className="mt-6">
-              <ResourceButtons />
-            </div>
           </div>
 
-          <figure className="mx-auto mt-8 max-w-[828px]">
+          <figure className="mx-auto mt-8 max-w-[900px]">
             <img
-              src="/data/paper_figs/mls-main.webp"
-              alt="MLS-Bench overview: comparison of Frontier-CS, MLE-Bench, and MLS-Bench, plus 20 representative tasks across 12 domains."
-              className="w-full h-auto"
+              src="/data/paper_figs/mls-bench-title.webp"
+              alt="MLS-Bench"
+              className="h-auto w-full"
             />
-            <figcaption className="mt-3 text-center text-xs leading-relaxed text-muted-foreground">
-              <strong className="font-medium text-foreground">
-                MLS-Bench overview.
-              </strong>{" "}
-              Left: comparison of Frontier-CS, MLE-Bench, and MLS-Bench
-              task. Right: 20 representative MLS-Bench tasks from{" "}
-              {totalTasks} tasks across 12 domains.
-            </figcaption>
           </figure>
+
+          <p className="mx-auto mt-6 max-w-3xl text-center text-base leading-relaxed text-foreground">
+            MLS-Bench evaluates whether AI systems can invent generalizable and
+            scalable ML methods. It spans {totalTasks} tasks across 12 domains
+            &mdash; language models, vision and generation, reinforcement
+            learning, robotics, ML systems, AI for science, optimization, time
+            series, causal reasoning, and more.
+          </p>
+
+          <div className="mt-7 flex justify-center">
+            <ResourceButtons />
+          </div>
 
           <div className="mx-auto mt-10 flex max-w-4xl flex-wrap items-center justify-center gap-x-8 gap-y-4">
             {INSTITUTIONS.map((institution) => (
@@ -183,6 +175,20 @@ export default function HomePage() {
       <section className="border-t border-border py-14">
         <div className="mx-auto max-w-4xl px-4">
           <div className="text-center">
+            <h2 className="text-2xl font-semibold">Leaderboard</h2>
+            <p className="mx-auto mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+              Score on the official 30-task MLS-Bench-Lite subset.
+            </p>
+          </div>
+          <div className="mt-6">
+            <Leaderboard />
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-border py-14">
+        <div className="mx-auto max-w-4xl px-4">
+          <div className="text-center">
             <h2 className="text-2xl font-semibold">
               Model Performance by Category
             </h2>
@@ -198,62 +204,6 @@ export default function HomePage() {
               data={categoryPerformance.data}
               series={categoryPerformance.series}
             />
-          </div>
-        </div>
-      </section>
-
-      <section className="border-t border-border py-12">
-        <div className="mx-auto max-w-4xl px-4">
-          <div>
-            <LiteIntelligenceChart data={liteScores} compact />
-          </div>
-          <p className="mx-auto mt-4 max-w-3xl text-center text-sm leading-relaxed text-muted-foreground">
-            Lite is only a subset. We recommend evaluating your harness and
-            model on the full {totalTasks}-task benchmark. For our in-depth
-            analysis of the 5 main models on all {totalTasks} tasks, see our{" "}
-            <Link
-              href="/blog"
-              className="font-medium text-foreground underline decoration-foreground/30 underline-offset-2 hover:decoration-foreground"
-            >
-              blog
-            </Link>{" "}
-            or the{" "}
-            <a
-              href={RESOURCE_LINKS.arxiv.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-foreground underline decoration-foreground/30 underline-offset-2 hover:decoration-foreground"
-            >
-              arXiv paper
-            </a>
-            .
-          </p>
-        </div>
-      </section>
-
-      <section className="border-t border-border py-12">
-        <div className="mx-auto max-w-4xl px-4">
-          <div className="text-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-foreground/70">
-              <span
-                aria-hidden="true"
-                className="h-1.5 w-1.5 rounded-full bg-[#1F1F4D]"
-              />
-              In the wild
-            </div>
-            <h2 className="mt-4 text-2xl font-semibold">
-              Adopted by Moonshot for the Kimi K2.7-Code release
-            </h2>
-            <p className="mx-auto mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-              Moonshot AI reports MLS-Bench-Lite results for Kimi K2.7-Code
-              alongside GPT-5.5 and Claude Opus 4.8 on its model card. These are
-              independent third-party numbers produced with the Harbor agent
-              harness, shown here in addition to — and separate from — our own
-              results above.
-            </p>
-          </div>
-          <div className="mt-6">
-            <HarborLiteResults />
           </div>
         </div>
       </section>
