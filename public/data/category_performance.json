@@ -122,7 +122,7 @@
     {
       "category": "Opt",
       "categoryName": "Optimization & Theory",
-      "human-sota": 0.503168739035343,
+      "human-sota": 0.413,
       "claude-opus-4.6": 0.5007792613719745,
       "claude-opus-4.6__vanilla": 0.312771307613573,
       "gpt-5.4": 0.45410039473641334,
