@@ -160,7 +160,7 @@ export default function CategoryPerformanceCharts({ data, series }: Props) {
               className="inline-block h-3 w-3 rounded-sm"
               style={{ backgroundColor: "#64748b", opacity: 0.85 }}
             />
-            Vanilla (darker)
+            Vanilla
           </span>
           <span className="ml-3 inline-flex items-center gap-1.5">
             <span
@@ -168,7 +168,7 @@ export default function CategoryPerformanceCharts({ data, series }: Props) {
               className="inline-block h-3 w-3 rounded-sm"
               style={{ backgroundColor: "#94a3b8", opacity: 0.45 }}
             />
-            Agent (lighter)
+            Agent
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span
