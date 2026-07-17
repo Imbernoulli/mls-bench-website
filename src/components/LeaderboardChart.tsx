@@ -30,6 +30,24 @@ interface TickProps {
   compact: boolean;
 }
 
+/**
+ * Split a model display name into [before, key, after] so the key segment
+ * (the distinguishing part) can be bolded: "Claude Fable 5" -> Fable,
+ * "GPT 5.6 Sol" -> Sol, "Kimi K3" -> K3, "Kimi K2.7 Code" -> K2.7,
+ * "GLM-5.2" -> 5.2.
+ */
+function splitModelName(name: string): [string, string, string] {
+  let m = name.match(/^(GPT 5\.6 )(\S+)$/);
+  if (m) return [m[1], m[2], ""];
+  m = name.match(/^(Claude |Kimi |DeepSeek |Gemini |Qwen )(\S+)( .*)$/);
+  if (m) return [m[1], m[2], m[3]];
+  m = name.match(/^(Claude |Kimi |DeepSeek |Gemini |Qwen )(\S+)$/);
+  if (m) return [m[1], m[2], ""];
+  m = name.match(/^([A-Za-z]+-)([\d.]+)$/);
+  if (m) return [m[1], m[2], ""];
+  return ["", name, ""];
+}
+
 /** Columns layout: vendor logo + effort pill on the axis line, model name
     angled below on a shared baseline. */
 function ColumnTick({ x = 0, y = 0, payload, index = 0, byKey, compact }: TickProps) {
@@ -103,66 +121,74 @@ function ColumnTick({ x = 0, y = 0, payload, index = 0, byKey, compact }: TickPr
         fontSize={nameSize}
         fill="var(--color-muted-foreground)"
       >
-        {d.name}
+        {splitModelName(d.name)[0]}
+        <tspan fontWeight={600} fill="var(--color-foreground)">
+          {splitModelName(d.name)[1]}
+        </tspan>
+        {splitModelName(d.name)[2]}
       </text>
     </g>
   );
 }
 
-/** Rows layout: logo in a fixed left column (aligned), model name
-    right-aligned, effort pill right-aligned under the name. */
+/** Rows layout: model name right-aligned, vendor logo immediately right of
+    the name (fixed column next to the bars), effort pill under the name. */
 function RowTick({
   x = 0,
   y = 0,
   payload,
   byKey,
   compact,
-  gutterWidth,
-}: TickProps & { gutterWidth: number }) {
+}: TickProps) {
   const d = payload ? byKey.get(payload.value) : undefined;
   if (!d) return <g />;
 
   const logoSize = compact ? 13 : 15;
-  const gutterLeft = x - gutterWidth;
+  const logoX = x - logoSize - 2;
   const nameSize = compact ? 10 : 11;
   const pillH = compact ? 10 : 11;
   const pillFont = compact ? 6.8 : 7.2;
   const pillW = d.effort.length * (pillFont * 0.72) + 9;
   const hasEffort = d.effort !== "";
   const isMax = d.effort === "max";
+  const rightEdge = logoX - 4; // name and pill align their right edge here
 
   return (
     <g>
+      <text
+        x={rightEdge}
+        y={hasEffort ? y - 2 : y}
+        textAnchor="end"
+        dominantBaseline={hasEffort ? "auto" : "central"}
+        fontSize={nameSize}
+        fill="var(--color-muted-foreground)"
+      >
+        {splitModelName(d.name)[0]}
+        <tspan fontWeight={600} fill="var(--color-foreground)">
+          {splitModelName(d.name)[1]}
+        </tspan>
+        {splitModelName(d.name)[2]}
+      </text>
       {d.logo ? (
         <image
           href={d.logo}
-          x={gutterLeft + 1}
+          x={logoX}
           y={y - logoSize / 2}
           width={logoSize}
           height={logoSize}
         />
       ) : (
         <circle
-          cx={gutterLeft + 1 + logoSize / 2}
+          cx={logoX + logoSize / 2}
           cy={y}
           r={logoSize / 3}
           fill={d.color}
         />
       )}
-      <text
-        x={x - 6}
-        y={hasEffort ? y - 2 : y}
-        textAnchor="end"
-        dominantBaseline={hasEffort ? "auto" : "central"}
-        fontSize={nameSize}
-        fill="var(--color-foreground)"
-      >
-        {d.name}
-      </text>
       {hasEffort && (
         <g>
           <rect
-            x={x - 6 - pillW}
+            x={rightEdge - pillW}
             y={y + 3}
             width={pillW}
             height={pillH}
@@ -171,7 +197,7 @@ function RowTick({
             stroke={isMax ? "none" : "var(--color-border)"}
           />
           <text
-            x={x - 6 - pillW / 2}
+            x={rightEdge - pillW / 2}
             y={y + 3 + pillH / 2}
             textAnchor="middle"
             dominantBaseline="central"
@@ -299,9 +325,8 @@ export default function LeaderboardChart({ data, compact = false, humanSota }: P
             <span
               className="pointer-events-none absolute z-[2] text-muted-foreground"
               style={{
-                left: sotaX,
-                top: rowChartHeight - rowMargin.bottom + 5,
-                transform: "translateX(-50%)",
+                left: sotaX + 4,
+                top: rowChartHeight - rowMargin.bottom - (compact ? 12 : 13),
                 fontSize: compact ? 9 : 10,
               }}
             >
@@ -397,13 +422,7 @@ export default function LeaderboardChart({ data, compact = false, humanSota }: P
                     width={rowGutterWidth}
                     tickLine={false}
                     axisLine={{ stroke: "var(--color-border)" }}
-                    tick={
-                      <RowTick
-                        byKey={byKey}
-                        compact={compact}
-                        gutterWidth={rowGutterWidth}
-                      />
-                    }
+                    tick={<RowTick byKey={byKey} compact={compact} />}
                   />
                   <Bar
                     dataKey="score"
