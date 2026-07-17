@@ -48,6 +48,22 @@ function splitModelName(name: string): [string, string, string] {
   return ["", name, ""];
 }
 
+/**
+ * Tokenize a model name for rendering, flagging segments to bold: the key
+ * tier word (Fable/Sol/K3/V4/...) plus every token containing digits
+ * (5.6, 5, 4.8, 5.2, ...). Spaces and hyphen boundaries are preserved.
+ */
+function modelNameSegments(name: string): { text: string; bold: boolean }[] {
+  const key = splitModelName(name)[1];
+  return name
+    .split(/(\s+|(?<=-))/)
+    .filter((text) => text !== "")
+    .map((text) => ({
+      text,
+      bold: /\d/.test(text) || text === key,
+    }));
+}
+
 /** Columns layout: vendor logo + effort pill on the axis line, model name
     angled below on a shared baseline. */
 function ColumnTick({ x = 0, y = 0, payload, index = 0, byKey, compact }: TickProps) {
@@ -68,7 +84,7 @@ function ColumnTick({ x = 0, y = 0, payload, index = 0, byKey, compact }: TickPr
   const isMax = d.effort === "max";
   // The first label's angled tail would overflow the svg's left edge;
   // nudge just that one right instead of padding the whole axis.
-  const nameX = x + (index === 0 ? (compact ? 10 : 12) : 0);
+  const nameX = x + (index === 0 ? (compact ? 18 : 24) : 0);
 
   return (
     <g>
@@ -121,11 +137,15 @@ function ColumnTick({ x = 0, y = 0, payload, index = 0, byKey, compact }: TickPr
         fontSize={nameSize}
         fill="var(--color-muted-foreground)"
       >
-        {splitModelName(d.name)[0]}
-        <tspan fontWeight={600} fill="var(--color-foreground)">
-          {splitModelName(d.name)[1]}
-        </tspan>
-        {splitModelName(d.name)[2]}
+        {modelNameSegments(d.name).map((seg, i) =>
+          seg.bold ? (
+            <tspan key={i} fontWeight={600} fill="var(--color-foreground)">
+              {seg.text}
+            </tspan>
+          ) : (
+            <tspan key={i}>{seg.text}</tspan>
+          )
+        )}
       </text>
     </g>
   );
@@ -163,11 +183,15 @@ function RowTick({
         fontSize={nameSize}
         fill="var(--color-muted-foreground)"
       >
-        {splitModelName(d.name)[0]}
-        <tspan fontWeight={600} fill="var(--color-foreground)">
-          {splitModelName(d.name)[1]}
-        </tspan>
-        {splitModelName(d.name)[2]}
+        {modelNameSegments(d.name).map((seg, i) =>
+          seg.bold ? (
+            <tspan key={i} fontWeight={600} fill="var(--color-foreground)">
+              {seg.text}
+            </tspan>
+          ) : (
+            <tspan key={i}>{seg.text}</tspan>
+          )
+        )}
       </text>
       {d.logo ? (
         <image
