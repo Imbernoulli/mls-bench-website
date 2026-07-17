@@ -1,6 +1,4 @@
 {
-  "subtitle": "Score on the official 30-task MLS-Bench-Lite subset.",
-  "harnessNote": "The evaluation is based on Harbor with a 5-hour exploration budget for each agent, not the native harness used for our main paper results but is highly encouraged.",
   "rows": [
     {
       "model": "Claude Fable 5",

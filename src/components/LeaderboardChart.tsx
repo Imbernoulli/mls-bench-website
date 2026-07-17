@@ -4,9 +4,9 @@ import { useMemo } from "react";
 import {
   Bar,
   BarChart,
-  CartesianGrid,
   Cell,
   LabelList,
+  ReferenceLine,
   ResponsiveContainer,
   XAxis,
   YAxis,
@@ -16,6 +16,8 @@ import type { LeaderboardChartDatum } from "@/lib/leaderboard";
 interface Props {
   data: LeaderboardChartDatum[];
   compact?: boolean;
+  /** Draws a dashed reference line at this score with a "Human SOTA" label. */
+  humanSota?: number;
 }
 
 interface AxisTickProps {
@@ -102,37 +104,85 @@ function AxisTick({ x = 0, y = 0, payload, byKey, compact }: AxisTickProps) {
   );
 }
 
-export default function LeaderboardChart({ data, compact = false }: Props) {
+export default function LeaderboardChart({ data, compact = false, humanSota }: Props) {
   const byKey = useMemo(() => new Map(data.map((d) => [d.key, d])), [data]);
 
   if (data.length === 0) return null;
 
   const chartHeight = compact ? 240 : 290;
-  const chartMinWidth = compact ? 780 : 810;
+  // Must stay below the card's inner width (~790px) or the overflow-x-auto
+  // container clips the right edge of the chart (and the SOTA label).
+  const chartMinWidth = compact ? 700 : 760;
+  const xAxisHeight = compact ? 88 : 96;
   const margin = compact
     ? { top: 18, right: 8, bottom: 4, left: 8 }
     : { top: 20, right: 10, bottom: 4, left: 10 };
 
+  // Shared by the hidden YAxis domain and the HTML "Human SOTA" label, so
+  // the label lines up exactly with the recharts ReferenceLine.
+  const yDomainMax = (dataMax: number) => Math.ceil(dataMax * 1.15);
+  const domainMax = yDomainMax(Math.max(...data.map((d) => d.score)));
+  const plotHeight = chartHeight - margin.top - margin.bottom - xAxisHeight;
+  const sotaY =
+    humanSota !== undefined
+      ? margin.top + plotHeight * (1 - humanSota / domainMax)
+      : 0;
+
   return (
     <div className="overflow-x-auto">
-      <div style={{ height: chartHeight, minWidth: chartMinWidth }}>
+      <div
+        className="relative"
+        style={{ height: chartHeight, minWidth: chartMinWidth }}
+      >
+        {humanSota !== undefined && (
+          <span
+            className="pointer-events-none absolute z-10 text-muted-foreground"
+            style={{
+              top: sotaY - (compact ? 13 : 14),
+              right: margin.right + 2,
+              fontSize: compact ? 9 : 10,
+            }}
+          >
+            Human SOTA
+          </span>
+        )}
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={margin} barCategoryGap="26%">
-            <CartesianGrid
-              vertical={false}
-              stroke="var(--color-border)"
-              strokeDasharray="3 3"
-            />
-            <YAxis hide domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.15)]} />
+            <defs>
+              {data.map((d, i) =>
+                d.gradient ? (
+                  <linearGradient
+                    key={d.key}
+                    id={`lg-${i}`}
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop offset="0%" stopColor={d.gradient[0]} />
+                    <stop offset="100%" stopColor={d.gradient[1]} />
+                  </linearGradient>
+                ) : null
+              )}
+            </defs>
+            <YAxis hide domain={[0, yDomainMax]} />
             <XAxis
               dataKey="key"
               interval={0}
-              height={compact ? 88 : 96}
+              height={xAxisHeight}
               tickLine={false}
               padding={{ left: 34, right: 34 }}
               axisLine={{ stroke: "var(--color-border)" }}
               tick={<AxisTick byKey={byKey} compact={compact} />}
             />
+            {humanSota !== undefined && (
+              <ReferenceLine
+                y={humanSota}
+                stroke="#8a8a99"
+                strokeWidth={1.2}
+                strokeDasharray="6 4"
+              />
+            )}
             <Bar
               dataKey="score"
               radius={[4, 4, 0, 0]}
@@ -151,8 +201,11 @@ export default function LeaderboardChart({ data, compact = false }: Props) {
                     : "fill-foreground text-[10px] font-medium"
                 }
               />
-              {data.map((d) => (
-                <Cell key={d.key} fill={d.color} />
+              {data.map((d, i) => (
+                <Cell
+                  key={d.key}
+                  fill={d.gradient ? `url(#lg-${i})` : d.color}
+                />
               ))}
             </Bar>
           </BarChart>

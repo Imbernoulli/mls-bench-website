@@ -1,6 +1,15 @@
 import leaderboard from "../../public/data/leaderboard.json";
 import { vendorForModel } from "./model-vendors";
 
+/**
+ * Human SOTA on the 30-task MLS-Bench-Lite subset, 0-100 scale.
+ * Computed 2026-07-06 (Codex session 019f3742, verified again 2026-07-17):
+ * per-task Human SOTA = max score over single `baseline:*` records in
+ * tasks/<task>/leaderboard.csv via scripts/build_maintab.py::task_scores;
+ * value = arithmetic mean over the 30 tasks (0.430098727585 x 100).
+ */
+export const HUMAN_SOTA_LITE = 43.01;
+
 export interface LeaderboardRow {
   model: string;
   company: string;
@@ -17,6 +26,8 @@ export interface LeaderboardChartDatum {
   score: number;
   color: string;
   logo?: string;
+  /** Optional vertical gradient stops [top, bottom]; overrides color. */
+  gradient?: [string, string];
 }
 
 /** All leaderboard rows, best first. */
@@ -61,6 +72,7 @@ function tint(hex: string, f: number): string {
  * One bar per leaderboard row (including effort variants of the same model).
  * Bars of one model share a color; models of one vendor get progressively
  * lighter tints of the vendor color (the vendor's best model keeps full color).
+ * Moonshot bars use a blue-to-black vertical gradient instead of a flat tint.
  */
 export function getLeaderboardChartData(): LeaderboardChartDatum[] {
   const rows = getLeaderboardRows();
@@ -81,15 +93,30 @@ export function getLeaderboardChartData(): LeaderboardChartDatum[] {
     modelsByVendor.set(vendorId, list);
   }
 
+  const tintFactor = (idx: number) =>
+    idx === 0 ? 0 : Math.min(0.18 + (idx - 1) * 0.11, 0.38);
+
+  /** Moonshot gradient stops: bright blue at the top, near-black navy at the bottom. */
+  const MOONSHOT_GRADIENT: [string, string] = ["#3D6FE8", "#17173D"];
+
   const colorByModel = new Map<string, string>();
-  for (const models of modelsByVendor.values()) {
+  const gradientByModel = new Map<string, [string, string]>();
+  for (const [vendorId, models] of modelsByVendor) {
     models.sort(
       (a, b) => (bestByModel.get(b) ?? 0) - (bestByModel.get(a) ?? 0)
     );
     const base = vendorForModel(models[0]).color;
     models.forEach((model, idx) => {
-      const f = idx === 0 ? 0 : Math.min(0.28 + (idx - 1) * 0.18, 0.66);
-      colorByModel.set(model, tint(base, f));
+      const f = tintFactor(idx);
+      if (vendorId === "moonshot") {
+        gradientByModel.set(model, [
+          tint(MOONSHOT_GRADIENT[0], f),
+          tint(MOONSHOT_GRADIENT[1], f),
+        ]);
+        colorByModel.set(model, tint(base, f));
+      } else {
+        colorByModel.set(model, tint(base, f));
+      }
     });
   }
 
@@ -103,6 +130,7 @@ export function getLeaderboardChartData(): LeaderboardChartDatum[] {
       score: row.performance,
       color: colorByModel.get(row.model) ?? vendor.color,
       logo: vendor.logo,
+      gradient: gradientByModel.get(row.model),
     };
   });
 }

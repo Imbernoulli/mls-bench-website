@@ -12,7 +12,7 @@ const VENDORS: Record<string, VendorMeta> = {
   deepseek: { id: "deepseek", label: "DeepSeek", color: "#4D6BFE", logo: "/data/vendors/deepseek.svg" },
   qwen: { id: "qwen", label: "Qwen", color: "#6B4FBB" },
   moonshot: { id: "moonshot", label: "Moonshot", color: "#1F1F4D", logo: "/data/vendors/kimi.svg" },
-  zhipu: { id: "zhipu", label: "Zhipu", color: "#E0497A", logo: "/data/vendors/zai.svg" },
+  zhipu: { id: "zhipu", label: "Zhipu", color: "#2D2D2D", logo: "/data/vendors/zai.svg" },
   human: { id: "human", label: "Human", color: "#444444" },
   unknown: { id: "unknown", label: "Other", color: "#8a8f98" },
 };

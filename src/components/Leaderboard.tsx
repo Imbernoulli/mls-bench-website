@@ -1,4 +1,3 @@
-import leaderboard from "../../public/data/leaderboard.json";
 import { getLeaderboardRows, parseHarness } from "@/lib/leaderboard";
 import VendorLogo from "@/components/VendorLogo";
 
@@ -91,9 +90,6 @@ export default function Leaderboard() {
           </tbody>
         </table>
       </div>
-      <p className="mx-auto mt-4 max-w-3xl text-center text-xs leading-relaxed text-muted-foreground">
-        {leaderboard.harnessNote}
-      </p>
     </div>
   );
 }

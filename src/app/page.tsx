@@ -5,7 +5,7 @@ import {
 } from "@/lib/data";
 import ResourceButtons from "@/components/ResourceButtons";
 import { getCategoryPerformanceStatic } from "@/lib/paper-results";
-import { getLeaderboardChartData } from "@/lib/leaderboard";
+import { getLeaderboardChartData, HUMAN_SOTA_LITE } from "@/lib/leaderboard";
 import CategoryGrid from "@/components/CategoryGrid";
 import CategoryPerformanceCharts from "@/components/CategoryPerformanceCharts";
 import HeroTaskGallery from "@/components/HeroTaskGallery";
@@ -185,7 +185,7 @@ export default function HomePage() {
             </p>
           </div>
           <div className="mt-6 rounded-xl border border-border bg-card px-4 py-5">
-            <LeaderboardChart data={leaderboardChartData} compact />
+            <LeaderboardChart data={leaderboardChartData} compact humanSota={HUMAN_SOTA_LITE} />
           </div>
           <div className="mt-4 text-center">
             <Link
