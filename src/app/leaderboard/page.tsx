@@ -13,10 +13,7 @@ export default function LeaderboardPage() {
         exploration budget for each agent.
       </p>
       <div className="mt-8 rounded-xl border border-border bg-card px-4 py-6 sm:px-6">
-        <LeaderboardChart data={chartData} humanSota={HUMAN_SOTA_LITE} />
-        <p className="mt-3 text-center text-sm font-medium tracking-wide text-muted-foreground">
-          MLS-Bench Lite
-        </p>
+        <LeaderboardChart data={chartData} humanSota={HUMAN_SOTA_LITE} title="MLS-Bench Lite" />
       </div>
       <div className="mt-8">
         <Leaderboard />

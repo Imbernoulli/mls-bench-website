@@ -19,6 +19,8 @@ interface Props {
   compact?: boolean;
   /** Draws a dashed reference line at this score with a "Human SOTA" label. */
   humanSota?: number;
+  /** Optional title rendered at the card's top left, next to the layout toggle. */
+  title?: string;
 }
 
 interface TickProps {
@@ -220,7 +222,7 @@ function RowTick({
   );
 }
 
-export default function LeaderboardChart({ data, compact = false, humanSota }: Props) {
+export default function LeaderboardChart({ data, compact = false, humanSota, title }: Props) {
   const [layout, setLayout] = useState<Layout>("columns");
   const byKey = useMemo(() => new Map(data.map((d) => [d.key, d])), [data]);
 
@@ -264,7 +266,12 @@ export default function LeaderboardChart({ data, compact = false, humanSota }: P
 
   return (
     <div className="mx-auto" style={{ width: chartWidth, maxWidth: "100%" }}>
-      <div className="mb-1 flex justify-end">
+      <div className={`mb-1 flex items-center ${title ? "justify-between" : "justify-end"}`}>
+        {title && (
+          <span className="text-base font-semibold text-foreground sm:text-lg">
+            {title}
+          </span>
+        )}
         <div
           role="group"
           aria-label="Chart layout"
