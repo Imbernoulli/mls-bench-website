@@ -31,36 +31,18 @@ interface TickProps {
 }
 
 /**
- * Split a model display name into [before, key, after] so the key segment
- * (the distinguishing part) can be bolded: "Claude Fable 5" -> Fable,
- * "GPT 5.6 Sol" -> Sol, "Kimi K3" -> K3, "Kimi K2.7 Code" -> K2.7,
- * "GLM-5.2" -> 5.2.
- */
-function splitModelName(name: string): [string, string, string] {
-  let m = name.match(/^(GPT 5\.6 )(\S+)$/);
-  if (m) return [m[1], m[2], ""];
-  m = name.match(/^(Claude |Kimi |DeepSeek |Gemini |Qwen )(\S+)( .*)$/);
-  if (m) return [m[1], m[2], m[3]];
-  m = name.match(/^(Claude |Kimi |DeepSeek |Gemini |Qwen )(\S+)$/);
-  if (m) return [m[1], m[2], ""];
-  m = name.match(/^([A-Za-z]+-)([\d.]+)$/);
-  if (m) return [m[1], m[2], ""];
-  return ["", name, ""];
-}
-
-/**
- * Tokenize a model name for rendering, flagging segments to bold: the key
- * tier word (Fable/Sol/K3/V4/...) plus every token containing digits
- * (5.6, 5, 4.8, 5.2, ...). Spaces and hyphen boundaries are preserved.
+ * Tokenize a model name for rendering. Everything after the leading family
+ * word (Claude/GPT/Kimi/GLM-/DeepSeek/...) is the distinguishing part —
+ * tier word, version numbers, and qualifiers like Pro/Code — and gets
+ * bolded; spaces and hyphen boundaries are preserved.
  */
 function modelNameSegments(name: string): { text: string; bold: boolean }[] {
-  const key = splitModelName(name)[1];
   return name
     .split(/(\s+|(?<=-))/)
     .filter((text) => text !== "")
-    .map((text) => ({
+    .map((text, i) => ({
       text,
-      bold: /\d/.test(text) || text === key,
+      bold: i > 0 && !/^\s+$/.test(text),
     }));
 }
 
