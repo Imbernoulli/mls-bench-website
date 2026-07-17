@@ -3,12 +3,16 @@ import { vendorForModel } from "./model-vendors";
 
 /**
  * Human SOTA on the 30-task MLS-Bench-Lite subset, 0-100 scale.
- * Computed 2026-07-06 (Codex session 019f3742, verified again 2026-07-17):
+ * Computed 2026-07-06 (Codex session 019f3742) and re-verified 2026-07-17:
  * per-task Human SOTA = max score over single `baseline:*` records in
  * tasks/<task>/leaderboard.csv via scripts/build_maintab.py::task_scores;
- * value = arithmetic mean over the 30 tasks (0.430098727585 x 100).
+ * value = arithmetic mean over the 30 tasks.
+ * 44.66 = 43.01 with one artifact corrected: robomimic-bc-loss scored 0.0
+ * because pick_baseline_records takes each baseline's latest seed=mean row
+ * and a partial-coverage duplicate (missing can_ph/square_ph, timestamp 1ms
+ * newer) shadowed the full row; with full-coverage rows it scores 49.57.
  */
-export const HUMAN_SOTA_LITE = 43.01;
+export const HUMAN_SOTA_LITE = 44.66;
 
 export interface LeaderboardRow {
   model: string;

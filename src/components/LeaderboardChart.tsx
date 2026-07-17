@@ -1,17 +1,18 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
   Cell,
   LabelList,
-  ReferenceLine,
   ResponsiveContainer,
   XAxis,
   YAxis,
 } from "recharts";
 import type { LeaderboardChartDatum } from "@/lib/leaderboard";
+
+type Layout = "columns" | "rows";
 
 interface Props {
   data: LeaderboardChartDatum[];
@@ -20,17 +21,18 @@ interface Props {
   humanSota?: number;
 }
 
-interface AxisTickProps {
+interface TickProps {
   x?: number;
   y?: number;
   payload?: { value: string };
+  index?: number;
   byKey: Map<string, LeaderboardChartDatum>;
   compact: boolean;
 }
 
-/** Vendor logo on the axis line with an effort pill underneath, then the
-    model name angled below — the Artificial Analysis layout. */
-function AxisTick({ x = 0, y = 0, payload, byKey, compact }: AxisTickProps) {
+/** Columns layout: vendor logo + effort pill on the axis line, model name
+    angled below on a shared baseline. */
+function ColumnTick({ x = 0, y = 0, payload, index = 0, byKey, compact }: TickProps) {
   const d = payload ? byKey.get(payload.value) : undefined;
   if (!d) return <g />;
 
@@ -41,11 +43,14 @@ function AxisTick({ x = 0, y = 0, payload, byKey, compact }: AxisTickProps) {
   const pillFont = compact ? 7 : 7.5;
   const pillW = d.effort.length * (pillFont * 0.72) + 10;
   const pillY = logoY + logoSize + 4;
-  // Reserve the pill row even for runs without a recorded effort, so every
-  // model name starts on the same baseline and angled labels can't collide.
+  // Reserve the pill row even without a recorded effort so every model name
+  // starts on the same baseline and angled labels can't collide.
   const nameY = pillY + pillH + (compact ? 8 : 9);
   const nameSize = compact ? 9.5 : 10.5;
   const isMax = d.effort === "max";
+  // The first label's angled tail would overflow the svg's left edge;
+  // nudge just that one right instead of padding the whole axis.
+  const nameX = x + (index === 0 ? (compact ? 10 : 12) : 0);
 
   return (
     <g>
@@ -91,10 +96,10 @@ function AxisTick({ x = 0, y = 0, payload, byKey, compact }: AxisTickProps) {
         </g>
       )}
       <text
-        x={x}
+        x={nameX}
         y={nameY}
         textAnchor="end"
-        transform={`rotate(-26 ${x} ${nameY})`}
+        transform={`rotate(-26 ${nameX} ${nameY})`}
         fontSize={nameSize}
         fill="var(--color-muted-foreground)"
       >
@@ -104,112 +109,332 @@ function AxisTick({ x = 0, y = 0, payload, byKey, compact }: AxisTickProps) {
   );
 }
 
+/** Rows layout: logo in a fixed left column (aligned), model name
+    right-aligned, effort pill right-aligned under the name. */
+function RowTick({
+  x = 0,
+  y = 0,
+  payload,
+  byKey,
+  compact,
+  gutterWidth,
+}: TickProps & { gutterWidth: number }) {
+  const d = payload ? byKey.get(payload.value) : undefined;
+  if (!d) return <g />;
+
+  const logoSize = compact ? 13 : 15;
+  const gutterLeft = x - gutterWidth;
+  const nameSize = compact ? 10 : 11;
+  const pillH = compact ? 10 : 11;
+  const pillFont = compact ? 6.8 : 7.2;
+  const pillW = d.effort.length * (pillFont * 0.72) + 9;
+  const hasEffort = d.effort !== "";
+  const isMax = d.effort === "max";
+
+  return (
+    <g>
+      {d.logo ? (
+        <image
+          href={d.logo}
+          x={gutterLeft + 1}
+          y={y - logoSize / 2}
+          width={logoSize}
+          height={logoSize}
+        />
+      ) : (
+        <circle
+          cx={gutterLeft + 1 + logoSize / 2}
+          cy={y}
+          r={logoSize / 3}
+          fill={d.color}
+        />
+      )}
+      <text
+        x={x - 6}
+        y={hasEffort ? y - 2 : y}
+        textAnchor="end"
+        dominantBaseline={hasEffort ? "auto" : "central"}
+        fontSize={nameSize}
+        fill="var(--color-foreground)"
+      >
+        {d.name}
+      </text>
+      {hasEffort && (
+        <g>
+          <rect
+            x={x - 6 - pillW}
+            y={y + 3}
+            width={pillW}
+            height={pillH}
+            rx={3}
+            fill={isMax ? "var(--color-foreground)" : "var(--color-muted)"}
+            stroke={isMax ? "none" : "var(--color-border)"}
+          />
+          <text
+            x={x - 6 - pillW / 2}
+            y={y + 3 + pillH / 2}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fontSize={pillFont}
+            fontWeight={600}
+            letterSpacing={0.4}
+            fill={isMax ? "#ffffff" : "var(--color-foreground)"}
+          >
+            {d.effort.toUpperCase()}
+          </text>
+        </g>
+      )}
+    </g>
+  );
+}
+
 export default function LeaderboardChart({ data, compact = false, humanSota }: Props) {
+  const [layout, setLayout] = useState<Layout>("columns");
   const byKey = useMemo(() => new Map(data.map((d) => [d.key, d])), [data]);
 
   if (data.length === 0) return null;
 
-  const chartHeight = compact ? 240 : 290;
-  // Must stay below the card's inner width (~790px) or the overflow-x-auto
-  // container clips the right edge of the chart (and the SOTA label).
-  const chartMinWidth = compact ? 700 : 760;
-  const xAxisHeight = compact ? 88 : 96;
-  const margin = compact
-    ? { top: 18, right: 8, bottom: 4, left: 8 }
-    : { top: 20, right: 10, bottom: 4, left: 10 };
+  // Fixed chart width keeps the HTML SOTA overlays in exact sync with the
+  // recharts geometry. Must stay below the card's inner width (~790px) or
+  // the overflow-x-auto container clips the right edge.
+  const chartWidth = compact ? 700 : 760;
 
-  // Shared by the hidden YAxis domain and the HTML "Human SOTA" label, so
-  // the label lines up exactly with the recharts ReferenceLine.
+  // Shared by the hidden axis domain and the HTML "Human SOTA" overlays.
   const yDomainMax = (dataMax: number) => Math.ceil(dataMax * 1.15);
   const domainMax = yDomainMax(Math.max(...data.map((d) => d.score)));
-  const plotHeight = chartHeight - margin.top - margin.bottom - xAxisHeight;
+
+  // ---- columns (vertical bars) geometry ----
+  const colChartHeight = compact ? 210 : 250;
+  const colXAxisHeight = compact ? 88 : 96;
+  const colMargin = compact
+    ? { top: 14, right: 8, bottom: 4, left: 8 }
+    : { top: 16, right: 10, bottom: 4, left: 10 };
+  const colPlotHeight =
+    colChartHeight - colMargin.top - colMargin.bottom - colXAxisHeight;
+
+  // ---- rows (horizontal bars) geometry ----
+  const rowSlot = compact ? 26 : 30;
+  const rowGutterWidth = compact ? 132 : 150;
+  const rowMargin = compact
+    ? { top: 6, right: 34, bottom: 22, left: 6 }
+    : { top: 8, right: 38, bottom: 24, left: 6 };
+  const rowChartHeight =
+    rowMargin.top + data.length * rowSlot + rowMargin.bottom;
+  const rowPlotWidth =
+    chartWidth - rowMargin.left - rowGutterWidth - rowMargin.right;
+
+  const chartHeight = layout === "columns" ? colChartHeight : rowChartHeight;
+  const sotaFraction = humanSota !== undefined ? humanSota / domainMax : 0;
+  // columns: horizontal line at this y; rows: vertical line at this x.
   const sotaY =
-    humanSota !== undefined
-      ? margin.top + plotHeight * (1 - humanSota / domainMax)
-      : 0;
+    colMargin.top + colPlotHeight * (1 - sotaFraction);
+  const sotaX = rowMargin.left + rowGutterWidth + rowPlotWidth * sotaFraction;
 
   return (
-    <div className="overflow-x-auto">
-      <div
-        className="relative"
-        style={{ height: chartHeight, minWidth: chartMinWidth }}
-      >
-        {humanSota !== undefined && (
-          <span
-            className="pointer-events-none absolute z-10 text-muted-foreground"
-            style={{
-              top: sotaY - (compact ? 13 : 14),
-              right: margin.right + 2,
-              fontSize: compact ? 9 : 10,
-            }}
-          >
-            Human SOTA
-          </span>
-        )}
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={margin} barCategoryGap="26%">
-            <defs>
-              {data.map((d, i) =>
-                d.gradient ? (
-                  <linearGradient
-                    key={d.key}
-                    id={`lg-${i}`}
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop offset="0%" stopColor={d.gradient[0]} />
-                    <stop offset="100%" stopColor={d.gradient[1]} />
-                  </linearGradient>
-                ) : null
-              )}
-            </defs>
-            <YAxis hide domain={[0, yDomainMax]} />
-            <XAxis
-              dataKey="key"
-              interval={0}
-              height={xAxisHeight}
-              tickLine={false}
-              padding={{ left: 34, right: 34 }}
-              axisLine={{ stroke: "var(--color-border)" }}
-              tick={<AxisTick byKey={byKey} compact={compact} />}
-            />
-            {humanSota !== undefined && (
-              <ReferenceLine
-                y={humanSota}
-                stroke="#8a8a99"
-                strokeWidth={1.2}
-                strokeDasharray="6 4"
-              />
-            )}
-            <Bar
-              dataKey="score"
-              radius={[4, 4, 0, 0]}
-              maxBarSize={compact ? 32 : 38}
-              isAnimationActive={false}
+    <div>
+      <div className="mb-1 flex justify-end">
+        <div
+          role="group"
+          aria-label="Chart layout"
+          className="inline-flex rounded-lg border border-border p-0.5"
+        >
+          {(["columns", "rows"] as const).map((l) => (
+            <button
+              key={l}
+              type="button"
+              onClick={() => setLayout(l)}
+              className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                layout === l
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
             >
-              <LabelList
-                dataKey="score"
-                position="top"
-                formatter={(value) =>
-                  typeof value === "number" ? value.toFixed(1) : ""
-                }
-                className={
-                  compact
-                    ? "fill-foreground text-[9px] font-medium"
-                    : "fill-foreground text-[10px] font-medium"
-                }
-              />
-              {data.map((d, i) => (
-                <Cell
-                  key={d.key}
-                  fill={d.gradient ? `url(#lg-${i})` : d.color}
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+              {l === "columns" ? "Columns" : "Rows"}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <div
+          className="relative"
+          style={{ height: chartHeight, width: chartWidth, minWidth: chartWidth }}
+        >
+          {humanSota !== undefined && layout === "columns" && (
+            <div
+              aria-hidden="true"
+              className="absolute z-0"
+              style={{
+                top: sotaY,
+                left: colMargin.left,
+                right: colMargin.right,
+                borderTop: "1px dashed #b6b6c2",
+              }}
+            />
+          )}
+          {humanSota !== undefined && layout === "columns" && (
+            <span
+              className="pointer-events-none absolute z-[2] text-muted-foreground"
+              style={{
+                top: sotaY - (compact ? 13 : 14),
+                right: colMargin.right + 2,
+                fontSize: compact ? 9 : 10,
+              }}
+            >
+              Human SOTA
+            </span>
+          )}
+          {humanSota !== undefined && layout === "rows" && (
+            <div
+              aria-hidden="true"
+              className="absolute z-0"
+              style={{
+                left: sotaX,
+                top: rowMargin.top,
+                height: rowChartHeight - rowMargin.top - rowMargin.bottom,
+                borderLeft: "1px dashed #b6b6c2",
+              }}
+            />
+          )}
+          {humanSota !== undefined && layout === "rows" && (
+            <span
+              className="pointer-events-none absolute z-[2] text-muted-foreground"
+              style={{
+                left: sotaX,
+                top: rowChartHeight - rowMargin.bottom + 5,
+                transform: "translateX(-50%)",
+                fontSize: compact ? 9 : 10,
+              }}
+            >
+              Human SOTA
+            </span>
+          )}
+          <div className="relative z-[1] h-full w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              {layout === "columns" ? (
+                <BarChart data={data} margin={colMargin} barCategoryGap="16%">
+                  <defs>
+                    {data.map((d, i) =>
+                      d.gradient ? (
+                        <linearGradient
+                          key={d.key}
+                          id={`lg-${i}`}
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop offset="0%" stopColor={d.gradient[0]} />
+                          <stop offset="100%" stopColor={d.gradient[1]} />
+                        </linearGradient>
+                      ) : null
+                    )}
+                  </defs>
+                  <YAxis hide domain={[0, yDomainMax]} />
+                  <XAxis
+                    dataKey="key"
+                    interval={0}
+                    height={colXAxisHeight}
+                    tickLine={false}
+                    padding={{ left: 26, right: 14 }}
+                    axisLine={{ stroke: "var(--color-border)" }}
+                    tick={<ColumnTick byKey={byKey} compact={compact} />}
+                  />
+                  <Bar
+                    dataKey="score"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={compact ? 40 : 48}
+                    isAnimationActive={false}
+                  >
+                    <LabelList
+                      dataKey="score"
+                      position="top"
+                      formatter={(value) =>
+                        typeof value === "number" ? value.toFixed(1) : ""
+                      }
+                      className={
+                        compact
+                          ? "fill-foreground text-[9px] font-medium"
+                          : "fill-foreground text-[10px] font-medium"
+                      }
+                    />
+                    {data.map((d, i) => (
+                      <Cell
+                        key={d.key}
+                        fill={d.gradient ? `url(#lg-${i})` : d.color}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              ) : (
+                <BarChart
+                  data={data}
+                  layout="vertical"
+                  margin={rowMargin}
+                  barCategoryGap="24%"
+                >
+                  <defs>
+                    {data.map((d, i) =>
+                      d.gradient ? (
+                        <linearGradient
+                          key={d.key}
+                          id={`lg-${i}`}
+                          x1="0"
+                          y1="0"
+                          x2="1"
+                          y2="0"
+                        >
+                          <stop offset="0%" stopColor={d.gradient[1]} />
+                          <stop offset="100%" stopColor={d.gradient[0]} />
+                        </linearGradient>
+                      ) : null
+                    )}
+                  </defs>
+                  <XAxis type="number" hide domain={[0, yDomainMax]} />
+                  <YAxis
+                    type="category"
+                    dataKey="key"
+                    interval={0}
+                    width={rowGutterWidth}
+                    tickLine={false}
+                    axisLine={{ stroke: "var(--color-border)" }}
+                    tick={
+                      <RowTick
+                        byKey={byKey}
+                        compact={compact}
+                        gutterWidth={rowGutterWidth}
+                      />
+                    }
+                  />
+                  <Bar
+                    dataKey="score"
+                    radius={[0, 4, 4, 0]}
+                    maxBarSize={compact ? 16 : 18}
+                    isAnimationActive={false}
+                  >
+                    <LabelList
+                      dataKey="score"
+                      position="right"
+                      formatter={(value) =>
+                        typeof value === "number" ? value.toFixed(1) : ""
+                      }
+                      className={
+                        compact
+                          ? "fill-foreground text-[9px] font-medium"
+                          : "fill-foreground text-[10px] font-medium"
+                      }
+                    />
+                    {data.map((d, i) => (
+                      <Cell
+                        key={d.key}
+                        fill={d.gradient ? `url(#lg-${i})` : d.color}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              )}
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
     </div>
   );
