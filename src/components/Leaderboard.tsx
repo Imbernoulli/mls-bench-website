@@ -20,7 +20,7 @@ function EffortBadge({ effort }: { effort: string }) {
     <span
       className={`inline-flex items-center rounded px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide ${
         effort === "max"
-          ? "bg-foreground text-background"
+          ? "bg-foreground/10 text-foreground"
           : "border border-foreground/25 bg-muted text-foreground"
       }`}
     >

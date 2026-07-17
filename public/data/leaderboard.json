@@ -33,7 +33,7 @@
       "performance": 42.8
     },
     {
-      "model": "GLM-5.2",
+      "model": "GLM 5.2",
       "company": "zhipu",
       "modelOpen": true,
       "harness": "Claude Code (max effort)",

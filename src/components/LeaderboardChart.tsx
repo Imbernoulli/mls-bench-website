@@ -94,7 +94,7 @@ function ColumnTick({ x = 0, y = 0, payload, index = 0, byKey, compact }: TickPr
             width={pillW}
             height={pillH}
             rx={3}
-            fill={isMax ? "var(--color-foreground)" : "var(--color-muted)"}
+            fill={isMax ? "#e9e9ee" : "var(--color-muted)"}
             stroke={isMax ? "none" : "var(--color-border)"}
           />
           <text
@@ -105,7 +105,7 @@ function ColumnTick({ x = 0, y = 0, payload, index = 0, byKey, compact }: TickPr
             fontSize={pillFont}
             fontWeight={600}
             letterSpacing={0.4}
-            fill={isMax ? "#ffffff" : "var(--color-foreground)"}
+            fill="var(--color-foreground)"
           >
             {d.effort.toUpperCase()}
           </text>
@@ -199,7 +199,7 @@ function RowTick({
             width={pillW}
             height={pillH}
             rx={3}
-            fill={isMax ? "var(--color-foreground)" : "var(--color-muted)"}
+            fill={isMax ? "#e9e9ee" : "var(--color-muted)"}
             stroke={isMax ? "none" : "var(--color-border)"}
           />
           <text
@@ -210,7 +210,7 @@ function RowTick({
             fontSize={pillFont}
             fontWeight={600}
             letterSpacing={0.4}
-            fill={isMax ? "#ffffff" : "var(--color-foreground)"}
+            fill="var(--color-foreground)"
           >
             {d.effort.toUpperCase()}
           </text>
