@@ -268,7 +268,10 @@ export default function LeaderboardChart({ data, compact = false, humanSota, tit
     <div className="mx-auto" style={{ width: chartWidth, maxWidth: "100%" }}>
       <div className={`mb-1 flex items-center ${title ? "justify-between" : "justify-end"}`}>
         {title && (
-          <span className="text-base font-semibold text-foreground sm:text-lg">
+          <span
+            className="text-base font-semibold text-foreground sm:text-lg"
+            style={{ marginLeft: compact ? 34 : 36 }}
+          >
             {title}
           </span>
         )}
