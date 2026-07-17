@@ -28,20 +28,18 @@ function TinyIcon() {
 
 export default function Footer() {
   return (
-    <footer className="mt-auto border-t border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+    <footer className="mt-auto border-t border-border">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            MLS-Bench
-          </p>
-          <div className="flex gap-4 text-sm text-[var(--color-text-secondary)]">
+          <p className="text-sm font-medium text-foreground">MLS-Bench</p>
+          <div className="flex gap-5 text-sm text-muted-foreground">
             {FOOTER_LINKS.map((link) => (
               <a
                 key={link.label}
                 href={link.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 hover:text-[var(--color-text)]"
+                className="inline-flex items-center gap-1 transition-colors hover:text-foreground"
               >
                 <TinyIcon />
                 {link.label}

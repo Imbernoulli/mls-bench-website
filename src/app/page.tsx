@@ -1,14 +1,16 @@
+import Link from "next/link";
 import {
   getTasksStatic,
   getCategoriesStatic,
 } from "@/lib/data";
 import ResourceButtons from "@/components/ResourceButtons";
 import { getCategoryPerformanceStatic } from "@/lib/paper-results";
+import { getLeaderboardChartData } from "@/lib/leaderboard";
 import CategoryGrid from "@/components/CategoryGrid";
 import CategoryPerformanceCharts from "@/components/CategoryPerformanceCharts";
 import HeroTaskGallery from "@/components/HeroTaskGallery";
 import HeroSplash from "@/components/HeroSplash";
-import Leaderboard from "@/components/Leaderboard";
+import LeaderboardChart from "@/components/LeaderboardChart";
 import MethodGallery from "@/components/MethodGallery";
 
 const INSTITUTIONS = [
@@ -50,6 +52,7 @@ export default function HomePage() {
   const tasks = getTasksStatic().filter((task) => task.category !== "demo");
   const categories = getCategoriesStatic();
   const categoryPerformance = getCategoryPerformanceStatic();
+  const leaderboardChartData = getLeaderboardChartData();
 
   const totalTasks = tasks.length;
   const totalCategories = Object.keys(categories).filter(
@@ -175,13 +178,21 @@ export default function HomePage() {
       <section className="border-t border-border py-14">
         <div className="mx-auto max-w-4xl px-4">
           <div className="text-center">
-            <h2 className="text-2xl font-semibold">Leaderboard</h2>
+            <h2 className="text-2xl font-semibold">MLS-Bench-Lite Leaderboard</h2>
             <p className="mx-auto mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-              Score on the official 30-task MLS-Bench-Lite subset.
+              Best score per model on the official 30-task Lite subset.
             </p>
           </div>
-          <div className="mt-6">
-            <Leaderboard />
+          <div className="mt-6 rounded-xl border border-border bg-card px-4 py-5">
+            <LeaderboardChart data={leaderboardChartData} compact />
+          </div>
+          <div className="mt-4 text-center">
+            <Link
+              href="/leaderboard"
+              className="text-sm font-medium text-foreground underline decoration-foreground/30 underline-offset-4 transition-colors hover:decoration-foreground"
+            >
+              View full leaderboard &rarr;
+            </Link>
           </div>
         </div>
       </section>
@@ -193,10 +204,10 @@ export default function HomePage() {
               Model Performance by Category
             </h2>
             <p className="mx-auto mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-              Each model's bar shows Vanilla as the darker lower portion and
+              Each model&rsquo;s bar shows Vanilla as the darker lower portion and
               Agent as the lighter overlay, against a translucent grey Human
               SOTA reference computed from the reproduced human baselines.
-              Scores use the paper's normalized task metric.
+              Scores use the paper&rsquo;s normalized task metric.
             </p>
           </div>
           <div className="mt-6">

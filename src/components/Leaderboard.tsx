@@ -1,14 +1,6 @@
 import leaderboard from "../../public/data/leaderboard.json";
-import { vendorForModel } from "@/lib/model-vendors";
-
-interface Row {
-  model: string;
-  company: string;
-  modelOpen: boolean;
-  harness: string;
-  harnessOpen: boolean;
-  performance: number;
-}
+import { getLeaderboardRows } from "@/lib/leaderboard";
+import VendorLogo from "@/components/VendorLogo";
 
 function Tag({ open }: { open: boolean }) {
   return (
@@ -25,9 +17,7 @@ function Tag({ open }: { open: boolean }) {
 }
 
 export default function Leaderboard() {
-  const rows = (leaderboard.rows as Row[])
-    .slice()
-    .sort((a, b) => b.performance - a.performance);
+  const rows = getLeaderboardRows();
 
   return (
     <div>
@@ -42,55 +32,42 @@ export default function Leaderboard() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, i) => {
-              const vendor = vendorForModel(row.model);
-              return (
-                <tr
-                  key={row.model}
-                  className="border-b border-border last:border-0 hover:bg-muted/30"
+            {rows.map((row, i) => (
+              <tr
+                key={`${row.model}-${row.harness}`}
+                className="border-b border-border last:border-0 hover:bg-muted/30"
+              >
+                <td
+                  className={`px-4 py-3 tabular-nums ${
+                    i < 3
+                      ? "font-semibold text-foreground"
+                      : "text-muted-foreground"
+                  }`}
                 >
-                  <td className="px-4 py-3 tabular-nums text-muted-foreground">
-                    {i + 1}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-2">
-                      <span
-                        aria-hidden="true"
-                        className="h-2.5 w-2.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: vendor.color }}
-                      />
-                      <span className="font-medium text-foreground">
-                        {row.model}
-                      </span>
-                      <Tag open={row.modelOpen} />
+                  {i + 1}
+                </td>
+                <td className="px-4 py-3">
+                  <span className="inline-flex items-center gap-2.5">
+                    <VendorLogo modelId={row.model} size={18} />
+                    <span className="font-medium text-foreground">
+                      {row.model}
                     </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-2">
-                      <span className="text-muted-foreground">{row.harness}</span>
-                      <Tag open={row.harnessOpen} />
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right text-base font-semibold tabular-nums text-foreground">
-                    {row.performance.toFixed(1)}
-                  </td>
-                </tr>
-              );
-            })}
+                    <Tag open={row.modelOpen} />
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {row.harness}
+                </td>
+                <td className="px-4 py-3 text-right text-base font-semibold tabular-nums text-foreground">
+                  {row.performance.toFixed(1)}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
       <p className="mx-auto mt-4 max-w-3xl text-center text-xs leading-relaxed text-muted-foreground">
-        Results are from the{" "}
-        <a
-          href={leaderboard.source.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-medium text-foreground underline decoration-foreground/30 underline-offset-2 hover:decoration-foreground"
-        >
-          {leaderboard.source.label}
-        </a>
-        . {leaderboard.verified} {leaderboard.harnessNote}
+        {leaderboard.harnessNote}
       </p>
     </div>
   );

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home" },
+  { href: "/leaderboard", label: "Leaderboard" },
   { href: "/tasks", label: "Tasks" },
   { href: "/blog", label: "Blog" },
 ];
@@ -33,8 +34,8 @@ export default function Navbar() {
                   href={item.href}
                   className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
                     isActive
-                      ? "font-medium text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-muted font-medium text-foreground"
+                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                   }`}
                 >
                   {item.label}

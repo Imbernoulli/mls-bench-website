@@ -2,16 +2,17 @@ export interface VendorMeta {
   id: string;
   label: string;
   color: string;
+  logo?: string;
 }
 
 const VENDORS: Record<string, VendorMeta> = {
-  openai: { id: "openai", label: "OpenAI", color: "#10A37F" },
-  anthropic: { id: "anthropic", label: "Anthropic", color: "#D97757" },
+  openai: { id: "openai", label: "OpenAI", color: "#10A37F", logo: "/data/vendors/openai.svg" },
+  anthropic: { id: "anthropic", label: "Anthropic", color: "#D97757", logo: "/data/vendors/anthropic.svg" },
   google: { id: "google", label: "Google", color: "#4285F4" },
-  deepseek: { id: "deepseek", label: "DeepSeek", color: "#4D6BFE" },
+  deepseek: { id: "deepseek", label: "DeepSeek", color: "#4D6BFE", logo: "/data/vendors/deepseek.svg" },
   qwen: { id: "qwen", label: "Qwen", color: "#6B4FBB" },
-  moonshot: { id: "moonshot", label: "Moonshot", color: "#1F1F4D" },
-  zhipu: { id: "zhipu", label: "Zhipu", color: "#E0497A" },
+  moonshot: { id: "moonshot", label: "Moonshot", color: "#1F1F4D", logo: "/data/vendors/kimi.svg" },
+  zhipu: { id: "zhipu", label: "Zhipu", color: "#E0497A", logo: "/data/vendors/zai.svg" },
   human: { id: "human", label: "Human", color: "#444444" },
   unknown: { id: "unknown", label: "Other", color: "#8a8f98" },
 };

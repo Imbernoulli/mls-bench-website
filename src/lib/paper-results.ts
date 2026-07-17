@@ -1,27 +1,13 @@
 import categoryPerformance from "../../public/data/category_performance.json";
-import liteIntelligence from "../../public/data/lite_intelligence.json";
 import models from "../../public/data/models.json";
 import type { StandardModel } from "@/lib/types";
 
 export const HUMAN_SOTA_ID = "human-sota";
 
-export interface LiteModelScore {
-  id: string;
-  name: string;
-  company: string;
-  color: string;
-  score: number;
-  taskCount: number;
-}
-
 export interface ChartSeries {
   id: string;
   name: string;
   color: string;
-}
-
-export function getLiteIntelligenceStatic(): LiteModelScore[] {
-  return liteIntelligence.models as LiteModelScore[];
 }
 
 export function getCategoryPerformanceStatic(): {
