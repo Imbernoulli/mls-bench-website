@@ -263,7 +263,7 @@ export default function LeaderboardChart({ data, compact = false, humanSota }: P
   const sotaX = rowMargin.left + rowGutterWidth + rowPlotWidth * sotaFraction;
 
   return (
-    <div>
+    <div className="mx-auto" style={{ width: chartWidth, maxWidth: "100%" }}>
       <div className="mb-1 flex justify-end">
         <div
           role="group"
