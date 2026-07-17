@@ -180,7 +180,8 @@ export default function HomePage() {
           <div className="text-center">
             <h2 className="text-2xl font-semibold">MLS-Bench-Lite Leaderboard</h2>
             <p className="mx-auto mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-              Best score per model on the official 30-task Lite subset.
+              Scores on the official 30-task Lite subset, across harnesses
+              and effort settings.
             </p>
           </div>
           <div className="mt-6 rounded-xl border border-border bg-card px-4 py-5">

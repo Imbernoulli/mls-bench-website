@@ -1,5 +1,5 @@
 import leaderboard from "../../public/data/leaderboard.json";
-import { getLeaderboardRows } from "@/lib/leaderboard";
+import { getLeaderboardRows, parseHarness } from "@/lib/leaderboard";
 import VendorLogo from "@/components/VendorLogo";
 
 function Tag({ open }: { open: boolean }) {
@@ -12,6 +12,20 @@ function Tag({ open }: { open: boolean }) {
       }`}
     >
       {open ? "Open" : "Closed"}
+    </span>
+  );
+}
+
+function EffortBadge({ effort }: { effort: string }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide ${
+        effort === "max"
+          ? "bg-foreground text-background"
+          : "border border-foreground/25 bg-muted text-foreground"
+      }`}
+    >
+      {effort}
     </span>
   );
 }
@@ -32,37 +46,48 @@ export default function Leaderboard() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, i) => (
-              <tr
-                key={`${row.model}-${row.harness}`}
-                className="border-b border-border last:border-0 hover:bg-muted/30"
-              >
-                <td
-                  className={`px-4 py-3 tabular-nums ${
-                    i < 3
-                      ? "font-semibold text-foreground"
-                      : "text-muted-foreground"
-                  }`}
+            {rows.map((row, i) => {
+              const harness = parseHarness(row.harness);
+              return (
+                <tr
+                  key={`${row.model}-${row.harness}`}
+                  className="border-b border-border last:border-0 hover:bg-muted/30"
                 >
-                  {i + 1}
-                </td>
-                <td className="px-4 py-3">
-                  <span className="inline-flex items-center gap-2.5">
-                    <VendorLogo modelId={row.model} size={18} />
-                    <span className="font-medium text-foreground">
-                      {row.model}
+                  <td
+                    className={`px-4 py-3 tabular-nums ${
+                      i < 3
+                        ? "font-semibold text-foreground"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {i + 1}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center gap-2.5">
+                      <VendorLogo modelId={row.model} size={18} />
+                      <span className="font-medium text-foreground">
+                        {row.model}
+                      </span>
+                      <Tag open={row.modelOpen} />
                     </span>
-                    <Tag open={row.modelOpen} />
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {row.harness}
-                </td>
-                <td className="px-4 py-3 text-right text-base font-semibold tabular-nums text-foreground">
-                  {row.performance.toFixed(1)}
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                      {harness.name}
+                      {harness.effort && <EffortBadge effort={harness.effort} />}
+                      {harness.note && (
+                        <span className="text-xs text-muted-foreground/70">
+                          ({harness.note})
+                        </span>
+                      )}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right text-base font-semibold tabular-nums text-foreground">
+                    {row.performance.toFixed(1)}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
