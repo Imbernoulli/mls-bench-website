@@ -1,5 +1,5 @@
 {
- "generated": "2026-06-24",
+ "generated": "2026-07-17",
  "tasks": [
   {
    "id": "agent-tool-reasoning",
@@ -62712,7 +62712,7 @@
      "elapsed_sparse-point-robot_std": null
     },
     {
-     "timestamp": "2026-05-05T11:21:22.211324+00:00",
+     "timestamp": "2026-05-05T11:21:22.210886+00:00",
      "model": "baseline:VariBAD",
      "is_final": true,
      "seed": "mean",
@@ -102582,7 +102582,7 @@
      "elapsed_frostbite-v5_std": null
     },
     {
-     "timestamp": "2026-04-12T06:58:07.610380+00:00",
+     "timestamp": "2026-04-12T06:58:07.609346+00:00",
      "model": "baseline:ICM",
      "is_final": true,
      "seed": "mean",
@@ -102615,7 +102615,7 @@
      "best_eval_return_frostbite_v5_std": 1614.7861227488372,
      "elapsed_tutankham-v5_std": null,
      "elapsed_private-eye-v5_std": null,
-     "elapsed_frostbite-v5_std": 1546.7213711590075
+     "elapsed_frostbite-v5_std": null
     },
     {
      "timestamp": "2026-04-12T05:50:07.093387+00:00",
@@ -102726,7 +102726,7 @@
      "elapsed_frostbite-v5_std": null
     },
     {
-     "timestamp": "2026-04-12T05:50:07.095718+00:00",
+     "timestamp": "2026-04-12T05:50:07.094775+00:00",
      "model": "baseline:PPO",
      "is_final": true,
      "seed": "mean",
@@ -102759,7 +102759,7 @@
      "best_eval_return_frostbite_v5_std": 16.996731711975947,
      "elapsed_tutankham-v5_std": null,
      "elapsed_private-eye-v5_std": null,
-     "elapsed_frostbite-v5_std": 1007.4940860041479
+     "elapsed_frostbite-v5_std": null
     },
     {
      "timestamp": "2026-04-12T06:24:07.392116+00:00",
@@ -102870,7 +102870,7 @@
      "elapsed_frostbite-v5_std": null
     },
     {
-     "timestamp": "2026-04-12T06:24:07.395594+00:00",
+     "timestamp": "2026-04-12T06:24:07.394031+00:00",
      "model": "baseline:RND",
      "is_final": true,
      "seed": "mean",
@@ -102903,7 +102903,7 @@
      "best_eval_return_frostbite_v5_std": 19.252705437591537,
      "elapsed_tutankham-v5_std": null,
      "elapsed_private-eye-v5_std": null,
-     "elapsed_frostbite-v5_std": 2316.3292799887786
+     "elapsed_frostbite-v5_std": null
     },
     {
      "timestamp": "2026-04-25T02:26:04.514383+00:00",
@@ -119686,7 +119686,7 @@
      "success_rate_transport_ph_std": null
     },
     {
-     "timestamp": "2026-04-19T19:35:59.852948+00:00",
+     "timestamp": "2026-04-19T19:35:59.851989+00:00",
      "model": "baseline:Default (NLL)",
      "is_final": true,
      "seed": "mean",
@@ -119701,7 +119701,7 @@
      "success_rate_square_ph_std": 0.0679869268479038,
      "elapsed_can_ph_std": null,
      "elapsed_square_ph_std": null,
-     "elapsed_tool_hang_ph_std": 0.0,
+     "elapsed_tool_hang_ph_std": null,
      "success_rate_lift_ph": null,
      "elapsed_lift_ph": null,
      "success_rate_lift_ph_std": null,
@@ -120310,7 +120310,7 @@
      "success_rate_transport_ph_std": null
     },
     {
-     "timestamp": "2026-04-19T19:48:59.783092+00:00",
+     "timestamp": "2026-04-19T19:48:59.782080+00:00",
      "model": "baseline:NLL with Entropy",
      "is_final": true,
      "seed": "mean",
@@ -120325,7 +120325,7 @@
      "success_rate_square_ph_std": 0.04898979485566356,
      "elapsed_can_ph_std": null,
      "elapsed_square_ph_std": null,
-     "elapsed_tool_hang_ph_std": 27.712812921102035,
+     "elapsed_tool_hang_ph_std": null,
      "success_rate_lift_ph": null,
      "elapsed_lift_ph": null,
      "success_rate_lift_ph_std": null,
@@ -121030,7 +121030,7 @@
      "success_rate_transport_ph_std": null
     },
     {
-     "timestamp": "2026-04-19T19:20:58.872382+00:00",
+     "timestamp": "2026-04-19T19:20:58.871387+00:00",
      "model": "baseline:Weighted NLL",
      "is_final": true,
      "seed": "mean",
@@ -121045,7 +121045,7 @@
      "success_rate_square_ph_std": 0.0653197264742181,
      "elapsed_can_ph_std": null,
      "elapsed_square_ph_std": null,
-     "elapsed_tool_hang_ph_std": 110.27390141521852,
+     "elapsed_tool_hang_ph_std": null,
      "success_rate_lift_ph": null,
      "elapsed_lift_ph": null,
      "success_rate_lift_ph_std": null,
