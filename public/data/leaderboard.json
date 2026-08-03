@@ -33,6 +33,14 @@
       "performance": 42.8
     },
     {
+      "model": "Qwen3.8-Max",
+      "company": "qwen",
+      "modelOpen": false,
+      "harness": "Claude Code",
+      "harnessOpen": false,
+      "performance": 41.0
+    },
+    {
       "model": "GLM 5.2",
       "company": "zhipu",
       "modelOpen": true,
@@ -55,6 +63,14 @@
       "harness": "Kimi-Code",
       "harnessOpen": true,
       "performance": 35.1
+    },
+    {
+      "model": "Qwen3.7-Max",
+      "company": "qwen",
+      "modelOpen": false,
+      "harness": "Claude Code",
+      "harnessOpen": false,
+      "performance": 31.7
     },
     {
       "model": "Kimi K2.6",
