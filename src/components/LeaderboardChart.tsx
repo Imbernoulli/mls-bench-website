@@ -37,10 +37,14 @@ interface TickProps {
  * word (Claude/GPT/Kimi/GLM-/DeepSeek/...) is the distinguishing part —
  * tier word, version numbers, and qualifiers like Pro/Code — and gets
  * bolded; spaces and hyphen boundaries are preserved.
+ *
+ * The letter→digit boundary matters for names that glue the version straight
+ * onto the family word: without it "Qwen3.8-Max" splits as "Qwen3.8-" + "Max"
+ * and the version is left unbolded along with the family word.
  */
 function modelNameSegments(name: string): { text: string; bold: boolean }[] {
   return name
-    .split(/(\s+|(?<=-))/)
+    .split(/(\s+|(?<=-)|(?<=[A-Za-z])(?=\d))/)
     .filter((text) => text !== "")
     .map((text, i) => ({
       text,
