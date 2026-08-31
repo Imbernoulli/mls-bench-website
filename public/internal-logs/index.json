@@ -1,5 +1,5 @@
 {
- "generated": "2026-07-17",
+ "generated": "2026-08-31",
  "tasks": [
   {
    "id": "agent-tool-reasoning",
@@ -416,6 +416,11 @@
      "total_steps": 7
     },
     {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 3
+    },
+    {
      "model": "deepseek-reasoner",
      "slug": "deepseek-reasoner",
      "total_steps": 7
@@ -436,9 +441,19 @@
      "total_steps": 3
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 1
+    },
+    {
      "model": "qwen/qwen3.6-plus",
      "slug": "qwen--qwen3.6-plus",
      "total_steps": 13
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-causal-discovery-discrete",
+     "slug": "vllm--qwen35-4b-base__cc-manual-causal-discovery-discrete",
+     "total_steps": 20
     }
    ]
   },
@@ -450,6 +465,11 @@
      "model": "anthropic/claude-opus-4.6",
      "slug": "anthropic--claude-opus-4.6",
      "total_steps": 0
+    },
+    {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 5
     },
     {
      "model": "deepseek-reasoner",
@@ -472,6 +492,11 @@
      "total_steps": 7
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 1
+    },
+    {
      "model": "qwen/qwen3.6-plus",
      "slug": "qwen--qwen3.6-plus",
      "total_steps": 19
@@ -486,6 +511,11 @@
      "model": "anthropic/claude-opus-4.6",
      "slug": "anthropic--claude-opus-4.6",
      "total_steps": 0
+    },
+    {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 6
     },
     {
      "model": "deepseek-reasoner",
@@ -508,9 +538,19 @@
      "total_steps": 11
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 4
+    },
+    {
      "model": "qwen/qwen3.6-plus",
      "slug": "qwen--qwen3.6-plus",
      "total_steps": 14
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-causal-observational-linear-non-gaussian",
+     "slug": "vllm--qwen35-4b-base__cc-manual-causal-observational-linear-non-gaussian",
+     "total_steps": 20
     }
    ]
   },
@@ -522,6 +562,11 @@
      "model": "anthropic/claude-opus-4.6",
      "slug": "anthropic--claude-opus-4.6",
      "total_steps": 0
+    },
+    {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 5
     },
     {
      "model": "deepseek-reasoner",
@@ -544,9 +589,19 @@
      "total_steps": 7
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 1
+    },
+    {
      "model": "qwen/qwen3.6-plus",
      "slug": "qwen--qwen3.6-plus",
      "total_steps": 11
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-causal-observational-nonlinear",
+     "slug": "vllm--qwen35-4b-base__cc-manual-causal-observational-nonlinear",
+     "total_steps": 20
     }
    ]
   },
@@ -563,6 +618,11 @@
      "model": "claude-opus-4.6",
      "slug": "claude-opus-4.6",
      "total_steps": 6
+    },
+    {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 2
     },
     {
      "model": "deepseek-reasoner",
@@ -590,6 +650,11 @@
      "total_steps": 6
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 1
+    },
+    {
      "model": "qwen/qwen3.6-plus",
      "slug": "qwen--qwen3.6-plus",
      "total_steps": 0
@@ -603,6 +668,11 @@
      "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
      "slug": "vertex_ai--deepseek-ai--deepseek-v3.2-maas",
      "total_steps": 8
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-causal-treatment-effect",
+     "slug": "vllm--qwen35-4b-base__cc-manual-causal-treatment-effect",
+     "total_steps": 20
     }
    ]
   },
@@ -2493,6 +2563,32 @@
    ]
   },
   {
+   "id": "llm-pretrain-precision",
+   "name": "LLM Pretraining: FP8 Precision Policy",
+   "conversations": [
+    {
+     "model": "claude-opus-4.6",
+     "slug": "claude-opus-4.6",
+     "total_steps": 7
+    },
+    {
+     "model": "deepseek-reasoner",
+     "slug": "deepseek-reasoner",
+     "total_steps": 20
+    },
+    {
+     "model": "gemini-3.1-pro-preview",
+     "slug": "gemini-3.1-pro-preview",
+     "total_steps": 6
+    },
+    {
+     "model": "qwen3.6-plus",
+     "slug": "qwen3.6-plus",
+     "total_steps": 2
+    }
+   ]
+  },
+  {
    "id": "llm-pretrain-residual",
    "name": "Transformer Residual Stream Strategy",
    "conversations": [
@@ -2520,6 +2616,42 @@
      "model": "qwen3.6-plus",
      "slug": "qwen3.6-plus",
      "total_steps": 18
+    }
+   ]
+  },
+  {
+   "id": "llm-pretrain-sparse-attention",
+   "name": "Sparse Attention Pretraining",
+   "conversations": [
+    {
+     "model": "claude-opus-4-6",
+     "slug": "claude-opus-4-6",
+     "total_steps": 4
+    },
+    {
+     "model": "claude-opus-4.6",
+     "slug": "claude-opus-4.6",
+     "total_steps": 0
+    },
+    {
+     "model": "gemini/gemini-3.1-pro-preview",
+     "slug": "gemini--gemini-3.1-pro-preview",
+     "total_steps": 6
+    },
+    {
+     "model": "openai/gpt-5.4",
+     "slug": "openai--gpt-5.4",
+     "total_steps": 8
+    },
+    {
+     "model": "qwen3.6-plus",
+     "slug": "qwen3.6-plus",
+     "total_steps": 11
+    },
+    {
+     "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+     "slug": "vertex_ai--deepseek-ai--deepseek-v3.2-maas",
+     "total_steps": 6
     }
    ]
   },
@@ -2734,6 +2866,11 @@
      "total_steps": 8
     },
     {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 6
+    },
+    {
      "model": "deepseek-reasoner",
      "slug": "deepseek-reasoner",
      "total_steps": 7
@@ -2749,9 +2886,19 @@
      "total_steps": 8
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 1
+    },
+    {
      "model": "qwen/qwen3.6-plus",
      "slug": "qwen--qwen3.6-plus",
      "total_steps": 21
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-llm-scaling-law-discovery",
+     "slug": "vllm--qwen35-4b-base__cc-manual-llm-scaling-law-discovery",
+     "total_steps": 0
     }
    ]
   },
@@ -2996,6 +3143,11 @@
      "total_steps": 7
     },
     {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 4
+    },
+    {
      "model": "deepseek-reasoner",
      "slug": "deepseek-reasoner",
      "total_steps": 7
@@ -3011,9 +3163,19 @@
      "total_steps": 5
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    },
+    {
      "model": "qwen/qwen3.6-plus",
      "slug": "qwen--qwen3.6-plus",
      "total_steps": 16
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-ml-active-learning",
+     "slug": "vllm--qwen35-4b-base__cc-manual-ml-active-learning",
+     "total_steps": 20
     }
    ]
   },
@@ -3032,6 +3194,11 @@
      "total_steps": 5
     },
     {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 7
+    },
+    {
      "model": "deepseek-reasoner",
      "slug": "deepseek-reasoner",
      "total_steps": 15
@@ -3047,6 +3214,11 @@
      "total_steps": 5
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    },
+    {
      "model": "qwen/qwen3.6-plus",
      "slug": "qwen--qwen3.6-plus",
      "total_steps": 20
@@ -3055,6 +3227,11 @@
      "model": "qwen3.6-plus",
      "slug": "qwen3.6-plus",
      "total_steps": 8
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-ml-anomaly-detection",
+     "slug": "vllm--qwen35-4b-base__cc-manual-ml-anomaly-detection",
+     "total_steps": 20
     }
    ]
   },
@@ -3066,6 +3243,11 @@
      "model": "anthropic/claude-opus-4.6",
      "slug": "anthropic--claude-opus-4.6",
      "total_steps": 7
+    },
+    {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 4
     },
     {
      "model": "deepseek-reasoner",
@@ -3083,9 +3265,24 @@
      "total_steps": 8
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    },
+    {
+     "model": "poe/qwen3.7max",
+     "slug": "poe--qwen3.7max",
+     "total_steps": 0
+    },
+    {
      "model": "qwen/qwen3.6-plus",
      "slug": "qwen--qwen3.6-plus",
      "total_steps": 13
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-ml-calibration",
+     "slug": "vllm--qwen35-4b-base__cc-manual-ml-calibration",
+     "total_steps": 20
     }
    ]
   },
@@ -3117,6 +3314,11 @@
      "model": "claude-sonnet-4-5",
      "slug": "claude-sonnet-4-5",
      "total_steps": 0
+    },
+    {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 4
     },
     {
      "model": "deepseek-chat",
@@ -3159,6 +3361,11 @@
      "total_steps": 3
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    },
+    {
      "model": "qwen-3.6-plus",
      "slug": "qwen-3.6-plus",
      "total_steps": 1
@@ -3172,6 +3379,21 @@
      "model": "qwen3.6-plus",
      "slug": "qwen3.6-plus",
      "total_steps": 1
+    },
+    {
+     "model": "vllm/mls-mock__cc-manual-ml-clustering-algorithm",
+     "slug": "vllm--mls-mock__cc-manual-ml-clustering-algorithm",
+     "total_steps": 2
+    },
+    {
+     "model": "vllm/parquet-prep",
+     "slug": "vllm--parquet-prep",
+     "total_steps": 0
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-ml-clustering-algorithm",
+     "slug": "vllm--qwen35-4b-base__cc-manual-ml-clustering-algorithm",
+     "total_steps": 20
     }
    ]
   },
@@ -3216,6 +3438,11 @@
      "total_steps": 7
     },
     {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 2
+    },
+    {
      "model": "deepseek-reasoner",
      "slug": "deepseek-reasoner",
      "total_steps": 7
@@ -3231,8 +3458,18 @@
      "total_steps": 3
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    },
+    {
      "model": "qwen/qwen3.6-plus",
      "slug": "qwen--qwen3.6-plus",
+     "total_steps": 20
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-ml-dimensionality-reduction",
+     "slug": "vllm--qwen35-4b-base__cc-manual-ml-dimensionality-reduction",
      "total_steps": 20
     }
    ]
@@ -3244,6 +3481,11 @@
     {
      "model": "anthropic/claude-opus-4.6",
      "slug": "anthropic--claude-opus-4.6",
+     "total_steps": 7
+    },
+    {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
      "total_steps": 7
     },
     {
@@ -3262,9 +3504,50 @@
      "total_steps": 7
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    },
+    {
      "model": "qwen/qwen3.6-plus",
      "slug": "qwen--qwen3.6-plus",
      "total_steps": 18
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-ml-ensemble-boosting",
+     "slug": "vllm--qwen35-4b-base__cc-manual-ml-ensemble-boosting",
+     "total_steps": 20
+    }
+   ]
+  },
+  {
+   "id": "ml-feature-selection",
+   "name": "Univariate Feature Scoring",
+   "conversations": [
+    {
+     "model": "anthropic/claude-opus-4.6",
+     "slug": "anthropic--claude-opus-4.6",
+     "total_steps": 7
+    },
+    {
+     "model": "deepseek-reasoner",
+     "slug": "deepseek-reasoner",
+     "total_steps": 7
+    },
+    {
+     "model": "google/gemini-3.1-pro-preview",
+     "slug": "google--gemini-3.1-pro-preview",
+     "total_steps": 11
+    },
+    {
+     "model": "openai/gpt-5.4",
+     "slug": "openai--gpt-5.4",
+     "total_steps": 7
+    },
+    {
+     "model": "qwen/qwen3.6-plus",
+     "slug": "qwen--qwen3.6-plus",
+     "total_steps": 13
     }
    ]
   },
@@ -3309,6 +3592,11 @@
      "total_steps": 5
     },
     {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 4
+    },
+    {
      "model": "deepseek-reasoner",
      "slug": "deepseek-reasoner",
      "total_steps": 7
@@ -3324,8 +3612,18 @@
      "total_steps": 8
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 1
+    },
+    {
      "model": "qwen/qwen3.6-plus",
      "slug": "qwen--qwen3.6-plus",
+     "total_steps": 20
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-ml-missing-data-imputation",
+     "slug": "vllm--qwen35-4b-base__cc-manual-ml-missing-data-imputation",
      "total_steps": 20
     }
    ]
@@ -3345,6 +3643,11 @@
      "total_steps": 7
     },
     {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 6
+    },
+    {
      "model": "deepseek-reasoner",
      "slug": "deepseek-reasoner",
      "total_steps": 2
@@ -3365,6 +3668,11 @@
      "total_steps": 5
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    },
+    {
      "model": "qwen/qwen3.6-plus",
      "slug": "qwen--qwen3.6-plus",
      "total_steps": 0
@@ -3378,6 +3686,11 @@
      "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
      "slug": "vertex_ai--deepseek-ai--deepseek-v3.2-maas",
      "total_steps": 11
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-ml-selective-deferral",
+     "slug": "vllm--qwen35-4b-base__cc-manual-ml-selective-deferral",
+     "total_steps": 20
     }
    ]
   },
@@ -3396,6 +3709,11 @@
      "total_steps": 7
     },
     {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 5
+    },
+    {
      "model": "deepseek-reasoner",
      "slug": "deepseek-reasoner",
      "total_steps": 2
@@ -3416,6 +3734,11 @@
      "total_steps": 5
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 1
+    },
+    {
      "model": "qwen/qwen3.6-plus",
      "slug": "qwen--qwen3.6-plus",
      "total_steps": 0
@@ -3429,6 +3752,11 @@
      "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
      "slug": "vertex_ai--deepseek-ai--deepseek-v3.2-maas",
      "total_steps": 7
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-ml-subgroup-calibration-shift",
+     "slug": "vllm--qwen35-4b-base__cc-manual-ml-subgroup-calibration-shift",
+     "total_steps": 20
     }
    ]
   },
@@ -3445,6 +3773,11 @@
      "model": "claude-opus-4.6",
      "slug": "claude-opus-4.6",
      "total_steps": 7
+    },
+    {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 4
     },
     {
      "model": "deepseek-reasoner",
@@ -3467,6 +3800,11 @@
      "total_steps": 5
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    },
+    {
      "model": "qwen/qwen3.6-plus",
      "slug": "qwen--qwen3.6-plus",
      "total_steps": 21
@@ -3480,6 +3818,11 @@
      "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
      "slug": "vertex_ai--deepseek-ai--deepseek-v3.2-maas",
      "total_steps": 14
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-ml-symbolic-regression",
+     "slug": "vllm--qwen35-4b-base__cc-manual-ml-symbolic-regression",
+     "total_steps": 20
     }
    ]
   },
@@ -3539,6 +3882,11 @@
      "total_steps": 0
     },
     {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 2
+    },
+    {
      "model": "deepseek-reasoner",
      "slug": "deepseek-reasoner",
      "total_steps": 0
@@ -3559,6 +3907,11 @@
      "total_steps": 5
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    },
+    {
      "model": "qwen/qwen3.6-plus",
      "slug": "qwen--qwen3.6-plus",
      "total_steps": 0
@@ -3572,6 +3925,11 @@
      "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
      "slug": "vertex_ai--deepseek-ai--deepseek-v3.2-maas",
      "total_steps": 10
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-mlsys-moe-load-balance",
+     "slug": "vllm--qwen35-4b-base__cc-manual-mlsys-moe-load-balance",
+     "total_steps": 20
     }
    ]
   },
@@ -3700,6 +4058,11 @@
      "model": "qwen/qwen3.6-plus:free",
      "slug": "qwen--qwen3.6-plus:free",
      "total_steps": 13
+    },
+    {
+     "model": "vllm/parquet-prep",
+     "slug": "vllm--parquet-prep",
+     "total_steps": 0
     }
    ]
   },
@@ -3785,6 +4148,11 @@
      "total_steps": 7
     },
     {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 3
+    },
+    {
      "model": "deepseek-reasoner",
      "slug": "deepseek-reasoner",
      "total_steps": 9
@@ -3810,8 +4178,18 @@
      "total_steps": 6
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    },
+    {
      "model": "qwen/qwen3.6-plus:free",
      "slug": "qwen--qwen3.6-plus:free",
+     "total_steps": 20
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-optimization-evolution-strategy",
+     "slug": "vllm--qwen35-4b-base__cc-manual-optimization-evolution-strategy",
      "total_steps": 20
     }
    ]
@@ -3867,6 +4245,11 @@
      "total_steps": 7
     },
     {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 2
+    },
+    {
      "model": "deepseek-reasoner",
      "slug": "deepseek-reasoner",
      "total_steps": 21
@@ -3892,9 +4275,19 @@
      "total_steps": 6
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    },
+    {
      "model": "qwen/qwen3.6-plus:free",
      "slug": "qwen--qwen3.6-plus:free",
      "total_steps": 11
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-optimization-hyperparameter-search",
+     "slug": "vllm--qwen35-4b-base__cc-manual-optimization-hyperparameter-search",
+     "total_steps": 20
     }
    ]
   },
@@ -3906,6 +4299,11 @@
      "model": "anthropic/claude-opus-4.6",
      "slug": "anthropic--claude-opus-4.6",
      "total_steps": 7
+    },
+    {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 2
     },
     {
      "model": "deepseek-reasoner",
@@ -3933,9 +4331,19 @@
      "total_steps": 6
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    },
+    {
      "model": "qwen/qwen3.6-plus:free",
      "slug": "qwen--qwen3.6-plus:free",
      "total_steps": 7
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-optimization-multi-objective",
+     "slug": "vllm--qwen35-4b-base__cc-manual-optimization-multi-objective",
+     "total_steps": 20
     }
    ]
   },
@@ -3947,6 +4355,11 @@
      "model": "anthropic/claude-opus-4.6",
      "slug": "anthropic--claude-opus-4.6",
      "total_steps": 7
+    },
+    {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 5
     },
     {
      "model": "deepseek-reasoner",
@@ -3974,6 +4387,11 @@
      "total_steps": 5
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    },
+    {
      "model": "qwen/qwen3.6-plus",
      "slug": "qwen--qwen3.6-plus",
      "total_steps": 10
@@ -3982,6 +4400,11 @@
      "model": "qwen/qwen3.6-plus:free",
      "slug": "qwen--qwen3.6-plus:free",
      "total_steps": 15
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-optimization-nas",
+     "slug": "vllm--qwen35-4b-base__cc-manual-optimization-nas",
+     "total_steps": 20
     }
    ]
   },
@@ -3993,6 +4416,11 @@
      "model": "anthropic/claude-opus-4.6",
      "slug": "anthropic--claude-opus-4.6",
      "total_steps": 6
+    },
+    {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 1
     },
     {
      "model": "deepseek-reasoner",
@@ -4015,9 +4443,24 @@
      "total_steps": 8
     },
     {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    },
+    {
+     "model": "poe/qwen3.7max",
+     "slug": "poe--qwen3.7max",
+     "total_steps": 0
+    },
+    {
      "model": "qwen/qwen3.6-plus:free",
      "slug": "qwen--qwen3.6-plus:free",
      "total_steps": 9
+    },
+    {
+     "model": "vllm/qwen35-4b-base__cc-manual-optimization-online-bandit",
+     "slug": "vllm--qwen35-4b-base__cc-manual-optimization-online-bandit",
+     "total_steps": 20
     }
    ]
   },
@@ -4379,6 +4822,22 @@
    ]
   },
   {
+   "id": "rl-gcrl-goal-representation",
+   "name": "Goal-Conditioned RL Representation",
+   "conversations": [
+    {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 3
+    },
+    {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    }
+   ]
+  },
+  {
    "id": "rl-intrinsic-exploration",
    "name": "Intrinsic Exploration for Sparse Rewards",
    "conversations": [
@@ -4507,6 +4966,42 @@
    ]
   },
   {
+   "id": "rl-offline-discrete",
+   "name": "Offline RL for Discrete Visual Control",
+   "conversations": [
+    {
+     "model": "anthropic/claude-opus-4.6",
+     "slug": "anthropic--claude-opus-4.6",
+     "total_steps": 2
+    },
+    {
+     "model": "deepseek-reasoner",
+     "slug": "deepseek-reasoner",
+     "total_steps": 7
+    },
+    {
+     "model": "google/gemini-3.1-pro-preview",
+     "slug": "google--gemini-3.1-pro-preview",
+     "total_steps": 4
+    },
+    {
+     "model": "gpt-5.4-pro",
+     "slug": "gpt-5.4-pro",
+     "total_steps": 0
+    },
+    {
+     "model": "openai/gpt-5.4-pro",
+     "slug": "openai--gpt-5.4-pro",
+     "total_steps": 2
+    },
+    {
+     "model": "qwen/qwen3.6-plus:free",
+     "slug": "qwen--qwen3.6-plus:free",
+     "total_steps": 2
+    }
+   ]
+  },
+  {
    "id": "rl-offline-off2on",
    "name": "Offline-to-Online Fine-Tuning Without Forgetting",
    "conversations": [
@@ -4534,6 +5029,42 @@
      "model": "qwen3.6-max-preview",
      "slug": "qwen3.6-max-preview",
      "total_steps": 3
+    }
+   ]
+  },
+  {
+   "id": "rl-offline-pomdp",
+   "name": "Offline RL under Partial Observability",
+   "conversations": [
+    {
+     "model": "anthropic/claude-opus-4.6",
+     "slug": "anthropic--claude-opus-4.6",
+     "total_steps": 2
+    },
+    {
+     "model": "deepseek-reasoner",
+     "slug": "deepseek-reasoner",
+     "total_steps": 9
+    },
+    {
+     "model": "google/gemini-3.1-pro-preview",
+     "slug": "google--gemini-3.1-pro-preview",
+     "total_steps": 7
+    },
+    {
+     "model": "gpt-5.4-pro",
+     "slug": "gpt-5.4-pro",
+     "total_steps": 0
+    },
+    {
+     "model": "openai/gpt-5.4-pro",
+     "slug": "openai--gpt-5.4-pro",
+     "total_steps": 2
+    },
+    {
+     "model": "qwen/qwen3.6-plus:free",
+     "slug": "qwen--qwen3.6-plus:free",
+     "total_steps": 5
     }
    ]
   },
@@ -4575,6 +5106,22 @@
      "model": "qwen/qwen3.6-plus:free",
      "slug": "qwen--qwen3.6-plus:free",
      "total_steps": 9
+    }
+   ]
+  },
+  {
+   "id": "rl-offpolicy-sample-efficiency",
+   "name": "Off-Policy Humanoid Locomotion",
+   "conversations": [
+    {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 3
+    },
+    {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
     }
    ]
   },
@@ -5040,6 +5587,22 @@
    ]
   },
   {
+   "id": "safe-exploration-fixed-budget",
+   "name": "Safe RL Fixed-Budget Constraint",
+   "conversations": [
+    {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 10
+    },
+    {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    }
+   ]
+  },
+  {
    "id": "safe-rl",
    "name": "Constraint Handling for Safe RL",
    "conversations": [
@@ -5472,6 +6035,86 @@
    ]
   },
   {
+   "id": "theory-dnf",
+   "name": "Differentiable DNF Learner",
+   "conversations": [
+    {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 1
+    },
+    {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    }
+   ]
+  },
+  {
+   "id": "theory-dyck",
+   "name": "Length-Generalizing Dyck Stack Model",
+   "conversations": [
+    {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 3
+    },
+    {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    }
+   ]
+  },
+  {
+   "id": "theory-multi-index",
+   "name": "Multi-Index Feature Learning Strategy",
+   "conversations": [
+    {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 1
+    },
+    {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    }
+   ]
+  },
+  {
+   "id": "theory-single-index",
+   "name": "Single-Index Feature Recovery Strategy",
+   "conversations": [
+    {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 2
+    },
+    {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    }
+   ]
+  },
+  {
+   "id": "theory-staircase",
+   "name": "Sparse Staircase Function Learning",
+   "conversations": [
+    {
+     "model": "dashscope/qwen3.7-max",
+     "slug": "dashscope--qwen3.7-max",
+     "total_steps": 1
+    },
+    {
+     "model": "poe/qwen3.7-max",
+     "slug": "poe--qwen3.7-max",
+     "total_steps": 0
+    }
+   ]
+  },
+  {
    "id": "ts-anomaly-detection",
    "name": "Reconstruction Model for Time-Series Anomaly Detection",
    "conversations": [
@@ -5773,6 +6416,42 @@
     {
      "model": "qwen/qwen3.6-plus:free",
      "slug": "qwen--qwen3.6-plus:free",
+     "total_steps": 9
+    }
+   ]
+  },
+  {
+   "id": "ttt-memory",
+   "name": "Test-Time Memory Module Design",
+   "conversations": [
+    {
+     "model": "claude-opus-4.6",
+     "slug": "claude-opus-4.6",
+     "total_steps": 9
+    },
+    {
+     "model": "gemini-3.1-pro-preview",
+     "slug": "gemini-3.1-pro-preview",
+     "total_steps": 0
+    },
+    {
+     "model": "gpt-5.4",
+     "slug": "gpt-5.4",
+     "total_steps": 0
+    },
+    {
+     "model": "openai/gpt-5.4",
+     "slug": "openai--gpt-5.4",
+     "total_steps": 2
+    },
+    {
+     "model": "qwen3.6-plus",
+     "slug": "qwen3.6-plus",
+     "total_steps": 7
+    },
+    {
+     "model": "vertex_ai/deepseek-ai/deepseek-v3.2-maas",
+     "slug": "vertex_ai--deepseek-ai--deepseek-v3.2-maas",
      "total_steps": 9
     }
    ]
