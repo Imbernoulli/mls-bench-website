@@ -14519,7 +14519,7 @@
       "file": "fql/custom_train.py",
       "start_line": 407,
       "end_line": 531,
-      "content": "class PolicyTrainer:\n    \"\"\"IQL: Implicit Q-Learning policy trainer.\n\n    Uses expectile regression for value function, then advantage-weighted\n    regression for the actor. No policy gradient through Q-values.\n    \"\"\"\n\n    @staticmethod\n    def create_policy_networks(obs_dim, action_dim, hidden_dims, layer_norm):\n        ex_obs = jnp.zeros((1, obs_dim))\n\n        actor_def = GaussianActor(\n            hidden_dims=hidden_dims,\n            action_dim=action_dim,\n            layer_norm=layer_norm,\n            state_dependent_std=False,\n            const_std=True,\n        )\n\n        value_def = Value(\n            hidden_dims=(512, 512, 512, 512),\n            layer_norm=True,\n            num_ensembles=1,\n        )\n\n        return {\n            'actor': (actor_def, (ex_obs,)),\n            'value': (value_def, (ex_obs,)),\n        }\n\n    @staticmethod\n    def compute_actor_loss(network, batch, config, rng):\n        # Expectile value loss.\n        expectile = 0.9\n        q1, q2 = jax.lax.stop_gradient(\n            network.select('target_critic')(batch['observations'], actions=batch['actions'])\n        )\n        q = jnp.minimum(q1, q2)\n        v = network.select('value')(batch['observations'])\n        diff = q - v\n        weight = jnp.where(diff >= 0, expectile, (1 - expectile))\n        value_loss = (weight * (diff ** 2)).mean()\n\n        # AWR actor loss.\n        v_detached = jax.lax.stop_gradient(v)\n        adv = q - v_detached\n        alpha = config.get('alpha', 10.0)\n        exp_a = jnp.exp(adv * alpha)\n        exp_a = jnp.minimum(exp_a, 100.0)\n\n        dist = network.select('actor')(batch['observations'])\n        log_prob = dist.log_prob(batch['actions'])\n        actor_loss = -(jax.lax.stop_gradient(exp_a) * log_prob).mean()\n\n        total_loss = value_loss + actor_loss\n\n        return total_loss, {\n            'actor_loss': actor_loss,\n            'value_loss': value_loss,\n            'total_loss': total_loss,\n            'adv_mean': adv.mean(),\n            'v_mean': v.mean(),\n            'bc_log_prob': log_prob.mean(),\n            'mse': jnp.mean((dist.mode() - batch['actions']) ** 2),\n        }\n\n    @staticmethod\n    def sample_actions(network, observations, config, seed, temperature=1.0):\n        dist = network.select('actor')(observations, temperature=temperature)\n        actions = dist.sample(seed=seed)\n        return jnp.clip(actions, -1, 1)\n\n    @staticmethod\n    def critic_target_values(network, batch, config, rng):\n        # IQL never bootstraps from the policy: its Bellman target is the\n        # in-sample expectile value V(s'), which is what makes it work on\n        # long-horizon stitching tasks\n        # (vendor/external_packages/fql/agents/iql.py:42-48).\n        return network.select('value')(batch['next_observations'])\n\n    @staticmethod\n    def get_target_update_modules():\n        return []\n\n    @staticmethod\n    def needs_next_actions():\n        return False\n\n"
+      "content": "class PolicyTrainer:\n    \"\"\"IQL: Implicit Q-Learning policy trainer.\n\n    Uses expectile regression for value function, then advantage-weighted\n    regression for the actor. No policy gradient through Q-values.\n    \"\"\"\n\n    @staticmethod\n    def create_policy_networks(obs_dim, action_dim, hidden_dims, layer_norm):\n        ex_obs = jnp.zeros((1, obs_dim))\n\n        actor_def = GaussianActor(\n            hidden_dims=hidden_dims,\n            action_dim=action_dim,\n            layer_norm=layer_norm,\n            state_dependent_std=False,\n            const_std=True,\n        )\n\n        value_def = Value(\n            hidden_dims=(512, 512, 512, 512),\n            layer_norm=True,\n            num_ensembles=1,\n        )\n\n        return {\n            'actor': (actor_def, (ex_obs,)),\n            'value': (value_def, (ex_obs,)),\n        }\n\n    @staticmethod\n    def compute_actor_loss(network, batch, config, rng):\n        # Expectile value loss.\n        expectile = 0.9\n        q1, q2 = jax.lax.stop_gradient(\n            network.select('target_critic')(batch['observations'], actions=batch['actions'])\n        )\n        q = jnp.minimum(q1, q2)\n        v = network.select('value')(batch['observations'])\n        diff = q - v\n        weight = jnp.where(diff >= 0, expectile, (1 - expectile))\n        value_loss = (weight * (diff ** 2)).mean()\n\n        # AWR actor loss.\n        v_detached = jax.lax.stop_gradient(v)\n        adv = q - v_detached\n        # AWR temperature. NOT config['alpha']: that knob carries FQL's BC\n        # coefficient, which the run scripts set per environment from the FQL\n        # README (300.0 on cube), and 300 as an AWR temperature saturates\n        # exp(300 * A) against the clip below for nearly every sample, turning\n        # advantage weighting into hard top-k filtering. IQL's own temperature\n        # is alpha=10.0 (vendor/external_packages/fql/agents/iql.py get_config,\n        # 'Temperature in AWR'), which is what the two settings that pass 10.0\n        # were already getting.\n        alpha = 10.0\n        exp_a = jnp.exp(adv * alpha)\n        exp_a = jnp.minimum(exp_a, 100.0)\n\n        dist = network.select('actor')(batch['observations'])\n        log_prob = dist.log_prob(batch['actions'])\n        actor_loss = -(jax.lax.stop_gradient(exp_a) * log_prob).mean()\n\n        total_loss = value_loss + actor_loss\n\n        return total_loss, {\n            'actor_loss': actor_loss,\n            'value_loss': value_loss,\n            'total_loss': total_loss,\n            'adv_mean': adv.mean(),\n            'v_mean': v.mean(),\n            'bc_log_prob': log_prob.mean(),\n            'mse': jnp.mean((dist.mode() - batch['actions']) ** 2),\n        }\n\n    @staticmethod\n    def sample_actions(network, observations, config, seed, temperature=1.0):\n        dist = network.select('actor')(observations, temperature=temperature)\n        actions = dist.sample(seed=seed)\n        return jnp.clip(actions, -1, 1)\n\n    @staticmethod\n    def critic_target_values(network, batch, config, rng):\n        # IQL never bootstraps from the policy: its Bellman target is the\n        # in-sample expectile value V(s'), which is what makes it work on\n        # long-horizon stitching tasks\n        # (vendor/external_packages/fql/agents/iql.py:42-48).\n        return network.select('value')(batch['next_observations'])\n\n    @staticmethod\n    def get_target_update_modules():\n        return []\n\n    @staticmethod\n    def needs_next_actions():\n        return False\n\n"
      }
     ],
     "rebrac": [
@@ -15264,7 +15264,7 @@
       "file": "CleanDiffuser/pipelines/custom_planner.py",
       "start_line": 81,
       "end_line": 113,
-      "content": "\n    # --------------- Level Setup -----------------\n    is_kitchen = (args.task.domain == \"kitchen\")\n    planning_horizons = [4, 5, 5] if is_kitchen else [5, 5, 9]\n    n_levels = len(planning_horizons)\n    temporal_horizons = [planning_horizons[-1] for _ in range(n_levels)]\n    for i in range(n_levels - 1):\n        temporal_horizons[-2 - i] = (planning_horizons[-2 - i] - 1) * (temporal_horizons[-1 - i] - 1) + 1\n    lite_discount = 0.99\n    lite_w_cfgs = [1.0, 1.0, 1.0]\n    lite_tgts = [0.3, 0.35, 0.4, 0.5] if \"mixed\" in args.task.env_name else [0.25, 0.35, 0.45, 0.5]\n    lite_batch_size = 256\n\n    # --------------- Network Architecture -----------------\n    fix_masks = [torch.zeros((h, obs_dim)) for h in planning_horizons]\n    loss_weights = [torch.ones((h, obs_dim)) for h in planning_horizons]\n    for i in range(n_levels):\n        fix_idx = 0 if i == 0 else [0, -1]\n        fix_masks[i][fix_idx, :] = 1.\n        loss_weights[i][1, :] = 10.\n\n    nn_diffusions = [\n        DiT1d(obs_dim, emb_dim=256, d_model=320, n_heads=10, depth=2,\n              timestep_emb_type=\"fourier\")\n        for _ in range(n_levels)]\n    nn_conditions = [\n        MLPCondition(1, 256, hidden_dims=[256, ])\n        for _ in range(n_levels)]\n\n    diffusions = [\n        ContinuousRectifiedFlow(\n            nn_diffusions[i], nn_conditions[i], fix_masks[i], loss_weights[i],\n            ema_rate=args.ema_rate, device=args.device)\n        for i in range(n_levels)]\n\n    invdyn = FancyMlpInvDynamic(obs_dim, act_dim, 256, nn.Tanh(), add_dropout=True, device=args.device)\n\n    iql = IQL(obs_dim, act_dim, hidden_dim=512, discount=lite_discount, tau=0.7).to(args.device) \\\n        if is_kitchen else None\n"
+      "content": "\n    # --------------- Level Setup -----------------\n    is_kitchen = (args.task.domain == \"kitchen\")\n    planning_horizons = [4, 5, 5] if is_kitchen else [5, 5, 9]\n    n_levels = len(planning_horizons)\n    temporal_horizons = [planning_horizons[-1] for _ in range(n_levels)]\n    for i in range(n_levels - 1):\n        temporal_horizons[-2 - i] = (planning_horizons[-2 - i] - 1) * (temporal_horizons[-1 - i] - 1) + 1\n    # Upstream uses a DIFFERENT discount per domain: configs/diffuserlite/\n    # kitchen/kitchen.yaml has 0.99, mujoco/mujoco.yaml has 0.997. Hardcoding\n    # 0.99 was right for kitchen and wrong for mujoco, and it broke the return\n    # conditioning rather than merely detuning it: the value labels are\n    # val/DD_RETURN_SCALE, and DD_RETURN_SCALE['walker2d-medium-replay-v2']=1300\n    # is calibrated for 0.997 (a ~4 reward/step trajectory discounted at 0.997\n    # over 1000 steps sums to ~1267). At 0.99 the same trajectory sums to ~400,\n    # so the best data normalises to 0.31 while inference conditions on\n    # target_return_lite = 0.9 -- roughly 3x outside anything seen in training.\n    lite_discount = 0.99 if is_kitchen else 0.997\n    lite_w_cfgs = [1.0, 1.0, 1.0]\n    lite_tgts = [0.3, 0.35, 0.4, 0.5] if \"mixed\" in args.task.env_name else [0.25, 0.35, 0.45, 0.5]\n    lite_batch_size = 256\n\n    # --------------- Network Architecture -----------------\n    fix_masks = [torch.zeros((h, obs_dim)) for h in planning_horizons]\n    loss_weights = [torch.ones((h, obs_dim)) for h in planning_horizons]\n    for i in range(n_levels):\n        fix_idx = 0 if i == 0 else [0, -1]\n        fix_masks[i][fix_idx, :] = 1.\n        loss_weights[i][1, :] = 10.\n\n    nn_diffusions = [\n        DiT1d(obs_dim, emb_dim=256, d_model=320, n_heads=10, depth=2,\n              timestep_emb_type=\"fourier\")\n        for _ in range(n_levels)]\n    nn_conditions = [\n        MLPCondition(1, 256, hidden_dims=[256, ])\n        for _ in range(n_levels)]\n\n    diffusions = [\n        ContinuousRectifiedFlow(\n            nn_diffusions[i], nn_conditions[i], fix_masks[i], loss_weights[i],\n            ema_rate=args.ema_rate, device=args.device)\n        for i in range(n_levels)]\n\n    invdyn = FancyMlpInvDynamic(obs_dim, act_dim, 256, nn.Tanh(), add_dropout=True, device=args.device)\n\n    iql = IQL(obs_dim, act_dim, hidden_dim=512, discount=lite_discount, tau=0.7).to(args.device) \\\n        if is_kitchen else None\n"
      },
      {
       "file": "CleanDiffuser/pipelines/custom_planner.py",
@@ -20238,6 +20238,18 @@
    ],
    "rows": [
     {
+     "timestamp": "2026-09-01T07:47:58.172506+00:00",
+     "model": "baseline:MLP",
+     "is_final": true,
+     "seed": "123",
+     "elapsed_BLAT_ECOLX": 76.57587099075317,
+     "elapsed_ESTA_BACSU": 48.542189836502075,
+     "elapsed_RASH_HUMAN": 32.025264739990234,
+     "spearman_BLAT_ECOLX": 0.884587,
+     "spearman_ESTA_BACSU": 0.642946,
+     "spearman_RASH_HUMAN": 0.808085
+    },
+    {
      "timestamp": "2026-04-27T03:57:47.936632+00:00",
      "model": "baseline:MLP",
      "is_final": true,
@@ -20248,6 +20260,54 @@
      "spearman_BLAT_ECOLX": 0.88254,
      "spearman_ESTA_BACSU": 0.64249,
      "spearman_RASH_HUMAN": 0.808986
+    },
+    {
+     "timestamp": "2026-09-01T07:47:58.321783+00:00",
+     "model": "baseline:MLP",
+     "is_final": true,
+     "seed": "42",
+     "elapsed_BLAT_ECOLX": 74.07419109344482,
+     "elapsed_ESTA_BACSU": 50.54575490951538,
+     "elapsed_RASH_HUMAN": 38.03392291069031,
+     "spearman_BLAT_ECOLX": 0.882548,
+     "spearman_ESTA_BACSU": 0.642492,
+     "spearman_RASH_HUMAN": 0.806549
+    },
+    {
+     "timestamp": "2026-09-01T07:47:58.324062+00:00",
+     "model": "baseline:MLP",
+     "is_final": true,
+     "seed": "456",
+     "elapsed_BLAT_ECOLX": 72.56748366355896,
+     "elapsed_ESTA_BACSU": 52.542707443237305,
+     "elapsed_RASH_HUMAN": 35.52632784843445,
+     "spearman_BLAT_ECOLX": 0.885074,
+     "spearman_ESTA_BACSU": 0.642457,
+     "spearman_RASH_HUMAN": 0.807928
+    },
+    {
+     "timestamp": "2026-09-01T07:47:58.337423+00:00",
+     "model": "baseline:MLP",
+     "is_final": true,
+     "seed": "mean",
+     "elapsed_BLAT_ECOLX": 74.40584858258565,
+     "elapsed_ESTA_BACSU": 50.54355072975159,
+     "elapsed_RASH_HUMAN": 35.19517183303833,
+     "spearman_BLAT_ECOLX": 0.8840696666666666,
+     "spearman_ESTA_BACSU": 0.6426316666666666,
+     "spearman_RASH_HUMAN": 0.8075206666666667
+    },
+    {
+     "timestamp": "2026-09-01T07:47:58.748512+00:00",
+     "model": "baseline:Reshape CNN",
+     "is_final": true,
+     "seed": "123",
+     "elapsed_BLAT_ECOLX": 130.1196722984314,
+     "elapsed_ESTA_BACSU": 58.56065082550049,
+     "elapsed_RASH_HUMAN": 65.57601833343506,
+     "spearman_BLAT_ECOLX": 0.858515,
+     "spearman_ESTA_BACSU": 0.63834,
+     "spearman_RASH_HUMAN": 0.792505
     },
     {
      "timestamp": "2026-04-27T03:58:33.115492+00:00",
@@ -20262,6 +20322,54 @@
      "spearman_RASH_HUMAN": 0.798003
     },
     {
+     "timestamp": "2026-09-01T07:47:59.250278+00:00",
+     "model": "baseline:Reshape CNN",
+     "is_final": true,
+     "seed": "42",
+     "elapsed_BLAT_ECOLX": 112.10578203201294,
+     "elapsed_ESTA_BACSU": 56.560478925704956,
+     "elapsed_RASH_HUMAN": 63.07383060455322,
+     "spearman_BLAT_ECOLX": 0.854938,
+     "spearman_ESTA_BACSU": 0.629112,
+     "spearman_RASH_HUMAN": 0.794119
+    },
+    {
+     "timestamp": "2026-09-01T07:47:59.317223+00:00",
+     "model": "baseline:Reshape CNN",
+     "is_final": true,
+     "seed": "456",
+     "elapsed_BLAT_ECOLX": 134.62104678153992,
+     "elapsed_ESTA_BACSU": 60.56053113937378,
+     "elapsed_RASH_HUMAN": 74.58514261245728,
+     "spearman_BLAT_ECOLX": 0.862747,
+     "spearman_ESTA_BACSU": 0.650321,
+     "spearman_RASH_HUMAN": 0.795617
+    },
+    {
+     "timestamp": "2026-09-01T07:47:59.339263+00:00",
+     "model": "baseline:Reshape CNN",
+     "is_final": true,
+     "seed": "mean",
+     "elapsed_BLAT_ECOLX": 125.61550037066142,
+     "elapsed_ESTA_BACSU": 58.56055363019308,
+     "elapsed_RASH_HUMAN": 67.74499718348186,
+     "spearman_BLAT_ECOLX": 0.8587333333333333,
+     "spearman_ESTA_BACSU": 0.6392576666666666,
+     "spearman_RASH_HUMAN": 0.7940803333333334
+    },
+    {
+     "timestamp": "2026-09-01T07:47:59.507003+00:00",
+     "model": "baseline:Ridge Regression",
+     "is_final": true,
+     "seed": "123",
+     "elapsed_BLAT_ECOLX": 102.57157516479492,
+     "elapsed_ESTA_BACSU": 11.013809442520142,
+     "elapsed_RASH_HUMAN": 67.04848980903625,
+     "spearman_BLAT_ECOLX": 0.738368,
+     "spearman_ESTA_BACSU": -0.107693,
+     "spearman_RASH_HUMAN": 0.681511
+    },
+    {
      "timestamp": "2026-04-27T03:56:36.673712+00:00",
      "model": "baseline:Ridge Regression",
      "is_final": true,
@@ -20272,6 +20380,42 @@
      "spearman_BLAT_ECOLX": 0.736985,
      "spearman_ESTA_BACSU": -0.107204,
      "spearman_RASH_HUMAN": 0.681465
+    },
+    {
+     "timestamp": "2026-09-01T07:47:59.636054+00:00",
+     "model": "baseline:Ridge Regression",
+     "is_final": true,
+     "seed": "42",
+     "elapsed_BLAT_ECOLX": 103.07484912872314,
+     "elapsed_ESTA_BACSU": 10.013931512832642,
+     "elapsed_RASH_HUMAN": 69.05201983451843,
+     "spearman_BLAT_ECOLX": 0.736985,
+     "spearman_ESTA_BACSU": -0.107204,
+     "spearman_RASH_HUMAN": 0.681465
+    },
+    {
+     "timestamp": "2026-09-01T07:47:59.737264+00:00",
+     "model": "baseline:Ridge Regression",
+     "is_final": true,
+     "seed": "456",
+     "elapsed_BLAT_ECOLX": 102.56955552101135,
+     "elapsed_ESTA_BACSU": 11.011821508407593,
+     "elapsed_RASH_HUMAN": 68.04753232002258,
+     "spearman_BLAT_ECOLX": 0.738043,
+     "spearman_ESTA_BACSU": -0.113771,
+     "spearman_RASH_HUMAN": 0.68095
+    },
+    {
+     "timestamp": "2026-09-01T07:47:59.792826+00:00",
+     "model": "baseline:Ridge Regression",
+     "is_final": true,
+     "seed": "mean",
+     "elapsed_BLAT_ECOLX": 102.73865993817647,
+     "elapsed_ESTA_BACSU": 10.679854154586792,
+     "elapsed_RASH_HUMAN": 68.04934732119243,
+     "spearman_BLAT_ECOLX": 0.7377986666666668,
+     "spearman_ESTA_BACSU": -0.109556,
+     "spearman_RASH_HUMAN": 0.6813086666666667
     },
     {
      "timestamp": "2026-05-01T08:35:08.424255+00:00",
@@ -188792,7 +188936,116 @@
      ]
     }
    ],
-   "rows": []
+   "rows": [
+    {
+     "timestamp": "2026-09-01T07:21:06.247806+00:00",
+     "model": "baseline:Conv-TasNet",
+     "is_final": true,
+     "seed": "42",
+     "si_snr_voicebank-demand": 19.5978,
+     "pesq_voicebank-demand": 2.6822,
+     "stoi_voicebank-demand": 0.9433,
+     "elapsed_voicebank-demand": 29689.979790449142,
+     "si_snr_noisy-reverb-vctk": -3.2409,
+     "pesq_noisy-reverb-vctk": 1.451,
+     "stoi_noisy-reverb-vctk": 0.7952,
+     "elapsed_noisy-reverb-vctk": 29726.52891945839,
+     "si_snr_reverb-vctk": -4.9128,
+     "pesq_reverb-vctk": 1.5862,
+     "stoi_reverb-vctk": 0.8479,
+     "elapsed_reverb-vctk": 29726.025123357773
+    },
+    {
+     "timestamp": "2026-09-01T07:21:06.248418+00:00",
+     "model": "baseline:Conv-TasNet",
+     "is_final": true,
+     "seed": "mean",
+     "si_snr_voicebank-demand": 19.5978,
+     "pesq_voicebank-demand": 2.6822,
+     "stoi_voicebank-demand": 0.9433,
+     "elapsed_voicebank-demand": 29689.979790449142,
+     "si_snr_noisy-reverb-vctk": -3.2409,
+     "pesq_noisy-reverb-vctk": 1.451,
+     "stoi_noisy-reverb-vctk": 0.7952,
+     "elapsed_noisy-reverb-vctk": 29726.52891945839,
+     "si_snr_reverb-vctk": -4.9128,
+     "pesq_reverb-vctk": 1.5862,
+     "stoi_reverb-vctk": 0.8479,
+     "elapsed_reverb-vctk": 29726.025123357773
+    },
+    {
+     "timestamp": "2026-09-01T07:21:06.248707+00:00",
+     "model": "baseline:DCCRN",
+     "is_final": true,
+     "seed": "42",
+     "si_snr_voicebank-demand": 18.6014,
+     "pesq_voicebank-demand": 2.6154,
+     "stoi_voicebank-demand": 0.9396,
+     "elapsed_voicebank-demand": 7095.886271953583,
+     "si_snr_noisy-reverb-vctk": -2.899,
+     "pesq_noisy-reverb-vctk": 1.4149,
+     "stoi_noisy-reverb-vctk": 0.7915,
+     "elapsed_noisy-reverb-vctk": 6676.5430500507355,
+     "si_snr_reverb-vctk": -4.8313,
+     "pesq_reverb-vctk": 1.7785,
+     "stoi_reverb-vctk": 0.8585,
+     "elapsed_reverb-vctk": 6982.260876893997
+    },
+    {
+     "timestamp": "2026-09-01T07:21:06.248971+00:00",
+     "model": "baseline:DCCRN",
+     "is_final": true,
+     "seed": "mean",
+     "si_snr_voicebank-demand": 18.6014,
+     "pesq_voicebank-demand": 2.6154,
+     "stoi_voicebank-demand": 0.9396,
+     "elapsed_voicebank-demand": 7095.886271953583,
+     "si_snr_noisy-reverb-vctk": -2.899,
+     "pesq_noisy-reverb-vctk": 1.4149,
+     "stoi_noisy-reverb-vctk": 0.7915,
+     "elapsed_noisy-reverb-vctk": 6676.5430500507355,
+     "si_snr_reverb-vctk": -4.8313,
+     "pesq_reverb-vctk": 1.7785,
+     "stoi_reverb-vctk": 0.8585,
+     "elapsed_reverb-vctk": 6982.260876893997
+    },
+    {
+     "timestamp": "2026-09-01T07:21:06.249261+00:00",
+     "model": "baseline:DPTNet",
+     "is_final": true,
+     "seed": "42",
+     "si_snr_voicebank-demand": 19.7163,
+     "pesq_voicebank-demand": 2.6162,
+     "stoi_voicebank-demand": 0.941,
+     "elapsed_voicebank-demand": 20335.723103046417,
+     "si_snr_noisy-reverb-vctk": -0.8338,
+     "pesq_noisy-reverb-vctk": 1.4848,
+     "stoi_noisy-reverb-vctk": 0.811,
+     "elapsed_noisy-reverb-vctk": 20263.133993387222,
+     "si_snr_reverb-vctk": -3.024,
+     "pesq_reverb-vctk": 1.6374,
+     "stoi_reverb-vctk": 0.851,
+     "elapsed_reverb-vctk": 20243.607835769653
+    },
+    {
+     "timestamp": "2026-09-01T07:21:06.249526+00:00",
+     "model": "baseline:DPTNet",
+     "is_final": true,
+     "seed": "mean",
+     "si_snr_voicebank-demand": 19.7163,
+     "pesq_voicebank-demand": 2.6162,
+     "stoi_voicebank-demand": 0.941,
+     "elapsed_voicebank-demand": 20335.723103046417,
+     "si_snr_noisy-reverb-vctk": -0.8338,
+     "pesq_noisy-reverb-vctk": 1.4848,
+     "stoi_noisy-reverb-vctk": 0.811,
+     "elapsed_noisy-reverb-vctk": 20263.133993387222,
+     "si_snr_reverb-vctk": -3.024,
+     "pesq_reverb-vctk": 1.6374,
+     "stoi_reverb-vctk": 0.851,
+     "elapsed_reverb-vctk": 20243.607835769653
+    }
+   ]
   },
   "speech-speaker-embedding": {
    "task_id": "speech-speaker-embedding",
