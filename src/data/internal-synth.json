@@ -4093,7 +4093,7 @@
        "end": 64
       }
      ],
-     "content": "\"\"\"Boundary-pinned area-minimising surface flow — editable scaffold.\n\nThe mesh's boundary vertices are pinned; the interior flows to reduce surface area.\nThe driver runs a fixed number of steps of size ``dt`` and measures the final area,\nthe residual mean curvature and the mesh quality.  The only thing under study is the\nper-step update rule.\n\nInterface contract\n------------------\n``flow_step(V, F, dt, pinned) -> V_new``\n    ``V`` float64 ``(n,3)``, ``F`` int32 ``(m,3)``, ``dt`` float step size,\n    ``pinned`` bool ``(n,)`` mask of vertices that must not move.\n    Return the updated positions, float64 ``(n,3)``, with ``V_new[pinned] ==\n    V[pinned]`` (the driver enforces it regardless).\n\"\"\"\n\nfrom __future__ import annotations\n\nimport argparse\nimport os\nimport sys\n\nimport numpy as np\n\nsys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))\n\nfrom mlsgfx.common import (  # noqa: E402\n    analytic_surface,\n    edge_list,\n    face_areas,\n    face_normals,\n    guard_finite,\n    load_mesh,\n    print_test_metrics,\n    print_train_metrics,\n    seed_everything,\n    triangle_quality,\n)\n\n# =============================================================================\n# FIXED — DO NOT MODIFY ABOVE THIS LINE\n# =============================================================================\n\n# ----- BEGIN EDITABLE REGION -----\ndef flow_step(V: np.ndarray, F: np.ndarray, dt: float, pinned: np.ndarray) -> np.ndarray:\n    \"\"\"Backward-Euler mean-curvature flow via the cotangent Laplacian.\n\n    Solves (M + dt L) V_new = M V with the cotangent Laplacian L and the\n    barycentric mass matrix M of the *current* surface: the standard implicit\n    discretisation of area-minimising flow (Desbrun, M., Meyer, M., Schroeder, P.\n    and Barr, A. H., *Implicit Fairing of Irregular Meshes Using Diffusion and\n    Curvature Flow*, SIGGRAPH 1999).\n    \"\"\"\n    import gpytoolbox as gpy\n    import scipy.sparse.linalg as spla\n\n    L = gpy.cotangent_laplacian(V, F).tocsc()\n    M = gpy.massmatrix(V, F).tocsc()\n    A = (M + dt * L).tocsc()\n    rhs = M @ V\n    Vn = spla.spsolve(A, rhs)\n    Vn = np.asarray(Vn, dtype=np.float64).reshape(-1, 3)\n    Vn[pinned] = V[pinned]\n    return Vn\n# ----- END EDITABLE REGION -----\n\n# =============================================================================\n# FIXED — flow driver and evaluation below\n# =============================================================================\n\nSETTINGS = {\n    # analytic surfaces with a pinned parametric boundary\n    \"saddle\":    {\"kind\": \"saddle\",    \"nu\": 48, \"nv\": 48, \"dt\": None, \"steps\": 60},\n    \"cylinder\":  {\"kind\": \"cylinder\",  \"nu\": 48, \"nv\": 48, \"dt\": None, \"steps\": 60},\n    # real meshes cut open so the boundary can be pinned\n    \"camelhead\": {\"mesh\": \"camelhead.off\", \"dt\": None, \"steps\": 60},\n    \"spot\":      {\"mesh\": \"spot.obj\",  \"cut\": 0.10, \"dt\": None, \"steps\": 60},\n}\n\n\ndef mean_edge(V, F):\n    E = edge_list(F)\n    return float(np.mean(np.linalg.norm(V[E[:, 0]] - V[E[:, 1]], axis=1)))\n\n\ndef cut_mesh(V, F, radius, rng):\n    seed = int(np.argmax(V[:, 2]))\n    cent = V[F].mean(axis=1)\n    keep = np.linalg.norm(cent - V[seed], axis=1) > radius\n    F = F[keep]\n    keep_v = np.unique(F)\n    remap = -np.ones(V.shape[0], dtype=np.int64)\n    remap[keep_v] = np.arange(keep_v.shape[0])\n    return V[keep_v], remap[F].astype(np.int32)\n\n\ndef mean_curvature_residual(V, F):\n    \"\"\"Mean |H| over interior vertices via the cotan Laplacian (fixed estimator).\"\"\"\n    import gpytoolbox as gpy\n    import scipy.sparse.linalg as spla\n    L = gpy.cotangent_laplacian(V, F).tocsc()\n    M = gpy.massmatrix(V, F).tocsc()\n    Hvec = spla.spsolve(M, L @ V)\n    H = np.linalg.norm(Hvec, axis=1) / 2.0\n    return H\n\n\ndef main() -> None:\n    ap = argparse.ArgumentParser()\n    ap.add_argument(\"--seed\", type=int, default=42)\n    ap.add_argument(\"--setting\", type=str, required=True)\n    ap.add_argument(\"--output-dir\", type=str, default=\"/tmp/output\")\n    args = ap.parse_args()\n\n    import gpytoolbox as gpy\n\n    cfg = SETTINGS[args.setting]\n    rng = seed_everything(args.seed)\n\n    if \"kind\" in cfg:\n        surf = analytic_surface(cfg[\"kind\"], nu=cfg[\"nu\"], nv=cfg[\"nv\"])\n        V, F = surf.V.copy(), surf.F.copy()\n    else:\n        V, F = load_mesh(cfg[\"mesh\"], max_faces=None)\n        if cfg.get(\"cut\"):\n            V, F = cut_mesh(V, F, cfg[\"cut\"], rng)\n\n    bnd = np.zeros(V.shape[0], dtype=bool)\n    try:\n        loops = gpy.boundary_loops(F)\n        for loop in loops:\n            bnd[np.asarray(loop, dtype=np.int64)] = True\n    except Exception:\n        E = edge_list(F)\n        key = np.sort(E, axis=1)\n        _, counts = np.unique(key, axis=0, return_counts=True)\n        # boundary edges appear once\n        uniq, cnt = np.unique(key, axis=0, return_counts=True)\n        bedges = uniq[cnt == 1]\n        bnd[bedges.reshape(-1)] = True\n\n    h = mean_edge(V, F)\n    dt = cfg[\"dt\"] if cfg[\"dt\"] is not None else 0.5 * h * h   # explicit-MCF-stable scale\n    A0 = float(face_areas(V, F).sum())\n    print_train_metrics(vertices=V.shape[0], faces=F.shape[0], boundary=int(bnd.sum()),\n                        dt=dt, area0=A0)\n\n    Vc = V.copy()\n    for step in range(cfg[\"steps\"]):\n        Vn = np.asarray(flow_step(Vc.copy(), F.copy(), float(dt), bnd.copy()),\n                        dtype=np.float64)\n        if Vn.shape != Vc.shape:\n            print(\"ERROR: flow_step must preserve the vertex count\",\n                  file=sys.stderr, flush=True)\n            raise SystemExit(3)\n        Vn[bnd] = Vc[bnd]\n        guard_finite(\"flowed vertices\", Vn)\n        Vc = Vn\n        if (step + 1) % 20 == 0:\n            print_train_metrics(step=step + 1,\n                                area=float(face_areas(Vc, F).sum()))\n\n    A1 = float(face_areas(Vc, F).sum())\n    H = mean_curvature_residual(Vc, F)\n    q = triangle_quality(Vc, F)\n    # boundary integrity\n    bnd_drift = float(np.linalg.norm(Vc[bnd] - V[bnd], axis=1).max()) if bnd.any() else 0.0\n    print_test_metrics(\n        area_ratio=A1 / A0,\n        mean_abs_H=float(H[~bnd].mean()) if (~bnd).any() else float(H.mean()),\n        p99_abs_H=float(np.percentile(H[~bnd], 99)) if (~bnd).any() else float(np.percentile(H, 99)),\n        min_angle=q[\"min_angle\"],\n        boundary_drift=bnd_drift,\n    )\n\n\nif __name__ == \"__main__\":\n    main()\n"
+     "content": "\"\"\"Boundary-pinned area-minimising surface flow — editable scaffold.\n\nThe mesh's boundary vertices are pinned; the interior flows to reduce surface area.\nThe driver runs a fixed number of steps of size ``dt`` and measures the final area,\nthe residual mean curvature and the mesh quality.  The only thing under study is the\nper-step update rule.\n\nInterface contract\n------------------\n``flow_step(V, F, dt, pinned) -> V_new``\n    ``V`` float64 ``(n,3)``, ``F`` int32 ``(m,3)``, ``dt`` float step size,\n    ``pinned`` bool ``(n,)`` mask of vertices that must not move.\n    Return the updated positions, float64 ``(n,3)``, with ``V_new[pinned] ==\n    V[pinned]`` (the driver enforces it regardless).\n\"\"\"\n\nfrom __future__ import annotations\n\nimport argparse\nimport os\nimport sys\n\nimport numpy as np\n\nsys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))\n\nfrom mlsgfx.common import (  # noqa: E402\n    analytic_surface,\n    edge_list,\n    face_areas,\n    face_normals,\n    guard_finite,\n    load_mesh,\n    print_test_metrics,\n    print_train_metrics,\n    seed_everything,\n    triangle_quality,\n)\n\n# =============================================================================\n# FIXED — DO NOT MODIFY ABOVE THIS LINE\n# =============================================================================\n\n# ----- BEGIN EDITABLE REGION -----\ndef flow_step(V: np.ndarray, F: np.ndarray, dt: float, pinned: np.ndarray) -> np.ndarray:\n    \"\"\"Backward-Euler mean-curvature flow via the cotangent Laplacian.\n\n    Solves (M + dt L) V_new = M V with the cotangent Laplacian L and the\n    barycentric mass matrix M of the *current* surface: the standard implicit\n    discretisation of area-minimising flow (Desbrun, M., Meyer, M., Schroeder, P.\n    and Barr, A. H., *Implicit Fairing of Irregular Meshes Using Diffusion and\n    Curvature Flow*, SIGGRAPH 1999).\n    \"\"\"\n    import gpytoolbox as gpy\n    import scipy.sparse.linalg as spla\n\n    L = gpy.cotangent_laplacian(V, F).tocsc()\n    M = gpy.massmatrix(V, F).tocsc()\n    A = (M + dt * L).tocsc()\n    rhs = M @ V\n    Vn = spla.spsolve(A, rhs)\n    Vn = np.asarray(Vn, dtype=np.float64).reshape(-1, 3)\n    Vn[pinned] = V[pinned]\n    return Vn\n# ----- END EDITABLE REGION -----\n\n# =============================================================================\n# FIXED — flow driver and evaluation below\n# =============================================================================\n\nSETTINGS = {\n    # analytic surfaces with a pinned parametric boundary\n    \"saddle\":    {\"kind\": \"saddle\",    \"nu\": 48, \"nv\": 48, \"dt\": None, \"steps\": 60},\n    \"cylinder\":  {\"kind\": \"cylinder\",  \"nu\": 48, \"nv\": 48, \"dt\": None, \"steps\": 60},\n    # real meshes cut open so the boundary can be pinned\n    \"camelhead\": {\"mesh\": \"camelhead.off\", \"dt\": None, \"steps\": 60},\n    \"spot\":      {\"mesh\": \"spot.obj\",  \"cut\": 0.10, \"dt\": None, \"steps\": 60},\n}\n\n\ndef mean_edge(V, F):\n    E = edge_list(F)\n    return float(np.mean(np.linalg.norm(V[E[:, 0]] - V[E[:, 1]], axis=1)))\n\n\ndef cut_mesh(V, F, radius, rng):\n    seed = int(np.argmax(V[:, 2]))\n    cent = V[F].mean(axis=1)\n    keep = np.linalg.norm(cent - V[seed], axis=1) > radius\n    F = F[keep]\n    keep_v = np.unique(F)\n    remap = -np.ones(V.shape[0], dtype=np.int64)\n    remap[keep_v] = np.arange(keep_v.shape[0])\n    return V[keep_v], remap[F].astype(np.int32)\n\n\ndef mean_curvature_residual(V, F):\n    \"\"\"Mean |H| over interior vertices via the cotan Laplacian (fixed estimator).\"\"\"\n    import gpytoolbox as gpy\n    import scipy.sparse.linalg as spla\n    L = gpy.cotangent_laplacian(V, F).tocsc()\n    M = gpy.massmatrix(V, F).tocsc()\n    Hvec = spla.spsolve(M, L @ V)\n    H = np.linalg.norm(Hvec, axis=1) / 2.0\n    return H\n\n\ndef main() -> None:\n    ap = argparse.ArgumentParser()\n    ap.add_argument(\"--seed\", type=int, default=42)\n    ap.add_argument(\"--setting\", type=str, required=True)\n    ap.add_argument(\"--output-dir\", type=str, default=\"/tmp/output\")\n    args = ap.parse_args()\n\n    import gpytoolbox as gpy\n\n    cfg = SETTINGS[args.setting]\n    rng = seed_everything(args.seed)\n\n    if \"kind\" in cfg:\n        surf = analytic_surface(cfg[\"kind\"], nu=cfg[\"nu\"], nv=cfg[\"nv\"])\n        V, F = surf.V.copy(), surf.F.copy()\n    else:\n        V, F = load_mesh(cfg[\"mesh\"], max_faces=None)\n        if cfg.get(\"cut\"):\n            V, F = cut_mesh(V, F, cfg[\"cut\"], rng)\n\n    bnd = np.zeros(V.shape[0], dtype=bool)\n    try:\n        loops = gpy.boundary_loops(F)\n        for loop in loops:\n            bnd[np.asarray(loop, dtype=np.int64)] = True\n    except Exception:\n        E = edge_list(F)\n        key = np.sort(E, axis=1)\n        _, counts = np.unique(key, axis=0, return_counts=True)\n        # boundary edges appear once\n        uniq, cnt = np.unique(key, axis=0, return_counts=True)\n        bedges = uniq[cnt == 1]\n        bnd[bedges.reshape(-1)] = True\n\n    h = mean_edge(V, F)\n    dt = cfg[\"dt\"] if cfg[\"dt\"] is not None else 0.5 * h * h   # explicit-MCF-stable scale\n    A0 = float(face_areas(V, F).sum())\n    print_train_metrics(vertices=V.shape[0], faces=F.shape[0], boundary=int(bnd.sum()),\n                        dt=dt, area0=A0)\n\n    Vc = V.copy()\n    for step in range(cfg[\"steps\"]):\n        Vn = np.asarray(flow_step(Vc.copy(), F.copy(), float(dt), bnd.copy()),\n                        dtype=np.float64)\n        if Vn.shape != Vc.shape:\n            print(\"ERROR: flow_step must preserve the vertex count\",\n                  file=sys.stderr, flush=True)\n            raise SystemExit(3)\n        Vn[bnd] = Vc[bnd]\n        if not np.all(np.isfinite(Vn)):\n            # A diverging flow (degenerate triangle -> singular cotan system,\n            # which implicit MCF can hit on real meshes) must score WORST on\n            # this setting, not crash it: a crash leaves the cell empty and the\n            # baseline unscorable. Worst case on every term, unfilterably:\n            # area_ratio 10 (10x the ORIGINAL area, i.e. worse than no flow),\n            # curvature residuals 1e3, min_angle 0, boundary_drift 1e3.\n            print(\"ERROR: flowed vertices contain non-finite values -- \"\n                  f\"flow diverged at step {step + 1}; scoring worst case\",\n                  file=sys.stderr, flush=True)\n            print_test_metrics(area_ratio=10.0, mean_abs_H=1e3, p99_abs_H=1e3,\n                               min_angle=0.0, boundary_drift=1e3, diverged=1)\n            return\n        Vc = Vn\n        if (step + 1) % 20 == 0:\n            print_train_metrics(step=step + 1,\n                                area=float(face_areas(Vc, F).sum()))\n\n    A1 = float(face_areas(Vc, F).sum())\n    H = mean_curvature_residual(Vc, F)\n    q = triangle_quality(Vc, F)\n    # boundary integrity\n    bnd_drift = float(np.linalg.norm(Vc[bnd] - V[bnd], axis=1).max()) if bnd.any() else 0.0\n    print_test_metrics(\n        area_ratio=A1 / A0,\n        mean_abs_H=float(H[~bnd].mean()) if (~bnd).any() else float(H.mean()),\n        p99_abs_H=float(np.percentile(H[~bnd], 99)) if (~bnd).any() else float(np.percentile(H, 99)),\n        min_angle=q[\"min_angle\"],\n        boundary_drift=bnd_drift,\n        diverged=0,\n    )\n\n\nif __name__ == \"__main__\":\n    main()\n"
     }
    ],
    "baselines_code": {
@@ -4118,7 +4118,7 @@
       "file": "gpytoolbox/mlsgfx/custom_flow.py",
       "start_line": 45,
       "end_line": 64,
-      "content": "def flow_step(V: np.ndarray, F: np.ndarray, dt: float, pinned: np.ndarray) -> np.ndarray:\n    \"\"\"Backward-Euler MCF with the cotan Laplacian of the current surface.\"\"\"\n    import gpytoolbox as gpy\n    import scipy.sparse.linalg as spla\n\n    L = gpy.cotangent_laplacian(V, F).tocsc()\n    M = gpy.massmatrix(V, F).tocsc()\n    A = (M + dt * L).tocsc()\n    Vn = np.asarray(spla.spsolve(A, M @ V), dtype=np.float64).reshape(-1, 3)\n    Vn[pinned] = V[pinned]\n    return Vn\n"
+      "content": "def flow_step(V: np.ndarray, F: np.ndarray, dt: float, pinned: np.ndarray) -> np.ndarray:\n    \"\"\"Backward-Euler MCF with the cotan Laplacian of the current surface.\"\"\"\n    import gpytoolbox as gpy\n    import scipy.sparse.linalg as spla\n\n    L = gpy.cotangent_laplacian(V, F).tocoo()\n    # A face that degenerates mid-flow gives infinite cot weights and an\n    # exactly singular system (spsolve returns NaN); sanitise, as libigl/CGAL\n    # implicit-fairing implementations do.\n    import scipy.sparse as sp\n    off = L.row != L.col\n    w = np.where(np.isfinite(L.data), np.clip(L.data, -1e4, 1e4), 0.0)\n    Loff = sp.csc_matrix((w[off], (L.row[off], L.col[off])), shape=L.shape)\n    # rebuild the diagonal as minus the row sum so it stays a zero-row-sum\n    # PSD Laplacian (zeroing an inf entry alone would leave a bogus net force)\n    L = (Loff + sp.diags(-np.asarray(Loff.sum(axis=1)).ravel())).tocsc()\n    M = gpy.massmatrix(V, F).tocsc()\n    # Same PDE as the explicit baseline: MCF velocity is -H n = -(1/2) M^-1 L V\n    # (the cotan formula gives 2H n), so backward Euler is (M + dt/2 L) V' = M V.\n    # Without the 1/2 the implicit step ran the flow at twice the speed and\n    # reached pinch-off on camelhead in 12 of 80 steps -- a different\n    # experiment, not a stability property of the scheme.\n    A = (M + 0.5 * dt * L).tocsc()\n    Vn = np.asarray(spla.spsolve(A, M @ V), dtype=np.float64).reshape(-1, 3)\n    Vn[pinned] = V[pinned]\n    return Vn\n"
      }
     ],
     "uniform_umbrella": [
@@ -5695,8 +5695,8 @@
    "category": "other",
    "category_label": "Other",
    "category_abbr": "",
-   "description_md": "# Photometric Loss Shape for NeRF\n\n## Research Question\n\nThe per-ray pixel loss that drives a NeRF decides where the field spends its error\nbudget: linear L2 under-weights dark regions, and the bright HDR outliers dominate\nthe gradient. Which loss shape converges to the cleanest field?\n\n## Background\n\n* Mildenhall, B., Srinivasan, P. P., Tancik, M., Barron, J. T., Ramamoorthi, R.,\n  Ng, R. *NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis*,\n  ECCV 2020 — L2 on linear radiance.\n* Mildenhall, B., Hedman, P., Martin-Brualla, R., Srinivasan, P. P., Barron, J. T.\n  *Mip-NeRF 360: Unbounded Anti-Aliased Neural Radiance Fields*, CVPR 2022 — the\n  robust-loss motivation.\n* Charbonnier, P., Blanc-Féraud, L., Aubert, G., Barlaud, M. *Two Deterministic\n  Half-Quadratic Regularization Algorithms for Computed Imaging*, ICIP 1994 — the\n  Charbonnier pseudo-Huber loss.\n\n## What You Can Modify\n\n`nerfacc/mlsgfx_nerf/custom_loss.py`, lines 39–42 only.\n\n```python\ndef loss_fn(rgb, target) -> torch.Tensor:\n    \"\"\"(n,3) radiances in [0,1] -> scalar training loss.\"\"\"\n```\n\nYou may add helper functions inside the region and use `torch`.\n\n## Fixed Pipeline\n\n* Each setting trains a pure-PyTorch NeRF on a NeRF-Synthetic scene for 6000 steps\n  with your loss, and evaluates on the test split.\n* Scoring: test PSNR and the training loss after the warmup phase.\n\n## Evaluation Scenarios\n\n| setting | scene |\n|---|---|\n| `lego` | lego |\n| `chair` | chair |\n| `drums` | drums (transparent) |\n| `ship` | held out |\n\n## Baselines\n\n* **`l2`** — L2 on linear radiance.\n* **`smooth_l1`** — Huber with β = 0.1.\n* **`charbonnier`** — Charbonnier pseudo-Huber, ε = 1e-3.\n* **`log_l2`** — L2 on log1p radiance.\n\n## Metric\n\nPer setting: `psnr` (higher better) and `loss_2k` (lower better). The setting score\nis a weighted mean of the two normalised terms (1.0 / 0.6); the task score is the\ngeometric mean over the four settings.\n",
-   "description_html": "<h1>Photometric Loss Shape for NeRF</h1>\n<h2>Research Question</h2>\n<p>The per-ray pixel loss that drives a NeRF decides where the field spends its error\nbudget: linear L2 under-weights dark regions, and the bright HDR outliers dominate\nthe gradient. Which loss shape converges to the cleanest field?</p>\n<h2>Background</h2>\n<ul>\n<li>Mildenhall, B., Srinivasan, P. P., Tancik, M., Barron, J. T., Ramamoorthi, R.,\n  Ng, R. <em>NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis</em>,\n  ECCV 2020 — L2 on linear radiance.</li>\n<li>Mildenhall, B., Hedman, P., Martin-Brualla, R., Srinivasan, P. P., Barron, J. T.\n  <em>Mip-NeRF 360: Unbounded Anti-Aliased Neural Radiance Fields</em>, CVPR 2022 — the\n  robust-loss motivation.</li>\n<li>Charbonnier, P., Blanc-Féraud, L., Aubert, G., Barlaud, M. <em>Two Deterministic\n  Half-Quadratic Regularization Algorithms for Computed Imaging</em>, ICIP 1994 — the\n  Charbonnier pseudo-Huber loss.</li>\n</ul>\n<h2>What You Can Modify</h2>\n<p><code>nerfacc/mlsgfx_nerf/custom_loss.py</code>, lines 39–42 only.</p>\n<pre class=\"codehilite\"><code class=\"language-python\">def loss_fn(rgb, target) -&gt; torch.Tensor:\n    &quot;&quot;&quot;(n,3) radiances in [0,1] -&gt; scalar training loss.&quot;&quot;&quot;\n</code></pre>\n\n<p>You may add helper functions inside the region and use <code>torch</code>.</p>\n<h2>Fixed Pipeline</h2>\n<ul>\n<li>Each setting trains a pure-PyTorch NeRF on a NeRF-Synthetic scene for 6000 steps\n  with your loss, and evaluates on the test split.</li>\n<li>Scoring: test PSNR and the training loss after the warmup phase.</li>\n</ul>\n<h2>Evaluation Scenarios</h2>\n<table>\n<thead>\n<tr>\n<th>setting</th>\n<th>scene</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>lego</code></td>\n<td>lego</td>\n</tr>\n<tr>\n<td><code>chair</code></td>\n<td>chair</td>\n</tr>\n<tr>\n<td><code>drums</code></td>\n<td>drums (transparent)</td>\n</tr>\n<tr>\n<td><code>ship</code></td>\n<td>held out</td>\n</tr>\n</tbody>\n</table>\n<h2>Baselines</h2>\n<ul>\n<li><strong><code>l2</code></strong> — L2 on linear radiance.</li>\n<li><strong><code>smooth_l1</code></strong> — Huber with β = 0.1.</li>\n<li><strong><code>charbonnier</code></strong> — Charbonnier pseudo-Huber, ε = 1e-3.</li>\n<li><strong><code>log_l2</code></strong> — L2 on log1p radiance.</li>\n</ul>\n<h2>Metric</h2>\n<p>Per setting: <code>psnr</code> (higher better) and <code>loss_2k</code> (lower better). The setting score\nis a weighted mean of the two normalised terms (1.0 / 0.6); the task score is the\ngeometric mean over the four settings.</p>",
+   "description_md": "# Photometric Loss Shape for NeRF\n\n## Research Question\n\nThe per-ray pixel loss that drives a NeRF decides where the field spends its error\nbudget: linear L2 under-weights dark regions, and the bright HDR outliers dominate\nthe gradient. Which loss shape converges to the cleanest field?\n\n## Background\n\n* Mildenhall, B., Srinivasan, P. P., Tancik, M., Barron, J. T., Ramamoorthi, R.,\n  Ng, R. *NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis*,\n  ECCV 2020 — L2 on linear radiance.\n* Mildenhall, B., Hedman, P., Martin-Brualla, R., Srinivasan, P. P., Barron, J. T.\n  *Mip-NeRF 360: Unbounded Anti-Aliased Neural Radiance Fields*, CVPR 2022 — the\n  robust-loss motivation.\n* Charbonnier, P., Blanc-Féraud, L., Aubert, G., Barlaud, M. *Two Deterministic\n  Half-Quadratic Regularization Algorithms for Computed Imaging*, ICIP 1994 — the\n  Charbonnier pseudo-Huber loss.\n\n## What You Can Modify\n\n`nerfacc/mlsgfx_nerf/custom_loss.py`, lines 39–42 only.\n\n```python\ndef loss_fn(rgb, target) -> torch.Tensor:\n    \"\"\"(n,3) radiances in [0,1] -> scalar training loss.\"\"\"\n```\n\nYou may add helper functions inside the region and use `torch`.\n\n## Fixed Pipeline\n\n* Each setting trains a pure-PyTorch NeRF on a NeRF-Synthetic scene for 6000 steps\n  with your loss, and evaluates on the test split.\n* Scoring: test PSNR and the training loss after the warmup phase.\n\n## Evaluation Scenarios\n\n| setting | scene |\n|---|---|\n| `lego` | lego |\n| `chair` | chair |\n| `drums` | drums (transparent) |\n| `ship` | held out |\n\n## Baselines\n\n* **`l2`** — L2 on linear radiance.\n* **`smooth_l1`** — Huber with β = 0.1.\n* **`charbonnier`** — Charbonnier pseudo-Huber, ε = 1e-3.\n* **`log_l2`** — L2 on log1p radiance.\n\n## Metric\n\nPer setting: `psnr` (higher better). The task score is the geometric mean over\nthe four settings. (The raw training-loss value is not scored: different loss\nshapes are in different units, so it cannot be compared across them.)\n",
+   "description_html": "<h1>Photometric Loss Shape for NeRF</h1>\n<h2>Research Question</h2>\n<p>The per-ray pixel loss that drives a NeRF decides where the field spends its error\nbudget: linear L2 under-weights dark regions, and the bright HDR outliers dominate\nthe gradient. Which loss shape converges to the cleanest field?</p>\n<h2>Background</h2>\n<ul>\n<li>Mildenhall, B., Srinivasan, P. P., Tancik, M., Barron, J. T., Ramamoorthi, R.,\n  Ng, R. <em>NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis</em>,\n  ECCV 2020 — L2 on linear radiance.</li>\n<li>Mildenhall, B., Hedman, P., Martin-Brualla, R., Srinivasan, P. P., Barron, J. T.\n  <em>Mip-NeRF 360: Unbounded Anti-Aliased Neural Radiance Fields</em>, CVPR 2022 — the\n  robust-loss motivation.</li>\n<li>Charbonnier, P., Blanc-Féraud, L., Aubert, G., Barlaud, M. <em>Two Deterministic\n  Half-Quadratic Regularization Algorithms for Computed Imaging</em>, ICIP 1994 — the\n  Charbonnier pseudo-Huber loss.</li>\n</ul>\n<h2>What You Can Modify</h2>\n<p><code>nerfacc/mlsgfx_nerf/custom_loss.py</code>, lines 39–42 only.</p>\n<pre class=\"codehilite\"><code class=\"language-python\">def loss_fn(rgb, target) -&gt; torch.Tensor:\n    &quot;&quot;&quot;(n,3) radiances in [0,1] -&gt; scalar training loss.&quot;&quot;&quot;\n</code></pre>\n\n<p>You may add helper functions inside the region and use <code>torch</code>.</p>\n<h2>Fixed Pipeline</h2>\n<ul>\n<li>Each setting trains a pure-PyTorch NeRF on a NeRF-Synthetic scene for 6000 steps\n  with your loss, and evaluates on the test split.</li>\n<li>Scoring: test PSNR and the training loss after the warmup phase.</li>\n</ul>\n<h2>Evaluation Scenarios</h2>\n<table>\n<thead>\n<tr>\n<th>setting</th>\n<th>scene</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>lego</code></td>\n<td>lego</td>\n</tr>\n<tr>\n<td><code>chair</code></td>\n<td>chair</td>\n</tr>\n<tr>\n<td><code>drums</code></td>\n<td>drums (transparent)</td>\n</tr>\n<tr>\n<td><code>ship</code></td>\n<td>held out</td>\n</tr>\n</tbody>\n</table>\n<h2>Baselines</h2>\n<ul>\n<li><strong><code>l2</code></strong> — L2 on linear radiance.</li>\n<li><strong><code>smooth_l1</code></strong> — Huber with β = 0.1.</li>\n<li><strong><code>charbonnier</code></strong> — Charbonnier pseudo-Huber, ε = 1e-3.</li>\n<li><strong><code>log_l2</code></strong> — L2 on log1p radiance.</li>\n</ul>\n<h2>Metric</h2>\n<p>Per setting: <code>psnr</code> (higher better). The task score is the geometric mean over\nthe four settings. (The raw training-loss value is not scored: different loss\nshapes are in different units, so it cannot be compared across them.)</p>",
    "baselines": [
     "l2",
     "smooth_l1",
@@ -5728,32 +5728,32 @@
     "l2": [
      {
       "file": "nerfacc/mlsgfx_nerf/custom_loss.py",
-      "start_line": 42,
-      "end_line": 46,
+      "start_line": 39,
+      "end_line": 42,
       "content": "def loss_fn(rgb, target):\n    \"\"\"L2 on linear radiance.\"\"\"\n    return ((rgb - target) ** 2).mean()\n"
      }
     ],
     "smooth_l1": [
      {
       "file": "nerfacc/mlsgfx_nerf/custom_loss.py",
-      "start_line": 42,
-      "end_line": 46,
+      "start_line": 39,
+      "end_line": 42,
       "content": "def loss_fn(rgb, target):\n    \"\"\"Smooth L1.\"\"\"\n    import torch.nn.functional as F\n    return F.smooth_l1_loss(rgb, target, beta=0.1)\n"
      }
     ],
     "charbonnier": [
      {
       "file": "nerfacc/mlsgfx_nerf/custom_loss.py",
-      "start_line": 42,
-      "end_line": 46,
+      "start_line": 39,
+      "end_line": 42,
       "content": "def loss_fn(rgb, target):\n    \"\"\"Charbonnier loss.\"\"\"\n    import torch\n    return torch.sqrt((rgb - target) ** 2 + 1e-3 ** 2).mean()\n"
      }
     ],
     "log_l2": [
      {
       "file": "nerfacc/mlsgfx_nerf/custom_loss.py",
-      "start_line": 42,
-      "end_line": 46,
+      "start_line": 39,
+      "end_line": 42,
       "content": "def loss_fn(rgb, target):\n    \"\"\"L2 on log1p radiance.\"\"\"\n    import torch\n    return ((torch.log1p(rgb.clamp(min=0)) - torch.log1p(target.clamp(min=0))) ** 2).mean()\n"
      }
     ]
@@ -5769,8 +5769,8 @@
    "category": "other",
    "category_label": "Other",
    "category_abbr": "",
-   "description_md": "# Occupancy-Grid Update Rule for NeRF\n\n## Research Question\n\nEfficient NeRF sampling skips empty space using a coarse occupancy grid refreshed\nduring training. How the grid is updated — which cells are re-evaluated, how the\nestimate is blended, and when — decides both the sampling speed and how quickly\nthe field resolves geometry. Which update policy trains the cleanest field?\n\n## Background\n\n* Li, R., Tancik, M., Kanazawa, A. *NerfAcc: Efficient Sampling Leverages Localized\n  Importance*, ICCV 2023 — the occupancy-grid sampling and its update policy.\n* Müller, T., Evans, A., Schied, C., Keller, A. *Instant Neural Graphics Primitives\n  with a Multiresolution Hash Encoding*, SIGGRAPH 2022 — the occupancy grid that\n  made real-time NeRF training possible.\n* Fridovich-Keil, S., Yu, A., Tancik, M., Chen, Q., Recht, B., Kanazawa, A.\n  *Plenoxels: Radiance Fields without Neural Networks*, CVPR 2022 — the density-grid\n  view.\n\n## What You Can Modify\n\n`nerfacc/mlsgfx_nerf/custom_occupdate.py`, lines 43–55 only.\n\n```python\ndef update_occupancy(estimator, field, step, render_step_size) -> None:\n    \"\"\"Called once per training step to refresh the occupancy grid.\"\"\"\n```\n\n`estimator` is the nerfacc `OccGridEstimator`; call `field.query_density(x)` to get\ndensities. The estimator's `update_every_n_steps(step, occ_eval_fn, occ_thre,\nema_decay, warmup_steps, n)` exposes the standard knobs; you may also drive it with\nyour own cell sampling. You may add helper functions inside the region and use\n`torch`, `numpy`.\n\n## Fixed Pipeline\n\n* Each setting trains a pure-PyTorch NeRF on a NeRF-Synthetic scene for 6000 steps\n  with nerfacc's occupancy-grid sampling; your hook refreshes the grid.\n* Scoring: test PSNR and the training loss after the warmup phase.\n\n## Evaluation Scenarios\n\n| setting | scene |\n|---|---|\n| `lego` | lego |\n| `chair` | chair |\n| `mic` | mic |\n| `drums` | held out |\n\n## Baselines\n\n* **`nerfacc_default`** — the built-in random-subset refresh with decay.\n* **`ema_decay`** — a stronger exponential-moving-average blend.\n* **`warmstart_dense`** — dense updates early, sparse late.\n* **`importance`** — occupancy-weighted cell updates.\n\n## Metric\n\nPer setting: `psnr` (higher better) and `loss_2k` (lower better). The setting score\nis a weighted mean of the two normalised terms (1.0 / 0.6); the task score is the\ngeometric mean over the four settings.\n",
-   "description_html": "<h1>Occupancy-Grid Update Rule for NeRF</h1>\n<h2>Research Question</h2>\n<p>Efficient NeRF sampling skips empty space using a coarse occupancy grid refreshed\nduring training. How the grid is updated — which cells are re-evaluated, how the\nestimate is blended, and when — decides both the sampling speed and how quickly\nthe field resolves geometry. Which update policy trains the cleanest field?</p>\n<h2>Background</h2>\n<ul>\n<li>Li, R., Tancik, M., Kanazawa, A. <em>NerfAcc: Efficient Sampling Leverages Localized\n  Importance</em>, ICCV 2023 — the occupancy-grid sampling and its update policy.</li>\n<li>Müller, T., Evans, A., Schied, C., Keller, A. <em>Instant Neural Graphics Primitives\n  with a Multiresolution Hash Encoding</em>, SIGGRAPH 2022 — the occupancy grid that\n  made real-time NeRF training possible.</li>\n<li>Fridovich-Keil, S., Yu, A., Tancik, M., Chen, Q., Recht, B., Kanazawa, A.\n  <em>Plenoxels: Radiance Fields without Neural Networks</em>, CVPR 2022 — the density-grid\n  view.</li>\n</ul>\n<h2>What You Can Modify</h2>\n<p><code>nerfacc/mlsgfx_nerf/custom_occupdate.py</code>, lines 43–55 only.</p>\n<pre class=\"codehilite\"><code class=\"language-python\">def update_occupancy(estimator, field, step, render_step_size) -&gt; None:\n    &quot;&quot;&quot;Called once per training step to refresh the occupancy grid.&quot;&quot;&quot;\n</code></pre>\n\n<p><code>estimator</code> is the nerfacc <code>OccGridEstimator</code>; call <code>field.query_density(x)</code> to get\ndensities. The estimator's <code>update_every_n_steps(step, occ_eval_fn, occ_thre,\nema_decay, warmup_steps, n)</code> exposes the standard knobs; you may also drive it with\nyour own cell sampling. You may add helper functions inside the region and use\n<code>torch</code>, <code>numpy</code>.</p>\n<h2>Fixed Pipeline</h2>\n<ul>\n<li>Each setting trains a pure-PyTorch NeRF on a NeRF-Synthetic scene for 6000 steps\n  with nerfacc's occupancy-grid sampling; your hook refreshes the grid.</li>\n<li>Scoring: test PSNR and the training loss after the warmup phase.</li>\n</ul>\n<h2>Evaluation Scenarios</h2>\n<table>\n<thead>\n<tr>\n<th>setting</th>\n<th>scene</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>lego</code></td>\n<td>lego</td>\n</tr>\n<tr>\n<td><code>chair</code></td>\n<td>chair</td>\n</tr>\n<tr>\n<td><code>mic</code></td>\n<td>mic</td>\n</tr>\n<tr>\n<td><code>drums</code></td>\n<td>held out</td>\n</tr>\n</tbody>\n</table>\n<h2>Baselines</h2>\n<ul>\n<li><strong><code>nerfacc_default</code></strong> — the built-in random-subset refresh with decay.</li>\n<li><strong><code>ema_decay</code></strong> — a stronger exponential-moving-average blend.</li>\n<li><strong><code>warmstart_dense</code></strong> — dense updates early, sparse late.</li>\n<li><strong><code>importance</code></strong> — occupancy-weighted cell updates.</li>\n</ul>\n<h2>Metric</h2>\n<p>Per setting: <code>psnr</code> (higher better) and <code>loss_2k</code> (lower better). The setting score\nis a weighted mean of the two normalised terms (1.0 / 0.6); the task score is the\ngeometric mean over the four settings.</p>",
+   "description_md": "# Occupancy-Grid Update Rule for NeRF\n\n## Research Question\n\nEfficient NeRF sampling skips empty space using a coarse occupancy grid refreshed\nduring training. How the grid is updated — which cells are re-evaluated, how the\nestimate is blended, and when — decides both the sampling speed and how quickly\nthe field resolves geometry. Which update policy trains the cleanest field?\n\n## Background\n\n* Li, R., Tancik, M., Kanazawa, A. *NerfAcc: Efficient Sampling Leverages Localized\n  Importance*, ICCV 2023 — the occupancy-grid sampling and its update policy.\n* Müller, T., Evans, A., Schied, C., Keller, A. *Instant Neural Graphics Primitives\n  with a Multiresolution Hash Encoding*, SIGGRAPH 2022 — the occupancy grid that\n  made real-time NeRF training possible.\n* Fridovich-Keil, S., Yu, A., Tancik, M., Chen, Q., Recht, B., Kanazawa, A.\n  *Plenoxels: Radiance Fields without Neural Networks*, CVPR 2022 — the density-grid\n  view.\n\n## What You Can Modify\n\n`nerfacc/mlsgfx_nerf/custom_occupdate.py`, lines 43–55 only.\n\n```python\ndef update_occupancy(estimator, field, step, render_step_size) -> None:\n    \"\"\"Called once per training step to refresh the occupancy grid.\"\"\"\n```\n\n`estimator` is the nerfacc `OccGridEstimator`; call `field.query_density(x)` to get\ndensities. The estimator's `update_every_n_steps(step, occ_eval_fn, occ_thre,\nema_decay, warmup_steps, n)` exposes the standard knobs; you may also drive it with\nyour own cell sampling. You may add helper functions inside the region and use\n`torch`, `numpy`.\n\n## Fixed Pipeline\n\n* Each setting trains a pure-PyTorch NeRF on a NeRF-Synthetic scene for 6000 steps\n  with nerfacc's occupancy-grid sampling; your hook refreshes the grid.\n* Scoring: test PSNR and the mean number of rendering samples per training ray (the sampling efficiency the occupancy grid exists to buy).\n\n## Evaluation Scenarios\n\n| setting | scene |\n|---|---|\n| `lego` | lego |\n| `chair` | chair |\n| `mic` | mic |\n| `drums` | held out |\n\n## Baselines\n\n* **`nerfacc_default`** — the built-in random-subset refresh with decay.\n* **`ema_decay`** — a stronger exponential-moving-average blend.\n* **`warmstart_dense`** — dense updates early, sparse late.\n* **`importance`** — occupancy-weighted cell updates.\n\n## Metric\n\nPer setting: `psnr` (higher better) and `samples_per_ray` (lower better -- mean\nrendering samples per training ray, i.e. how much empty space the grid culls).\nThe setting score is an equal-weight mean of the two normalised terms; the task\nscore is the geometric mean over the four settings. Both matter: a grid that\nculls aggressively but drops PSNR, or one that keeps PSNR by sampling\neverything, does not win.\n",
+   "description_html": "<h1>Occupancy-Grid Update Rule for NeRF</h1>\n<h2>Research Question</h2>\n<p>Efficient NeRF sampling skips empty space using a coarse occupancy grid refreshed\nduring training. How the grid is updated — which cells are re-evaluated, how the\nestimate is blended, and when — decides both the sampling speed and how quickly\nthe field resolves geometry. Which update policy trains the cleanest field?</p>\n<h2>Background</h2>\n<ul>\n<li>Li, R., Tancik, M., Kanazawa, A. <em>NerfAcc: Efficient Sampling Leverages Localized\n  Importance</em>, ICCV 2023 — the occupancy-grid sampling and its update policy.</li>\n<li>Müller, T., Evans, A., Schied, C., Keller, A. <em>Instant Neural Graphics Primitives\n  with a Multiresolution Hash Encoding</em>, SIGGRAPH 2022 — the occupancy grid that\n  made real-time NeRF training possible.</li>\n<li>Fridovich-Keil, S., Yu, A., Tancik, M., Chen, Q., Recht, B., Kanazawa, A.\n  <em>Plenoxels: Radiance Fields without Neural Networks</em>, CVPR 2022 — the density-grid\n  view.</li>\n</ul>\n<h2>What You Can Modify</h2>\n<p><code>nerfacc/mlsgfx_nerf/custom_occupdate.py</code>, lines 43–55 only.</p>\n<pre class=\"codehilite\"><code class=\"language-python\">def update_occupancy(estimator, field, step, render_step_size) -&gt; None:\n    &quot;&quot;&quot;Called once per training step to refresh the occupancy grid.&quot;&quot;&quot;\n</code></pre>\n\n<p><code>estimator</code> is the nerfacc <code>OccGridEstimator</code>; call <code>field.query_density(x)</code> to get\ndensities. The estimator's <code>update_every_n_steps(step, occ_eval_fn, occ_thre,\nema_decay, warmup_steps, n)</code> exposes the standard knobs; you may also drive it with\nyour own cell sampling. You may add helper functions inside the region and use\n<code>torch</code>, <code>numpy</code>.</p>\n<h2>Fixed Pipeline</h2>\n<ul>\n<li>Each setting trains a pure-PyTorch NeRF on a NeRF-Synthetic scene for 6000 steps\n  with nerfacc's occupancy-grid sampling; your hook refreshes the grid.</li>\n<li>Scoring: test PSNR and the mean number of rendering samples per training ray (the sampling efficiency the occupancy grid exists to buy).</li>\n</ul>\n<h2>Evaluation Scenarios</h2>\n<table>\n<thead>\n<tr>\n<th>setting</th>\n<th>scene</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>lego</code></td>\n<td>lego</td>\n</tr>\n<tr>\n<td><code>chair</code></td>\n<td>chair</td>\n</tr>\n<tr>\n<td><code>mic</code></td>\n<td>mic</td>\n</tr>\n<tr>\n<td><code>drums</code></td>\n<td>held out</td>\n</tr>\n</tbody>\n</table>\n<h2>Baselines</h2>\n<ul>\n<li><strong><code>nerfacc_default</code></strong> — the built-in random-subset refresh with decay.</li>\n<li><strong><code>ema_decay</code></strong> — a stronger exponential-moving-average blend.</li>\n<li><strong><code>warmstart_dense</code></strong> — dense updates early, sparse late.</li>\n<li><strong><code>importance</code></strong> — occupancy-weighted cell updates.</li>\n</ul>\n<h2>Metric</h2>\n<p>Per setting: <code>psnr</code> (higher better) and <code>samples_per_ray</code> (lower better -- mean\nrendering samples per training ray, i.e. how much empty space the grid culls).\nThe setting score is an equal-weight mean of the two normalised terms; the task\nscore is the geometric mean over the four settings. Both matter: a grid that\nculls aggressively but drops PSNR, or one that keeps PSNR by sampling\neverything, does not win.</p>",
    "baselines": [
     "nerfacc_default",
     "ema_decay",
@@ -5795,7 +5795,7 @@
        "end": 55
       }
      ],
-     "content": "\"\"\"Occupancy-grid update rule for NeRF — editable scaffold.\n\nEfficient NeRF sampling relies on a coarse occupancy grid that is refreshed as\ntraining proceeds.  How the grid is updated — which cells are re-evaluated and how\nthe occupancy is blended — decides both speed and quality.  Only the update rule\nis under study; the field and the renderer are fixed.\n\nInterface contract\n------------------\n``update_occupancy(estimator, field, step, render_step_size)``\n    Called once per training step.  ``estimator`` is the nerfacc OccGridEstimator\n    (its ``.occs`` occupancy field is what you update), ``field`` the radiance\n    field (call ``field.query_density(x)``), ``step`` the integer step index,\n    ``render_step_size`` the fixed step.  Update ``estimator.occs`` in place.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport argparse\nimport os\nimport sys\n\nimport numpy as np\n\nsys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))\n\nfrom mlsgfx_nerf.common import (  # noqa: E402\n    DATA_DIR,\n    print_test_metrics,\n    print_train_metrics,\n    seed_everything,\n)\nfrom mlsgfx_nerf.trainer import (  # noqa: E402\n    make_field,\n    train_nerf,\n)\n\n# =============================================================================\n# FIXED — DO NOT MODIFY ABOVE THIS LINE\n# =============================================================================\n\n# ----- BEGIN EDITABLE REGION -----\ndef update_occupancy(estimator, field, step, render_step_size):\n    \"\"\"nerfacc's default update: evaluate a random subset of cells every step.\n\n    Li, R., Tancik, M. and Kanazawa, A., *NerfAcc: Efficient Sampling Leverages\n    Localized Importance*, ICCV 2023: refresh a random 1/4 of the cells with the\n    current density estimate, then decay all occupancies by 0.95.\n    \"\"\"\n    import torch\n\n    def occ_eval(x):\n        return field.query_density(x) * render_step_size\n\n    estimator.update_every_n_steps(step, occ_eval_fn=occ_eval, occ_thre=1e-2)\n# ----- END EDITABLE REGION -----\n\n# =============================================================================\n# FIXED — training and evaluation below\n# =============================================================================\n\nSETTINGS = {\n    \"lego\":   {\"scene\": \"lego\"},\n    \"chair\":  {\"scene\": \"chair\"},\n    \"mic\":    {\"scene\": \"mic\"},\n    \"drums\":  {\"scene\": \"drums\"},\n}\n\n\ndef main() -> None:\n    ap = argparse.ArgumentParser()\n    ap.add_argument(\"--seed\", type=int, default=42)\n    ap.add_argument(\"--setting\", type=str, required=True)\n    ap.add_argument(\"--output-dir\", type=str, default=\"/tmp/output\")\n    ap.add_argument(\"--steps\", type=int, default=6000)\n    args = ap.parse_args()\n\n    cfg = SETTINGS[args.setting]\n    seed_everything(args.seed)\n    os.environ.setdefault(\"CUDA_VISIBLE_DEVICES\", \"0\")\n    scene_root = os.path.join(DATA_DIR, cfg[\"scene\"])\n    print_train_metrics(setting=args.setting, steps=args.steps)\n\n    field = make_field()\n    psnr, history = train_nerf(field, scene_root, steps=args.steps,\n                               update_hook=update_occupancy, seed=args.seed)\n    print_train_metrics(final_loss=history[-1] if history else float(\"nan\"))\n    print_test_metrics(psnr=psnr, loss_2k=history[1] if len(history) > 1 else float(\"nan\"))\n\n\nif __name__ == \"__main__\":\n    main()\n"
+     "content": "\"\"\"Occupancy-grid update rule for NeRF — editable scaffold.\n\nEfficient NeRF sampling relies on a coarse occupancy grid that is refreshed as\ntraining proceeds.  How the grid is updated — which cells are re-evaluated and how\nthe occupancy is blended — decides both speed and quality.  Only the update rule\nis under study; the field and the renderer are fixed.\n\nInterface contract\n------------------\n``update_occupancy(estimator, field, step, render_step_size)``\n    Called once per training step.  ``estimator`` is the nerfacc OccGridEstimator\n    (its ``.occs`` occupancy field is what you update), ``field`` the radiance\n    field (call ``field.query_density(x)``), ``step`` the integer step index,\n    ``render_step_size`` the fixed step.  Update ``estimator.occs`` in place.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport argparse\nimport os\nimport sys\n\nimport numpy as np\n\nsys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))\n\nfrom mlsgfx_nerf.common import (  # noqa: E402\n    DATA_DIR,\n    print_test_metrics,\n    print_train_metrics,\n    seed_everything,\n)\nfrom mlsgfx_nerf.trainer import (  # noqa: E402\n    make_field,\n    train_nerf,\n)\n\n# =============================================================================\n# FIXED — DO NOT MODIFY ABOVE THIS LINE\n# =============================================================================\n\n# ----- BEGIN EDITABLE REGION -----\ndef update_occupancy(estimator, field, step, render_step_size):\n    \"\"\"nerfacc's default update: evaluate a random subset of cells every step.\n\n    Li, R., Tancik, M. and Kanazawa, A., *NerfAcc: Efficient Sampling Leverages\n    Localized Importance*, ICCV 2023: refresh a random 1/4 of the cells with the\n    current density estimate, then decay all occupancies by 0.95.\n    \"\"\"\n    import torch\n\n    def occ_eval(x):\n        return field.query_density(x) * render_step_size\n\n    estimator.update_every_n_steps(step, occ_eval_fn=occ_eval, occ_thre=1e-2)\n# ----- END EDITABLE REGION -----\n\n# =============================================================================\n# FIXED — training and evaluation below\n# =============================================================================\n\nSETTINGS = {\n    \"lego\":   {\"scene\": \"lego\"},\n    \"chair\":  {\"scene\": \"chair\"},\n    \"mic\":    {\"scene\": \"mic\"},\n    \"drums\":  {\"scene\": \"drums\"},\n}\n\n\ndef main() -> None:\n    ap = argparse.ArgumentParser()\n    ap.add_argument(\"--seed\", type=int, default=42)\n    ap.add_argument(\"--setting\", type=str, required=True)\n    ap.add_argument(\"--output-dir\", type=str, default=\"/tmp/output\")\n    ap.add_argument(\"--steps\", type=int, default=6000)\n    args = ap.parse_args()\n\n    cfg = SETTINGS[args.setting]\n    seed_everything(args.seed)\n    os.environ.setdefault(\"CUDA_VISIBLE_DEVICES\", \"0\")\n    scene_root = os.path.join(DATA_DIR, cfg[\"scene\"])\n    print_train_metrics(setting=args.setting, steps=args.steps)\n\n    field = make_field()\n    psnr, history, stats = train_nerf(field, scene_root, steps=args.steps,\n                                      update_hook=update_occupancy, seed=args.seed,\n                                      return_stats=True)\n    print_train_metrics(final_loss=history[-1] if history else float(\"nan\"),\n                        steps_rendered=stats[\"steps_rendered\"])\n    # An occupancy grid exists to cull empty space: its effect is sampling\n    # efficiency (samples per ray) at equal quality, which is what nerfacc\n    # itself reports. Final PSNR alone does not separate update policies at\n    # a fixed step budget (measured: 3 baselines within 0.03 dB).\n    print_test_metrics(psnr=psnr, samples_per_ray=stats[\"samples_per_ray\"],\n                       loss_2k=history[1] if len(history) > 1 else float(\"nan\"))\n\n\nif __name__ == \"__main__\":\n    main()\n"
     }
    ],
    "baselines_code": {
@@ -5820,7 +5820,7 @@
       "file": "nerfacc/mlsgfx_nerf/custom_occupdate.py",
       "start_line": 43,
       "end_line": 55,
-      "content": "def update_occupancy(estimator, field, step, render_step_size):\n    \"\"\"Dense early, sparse late.\"\"\"\n    import torch\n    def occ_eval(x):\n        return field.query_density(x) * render_step_size\n    if step < 1024 and step % 256 == 0:\n        estimator.update_every_n_steps(step, occ_eval_fn=occ_eval, occ_thre=1e-2,\n                                       warmup=True) if hasattr(estimator, \"update_every_n_steps\") else None\n    estimator.update_every_n_steps(step, occ_eval_fn=occ_eval, occ_thre=1e-2)\n"
+      "content": "def update_occupancy(estimator, field, step, render_step_size):\n    \"\"\"Dense early (first 1024 steps), sparse late.\"\"\"\n    import torch\n    def occ_eval(x):\n        return field.query_density(x) * render_step_size\n    estimator.update_every_n_steps(step, occ_eval_fn=occ_eval, occ_thre=1e-2,\n                                   warmup_steps=1024)\n"
      }
     ],
     "importance": [
@@ -5894,7 +5894,7 @@
       "file": "nerfacc/mlsgfx_nerf/custom_viewenc.py",
       "start_line": 42,
       "end_line": 44,
-      "content": "def view_encode(directions):\n    \"\"\"Real spherical harmonics up to degree 2.\"\"\"\n    import torch\n    d = directions / torch.clamp(directions.norm(dim=-1, keepdim=True), min=1e-9)\n    x, y, z = d[..., 0], d[..., 1], d[..., 2]\n    c = [\n        0.2820947918,\n        0.4886025119 * y,\n        0.4886025119 * z,\n        0.4886025119 * x,\n        1.0925484306 * x * y,\n        1.0925484306 * y * z,\n        0.3153915653 * (3 * z * z - 1),\n        1.0925484306 * x * z,\n        0.5462742153 * (x * x - y * y),\n    ]\n    return torch.stack(c, dim=-1)\n"
+      "content": "def view_encode(directions):\n    \"\"\"Real spherical harmonics up to degree 2.\"\"\"\n    import torch\n    d = directions / torch.clamp(directions.norm(dim=-1, keepdim=True), min=1e-9)\n    x, y, z = d[..., 0], d[..., 1], d[..., 2]\n    c = [\n        0.2820947918 * torch.ones_like(x),  # l=0 term is a constant; stack needs a tensor\n        0.4886025119 * y,\n        0.4886025119 * z,\n        0.4886025119 * x,\n        1.0925484306 * x * y,\n        1.0925484306 * y * z,\n        0.3153915653 * (3 * z * z - 1),\n        1.0925484306 * x * z,\n        0.5462742153 * (x * x - y * y),\n    ]\n    return torch.stack(c, dim=-1)\n"
      }
     ],
     "ipe_cone": [
@@ -5902,7 +5902,7 @@
       "file": "nerfacc/mlsgfx_nerf/custom_viewenc.py",
       "start_line": 42,
       "end_line": 44,
-      "content": "def view_encode(directions):\n    \"\"\"Integrated PE of the direction under a small fixed cone (mip-NeRF style).\"\"\"\n    import torch\n    d = directions / torch.clamp(directions.norm(dim=-1, keepdim=True), min=1e-9)\n    cov = 0.01 ** 2\n    freqs = [1.0, 2.0, 4.0, 8.0]\n    feats = [d]\n    for f in freqs:\n        attenuate = torch.exp(-0.5 * (f ** 2) * cov)\n        feats.append(torch.sin(d * (3.14159265 * f)) * attenuate)\n        feats.append(torch.cos(d * (3.14159265 * f)) * attenuate)\n    return torch.cat(feats, dim=-1)\n"
+      "content": "def view_encode(directions):\n    \"\"\"Integrated PE of the direction under a small fixed cone (mip-NeRF style).\"\"\"\n    import math\n    import torch\n    d = directions / torch.clamp(directions.norm(dim=-1, keepdim=True), min=1e-9)\n    cov = 0.01 ** 2\n    freqs = [1.0, 2.0, 4.0, 8.0]\n    feats = [d]\n    for f in freqs:\n        # scalar attenuation exp(-sigma^2 f^2 / 2) -- a Python float, not a tensor\n        attenuate = math.exp(-0.5 * (f ** 2) * cov)\n        feats.append(torch.sin(d * (3.14159265 * f)) * attenuate)\n        feats.append(torch.cos(d * (3.14159265 * f)) * attenuate)\n    return torch.cat(feats, dim=-1)\n"
      }
     ]
    },
@@ -8577,13 +8577,14 @@
    "category": "language-models",
    "category_label": "Language Models",
    "category_abbr": "",
-   "description_md": "# LLM Offline RL: Preference Optimization for Math Reasoning\n\n## Research Question\n**What preference loss best converts a fixed set of chosen/rejected math\nsolutions into better reasoning?**\n\nDPO and its descendants (IPO, SimPO, ORPO, KTO, …) all optimise a preference\nloss on (chosen, rejected) pairs with no reward model and no sampling. They\ndiffer in three choices that interact: whether a frozen reference model anchors\nthe reward, whether log-probabilities are normalised by response length, and\nwhat shape the objective takes once the preference is already satisfied. Those\nchoices trade stability, length bias, calibration and memory against each\nother, and no single variant dominates.\n\n## Task\nImplement your loss in `compute_preference_loss` in\n`LLaMA-Factory/src/llamafactory/train/dpo/trainer.py`. The training recipe\nruns with `pref_loss=custom`, which dispatches to exactly that method.\n\nTwo editable regions:\n\n**1. `compute_preference_loss`** — the whole method, signature included. It\nreceives summed (not length-normalised) log-probabilities of the chosen and\nrejected completions under the policy and, if a reference model is in use,\nunder the reference. It must return\n`(losses, chosen_rewards, rejected_rewards)`; only `losses` enters the\ngradient, the two reward tensors are logged.\n\nUseful state on `self`:\n\n| attribute | meaning |\n|---|---|\n| `self.beta` | `--pref_beta`, 0.1 in this recipe |\n| `self.simpo_gamma` | `--simpo_gamma`, 0.5 by default |\n| `self.label_smoothing` | `--dpo_label_smoothing` |\n| `self._valid_length` | `[2B]` tensor of per-sequence label counts (chosen first, then rejected). `concatenated_forward` only length-normalises for the built-in `ipo`/`orpo`/`simpo` loss types, so under `custom` you get sums; divide by this when your derivation calls for averages. |\n\nYou may hardcode your own constants inside the method — a loss whose scale\ndiffers from DPO's is expected to come with its own hyperparameters.\n\n**2. `finetuning_args.py`, the `use_ref_model` line.** Adding `\"custom\"` to\nthe exclusion list makes the run reference-free: no frozen copy is loaded,\n`reference_chosen_logps` / `reference_rejected_logps` arrive as `None`, and\nboth memory and per-step cost roughly halve. Reference-free methods (SimPO,\nORPO) need this; reference-anchored ones (DPO, IPO) must not use it.\n\n## Setup (adapted from Step-DPO — Lai et al. 2024, arXiv:2406.18629)\nThis is a Step-DPO-*inspired* recipe, not a reproduction of it. Three\ndeliberate deviations, stated so a measured number is not mistaken for the\npaper's: the step-level pairs are flattened to response-level pairs (so every\npreference loss applies unchanged); β is 0.1, the standard DPO value, where\nStep-DPO uses 0.4-0.5; and `cutoff_len` is 2048 against the released config's\n1024.\n- **Base model**: `Qwen2.5-Math-1.5B-Instruct` (math-specialised SFT, 1.5B\n  params), `qwen` chat template.\n- **Preference data**: `xinlai/Math-Step-DPO-10K` (~10K math problems with\n  step-level chosen/rejected solutions), used as response-level pairs so every\n  variant applies directly.\n- **Training**: full-parameter, ZeRO-2, β=0.1, 4 epochs, lr 5e-7, cosine,\n  `cutoff_len=2048`, **effective batch 64** — `per_device=4` with the\n  gradient-accumulation count derived from the GPU count, so the recipe is the\n  same experiment on any allocation.\n\n## Evaluation (judge-free)\nThree math benchmarks, each its own eval setting, all scored off the same\ntuned checkpoint by MathRuler's sympy + mathd grader — no LLM judge anywhere.\nA single vLLM engine is loaded per setting.\n\n| setting | benchmark | items | decoding | metric |\n|---|---|---|---|---|\n| `gsm8k` | GSM8K test | 1319 | greedy, n=1 | `gsm8k_accuracy` |\n| `math500` | MATH-500 | 500 | greedy, n=1 | `math500_accuracy` |\n| `aime` | AIME 2024 + 2025 | 60 | avg@8, T=0.6, top_p 0.95 | `aime_accuracy` |\n\nAccuracies are percentages. They form a difficulty ladder for this base model\n(~85 / ~74 / ~10), which is the axis the loss has to hold up across: a loss\nthat only sharpens the easy modes moves GSM8K and leaves the competition sets\nflat. AIME uses avg@8 over both years because 30 greedy problems quantise\naccuracy at 3.33 points, coarser than the differences between these methods.\n\n## Baselines\nFour published preference losses, each written against the same two editable\nregions:\n\n| Baseline | Reference | Reference model | Log-probs | Shape |\n|---|---|---|---|---|\n| `dpo` | Rafailov et al., NeurIPS'23 (arXiv:2305.18290) | yes | summed | `-log sigmoid(beta * Δ)` |\n| `ipo` | Azar et al., AISTATS'24 (arXiv:2310.12036) | yes | length-normalised | `(Δ - 1/(2*beta))^2` |\n| `simpo` | Meng et al., NeurIPS'24 (arXiv:2405.14734) | no | length-normalised | `-log sigmoid(beta * Δ - gamma)`, beta=2.0, gamma=1.0 |\n| `orpo` | Hong et al., EMNLP'24 (arXiv:2403.07691) | no | length-normalised | NLL(chosen) + beta * odds-ratio term |\n\n`dpo` is also the no-op anchor: the *unmodified* `compute_preference_loss`\nforwards to TRL's `dpo_loss` with its default `loss_type=\"sigmoid\"`, so leaving\nthe method alone reproduces plain DPO exactly. Beat at least one baseline on\nthe geometric mean across the three settings.\n",
-   "description_html": "<h1>LLM Offline RL: Preference Optimization for Math Reasoning</h1>\n<h2>Research Question</h2>\n<p><strong>What preference loss best converts a fixed set of chosen/rejected math\nsolutions into better reasoning?</strong></p>\n<p>DPO and its descendants (IPO, SimPO, ORPO, KTO, …) all optimise a preference\nloss on (chosen, rejected) pairs with no reward model and no sampling. They\ndiffer in three choices that interact: whether a frozen reference model anchors\nthe reward, whether log-probabilities are normalised by response length, and\nwhat shape the objective takes once the preference is already satisfied. Those\nchoices trade stability, length bias, calibration and memory against each\nother, and no single variant dominates.</p>\n<h2>Task</h2>\n<p>Implement your loss in <code>compute_preference_loss</code> in\n<code>LLaMA-Factory/src/llamafactory/train/dpo/trainer.py</code>. The training recipe\nruns with <code>pref_loss=custom</code>, which dispatches to exactly that method.</p>\n<p>Two editable regions:</p>\n<p><strong>1. <code>compute_preference_loss</code></strong> — the whole method, signature included. It\nreceives summed (not length-normalised) log-probabilities of the chosen and\nrejected completions under the policy and, if a reference model is in use,\nunder the reference. It must return\n<code>(losses, chosen_rewards, rejected_rewards)</code>; only <code>losses</code> enters the\ngradient, the two reward tensors are logged.</p>\n<p>Useful state on <code>self</code>:</p>\n<table>\n<thead>\n<tr>\n<th>attribute</th>\n<th>meaning</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>self.beta</code></td>\n<td><code>--pref_beta</code>, 0.1 in this recipe</td>\n</tr>\n<tr>\n<td><code>self.simpo_gamma</code></td>\n<td><code>--simpo_gamma</code>, 0.5 by default</td>\n</tr>\n<tr>\n<td><code>self.label_smoothing</code></td>\n<td><code>--dpo_label_smoothing</code></td>\n</tr>\n<tr>\n<td><code>self._valid_length</code></td>\n<td><code>[2B]</code> tensor of per-sequence label counts (chosen first, then rejected). <code>concatenated_forward</code> only length-normalises for the built-in <code>ipo</code>/<code>orpo</code>/<code>simpo</code> loss types, so under <code>custom</code> you get sums; divide by this when your derivation calls for averages.</td>\n</tr>\n</tbody>\n</table>\n<p>You may hardcode your own constants inside the method — a loss whose scale\ndiffers from DPO's is expected to come with its own hyperparameters.</p>\n<p><strong>2. <code>finetuning_args.py</code>, the <code>use_ref_model</code> line.</strong> Adding <code>\"custom\"</code> to\nthe exclusion list makes the run reference-free: no frozen copy is loaded,\n<code>reference_chosen_logps</code> / <code>reference_rejected_logps</code> arrive as <code>None</code>, and\nboth memory and per-step cost roughly halve. Reference-free methods (SimPO,\nORPO) need this; reference-anchored ones (DPO, IPO) must not use it.</p>\n<h2>Setup (adapted from Step-DPO — Lai et al. 2024, arXiv:2406.18629)</h2>\n<p>This is a Step-DPO-<em>inspired</em> recipe, not a reproduction of it. Three\ndeliberate deviations, stated so a measured number is not mistaken for the\npaper's: the step-level pairs are flattened to response-level pairs (so every\npreference loss applies unchanged); β is 0.1, the standard DPO value, where\nStep-DPO uses 0.4-0.5; and <code>cutoff_len</code> is 2048 against the released config's\n1024.\n- <strong>Base model</strong>: <code>Qwen2.5-Math-1.5B-Instruct</code> (math-specialised SFT, 1.5B\n  params), <code>qwen</code> chat template.\n- <strong>Preference data</strong>: <code>xinlai/Math-Step-DPO-10K</code> (~10K math problems with\n  step-level chosen/rejected solutions), used as response-level pairs so every\n  variant applies directly.\n- <strong>Training</strong>: full-parameter, ZeRO-2, β=0.1, 4 epochs, lr 5e-7, cosine,\n  <code>cutoff_len=2048</code>, <strong>effective batch 64</strong> — <code>per_device=4</code> with the\n  gradient-accumulation count derived from the GPU count, so the recipe is the\n  same experiment on any allocation.</p>\n<h2>Evaluation (judge-free)</h2>\n<p>Three math benchmarks, each its own eval setting, all scored off the same\ntuned checkpoint by MathRuler's sympy + mathd grader — no LLM judge anywhere.\nA single vLLM engine is loaded per setting.</p>\n<table>\n<thead>\n<tr>\n<th>setting</th>\n<th>benchmark</th>\n<th>items</th>\n<th>decoding</th>\n<th>metric</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>gsm8k</code></td>\n<td>GSM8K test</td>\n<td>1319</td>\n<td>greedy, n=1</td>\n<td><code>gsm8k_accuracy</code></td>\n</tr>\n<tr>\n<td><code>math500</code></td>\n<td>MATH-500</td>\n<td>500</td>\n<td>greedy, n=1</td>\n<td><code>math500_accuracy</code></td>\n</tr>\n<tr>\n<td><code>aime</code></td>\n<td>AIME 2024 + 2025</td>\n<td>60</td>\n<td>avg@8, T=0.6, top_p 0.95</td>\n<td><code>aime_accuracy</code></td>\n</tr>\n</tbody>\n</table>\n<p>Accuracies are percentages. They form a difficulty ladder for this base model\n(~85 / ~74 / ~10), which is the axis the loss has to hold up across: a loss\nthat only sharpens the easy modes moves GSM8K and leaves the competition sets\nflat. AIME uses avg@8 over both years because 30 greedy problems quantise\naccuracy at 3.33 points, coarser than the differences between these methods.</p>\n<h2>Baselines</h2>\n<p>Four published preference losses, each written against the same two editable\nregions:</p>\n<table>\n<thead>\n<tr>\n<th>Baseline</th>\n<th>Reference</th>\n<th>Reference model</th>\n<th>Log-probs</th>\n<th>Shape</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>dpo</code></td>\n<td>Rafailov et al., NeurIPS'23 (arXiv:2305.18290)</td>\n<td>yes</td>\n<td>summed</td>\n<td><code>-log sigmoid(beta * Δ)</code></td>\n</tr>\n<tr>\n<td><code>ipo</code></td>\n<td>Azar et al., AISTATS'24 (arXiv:2310.12036)</td>\n<td>yes</td>\n<td>length-normalised</td>\n<td><code>(Δ - 1/(2*beta))^2</code></td>\n</tr>\n<tr>\n<td><code>simpo</code></td>\n<td>Meng et al., NeurIPS'24 (arXiv:2405.14734)</td>\n<td>no</td>\n<td>length-normalised</td>\n<td><code>-log sigmoid(beta * Δ - gamma)</code>, beta=2.0, gamma=1.0</td>\n</tr>\n<tr>\n<td><code>orpo</code></td>\n<td>Hong et al., EMNLP'24 (arXiv:2403.07691)</td>\n<td>no</td>\n<td>length-normalised</td>\n<td>NLL(chosen) + beta * odds-ratio term</td>\n</tr>\n</tbody>\n</table>\n<p><code>dpo</code> is also the no-op anchor: the <em>unmodified</em> <code>compute_preference_loss</code>\nforwards to TRL's <code>dpo_loss</code> with its default <code>loss_type=\"sigmoid\"</code>, so leaving\nthe method alone reproduces plain DPO exactly. Beat at least one baseline on\nthe geometric mean across the three settings.</p>",
+   "description_md": "# LLM Offline RL: Preference Optimization for Math Reasoning\n\n## Research Question\n**What preference loss best converts a fixed set of chosen/rejected math\nsolutions into better reasoning?**\n\nDPO and its descendants (IPO, SimPO, ORPO, KTO, …) all optimise a preference\nloss on (chosen, rejected) pairs with no reward model and no sampling. They\ndiffer in three choices that interact: whether a frozen reference model anchors\nthe reward, whether log-probabilities are normalised by response length, and\nwhat shape the objective takes once the preference is already satisfied. Those\nchoices trade stability, length bias, calibration and memory against each\nother, and no single variant dominates.\n\n## Task\nImplement your loss in `compute_preference_loss` in\n`LLaMA-Factory/src/llamafactory/train/dpo/trainer.py`. The training recipe\nruns with `pref_loss=custom`, which dispatches to exactly that method.\n\nTwo editable regions:\n\n**1. `compute_preference_loss`** — the whole method, signature included. It\nreceives summed (not length-normalised) log-probabilities of the chosen and\nrejected completions under the policy and, if a reference model is in use,\nunder the reference. It must return\n`(losses, chosen_rewards, rejected_rewards)`; only `losses` enters the\ngradient, the two reward tensors are logged.\n\nUseful state on `self`:\n\n| attribute | meaning |\n|---|---|\n| `self.beta` | `--pref_beta`, 0.4 in this recipe |\n| `self.simpo_gamma` | `--simpo_gamma`, 0.5 by default |\n| `self.label_smoothing` | `--dpo_label_smoothing` |\n| `self._valid_length` | `[2B]` tensor of per-sequence label counts (chosen first, then rejected). `concatenated_forward` only length-normalises for the built-in `ipo`/`orpo`/`simpo` loss types, so under `custom` you get sums; divide by this when your derivation calls for averages. |\n\nYou may hardcode your own constants inside the method — a loss whose scale\ndiffers from DPO's is expected to come with its own hyperparameters.\n\n**2. `finetuning_args.py`, the `use_ref_model` line.** Adding `\"custom\"` to\nthe exclusion list makes the run reference-free: no frozen copy is loaded,\n`reference_chosen_logps` / `reference_rejected_logps` arrive as `None`, and\nboth memory and per-step cost roughly halve. Reference-free methods (SimPO,\nORPO) need this; reference-anchored ones (DPO, IPO) must not use it.\n\n## Setup (adapted from Step-DPO — Lai et al. 2024, arXiv:2406.18629)\nThis is a Step-DPO-*inspired* recipe, not a reproduction of it. The remaining\ndeviations, stated so a measured number is not mistaken for the paper's: the\nstep-level pairs are flattened to response-level pairs (so every preference\nloss applies unchanged); the effective batch is 64 against the paper's 128,\nand 4 epochs against its 8 at 7B, which lands 625 optimizer steps against its\n675; and `cutoff_len` is 2048 against the released config's 1024.\n- **Base model**: `Qwen2.5-Math-1.5B-Instruct` (math-specialised, 1.5B\n  params), `qwen` chat template.\n- **Preference data**: `xinlai/Math-Step-DPO-10K` (~10K math problems with\n  step-level chosen/rejected solutions), used as response-level pairs so every\n  variant applies directly. The dataset's `initial_reason_steps` prefix is\n  kept at the head of *both* responses — it is identical on the two branches,\n  so it cancels in every log-ratio and carries no preference signal, but\n  without it 89% of both responses begin mid-step. Final answers are written\n  in `\\boxed{}` form on both branches, which is what the grader reads.\n- **Training**: full-parameter, ZeRO-2, β=0.4 (Step-DPO's own value below\n  72B), 4 epochs, lr 5e-7, cosine, `cutoff_len=2048`, **effective batch 64** —\n  `per_device=4` with the gradient-accumulation count derived from the GPU\n  count, so the recipe is the same experiment on any allocation. Training\n  conditions on the same system message the evaluation uses.\n\n## Evaluation (judge-free)\nThree math benchmarks, each its own eval setting, all scored off the same\ntuned checkpoint by MathRuler's sympy + mathd grader — no LLM judge anywhere.\nA single vLLM engine is loaded per setting.\n\n| setting | benchmark | items | decoding | metric |\n|---|---|---|---|---|\n| `gsm8k` | GSM8K test | 1319 | greedy, n=1 | `gsm8k_accuracy` |\n| `math500` | MATH-500 | 500 | greedy, n=1 | `math500_accuracy` |\n| `aime` | AIME 2024 + 2025 | 60 | avg@8, T=0.6, top_p 0.95 | `aime_accuracy` |\n\nAccuracies are percentages. They form a difficulty ladder for this base model\n(~85 / ~74 / ~10), which is the axis the loss has to hold up across: a loss\nthat only sharpens the easy modes moves GSM8K and leaves the competition sets\nflat. AIME uses avg@8 over both years because 30 greedy problems quantise\naccuracy at 3.33 points, coarser than the differences between these methods.\n\n## Baselines\nFour published preference losses plus a floor, each written against the same\ntwo editable regions:\n\n| Baseline | Reference | Reference model | Log-probs | Shape |\n|---|---|---|---|---|\n| `dpo` | Rafailov et al., NeurIPS'23 (arXiv:2305.18290) | yes | summed | `-log sigmoid(beta * Δ)` |\n| `ipo` | Azar et al., AISTATS'24 (arXiv:2310.12036) | yes | length-normalised | `(Δ - 1/(2*beta))^2` |\n| `simpo` | Meng et al., NeurIPS'24 (arXiv:2405.14734) | no | length-normalised | `-log sigmoid(beta * Δ - gamma)`, beta=2.0, gamma=1.0 |\n| `orpo` | Hong et al., EMNLP'24 (arXiv:2403.07691) | no | length-normalised | NLL(chosen) + lambda * odds-ratio term, lambda=0.1 |\n| `null` | — (floor, not a method) | yes | — | `losses = 0` |\n\n`null` is the floor: a zero loss produces zero gradients, so the evaluated\ncheckpoint is the base model itself and its three scores are what this harness\ngives with no preference training at all. A submission that cannot clear it\nhas not converted the preference data into anything.\n\nNote also that the *unmodified* `compute_preference_loss` forwards to TRL's\n`dpo_loss` with its default `loss_type=\"sigmoid\"`, so leaving the method alone\nreproduces plain DPO. Beat at least one baseline on the geometric mean across\nthe three settings.\n",
+   "description_html": "<h1>LLM Offline RL: Preference Optimization for Math Reasoning</h1>\n<h2>Research Question</h2>\n<p><strong>What preference loss best converts a fixed set of chosen/rejected math\nsolutions into better reasoning?</strong></p>\n<p>DPO and its descendants (IPO, SimPO, ORPO, KTO, …) all optimise a preference\nloss on (chosen, rejected) pairs with no reward model and no sampling. They\ndiffer in three choices that interact: whether a frozen reference model anchors\nthe reward, whether log-probabilities are normalised by response length, and\nwhat shape the objective takes once the preference is already satisfied. Those\nchoices trade stability, length bias, calibration and memory against each\nother, and no single variant dominates.</p>\n<h2>Task</h2>\n<p>Implement your loss in <code>compute_preference_loss</code> in\n<code>LLaMA-Factory/src/llamafactory/train/dpo/trainer.py</code>. The training recipe\nruns with <code>pref_loss=custom</code>, which dispatches to exactly that method.</p>\n<p>Two editable regions:</p>\n<p><strong>1. <code>compute_preference_loss</code></strong> — the whole method, signature included. It\nreceives summed (not length-normalised) log-probabilities of the chosen and\nrejected completions under the policy and, if a reference model is in use,\nunder the reference. It must return\n<code>(losses, chosen_rewards, rejected_rewards)</code>; only <code>losses</code> enters the\ngradient, the two reward tensors are logged.</p>\n<p>Useful state on <code>self</code>:</p>\n<table>\n<thead>\n<tr>\n<th>attribute</th>\n<th>meaning</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>self.beta</code></td>\n<td><code>--pref_beta</code>, 0.4 in this recipe</td>\n</tr>\n<tr>\n<td><code>self.simpo_gamma</code></td>\n<td><code>--simpo_gamma</code>, 0.5 by default</td>\n</tr>\n<tr>\n<td><code>self.label_smoothing</code></td>\n<td><code>--dpo_label_smoothing</code></td>\n</tr>\n<tr>\n<td><code>self._valid_length</code></td>\n<td><code>[2B]</code> tensor of per-sequence label counts (chosen first, then rejected). <code>concatenated_forward</code> only length-normalises for the built-in <code>ipo</code>/<code>orpo</code>/<code>simpo</code> loss types, so under <code>custom</code> you get sums; divide by this when your derivation calls for averages.</td>\n</tr>\n</tbody>\n</table>\n<p>You may hardcode your own constants inside the method — a loss whose scale\ndiffers from DPO's is expected to come with its own hyperparameters.</p>\n<p><strong>2. <code>finetuning_args.py</code>, the <code>use_ref_model</code> line.</strong> Adding <code>\"custom\"</code> to\nthe exclusion list makes the run reference-free: no frozen copy is loaded,\n<code>reference_chosen_logps</code> / <code>reference_rejected_logps</code> arrive as <code>None</code>, and\nboth memory and per-step cost roughly halve. Reference-free methods (SimPO,\nORPO) need this; reference-anchored ones (DPO, IPO) must not use it.</p>\n<h2>Setup (adapted from Step-DPO — Lai et al. 2024, arXiv:2406.18629)</h2>\n<p>This is a Step-DPO-<em>inspired</em> recipe, not a reproduction of it. The remaining\ndeviations, stated so a measured number is not mistaken for the paper's: the\nstep-level pairs are flattened to response-level pairs (so every preference\nloss applies unchanged); the effective batch is 64 against the paper's 128,\nand 4 epochs against its 8 at 7B, which lands 625 optimizer steps against its\n675; and <code>cutoff_len</code> is 2048 against the released config's 1024.\n- <strong>Base model</strong>: <code>Qwen2.5-Math-1.5B-Instruct</code> (math-specialised, 1.5B\n  params), <code>qwen</code> chat template.\n- <strong>Preference data</strong>: <code>xinlai/Math-Step-DPO-10K</code> (~10K math problems with\n  step-level chosen/rejected solutions), used as response-level pairs so every\n  variant applies directly. The dataset's <code>initial_reason_steps</code> prefix is\n  kept at the head of <em>both</em> responses — it is identical on the two branches,\n  so it cancels in every log-ratio and carries no preference signal, but\n  without it 89% of both responses begin mid-step. Final answers are written\n  in <code>\\boxed{}</code> form on both branches, which is what the grader reads.\n- <strong>Training</strong>: full-parameter, ZeRO-2, β=0.4 (Step-DPO's own value below\n  72B), 4 epochs, lr 5e-7, cosine, <code>cutoff_len=2048</code>, <strong>effective batch 64</strong> —\n  <code>per_device=4</code> with the gradient-accumulation count derived from the GPU\n  count, so the recipe is the same experiment on any allocation. Training\n  conditions on the same system message the evaluation uses.</p>\n<h2>Evaluation (judge-free)</h2>\n<p>Three math benchmarks, each its own eval setting, all scored off the same\ntuned checkpoint by MathRuler's sympy + mathd grader — no LLM judge anywhere.\nA single vLLM engine is loaded per setting.</p>\n<table>\n<thead>\n<tr>\n<th>setting</th>\n<th>benchmark</th>\n<th>items</th>\n<th>decoding</th>\n<th>metric</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>gsm8k</code></td>\n<td>GSM8K test</td>\n<td>1319</td>\n<td>greedy, n=1</td>\n<td><code>gsm8k_accuracy</code></td>\n</tr>\n<tr>\n<td><code>math500</code></td>\n<td>MATH-500</td>\n<td>500</td>\n<td>greedy, n=1</td>\n<td><code>math500_accuracy</code></td>\n</tr>\n<tr>\n<td><code>aime</code></td>\n<td>AIME 2024 + 2025</td>\n<td>60</td>\n<td>avg@8, T=0.6, top_p 0.95</td>\n<td><code>aime_accuracy</code></td>\n</tr>\n</tbody>\n</table>\n<p>Accuracies are percentages. They form a difficulty ladder for this base model\n(~85 / ~74 / ~10), which is the axis the loss has to hold up across: a loss\nthat only sharpens the easy modes moves GSM8K and leaves the competition sets\nflat. AIME uses avg@8 over both years because 30 greedy problems quantise\naccuracy at 3.33 points, coarser than the differences between these methods.</p>\n<h2>Baselines</h2>\n<p>Four published preference losses plus a floor, each written against the same\ntwo editable regions:</p>\n<table>\n<thead>\n<tr>\n<th>Baseline</th>\n<th>Reference</th>\n<th>Reference model</th>\n<th>Log-probs</th>\n<th>Shape</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>dpo</code></td>\n<td>Rafailov et al., NeurIPS'23 (arXiv:2305.18290)</td>\n<td>yes</td>\n<td>summed</td>\n<td><code>-log sigmoid(beta * Δ)</code></td>\n</tr>\n<tr>\n<td><code>ipo</code></td>\n<td>Azar et al., AISTATS'24 (arXiv:2310.12036)</td>\n<td>yes</td>\n<td>length-normalised</td>\n<td><code>(Δ - 1/(2*beta))^2</code></td>\n</tr>\n<tr>\n<td><code>simpo</code></td>\n<td>Meng et al., NeurIPS'24 (arXiv:2405.14734)</td>\n<td>no</td>\n<td>length-normalised</td>\n<td><code>-log sigmoid(beta * Δ - gamma)</code>, beta=2.0, gamma=1.0</td>\n</tr>\n<tr>\n<td><code>orpo</code></td>\n<td>Hong et al., EMNLP'24 (arXiv:2403.07691)</td>\n<td>no</td>\n<td>length-normalised</td>\n<td>NLL(chosen) + lambda * odds-ratio term, lambda=0.1</td>\n</tr>\n<tr>\n<td><code>null</code></td>\n<td>— (floor, not a method)</td>\n<td>yes</td>\n<td>—</td>\n<td><code>losses = 0</code></td>\n</tr>\n</tbody>\n</table>\n<p><code>null</code> is the floor: a zero loss produces zero gradients, so the evaluated\ncheckpoint is the base model itself and its three scores are what this harness\ngives with no preference training at all. A submission that cannot clear it\nhas not converted the preference data into anything.</p>\n<p>Note also that the <em>unmodified</em> <code>compute_preference_loss</code> forwards to TRL's\n<code>dpo_loss</code> with its default <code>loss_type=\"sigmoid\"</code>, so leaving the method alone\nreproduces plain DPO. Beat at least one baseline on the geometric mean across\nthe three settings.</p>",
    "baselines": [
     "dpo",
     "ipo",
     "simpo",
-    "orpo"
+    "orpo",
+    "null"
    ],
    "environments": [
     "train",
@@ -8651,13 +8652,21 @@
       "file": "LLaMA-Factory/src/llamafactory/train/dpo/trainer.py",
       "start_line": 187,
       "end_line": 216,
-      "content": "    def compute_preference_loss(\n        self,\n        policy_chosen_logps: \"torch.Tensor\",\n        policy_rejected_logps: \"torch.Tensor\",\n        reference_chosen_logps: Optional[\"torch.Tensor\"],\n        reference_rejected_logps: Optional[\"torch.Tensor\"],\n    ) -> tuple[\"torch.Tensor\", \"torch.Tensor\", \"torch.Tensor\"]:\n        r\"\"\"ORPO: monolithic odds-ratio preference optimisation (Hong et al., EMNLP'24).\"\"\"\n        # ORPO is reference-free and single-stage: an SFT negative-log-\n        # likelihood term on the preferred response, plus beta times an\n        # odds-ratio term that pushes the odds of the preferred response above\n        # the odds of the rejected one. Both use LENGTH-NORMALISED\n        # log-probabilities, so log1p(-exp(.)) stays in domain. The second\n        # edit op adds \"custom\" to the no-reference list in\n        # finetuning_args.py.\n        bsz = policy_chosen_logps.size(0)\n        chosen_len, rejected_len = self._valid_length.split(bsz, dim=0)\n        chosen_len = chosen_len.to(policy_chosen_logps.dtype).clamp_min(1)\n        rejected_len = rejected_len.to(policy_rejected_logps.dtype).clamp_min(1)\n\n        chosen_avg = (policy_chosen_logps / chosen_len).clamp(max=-1e-6)\n        rejected_avg = (policy_rejected_logps / rejected_len).clamp(max=-1e-6)\n\n        log_odds = (chosen_avg - rejected_avg) - (\n            torch.log1p(-torch.exp(chosen_avg)) - torch.log1p(-torch.exp(rejected_avg))\n        )\n        sft_loss = -chosen_avg\n        odds_ratio_loss = -F.logsigmoid(log_odds)\n        losses = sft_loss + self.beta * odds_ratio_loss\n\n        chosen_rewards = (self.beta * chosen_avg).detach()\n        rejected_rewards = (self.beta * rejected_avg).detach()\n        return losses, chosen_rewards, rejected_rewards\n"
+      "content": "    def compute_preference_loss(\n        self,\n        policy_chosen_logps: \"torch.Tensor\",\n        policy_rejected_logps: \"torch.Tensor\",\n        reference_chosen_logps: Optional[\"torch.Tensor\"],\n        reference_rejected_logps: Optional[\"torch.Tensor\"],\n    ) -> tuple[\"torch.Tensor\", \"torch.Tensor\", \"torch.Tensor\"]:\n        r\"\"\"ORPO: monolithic odds-ratio preference optimisation (Hong et al., EMNLP'24).\"\"\"\n        # ORPO is reference-free and single-stage: an SFT negative-log-\n        # likelihood term on the preferred response, plus beta times an\n        # odds-ratio term that pushes the odds of the preferred response above\n        # the odds of the rejected one. Both use LENGTH-NORMALISED\n        # log-probabilities, so log1p(-exp(.)) stays in domain. The second\n        # edit op adds \"custom\" to the no-reference list in\n        # finetuning_args.py.\n        bsz = policy_chosen_logps.size(0)\n        chosen_len, rejected_len = self._valid_length.split(bsz, dim=0)\n        chosen_len = chosen_len.to(policy_chosen_logps.dtype).clamp_min(1)\n        rejected_len = rejected_len.to(policy_rejected_logps.dtype).clamp_min(1)\n\n        chosen_avg = (policy_chosen_logps / chosen_len).clamp(max=-1e-6)\n        rejected_avg = (policy_rejected_logps / rejected_len).clamp(max=-1e-6)\n\n        log_odds = (chosen_avg - rejected_avg) - (\n            torch.log1p(-torch.exp(chosen_avg)) - torch.log1p(-torch.exp(rejected_avg))\n        )\n        # ORPO's lambda weights the odds-ratio term against the SFT term. It is\n        # the paper's own value (Hong et al., EMNLP'24, arXiv:2403.07691), not\n        # the shared --pref_beta: that flag carries DPO's KL coefficient, which\n        # this reference-free objective does not have. They happened to\n        # coincide while --pref_beta was 0.1; pinning it keeps this baseline\n        # ORPO after the shared recipe adopts Step-DPO's own beta.\n        LAMBDA = 0.1\n\n        sft_loss = -chosen_avg\n        odds_ratio_loss = -F.logsigmoid(log_odds)\n        losses = sft_loss + LAMBDA * odds_ratio_loss\n\n        chosen_rewards = (LAMBDA * chosen_avg).detach()\n        rejected_rewards = (LAMBDA * rejected_avg).detach()\n        return losses, chosen_rewards, rejected_rewards\n"
      },
      {
       "file": "LLaMA-Factory/src/llamafactory/hparams/finetuning_args.py",
       "start_line": 556,
       "end_line": 556,
       "content": "        self.use_ref_model = self.stage == \"dpo\" and self.pref_loss not in [\"orpo\", \"simpo\", \"custom\"]"
+     }
+    ],
+    "null": [
+     {
+      "file": "LLaMA-Factory/src/llamafactory/train/dpo/trainer.py",
+      "start_line": 187,
+      "end_line": 216,
+      "content": "    def compute_preference_loss(\n        self,\n        policy_chosen_logps: \"torch.Tensor\",\n        policy_rejected_logps: \"torch.Tensor\",\n        reference_chosen_logps: Optional[\"torch.Tensor\"],\n        reference_rejected_logps: Optional[\"torch.Tensor\"],\n    ) -> tuple[\"torch.Tensor\", \"torch.Tensor\", \"torch.Tensor\"]:\n        r\"\"\"Null anchor: no preference signal at all.\"\"\"\n        # Zero loss -> zero gradient -> AdamW (weight_decay=0) applies a zero\n        # update, so the evaluated checkpoint is the base model itself. Kept as\n        # a declared baseline so every future sweep re-measures the floor.\n        losses = policy_chosen_logps * 0.0\n        chosen_rewards = (self.beta * policy_chosen_logps).detach()\n        rejected_rewards = (self.beta * policy_rejected_logps).detach()\n        return losses, chosen_rewards, rejected_rewards\n"
      }
     ]
    },
@@ -52689,6 +52698,271 @@
     }
    ]
   },
+  "gfx-dmesh-fit-loss": {
+   "task_id": "gfx-dmesh-fit-loss",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "chamfer_spot",
+    "normal_cons_spot",
+    "hausdorff_spot",
+    "elapsed_spot",
+    "chamfer_fandisk",
+    "normal_cons_fandisk",
+    "hausdorff_fandisk",
+    "elapsed_fandisk",
+    "chamfer_armadillo",
+    "normal_cons_armadillo",
+    "hausdorff_armadillo",
+    "elapsed_armadillo",
+    "chamfer_bunny",
+    "normal_cons_bunny",
+    "hausdorff_bunny",
+    "elapsed_bunny"
+   ],
+   "metric_columns": [
+    "chamfer_spot",
+    "normal_cons_spot",
+    "hausdorff_spot",
+    "chamfer_fandisk",
+    "normal_cons_fandisk",
+    "hausdorff_fandisk",
+    "chamfer_armadillo",
+    "normal_cons_armadillo",
+    "hausdorff_armadillo",
+    "chamfer_bunny",
+    "normal_cons_bunny",
+    "hausdorff_bunny"
+   ],
+   "metric_directions": {
+    "chamfer_spot": "lower",
+    "normal_cons_spot": "lower",
+    "hausdorff_spot": "lower",
+    "chamfer_fandisk": "lower",
+    "normal_cons_fandisk": "lower",
+    "hausdorff_fandisk": "lower",
+    "chamfer_armadillo": "lower",
+    "normal_cons_armadillo": "lower",
+    "hausdorff_armadillo": "lower",
+    "chamfer_bunny": "lower",
+    "normal_cons_bunny": "lower",
+    "hausdorff_bunny": "lower"
+   },
+   "metric_groups": [
+    {
+     "setting": "spot",
+     "metrics": [
+      "chamfer_spot",
+      "normal_cons_spot",
+      "hausdorff_spot"
+     ]
+    },
+    {
+     "setting": "fandisk",
+     "metrics": [
+      "chamfer_fandisk",
+      "normal_cons_fandisk",
+      "hausdorff_fandisk"
+     ]
+    },
+    {
+     "setting": "armadillo",
+     "metrics": [
+      "chamfer_armadillo",
+      "normal_cons_armadillo",
+      "hausdorff_armadillo"
+     ]
+    },
+    {
+     "setting": "bunny",
+     "metrics": [
+      "chamfer_bunny",
+      "normal_cons_bunny",
+      "hausdorff_bunny"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-01T17:13:35.298669+00:00",
+     "model": "baseline:arap_lite",
+     "is_final": true,
+     "seed": "42",
+     "chamfer_spot": 0.0154683,
+     "normal_cons_spot": 0.569219,
+     "hausdorff_spot": 0.269744,
+     "elapsed_spot": 13.5,
+     "chamfer_fandisk": 0.0141392,
+     "normal_cons_fandisk": 0.537035,
+     "hausdorff_fandisk": 0.262775,
+     "elapsed_fandisk": 13.3,
+     "chamfer_armadillo": 0.0156431,
+     "normal_cons_armadillo": 0.528711,
+     "hausdorff_armadillo": 0.25858,
+     "elapsed_armadillo": 14.6,
+     "chamfer_bunny": 0.0130299,
+     "normal_cons_bunny": 0.536061,
+     "hausdorff_bunny": 0.262452,
+     "elapsed_bunny": 14.6
+    },
+    {
+     "timestamp": "2026-09-01T17:13:35.300617+00:00",
+     "model": "baseline:arap_lite",
+     "is_final": true,
+     "seed": "mean",
+     "chamfer_spot": 0.0154683,
+     "normal_cons_spot": 0.569219,
+     "hausdorff_spot": 0.269744,
+     "elapsed_spot": 13.5,
+     "chamfer_fandisk": 0.0141392,
+     "normal_cons_fandisk": 0.537035,
+     "hausdorff_fandisk": 0.262775,
+     "elapsed_fandisk": 13.3,
+     "chamfer_armadillo": 0.0156431,
+     "normal_cons_armadillo": 0.528711,
+     "hausdorff_armadillo": 0.25858,
+     "elapsed_armadillo": 14.6,
+     "chamfer_bunny": 0.0130299,
+     "normal_cons_bunny": 0.536061,
+     "hausdorff_bunny": 0.262452,
+     "elapsed_bunny": 14.6
+    },
+    {
+     "timestamp": "2026-09-01T17:11:37.132976+00:00",
+     "model": "baseline:chamfer_l1",
+     "is_final": true,
+     "seed": "42",
+     "chamfer_spot": 0.0076713,
+     "normal_cons_spot": 0.573448,
+     "hausdorff_spot": 0.343208,
+     "elapsed_spot": 14.7,
+     "chamfer_fandisk": 0.0067995,
+     "normal_cons_fandisk": 0.490927,
+     "hausdorff_fandisk": 0.343488,
+     "elapsed_fandisk": 14.8,
+     "chamfer_armadillo": 0.00917001,
+     "normal_cons_armadillo": 0.676703,
+     "hausdorff_armadillo": 0.304241,
+     "elapsed_armadillo": 16.6,
+     "chamfer_bunny": 0.00644284,
+     "normal_cons_bunny": 0.555436,
+     "hausdorff_bunny": 0.321262,
+     "elapsed_bunny": 15.9
+    },
+    {
+     "timestamp": "2026-09-01T17:11:37.133944+00:00",
+     "model": "baseline:chamfer_l1",
+     "is_final": true,
+     "seed": "mean",
+     "chamfer_spot": 0.0076713,
+     "normal_cons_spot": 0.573448,
+     "hausdorff_spot": 0.343208,
+     "elapsed_spot": 14.7,
+     "chamfer_fandisk": 0.0067995,
+     "normal_cons_fandisk": 0.490927,
+     "hausdorff_fandisk": 0.343488,
+     "elapsed_fandisk": 14.8,
+     "chamfer_armadillo": 0.00917001,
+     "normal_cons_armadillo": 0.676703,
+     "hausdorff_armadillo": 0.304241,
+     "elapsed_armadillo": 16.6,
+     "chamfer_bunny": 0.00644284,
+     "normal_cons_bunny": 0.555436,
+     "hausdorff_bunny": 0.321262,
+     "elapsed_bunny": 15.9
+    },
+    {
+     "timestamp": "2026-09-01T08:13:22.193871+00:00",
+     "model": "baseline:chamfer_l2",
+     "is_final": true,
+     "seed": "42",
+     "chamfer_spot": 0.0128127,
+     "normal_cons_spot": 0.224441,
+     "hausdorff_spot": 0.262061,
+     "elapsed_spot": 22.9,
+     "chamfer_fandisk": 0.0110658,
+     "normal_cons_fandisk": 0.165818,
+     "hausdorff_fandisk": 0.264392,
+     "elapsed_fandisk": 23.0,
+     "chamfer_armadillo": 0.012721,
+     "normal_cons_armadillo": 0.262516,
+     "hausdorff_armadillo": 0.245343,
+     "elapsed_armadillo": 24.5,
+     "chamfer_bunny": 0.0107533,
+     "normal_cons_bunny": 0.211454,
+     "hausdorff_bunny": 0.26031,
+     "elapsed_bunny": 24.5
+    },
+    {
+     "timestamp": "2026-09-01T08:13:22.194424+00:00",
+     "model": "baseline:chamfer_l2",
+     "is_final": true,
+     "seed": "mean",
+     "chamfer_spot": 0.0128127,
+     "normal_cons_spot": 0.224441,
+     "hausdorff_spot": 0.262061,
+     "elapsed_spot": 22.9,
+     "chamfer_fandisk": 0.0110658,
+     "normal_cons_fandisk": 0.165818,
+     "hausdorff_fandisk": 0.264392,
+     "elapsed_fandisk": 23.0,
+     "chamfer_armadillo": 0.012721,
+     "normal_cons_armadillo": 0.262516,
+     "hausdorff_armadillo": 0.245343,
+     "elapsed_armadillo": 24.5,
+     "chamfer_bunny": 0.0107533,
+     "normal_cons_bunny": 0.211454,
+     "hausdorff_bunny": 0.26031,
+     "elapsed_bunny": 24.5
+    },
+    {
+     "timestamp": "2026-09-01T17:12:38.838672+00:00",
+     "model": "baseline:lap_edge",
+     "is_final": true,
+     "seed": "42",
+     "chamfer_spot": 0.013649,
+     "normal_cons_spot": 0.347214,
+     "hausdorff_spot": 0.284844,
+     "elapsed_spot": 15.3,
+     "chamfer_fandisk": 0.0117209,
+     "normal_cons_fandisk": 0.272782,
+     "hausdorff_fandisk": 0.280161,
+     "elapsed_fandisk": 14.5,
+     "chamfer_armadillo": 0.0143264,
+     "normal_cons_armadillo": 0.400271,
+     "hausdorff_armadillo": 0.244995,
+     "elapsed_armadillo": 16.4,
+     "chamfer_bunny": 0.0113383,
+     "normal_cons_bunny": 0.335518,
+     "hausdorff_bunny": 0.258808,
+     "elapsed_bunny": 15.1
+    },
+    {
+     "timestamp": "2026-09-01T17:12:38.840337+00:00",
+     "model": "baseline:lap_edge",
+     "is_final": true,
+     "seed": "mean",
+     "chamfer_spot": 0.013649,
+     "normal_cons_spot": 0.347214,
+     "hausdorff_spot": 0.284844,
+     "elapsed_spot": 15.3,
+     "chamfer_fandisk": 0.0117209,
+     "normal_cons_fandisk": 0.272782,
+     "hausdorff_fandisk": 0.280161,
+     "elapsed_fandisk": 14.5,
+     "chamfer_armadillo": 0.0143264,
+     "normal_cons_armadillo": 0.400271,
+     "hausdorff_armadillo": 0.244995,
+     "elapsed_armadillo": 16.4,
+     "chamfer_bunny": 0.0113383,
+     "normal_cons_bunny": 0.335518,
+     "hausdorff_bunny": 0.258808,
+     "elapsed_bunny": 15.1
+    }
+   ]
+  },
   "gfx-geo-curvature-estimator": {
    "task_id": "gfx-geo-curvature-estimator",
    "columns": [
@@ -60796,96 +61070,142 @@
    ],
    "rows": [
     {
-     "timestamp": "2026-09-01T19:25:38.098897+00:00",
+     "timestamp": "2026-09-01T19:13:44.401794+00:00",
      "model": "baseline:hit_count",
      "is_final": true,
      "seed": "42",
-     "psnr": 15.201,
-     "ssim": 0.4161,
-     "lpips": 0.845,
-     "num_gs": 669.0,
-     "best_psnr": 15.201,
-     "best_psnr_garden": 6.861,
-     "num_gs_garden": 17.0,
-     "elapsed_garden": 378.6,
-     "best_psnr_bicycle": null,
-     "num_gs_bicycle": null,
-     "elapsed_bicycle": 173.4,
-     "best_psnr_bonsai": 15.201,
-     "num_gs_bonsai": 669.0,
-     "elapsed_bonsai": 347.3,
+     "psnr": 14.911,
+     "ssim": 0.4066,
+     "lpips": 0.898,
+     "num_gs": 723.0,
+     "best_psnr": 14.911,
+     "best_psnr_garden": 6.863,
+     "num_gs_garden": 48.0,
+     "elapsed_garden": 556.4,
+     "best_psnr_bicycle": 9.488,
+     "num_gs_bicycle": 32.0,
+     "elapsed_bicycle": 517.3,
+     "best_psnr_bonsai": 14.911,
+     "num_gs_bonsai": 723.0,
+     "elapsed_bonsai": 625.6,
      "best_psnr_stump": null,
      "num_gs_stump": null,
-     "elapsed_stump": 163.5
+     "elapsed_stump": 260.2
     },
     {
-     "timestamp": "2026-09-01T20:30:25.011973+00:00",
+     "timestamp": "2026-09-02T00:57:43.606584+00:00",
      "model": "baseline:hit_count",
      "is_final": true,
      "seed": "42",
-     "psnr": 27.899,
-     "ssim": 0.8274,
+     "psnr": 27.851,
+     "ssim": 0.826,
      "lpips": 0.095,
-     "num_gs": 2612442.0,
-     "best_psnr": 27.899,
-     "best_psnr_garden": 28.787,
-     "num_gs_garden": 1256172.0,
-     "elapsed_garden": 871.6,
-     "best_psnr_bicycle": 26.825,
-     "num_gs_bicycle": 2477618.0,
-     "elapsed_bicycle": 1070.8,
-     "best_psnr_bonsai": 32.464,
-     "num_gs_bonsai": 726677.0,
-     "elapsed_bonsai": 811.2,
-     "best_psnr_stump": 27.899,
-     "num_gs_stump": 2612442.0,
-     "elapsed_stump": 1022.7
+     "num_gs": 2651215.0,
+     "best_psnr": 27.851,
+     "best_psnr_garden": 28.908,
+     "num_gs_garden": 1243940.0,
+     "elapsed_garden": 3551.0,
+     "best_psnr_bicycle": 26.873,
+     "num_gs_bicycle": 2527341.0,
+     "elapsed_bicycle": 2499.3,
+     "best_psnr_bonsai": 32.479,
+     "num_gs_bonsai": 730390.0,
+     "elapsed_bonsai": 1788.2,
+     "best_psnr_stump": 27.851,
+     "num_gs_stump": 2651215.0,
+     "elapsed_stump": 2154.4
     },
     {
-     "timestamp": "2026-09-01T19:25:38.099500+00:00",
+     "timestamp": "2026-09-01T19:13:44.417647+00:00",
      "model": "baseline:hit_count",
      "is_final": true,
      "seed": "mean",
-     "psnr": 15.201,
-     "ssim": 0.4161,
-     "lpips": 0.845,
-     "num_gs": 669.0,
-     "best_psnr": 15.201,
-     "best_psnr_garden": 6.861,
-     "num_gs_garden": 17.0,
-     "elapsed_garden": 378.6,
-     "best_psnr_bicycle": null,
-     "num_gs_bicycle": null,
-     "elapsed_bicycle": 173.4,
-     "best_psnr_bonsai": 15.201,
-     "num_gs_bonsai": 669.0,
-     "elapsed_bonsai": 347.3,
+     "psnr": 14.911,
+     "ssim": 0.4066,
+     "lpips": 0.898,
+     "num_gs": 723.0,
+     "best_psnr": 14.911,
+     "best_psnr_garden": 6.863,
+     "num_gs_garden": 48.0,
+     "elapsed_garden": 556.4,
+     "best_psnr_bicycle": 9.488,
+     "num_gs_bicycle": 32.0,
+     "elapsed_bicycle": 517.3,
+     "best_psnr_bonsai": 14.911,
+     "num_gs_bonsai": 723.0,
+     "elapsed_bonsai": 625.6,
      "best_psnr_stump": null,
      "num_gs_stump": null,
-     "elapsed_stump": 163.5
+     "elapsed_stump": 260.2
     },
     {
-     "timestamp": "2026-09-01T20:30:25.012800+00:00",
+     "timestamp": "2026-09-02T00:57:43.607812+00:00",
      "model": "baseline:hit_count",
      "is_final": true,
      "seed": "mean",
-     "psnr": 27.899,
-     "ssim": 0.8274,
+     "psnr": 27.851,
+     "ssim": 0.826,
      "lpips": 0.095,
-     "num_gs": 2612442.0,
-     "best_psnr": 27.899,
-     "best_psnr_garden": 28.787,
-     "num_gs_garden": 1256172.0,
-     "elapsed_garden": 871.6,
-     "best_psnr_bicycle": 26.825,
-     "num_gs_bicycle": 2477618.0,
-     "elapsed_bicycle": 1070.8,
-     "best_psnr_bonsai": 32.464,
-     "num_gs_bonsai": 726677.0,
-     "elapsed_bonsai": 811.2,
-     "best_psnr_stump": 27.899,
-     "num_gs_stump": 2612442.0,
-     "elapsed_stump": 1022.7
+     "num_gs": 2651215.0,
+     "best_psnr": 27.851,
+     "best_psnr_garden": 28.908,
+     "num_gs_garden": 1243940.0,
+     "elapsed_garden": 3551.0,
+     "best_psnr_bicycle": 26.873,
+     "num_gs_bicycle": 2527341.0,
+     "elapsed_bicycle": 2499.3,
+     "best_psnr_bonsai": 32.479,
+     "num_gs_bonsai": 730390.0,
+     "elapsed_bonsai": 1788.2,
+     "best_psnr_stump": 27.851,
+     "num_gs_stump": 2651215.0,
+     "elapsed_stump": 2154.4
+    },
+    {
+     "timestamp": "2026-09-01T20:02:30.534044+00:00",
+     "model": "baseline:lightgaussian",
+     "is_final": true,
+     "seed": "42",
+     "psnr": 27.099,
+     "ssim": 0.8113,
+     "lpips": 0.108,
+     "num_gs": 1829047.0,
+     "best_psnr": 27.099,
+     "best_psnr_garden": 29.446,
+     "num_gs_garden": 1011613.0,
+     "elapsed_garden": 725.1,
+     "best_psnr_bicycle": 26.304,
+     "num_gs_bicycle": 2112346.0,
+     "elapsed_bicycle": 772.8,
+     "best_psnr_bonsai": 32.519,
+     "num_gs_bonsai": 474121.0,
+     "elapsed_bonsai": 673.6,
+     "best_psnr_stump": 27.099,
+     "num_gs_stump": 1829047.0,
+     "elapsed_stump": 754.3
+    },
+    {
+     "timestamp": "2026-09-01T20:02:30.536238+00:00",
+     "model": "baseline:lightgaussian",
+     "is_final": true,
+     "seed": "mean",
+     "psnr": 27.099,
+     "ssim": 0.8113,
+     "lpips": 0.108,
+     "num_gs": 1829047.0,
+     "best_psnr": 27.099,
+     "best_psnr_garden": 29.446,
+     "num_gs_garden": 1011613.0,
+     "elapsed_garden": 725.1,
+     "best_psnr_bicycle": 26.304,
+     "num_gs_bicycle": 2112346.0,
+     "elapsed_bicycle": 772.8,
+     "best_psnr_bonsai": 32.519,
+     "num_gs_bonsai": 474121.0,
+     "elapsed_bonsai": 673.6,
+     "best_psnr_stump": 27.099,
+     "num_gs_stump": 1829047.0,
+     "elapsed_stump": 754.3
     },
     {
      "timestamp": "2026-09-01T03:51:12.201433+00:00",
@@ -60911,6 +61231,29 @@
      "elapsed_stump": 516.3549420833588
     },
     {
+     "timestamp": "2026-09-01T08:49:07.120602+00:00",
+     "model": "baseline:opacity",
+     "is_final": true,
+     "seed": "42",
+     "psnr": 27.816,
+     "ssim": 0.8281,
+     "lpips": 0.094,
+     "num_gs": 1756876.0,
+     "best_psnr": 27.816,
+     "best_psnr_garden": 29.752,
+     "num_gs_garden": 893125.0,
+     "elapsed_garden": 816.9,
+     "best_psnr_bicycle": 26.975,
+     "num_gs_bicycle": 1959413.0,
+     "elapsed_bicycle": 1072.3,
+     "best_psnr_bonsai": 32.661,
+     "num_gs_bonsai": 397257.0,
+     "elapsed_bonsai": 700.1,
+     "best_psnr_stump": 27.816,
+     "num_gs_stump": 1756876.0,
+     "elapsed_stump": 737.7
+    },
+    {
      "timestamp": "2026-09-01T03:51:12.201755+00:00",
      "model": "baseline:opacity",
      "is_final": true,
@@ -60932,6 +61275,29 @@
      "best_psnr_stump": 27.744,
      "num_gs_stump": 1771448.0,
      "elapsed_stump": 516.3549420833588
+    },
+    {
+     "timestamp": "2026-09-01T08:49:07.123138+00:00",
+     "model": "baseline:opacity",
+     "is_final": true,
+     "seed": "mean",
+     "psnr": 27.816,
+     "ssim": 0.8281,
+     "lpips": 0.094,
+     "num_gs": 1756876.0,
+     "best_psnr": 27.816,
+     "best_psnr_garden": 29.752,
+     "num_gs_garden": 893125.0,
+     "elapsed_garden": 816.9,
+     "best_psnr_bicycle": 26.975,
+     "num_gs_bicycle": 1959413.0,
+     "elapsed_bicycle": 1072.3,
+     "best_psnr_bonsai": 32.661,
+     "num_gs_bonsai": 397257.0,
+     "elapsed_bonsai": 700.1,
+     "best_psnr_stump": 27.816,
+     "num_gs_stump": 1756876.0,
+     "elapsed_stump": 737.7
     },
     {
      "timestamp": "2026-09-01T03:51:12.202160+00:00",
@@ -60957,6 +61323,29 @@
      "elapsed_stump": 544.8699541091919
     },
     {
+     "timestamp": "2026-09-01T22:11:10.454314+00:00",
+     "model": "baseline:opacity_scale",
+     "is_final": true,
+     "seed": "42",
+     "psnr": 32.32,
+     "ssim": 0.9614,
+     "lpips": 0.025,
+     "num_gs": 432554.0,
+     "best_psnr": 32.32,
+     "best_psnr_garden": 29.193,
+     "num_gs_garden": 935528.0,
+     "elapsed_garden": 707.3,
+     "best_psnr_bicycle": 26.526,
+     "num_gs_bicycle": 2036753.0,
+     "elapsed_bicycle": 781.6,
+     "best_psnr_bonsai": 32.32,
+     "num_gs_bonsai": 432554.0,
+     "elapsed_bonsai": 796.4,
+     "best_psnr_stump": null,
+     "num_gs_stump": null,
+     "elapsed_stump": 3705.8
+    },
+    {
      "timestamp": "2026-09-01T03:51:12.202428+00:00",
      "model": "baseline:opacity_scale",
      "is_final": true,
@@ -60978,6 +61367,29 @@
      "best_psnr_stump": 26.796,
      "num_gs_stump": 1616284.0,
      "elapsed_stump": 544.8699541091919
+    },
+    {
+     "timestamp": "2026-09-01T22:11:10.455219+00:00",
+     "model": "baseline:opacity_scale",
+     "is_final": true,
+     "seed": "mean",
+     "psnr": 32.32,
+     "ssim": 0.9614,
+     "lpips": 0.025,
+     "num_gs": 432554.0,
+     "best_psnr": 32.32,
+     "best_psnr_garden": 29.193,
+     "num_gs_garden": 935528.0,
+     "elapsed_garden": 707.3,
+     "best_psnr_bicycle": 26.526,
+     "num_gs_bicycle": 2036753.0,
+     "elapsed_bicycle": 781.6,
+     "best_psnr_bonsai": 32.32,
+     "num_gs_bonsai": 432554.0,
+     "elapsed_bonsai": 796.4,
+     "best_psnr_stump": null,
+     "num_gs_stump": null,
+     "elapsed_stump": 3705.8
     }
    ]
   },
@@ -68456,6 +68868,747 @@
      "angular_err_kodim20": 6.16879,
      "psnr_corrected_kodim20": 24.7366,
      "elapsed_kodim20": 2.1
+    }
+   ]
+  },
+  "gfx-nerf-density-head": {
+   "task_id": "gfx-nerf-density-head",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "elapsed_lego",
+    "psnr_chair",
+    "loss_2k_chair",
+    "elapsed_chair",
+    "psnr_mic",
+    "loss_2k_mic",
+    "elapsed_mic",
+    "psnr_drums",
+    "loss_2k_drums",
+    "elapsed_drums",
+    "psnr_lego",
+    "loss_2k_lego"
+   ],
+   "metric_columns": [
+    "psnr_chair",
+    "loss_2k_chair",
+    "psnr_mic",
+    "loss_2k_mic",
+    "psnr_drums",
+    "loss_2k_drums",
+    "psnr_lego",
+    "loss_2k_lego"
+   ],
+   "metric_directions": {
+    "psnr_chair": "higher",
+    "loss_2k_chair": "lower",
+    "psnr_mic": "higher",
+    "loss_2k_mic": "lower",
+    "psnr_drums": "higher",
+    "loss_2k_drums": "lower",
+    "psnr_lego": "higher",
+    "loss_2k_lego": "lower"
+   },
+   "metric_groups": [
+    {
+     "setting": "lego",
+     "metrics": [
+      "psnr_lego",
+      "loss_2k_lego"
+     ]
+    },
+    {
+     "setting": "chair",
+     "metrics": [
+      "psnr_chair",
+      "loss_2k_chair"
+     ]
+    },
+    {
+     "setting": "mic",
+     "metrics": [
+      "psnr_mic",
+      "loss_2k_mic"
+     ]
+    },
+    {
+     "setting": "drums",
+     "metrics": [
+      "psnr_drums",
+      "loss_2k_drums"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-01T20:03:05.975072+00:00",
+     "model": "baseline:relu",
+     "is_final": true,
+     "seed": "42",
+     "elapsed_lego": 35.0,
+     "psnr_chair": 14.8369,
+     "loss_2k_chair": null,
+     "elapsed_chair": 35.2,
+     "psnr_mic": 12.5175,
+     "loss_2k_mic": null,
+     "elapsed_mic": 33.6,
+     "psnr_drums": 11.1674,
+     "loss_2k_drums": null,
+     "elapsed_drums": 34.6,
+     "psnr_lego": 8.37463,
+     "loss_2k_lego": null
+    },
+    {
+     "timestamp": "2026-09-01T20:03:05.993077+00:00",
+     "model": "baseline:relu",
+     "is_final": true,
+     "seed": "mean",
+     "elapsed_lego": 35.0,
+     "psnr_chair": 14.8369,
+     "loss_2k_chair": null,
+     "elapsed_chair": 35.2,
+     "psnr_mic": 12.5175,
+     "loss_2k_mic": null,
+     "elapsed_mic": 33.6,
+     "psnr_drums": 11.1674,
+     "loss_2k_drums": null,
+     "elapsed_drums": 34.6,
+     "psnr_lego": 8.37463,
+     "loss_2k_lego": null
+    },
+    {
+     "timestamp": "2026-09-01T20:05:13.023563+00:00",
+     "model": "baseline:softplus",
+     "is_final": true,
+     "seed": "42",
+     "elapsed_lego": 126.6,
+     "psnr_chair": 27.4082,
+     "loss_2k_chair": 0.00125597,
+     "elapsed_chair": 115.5,
+     "psnr_mic": 20.5979,
+     "loss_2k_mic": 0.00521278,
+     "elapsed_mic": 105.9,
+     "psnr_drums": 19.3114,
+     "loss_2k_drums": 0.00645553,
+     "elapsed_drums": 126.8,
+     "psnr_lego": 22.322,
+     "loss_2k_lego": 0.00321491
+    },
+    {
+     "timestamp": "2026-09-01T20:05:13.025027+00:00",
+     "model": "baseline:softplus",
+     "is_final": true,
+     "seed": "mean",
+     "elapsed_lego": 126.6,
+     "psnr_chair": 27.4082,
+     "loss_2k_chair": 0.00125597,
+     "elapsed_chair": 115.5,
+     "psnr_mic": 20.5979,
+     "loss_2k_mic": 0.00521278,
+     "elapsed_mic": 105.9,
+     "psnr_drums": 19.3114,
+     "loss_2k_drums": 0.00645553,
+     "elapsed_drums": 126.8,
+     "psnr_lego": 22.322,
+     "loss_2k_lego": 0.00321491
+    },
+    {
+     "timestamp": "2026-09-01T20:07:20.802073+00:00",
+     "model": "baseline:softplus_shifted",
+     "is_final": true,
+     "seed": "42",
+     "elapsed_lego": 125.5,
+     "psnr_chair": 27.6204,
+     "loss_2k_chair": 0.00129802,
+     "elapsed_chair": 115.9,
+     "psnr_mic": 21.1713,
+     "loss_2k_mic": 0.00519707,
+     "elapsed_mic": 106.2,
+     "psnr_drums": 19.2938,
+     "loss_2k_drums": 0.00626806,
+     "elapsed_drums": 127.5,
+     "psnr_lego": 22.506,
+     "loss_2k_lego": 0.00310152
+    },
+    {
+     "timestamp": "2026-09-01T20:07:20.803645+00:00",
+     "model": "baseline:softplus_shifted",
+     "is_final": true,
+     "seed": "mean",
+     "elapsed_lego": 125.5,
+     "psnr_chair": 27.6204,
+     "loss_2k_chair": 0.00129802,
+     "elapsed_chair": 115.9,
+     "psnr_mic": 21.1713,
+     "loss_2k_mic": 0.00519707,
+     "elapsed_mic": 106.2,
+     "psnr_drums": 19.2938,
+     "loss_2k_drums": 0.00626806,
+     "elapsed_drums": 127.5,
+     "psnr_lego": 22.506,
+     "loss_2k_lego": 0.00310152
+    },
+    {
+     "timestamp": "2026-09-01T08:27:10.700631+00:00",
+     "model": "baseline:trunc_exp",
+     "is_final": true,
+     "seed": "42",
+     "elapsed_lego": 117.8,
+     "psnr_chair": 27.9278,
+     "loss_2k_chair": 0.00126062,
+     "elapsed_chair": 112.7,
+     "psnr_mic": 24.7575,
+     "loss_2k_mic": 0.00577299,
+     "elapsed_mic": 102.0,
+     "psnr_drums": 20.4389,
+     "loss_2k_drums": 0.00622217,
+     "elapsed_drums": 120.7,
+     "psnr_lego": 23.195,
+     "loss_2k_lego": 0.00223659
+    },
+    {
+     "timestamp": "2026-09-01T08:27:10.701649+00:00",
+     "model": "baseline:trunc_exp",
+     "is_final": true,
+     "seed": "mean",
+     "elapsed_lego": 117.8,
+     "psnr_chair": 27.9278,
+     "loss_2k_chair": 0.00126062,
+     "elapsed_chair": 112.7,
+     "psnr_mic": 24.7575,
+     "loss_2k_mic": 0.00577299,
+     "elapsed_mic": 102.0,
+     "psnr_drums": 20.4389,
+     "loss_2k_drums": 0.00622217,
+     "elapsed_drums": 120.7,
+     "psnr_lego": 23.195,
+     "loss_2k_lego": 0.00223659
+    }
+   ]
+  },
+  "gfx-nerf-loss-shape": {
+   "task_id": "gfx-nerf-loss-shape",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "psnr_lego",
+    "loss_2k_lego",
+    "elapsed_lego",
+    "psnr_chair",
+    "loss_2k_chair",
+    "elapsed_chair",
+    "psnr_drums",
+    "loss_2k_drums",
+    "elapsed_drums",
+    "psnr_ship",
+    "loss_2k_ship",
+    "elapsed_ship"
+   ],
+   "metric_columns": [
+    "psnr_lego",
+    "psnr_chair",
+    "psnr_drums",
+    "psnr_ship"
+   ],
+   "metric_directions": {
+    "psnr_lego": "higher",
+    "psnr_chair": "higher",
+    "psnr_drums": "higher",
+    "psnr_ship": "higher"
+   },
+   "metric_groups": [
+    {
+     "setting": "lego",
+     "metrics": [
+      "psnr_lego"
+     ]
+    },
+    {
+     "setting": "chair",
+     "metrics": [
+      "psnr_chair"
+     ]
+    },
+    {
+     "setting": "drums",
+     "metrics": [
+      "psnr_drums"
+     ]
+    },
+    {
+     "setting": "ship",
+     "metrics": [
+      "psnr_ship"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-01T20:23:38.022036+00:00",
+     "model": "baseline:charbonnier",
+     "is_final": true,
+     "seed": "42",
+     "psnr_lego": 21.9798,
+     "loss_2k_lego": 0.0315866,
+     "elapsed_lego": 197.2,
+     "psnr_chair": null,
+     "loss_2k_chair": null,
+     "elapsed_chair": 639.0,
+     "psnr_drums": 17.3444,
+     "loss_2k_drums": 0.115316,
+     "elapsed_drums": 324.8,
+     "psnr_ship": 21.8354,
+     "loss_2k_ship": 0.0373481,
+     "elapsed_ship": 165.1
+    },
+    {
+     "timestamp": "2026-09-01T20:23:38.023365+00:00",
+     "model": "baseline:charbonnier",
+     "is_final": true,
+     "seed": "mean",
+     "psnr_lego": 21.9798,
+     "loss_2k_lego": 0.0315866,
+     "elapsed_lego": 197.2,
+     "psnr_chair": null,
+     "loss_2k_chair": null,
+     "elapsed_chair": 639.0,
+     "psnr_drums": 17.3444,
+     "loss_2k_drums": 0.115316,
+     "elapsed_drums": 324.8,
+     "psnr_ship": 21.8354,
+     "loss_2k_ship": 0.0373481,
+     "elapsed_ship": 165.1
+    },
+    {
+     "timestamp": "2026-09-01T20:10:11.218498+00:00",
+     "model": "baseline:l2",
+     "is_final": true,
+     "seed": "42",
+     "psnr_lego": 22.319,
+     "loss_2k_lego": 0.00636867,
+     "elapsed_lego": 128.0,
+     "psnr_chair": 27.479,
+     "loss_2k_chair": 0.00255519,
+     "elapsed_chair": 124.0,
+     "psnr_drums": 20.4115,
+     "loss_2k_drums": 0.0134349,
+     "elapsed_drums": 124.7,
+     "psnr_ship": 22.0943,
+     "loss_2k_ship": 0.00622497,
+     "elapsed_ship": 170.2
+    },
+    {
+     "timestamp": "2026-09-01T20:10:11.219285+00:00",
+     "model": "baseline:l2",
+     "is_final": true,
+     "seed": "mean",
+     "psnr_lego": 22.319,
+     "loss_2k_lego": 0.00636867,
+     "elapsed_lego": 128.0,
+     "psnr_chair": 27.479,
+     "loss_2k_chair": 0.00255519,
+     "elapsed_chair": 124.0,
+     "psnr_drums": 20.4115,
+     "loss_2k_drums": 0.0134349,
+     "elapsed_drums": 124.7,
+     "psnr_ship": 22.0943,
+     "loss_2k_ship": 0.00622497,
+     "elapsed_ship": 170.2
+    },
+    {
+     "timestamp": "2026-09-01T20:28:10.249106+00:00",
+     "model": "baseline:log_l2",
+     "is_final": true,
+     "seed": "42",
+     "psnr_lego": 22.7054,
+     "loss_2k_lego": 0.0026218,
+     "elapsed_lego": 272.0,
+     "psnr_chair": null,
+     "loss_2k_chair": null,
+     "elapsed_chair": 230.2,
+     "psnr_drums": 19.2264,
+     "loss_2k_drums": 0.00568047,
+     "elapsed_drums": 133.9,
+     "psnr_ship": 22.2378,
+     "loss_2k_ship": 0.00345178,
+     "elapsed_ship": 185.3
+    },
+    {
+     "timestamp": "2026-09-01T20:28:10.249747+00:00",
+     "model": "baseline:log_l2",
+     "is_final": true,
+     "seed": "mean",
+     "psnr_lego": 22.7054,
+     "loss_2k_lego": 0.0026218,
+     "elapsed_lego": 272.0,
+     "psnr_chair": null,
+     "loss_2k_chair": null,
+     "elapsed_chair": 230.2,
+     "psnr_drums": 19.2264,
+     "loss_2k_drums": 0.00568047,
+     "elapsed_drums": 133.9,
+     "psnr_ship": 22.2378,
+     "loss_2k_ship": 0.00345178,
+     "elapsed_ship": 185.3
+    },
+    {
+     "timestamp": "2026-09-01T20:12:58.751313+00:00",
+     "model": "baseline:smooth_l1",
+     "is_final": true,
+     "seed": "42",
+     "psnr_lego": 22.5436,
+     "loss_2k_lego": 0.0146182,
+     "elapsed_lego": 127.4,
+     "psnr_chair": null,
+     "loss_2k_chair": null,
+     "elapsed_chair": 109.3,
+     "psnr_drums": 18.048,
+     "loss_2k_drums": 0.0256295,
+     "elapsed_drums": 121.5,
+     "psnr_ship": 22.4129,
+     "loss_2k_ship": 0.018156,
+     "elapsed_ship": 167.3
+    },
+    {
+     "timestamp": "2026-09-01T20:12:58.752648+00:00",
+     "model": "baseline:smooth_l1",
+     "is_final": true,
+     "seed": "mean",
+     "psnr_lego": 22.5436,
+     "loss_2k_lego": 0.0146182,
+     "elapsed_lego": 127.4,
+     "psnr_chair": null,
+     "loss_2k_chair": null,
+     "elapsed_chair": 109.3,
+     "psnr_drums": 18.048,
+     "loss_2k_drums": 0.0256295,
+     "elapsed_drums": 121.5,
+     "psnr_ship": 22.4129,
+     "loss_2k_ship": 0.018156,
+     "elapsed_ship": 167.3
+    }
+   ]
+  },
+  "gfx-nerf-occupancy-update": {
+   "task_id": "gfx-nerf-occupancy-update",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "psnr_lego",
+    "loss_2k_lego",
+    "elapsed_lego",
+    "elapsed_chair",
+    "psnr_mic",
+    "loss_2k_mic",
+    "elapsed_mic",
+    "psnr_drums",
+    "loss_2k_drums",
+    "elapsed_drums"
+   ],
+   "metric_columns": [
+    "psnr_lego",
+    "psnr_mic",
+    "psnr_drums"
+   ],
+   "metric_directions": {
+    "psnr_lego": "higher",
+    "psnr_mic": "higher",
+    "psnr_drums": "higher"
+   },
+   "metric_groups": [
+    {
+     "setting": "lego",
+     "metrics": [
+      "psnr_lego"
+     ]
+    },
+    {
+     "setting": "mic",
+     "metrics": [
+      "psnr_mic"
+     ]
+    },
+    {
+     "setting": "drums",
+     "metrics": [
+      "psnr_drums"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-01T20:35:37.995379+00:00",
+     "model": "baseline:ema_decay",
+     "is_final": true,
+     "seed": "42",
+     "psnr_lego": 22.3932,
+     "loss_2k_lego": 0.00316443,
+     "elapsed_lego": 270.0,
+     "elapsed_chair": 146.4,
+     "psnr_mic": 21.7216,
+     "loss_2k_mic": 0.0034441,
+     "elapsed_mic": 113.7,
+     "psnr_drums": 20.4148,
+     "loss_2k_drums": 0.0068014,
+     "elapsed_drums": 136.2
+    },
+    {
+     "timestamp": "2026-09-01T20:35:37.996711+00:00",
+     "model": "baseline:ema_decay",
+     "is_final": true,
+     "seed": "mean",
+     "psnr_lego": 22.3932,
+     "loss_2k_lego": 0.00316443,
+     "elapsed_lego": 270.0,
+     "elapsed_chair": 146.4,
+     "psnr_mic": 21.7216,
+     "loss_2k_mic": 0.0034441,
+     "elapsed_mic": 113.7,
+     "psnr_drums": 20.4148,
+     "loss_2k_drums": 0.0068014,
+     "elapsed_drums": 136.2
+    },
+    {
+     "timestamp": "2026-09-01T20:40:34.059428+00:00",
+     "model": "baseline:importance",
+     "is_final": true,
+     "seed": "42",
+     "psnr_lego": 22.4248,
+     "loss_2k_lego": 0.00315717,
+     "elapsed_lego": 272.8,
+     "elapsed_chair": 174.1,
+     "psnr_mic": 21.7077,
+     "loss_2k_mic": 0.00358203,
+     "elapsed_mic": 112.7,
+     "psnr_drums": 20.4155,
+     "loss_2k_drums": 0.0058703,
+     "elapsed_drums": 137.1
+    },
+    {
+     "timestamp": "2026-09-01T20:40:34.060814+00:00",
+     "model": "baseline:importance",
+     "is_final": true,
+     "seed": "mean",
+     "psnr_lego": 22.4248,
+     "loss_2k_lego": 0.00315717,
+     "elapsed_lego": 272.8,
+     "elapsed_chair": 174.1,
+     "psnr_mic": 21.7077,
+     "loss_2k_mic": 0.00358203,
+     "elapsed_mic": 112.7,
+     "psnr_drums": 20.4155,
+     "loss_2k_drums": 0.0058703,
+     "elapsed_drums": 137.1
+    },
+    {
+     "timestamp": "2026-09-01T20:31:07.737028+00:00",
+     "model": "baseline:nerfacc_default",
+     "is_final": true,
+     "seed": "42",
+     "psnr_lego": 22.3956,
+     "loss_2k_lego": 0.0031714,
+     "elapsed_lego": 168.1,
+     "elapsed_chair": 177.2,
+     "psnr_mic": 21.727,
+     "loss_2k_mic": 0.00350512,
+     "elapsed_mic": 109.5,
+     "psnr_drums": 20.3734,
+     "loss_2k_drums": 0.00680191,
+     "elapsed_drums": 133.9
+    },
+    {
+     "timestamp": "2026-09-01T20:31:07.737755+00:00",
+     "model": "baseline:nerfacc_default",
+     "is_final": true,
+     "seed": "mean",
+     "psnr_lego": 22.3956,
+     "loss_2k_lego": 0.0031714,
+     "elapsed_lego": 168.1,
+     "elapsed_chair": 177.2,
+     "psnr_mic": 21.727,
+     "loss_2k_mic": 0.00350512,
+     "elapsed_mic": 109.5,
+     "psnr_drums": 20.3734,
+     "loss_2k_drums": 0.00680191,
+     "elapsed_drums": 133.9
+    },
+    {
+     "timestamp": "2026-09-01T20:36:00.989099+00:00",
+     "model": "baseline:warmstart_dense",
+     "is_final": true,
+     "seed": "42",
+     "psnr_lego": null,
+     "loss_2k_lego": null,
+     "elapsed_lego": null,
+     "elapsed_chair": null,
+     "psnr_mic": null,
+     "loss_2k_mic": null,
+     "elapsed_mic": null,
+     "psnr_drums": null,
+     "loss_2k_drums": null,
+     "elapsed_drums": null
+    }
+   ]
+  },
+  "gfx-nerf-view-encoding": {
+   "task_id": "gfx-nerf-view-encoding",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "psnr_lego",
+    "loss_2k_lego",
+    "elapsed_lego",
+    "elapsed_chair",
+    "psnr_mic",
+    "loss_2k_mic",
+    "elapsed_mic",
+    "psnr_materials",
+    "loss_2k_materials",
+    "elapsed_materials"
+   ],
+   "metric_columns": [
+    "psnr_lego",
+    "loss_2k_lego",
+    "psnr_mic",
+    "loss_2k_mic",
+    "psnr_materials",
+    "loss_2k_materials"
+   ],
+   "metric_directions": {
+    "psnr_lego": "higher",
+    "loss_2k_lego": "lower",
+    "psnr_mic": "higher",
+    "loss_2k_mic": "lower",
+    "psnr_materials": "higher",
+    "loss_2k_materials": "lower"
+   },
+   "metric_groups": [
+    {
+     "setting": "lego",
+     "metrics": [
+      "psnr_lego",
+      "loss_2k_lego"
+     ]
+    },
+    {
+     "setting": "mic",
+     "metrics": [
+      "psnr_mic",
+      "loss_2k_mic"
+     ]
+    },
+    {
+     "setting": "materials",
+     "metrics": [
+      "psnr_materials",
+      "loss_2k_materials"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-01T20:45:15.485773+00:00",
+     "model": "baseline:diffuse_only",
+     "is_final": true,
+     "seed": "42",
+     "psnr_lego": 22.0087,
+     "loss_2k_lego": 0.00365967,
+     "elapsed_lego": 281.2,
+     "elapsed_chair": 140.3,
+     "psnr_mic": 21.8836,
+     "loss_2k_mic": 0.0035325,
+     "elapsed_mic": 111.0,
+     "psnr_materials": 20.4578,
+     "loss_2k_materials": 0.00188155,
+     "elapsed_materials": 124.4
+    },
+    {
+     "timestamp": "2026-09-01T20:45:15.486472+00:00",
+     "model": "baseline:diffuse_only",
+     "is_final": true,
+     "seed": "mean",
+     "psnr_lego": 22.0087,
+     "loss_2k_lego": 0.00365967,
+     "elapsed_lego": 281.2,
+     "elapsed_chair": 140.3,
+     "psnr_mic": 21.8836,
+     "loss_2k_mic": 0.0035325,
+     "elapsed_mic": 111.0,
+     "psnr_materials": 20.4578,
+     "loss_2k_materials": 0.00188155,
+     "elapsed_materials": 124.4
+    },
+    {
+     "timestamp": "2026-09-01T20:50:31.292597+00:00",
+     "model": "baseline:ipe_cone",
+     "is_final": true,
+     "seed": "42",
+     "psnr_lego": null,
+     "loss_2k_lego": null,
+     "elapsed_lego": null,
+     "elapsed_chair": null,
+     "psnr_mic": null,
+     "loss_2k_mic": null,
+     "elapsed_mic": null,
+     "psnr_materials": null,
+     "loss_2k_materials": null,
+     "elapsed_materials": null
+    },
+    {
+     "timestamp": "2026-09-01T20:50:10.989541+00:00",
+     "model": "baseline:pe4",
+     "is_final": true,
+     "seed": "42",
+     "psnr_lego": 22.41,
+     "loss_2k_lego": 0.00302766,
+     "elapsed_lego": 295.3,
+     "elapsed_chair": 218.1,
+     "psnr_mic": 23.4607,
+     "loss_2k_mic": 0.00355697,
+     "elapsed_mic": 113.9,
+     "psnr_materials": 20.7796,
+     "loss_2k_materials": 0.00182649,
+     "elapsed_materials": 126.5
+    },
+    {
+     "timestamp": "2026-09-01T20:50:10.990389+00:00",
+     "model": "baseline:pe4",
+     "is_final": true,
+     "seed": "mean",
+     "psnr_lego": 22.41,
+     "loss_2k_lego": 0.00302766,
+     "elapsed_lego": 295.3,
+     "elapsed_chair": 218.1,
+     "psnr_mic": 23.4607,
+     "loss_2k_mic": 0.00355697,
+     "elapsed_mic": 113.9,
+     "psnr_materials": 20.7796,
+     "loss_2k_materials": 0.00182649,
+     "elapsed_materials": 126.5
+    },
+    {
+     "timestamp": "2026-09-01T20:50:19.893839+00:00",
+     "model": "baseline:sh2",
+     "is_final": true,
+     "seed": "42",
+     "psnr_lego": null,
+     "loss_2k_lego": null,
+     "elapsed_lego": null,
+     "elapsed_chair": null,
+     "psnr_mic": null,
+     "loss_2k_mic": null,
+     "elapsed_mic": null,
+     "psnr_materials": null,
+     "loss_2k_materials": null,
+     "elapsed_materials": null
     }
    ]
   },
