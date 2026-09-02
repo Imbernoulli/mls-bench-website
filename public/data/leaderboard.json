@@ -1,12 +1,28 @@
 {
   "rows": [
     {
+      "model": "Qwen3.8-Max-0902",
+      "company": "qwen",
+      "modelOpen": false,
+      "harness": "Claude Code",
+      "harnessOpen": false,
+      "performance": 50.1
+    },
+    {
       "model": "Claude Fable 5",
       "company": "anthropic",
       "modelOpen": false,
       "harness": "Claude Code (max effort, with fallback)",
       "harnessOpen": false,
       "performance": 49.9
+    },
+    {
+      "model": "Claude Opus 5",
+      "company": "anthropic",
+      "modelOpen": false,
+      "harness": "Claude Code (max effort)",
+      "harnessOpen": false,
+      "performance": 49.8
     },
     {
       "model": "Kimi K3",
