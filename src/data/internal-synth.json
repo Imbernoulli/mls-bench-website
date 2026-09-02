@@ -13346,125 +13346,6 @@
    "has_agent_logs": true
   },
   {
-   "id": "pde-autoregressive-solver",
-   "name": "Autoregressive PDE Solving: Custom Neural Operator Design",
-   "summary": "Design and implement a custom neural operator for autoregressive time-dependent PDE solving. Your code goes in the `Model` class in `models/Custom.py`. Three reference implementations (FNO, Transformer, Transolver) are provided as read-only context; FNO and Transolver are the two that are also run as measured reference baselines.",
-   "category": "ai-for-science",
-   "category_label": "AI for Science",
-   "category_abbr": "",
-   "description_md": "# Autoregressive PDE Solving: Custom Neural Operator Design\n\n## Objective\nDesign and implement a custom neural operator for autoregressive time-dependent PDE solving. Your code goes in the `Model` class in `models/Custom.py`. Three reference implementations (FNO, Transformer, Transolver) are provided as read-only context; FNO and Transolver are the two that are also run as measured reference baselines.\n\n## Model Interface\nYour model receives `args` at initialization and must implement:\n```python\nforward(self, x, fx, T=None, geo=None) -> output\n```\n- `x`: spatial coordinates, shape `(B, N, space_dim)`\n- `fx`: input function values (previous timesteps), shape `(B, N, fun_dim)` where `fun_dim=10`\n- `T`: time embedding (unused for autoregressive, always `None`)\n- `geo`: geometry info (unused, always `None`)\n- output: predicted next timestep, shape `(B, N, out_dim)` where `out_dim=1`\n\nThe model is called autoregressively: at each step, the oldest input channel is dropped, and the new prediction is appended as the newest channel in `fx`. Training is unrolled (no teacher forcing on the PDEBench environments), so single-step accuracy is not enough — prediction errors compound over the rollout, and architectures that are not rollout-stable can diverge.\n\nKey `args` attributes: `n_hidden`, `n_layers`, `n_heads`, `space_dim`, `fun_dim`, `out_dim`, `act`, `mlp_ratio`, `dropout`, `geotype` (`structured_2D` or `structured_1D`), `shapelist`, `unified_pos`, `ref`, `slice_num`, `modes`.\n\n## Per-method hyperparameter overrides\n`models/Custom.py` ends with a `CONFIG_OVERRIDES` dict you may edit. It lets a method adjust capacity/training settings that are architecture-dependent, either flat (`{'batch_size': 2}`) or nested per environment (`{'NS': {'batch_size': 2}}`). Allowed keys: `n_hidden`, `batch_size`. Script defaults: NS `n_hidden=256, batch_size=8`; Burgers `n_hidden=64, batch_size=20`. `slice_num` is fixed at 32 by the eval scripts and is **not** settable: Transolver's own Table 9 sweeps it (NS M=32 -> 0.0900, M=128 -> 0.0783), so leaving it editable would sell a published improvement for one integer. For example, the attention reference implementations use `batch_size=2` on NS (4096 tokens), following `Neural-Solver-Library/scripts/StandardBench/ns`. A parameter budget check still applies: your instantiated model may not exceed 1.05x the largest baseline.\n\n## Evaluation\nTrained and evaluated on two autoregressive PDE benchmarks (relative L2 error over a 10-step rollout, lower is better):\n- **NS** (2D Navier-Stokes vorticity, structured_2D, 64x64, viscosity=1e-5, 60 epochs)\n- **Burgers** (1D Burgers equation, structured_1D, PDEBench, viscosity=1e-3, 150 epochs) — solutions develop steep shock fronts, and under unrolled autoregressive training this is a rollout-stability stress test: errors compound over the rollout rather than being reset by ground-truth inputs. Whether attention-based operators lose more than spectral ones here is the open question this setting is meant to answer, not a settled result.\n\n\n## Where this comes from\n\nThe reference implementations and the evaluation protocol are the Neural-Solver-Library\nimplementations of published operator-learning methods:\n\n- **FNO** — Li et al., *Fourier Neural Operator for Parametric Partial Differential Equations*,\n  ICLR 2021 ([arXiv:2010.08895](https://arxiv.org/abs/2010.08895)). The NS benchmark (2D vorticity,\n  viscosity 1e-5, 64x64, 1000 train / 200 test, 10 input frames -> 10 predicted frames) is that\n  paper's own setting; it reports relative L2 **0.1556** for FNO-2D there.\n- **Transolver** — Wu et al., *Transolver: A Fast Transformer Solver for PDEs on General Geometries*,\n  ICML 2024 ([arXiv:2402.02366](https://arxiv.org/abs/2402.02366)). Its Table 2 reports relative L2\n  on the same NS benchmark: **Transolver 0.0900**, Galerkin Transformer 0.1401, LSM 0.1535, FNO 0.1556.\n- **Transformer** — the package's `models/Transformer.py`, a full-softmax attention encoder over mesh\n  points (`layers/Basic.py` `FlashAttention`). It is supplied as read-only reference source but is **not**\n  one of the measured baselines here: it has no published number on this benchmark (it is a *different*\n  model from the `transformer` baseline in the sibling `pde-steady-solver` task, which is the Galerkin\n  Transformer of Cao, *Choose a Transformer: Fourier or Galerkin*, NeurIPS 2021\n  ([arXiv:2105.14995](https://arxiv.org/abs/2105.14995)), whose 0.1401 sits in the Transolver table above).\n- **Burgers** — PDEBench, Takamoto et al., NeurIPS 2022 Datasets & Benchmarks\n  ([arXiv:2210.07182](https://arxiv.org/abs/2210.07182)). PDEBench reports its own results as\n  *normalised RMSE*, which is not the relative L2 used here, so its table values are not directly\n  comparable to these numbers.\n\n**Deviations from the published protocol, stated explicitly.** Neural-Solver-Library's own reference\nscripts (`scripts/StandardBench/ns`) train for **500 epochs**; this task trains for 60 on NS and 150 on\nBurgers, because a single evaluation container has a 24-hour ceiling and an attention operator on NS at\nn_hidden=256 costs hours per run. The comparison between methods is like-for-like because every method\ngets the same epochs, data, resolution and split.\n\nAll methods are compared under this fixed training budget (fixed epochs per environment, shared scripts); the comparison rewards architectures that are accurate AND efficient to train, not just asymptotically strong. Note that a shorter schedule than the reference one is not automatically a handicap: a modern recipe (AdamW + OneCycleLR, as the package uses) can reach a published 500-epoch level in far fewer epochs, so absolute errors here may land above *or* below the numbers quoted above. Your model must handle both `structured_1D` and `structured_2D` geometry types via `args.geotype`.\n",
-   "description_html": "<h1>Autoregressive PDE Solving: Custom Neural Operator Design</h1>\n<h2>Objective</h2>\n<p>Design and implement a custom neural operator for autoregressive time-dependent PDE solving. Your code goes in the <code>Model</code> class in <code>models/Custom.py</code>. Three reference implementations (FNO, Transformer, Transolver) are provided as read-only context; FNO and Transolver are the two that are also run as measured reference baselines.</p>\n<h2>Model Interface</h2>\n<p>Your model receives <code>args</code> at initialization and must implement:</p>\n<pre class=\"codehilite\"><code class=\"language-python\">forward(self, x, fx, T=None, geo=None) -&gt; output\n</code></pre>\n\n<ul>\n<li><code>x</code>: spatial coordinates, shape <code>(B, N, space_dim)</code></li>\n<li><code>fx</code>: input function values (previous timesteps), shape <code>(B, N, fun_dim)</code> where <code>fun_dim=10</code></li>\n<li><code>T</code>: time embedding (unused for autoregressive, always <code>None</code>)</li>\n<li><code>geo</code>: geometry info (unused, always <code>None</code>)</li>\n<li>output: predicted next timestep, shape <code>(B, N, out_dim)</code> where <code>out_dim=1</code></li>\n</ul>\n<p>The model is called autoregressively: at each step, the oldest input channel is dropped, and the new prediction is appended as the newest channel in <code>fx</code>. Training is unrolled (no teacher forcing on the PDEBench environments), so single-step accuracy is not enough — prediction errors compound over the rollout, and architectures that are not rollout-stable can diverge.</p>\n<p>Key <code>args</code> attributes: <code>n_hidden</code>, <code>n_layers</code>, <code>n_heads</code>, <code>space_dim</code>, <code>fun_dim</code>, <code>out_dim</code>, <code>act</code>, <code>mlp_ratio</code>, <code>dropout</code>, <code>geotype</code> (<code>structured_2D</code> or <code>structured_1D</code>), <code>shapelist</code>, <code>unified_pos</code>, <code>ref</code>, <code>slice_num</code>, <code>modes</code>.</p>\n<h2>Per-method hyperparameter overrides</h2>\n<p><code>models/Custom.py</code> ends with a <code>CONFIG_OVERRIDES</code> dict you may edit. It lets a method adjust capacity/training settings that are architecture-dependent, either flat (<code>{'batch_size': 2}</code>) or nested per environment (<code>{'NS': {'batch_size': 2}}</code>). Allowed keys: <code>n_hidden</code>, <code>batch_size</code>. Script defaults: NS <code>n_hidden=256, batch_size=8</code>; Burgers <code>n_hidden=64, batch_size=20</code>. <code>slice_num</code> is fixed at 32 by the eval scripts and is <strong>not</strong> settable: Transolver's own Table 9 sweeps it (NS M=32 -&gt; 0.0900, M=128 -&gt; 0.0783), so leaving it editable would sell a published improvement for one integer. For example, the attention reference implementations use <code>batch_size=2</code> on NS (4096 tokens), following <code>Neural-Solver-Library/scripts/StandardBench/ns</code>. A parameter budget check still applies: your instantiated model may not exceed 1.05x the largest baseline.</p>\n<h2>Evaluation</h2>\n<p>Trained and evaluated on two autoregressive PDE benchmarks (relative L2 error over a 10-step rollout, lower is better):\n- <strong>NS</strong> (2D Navier-Stokes vorticity, structured_2D, 64x64, viscosity=1e-5, 60 epochs)\n- <strong>Burgers</strong> (1D Burgers equation, structured_1D, PDEBench, viscosity=1e-3, 150 epochs) — solutions develop steep shock fronts, and under unrolled autoregressive training this is a rollout-stability stress test: errors compound over the rollout rather than being reset by ground-truth inputs. Whether attention-based operators lose more than spectral ones here is the open question this setting is meant to answer, not a settled result.</p>\n<h2>Where this comes from</h2>\n<p>The reference implementations and the evaluation protocol are the Neural-Solver-Library\nimplementations of published operator-learning methods:</p>\n<ul>\n<li><strong>FNO</strong> — Li et al., <em>Fourier Neural Operator for Parametric Partial Differential Equations</em>,\n  ICLR 2021 (<a href=\"https://arxiv.org/abs/2010.08895\">arXiv:2010.08895</a>). The NS benchmark (2D vorticity,\n  viscosity 1e-5, 64x64, 1000 train / 200 test, 10 input frames -&gt; 10 predicted frames) is that\n  paper's own setting; it reports relative L2 <strong>0.1556</strong> for FNO-2D there.</li>\n<li><strong>Transolver</strong> — Wu et al., <em>Transolver: A Fast Transformer Solver for PDEs on General Geometries</em>,\n  ICML 2024 (<a href=\"https://arxiv.org/abs/2402.02366\">arXiv:2402.02366</a>). Its Table 2 reports relative L2\n  on the same NS benchmark: <strong>Transolver 0.0900</strong>, Galerkin Transformer 0.1401, LSM 0.1535, FNO 0.1556.</li>\n<li><strong>Transformer</strong> — the package's <code>models/Transformer.py</code>, a full-softmax attention encoder over mesh\n  points (<code>layers/Basic.py</code> <code>FlashAttention</code>). It is supplied as read-only reference source but is <strong>not</strong>\n  one of the measured baselines here: it has no published number on this benchmark (it is a <em>different</em>\n  model from the <code>transformer</code> baseline in the sibling <code>pde-steady-solver</code> task, which is the Galerkin\n  Transformer of Cao, <em>Choose a Transformer: Fourier or Galerkin</em>, NeurIPS 2021\n  (<a href=\"https://arxiv.org/abs/2105.14995\">arXiv:2105.14995</a>), whose 0.1401 sits in the Transolver table above).</li>\n<li><strong>Burgers</strong> — PDEBench, Takamoto et al., NeurIPS 2022 Datasets &amp; Benchmarks\n  (<a href=\"https://arxiv.org/abs/2210.07182\">arXiv:2210.07182</a>). PDEBench reports its own results as\n  <em>normalised RMSE</em>, which is not the relative L2 used here, so its table values are not directly\n  comparable to these numbers.</li>\n</ul>\n<p><strong>Deviations from the published protocol, stated explicitly.</strong> Neural-Solver-Library's own reference\nscripts (<code>scripts/StandardBench/ns</code>) train for <strong>500 epochs</strong>; this task trains for 60 on NS and 150 on\nBurgers, because a single evaluation container has a 24-hour ceiling and an attention operator on NS at\nn_hidden=256 costs hours per run. The comparison between methods is like-for-like because every method\ngets the same epochs, data, resolution and split.</p>\n<p>All methods are compared under this fixed training budget (fixed epochs per environment, shared scripts); the comparison rewards architectures that are accurate AND efficient to train, not just asymptotically strong. Note that a shorter schedule than the reference one is not automatically a handicap: a modern recipe (AdamW + OneCycleLR, as the package uses) can reach a published 500-epoch level in far fewer epochs, so absolute errors here may land above <em>or</em> below the numbers quoted above. Your model must handle both <code>structured_1D</code> and <code>structured_2D</code> geometry types via <code>args.geotype</code>.</p>",
-   "baselines": [
-    "FNO",
-    "Transolver"
-   ],
-   "environments": [
-    "Navier-Stokes",
-    "DiffSorp",
-    "Burgers"
-   ],
-   "packages": [
-    "Neural-Solver-Library"
-   ],
-   "files": [
-    {
-     "filename": "Neural-Solver-Library/models/Custom.py",
-     "edit_ranges": [
-      {
-       "start": 1,
-       "end": 65
-      },
-      {
-       "start": 78,
-       "end": 78
-      }
-     ],
-     "content": "import torch\nimport torch.nn as nn\nimport numpy as np\nfrom timm.models.layers import trunc_normal_\nfrom layers.Basic import MLP\nfrom layers.Embedding import timestep_embedding, unified_pos_embedding\n\n\nclass Model(nn.Module):\n    def __init__(self, args):\n        super(Model, self).__init__()\n        self.__name__ = 'Custom'\n        self.args = args\n        ## embedding\n        if args.unified_pos and args.geotype != 'unstructured':\n            self.pos = unified_pos_embedding(args.shapelist, args.ref)\n            self.preprocess = MLP(args.fun_dim + args.ref ** len(args.shapelist), args.n_hidden * 2,\n                                  args.n_hidden, n_layers=0, res=False, act=args.act)\n        else:\n            self.preprocess = MLP(args.fun_dim + args.space_dim, args.n_hidden * 2, args.n_hidden,\n                                  n_layers=0, res=False, act=args.act)\n\n        # TODO: Define your custom model architecture here.\n        # This model will be called autoregressively: the output at each step is\n        # fed back as input for the next step (replacing the oldest channel).\n        # Must handle both structured_1D (args.geotype='structured_1D') and\n        # structured_2D (args.geotype='structured_2D') geometries.\n        # args.shapelist gives grid dimensions: [L] for 1D, [H, W] for 2D.\n\n        self.placeholder = nn.Parameter((1 / args.n_hidden) * torch.rand(args.n_hidden, dtype=torch.float))\n        self.output_layer = nn.Linear(args.n_hidden, args.out_dim)\n        self.initialize_weights()\n\n    def initialize_weights(self):\n        self.apply(self._init_weights)\n\n    def _init_weights(self, m):\n        if isinstance(m, nn.Linear):\n            trunc_normal_(m.weight, std=0.02)\n            if isinstance(m, nn.Linear) and m.bias is not None:\n                nn.init.constant_(m.bias, 0)\n        elif isinstance(m, (nn.LayerNorm, nn.BatchNorm1d)):\n            nn.init.constant_(m.bias, 0)\n            nn.init.constant_(m.weight, 1.0)\n\n    def forward(self, x, fx, T=None, geo=None):\n        if self.args.unified_pos and self.args.geotype != 'unstructured':\n            x = self.pos.repeat(x.shape[0], 1, 1)\n        if fx is not None:\n            fx = torch.cat((x, fx), -1)\n            fx = self.preprocess(fx)\n        else:\n            fx = self.preprocess(x)\n        fx = fx + self.placeholder[None, None, :]\n\n        # TODO: Implement your custom forward pass here.\n        # Input fx has shape (B, N, n_hidden).\n        # For structured_2D: N = H*W (e.g., 64*64=4096 for NS).\n        # For structured_1D: N = L (e.g., 1024 for diff_sorp).\n        # Output should have shape (B, N, out_dim) where out_dim=1.\n        # The model predicts ONE timestep; autoregressive rollout is handled externally.\n\n        out = self.output_layer(fx)\n        return out\n\n\n# =====================================================================\n# CONFIG_OVERRIDES: per-method hyperparameter overrides\n# =====================================================================\n# Override capacity/training settings that depend on the model family,\n# either flat ({'batch_size': 2}) or nested per environment label\n# ({'NS': {'batch_size': 2}}). Allowed keys: n_hidden (int),\n# batch_size (int). slice_num is NOT settable (fixed at 32 by the scripts).\n# Defaults follow the shared shell scripts: NS n_hidden=256, batch_size=8;\n# Burgers n_hidden=64, batch_size=20.\n# Reference: Neural-Solver-Library/scripts/StandardBench/ns runs the\n# full-attention models (Transformer, Transolver) at batch_size=2.\nCONFIG_OVERRIDES = {}\n\n\n# =====================================================================\n# FIXED: Parameter budget check — do not modify below this line\n# =====================================================================\n# The enforced ceiling is 1.05x the LARGEST BASELINE's parameter count on this\n# environment, and budget_check.py computes it from the baselines themselves and\n# prints it as \"budget: N (1.05 x <name>=M)\" before training starts. Read that\n# line, not an estimate.\n#\n# This block used to print its own \"(budget: ...)\" from a closed-form Transolver\n# expression. That was wrong wherever Transolver is not the largest baseline,\n# which is most of them: on NS the enforced ceiling is 1.05 x fno, and the\n# formula understated it by 16.6x. An agent that sized itself to the printed\n# number would have handicapped itself for no reason. Print the fact we can\n# compute here -- the model's own parameter count -- and nothing we cannot.\n_orig_init = Model.__init__\n\ndef _patched_init(self, args):\n    # Exp_Basic keeps the SAME args object it handed to the model\n    # (exp/exp_basic.py: `self.model = get_model(args)`, then `self.args = args`),\n    # and the training loop reads self.args.epochs, self.args.teacher_forcing and\n    # self.args.T_out at loop time -- i.e. after this constructor has run. A\n    # model that assigns to args in __init__ therefore rewrites the training\n    # protocol it is being measured under. Snapshot every field, let the model\n    # build, then put them all back. Reading args is fine and expected;\n    # only mutation is undone.\n    _snapshot = dict(vars(args))\n    try:\n        _orig_init(self, args)\n    finally:\n        _changed = sorted(k for k, v in _snapshot.items()\n                          if getattr(args, k, None) is not v\n                          and repr(getattr(args, k, None)) != repr(v))\n        vars(args).clear()\n        vars(args).update(_snapshot)\n        if _changed:\n            print(f\"PROTOCOL_GUARD: Model.__init__ modified {_changed}; reverted\",\n                  flush=True)\n    _total = sum(p.numel() for p in self.parameters())\n    print(f\"Total params: {_total:,} \"\n          f\"(ceiling = 1.05 x largest baseline; see budget_check.py output)\")\n\nModel.__init__ = _patched_init\n"
-    },
-    {
-     "filename": "Neural-Solver-Library/models/Transolver.py",
-     "edit_ranges": []
-    },
-    {
-     "filename": "Neural-Solver-Library/models/FNO.py",
-     "edit_ranges": []
-    },
-    {
-     "filename": "Neural-Solver-Library/models/Transformer.py",
-     "edit_ranges": []
-    },
-    {
-     "filename": "Neural-Solver-Library/layers/Basic.py",
-     "edit_ranges": [
-      {
-       "start": -1,
-       "end": -1
-      }
-     ]
-    },
-    {
-     "filename": "Neural-Solver-Library/layers/Embedding.py",
-     "edit_ranges": [
-      {
-       "start": -1,
-       "end": -1
-      }
-     ]
-    },
-    {
-     "filename": "Neural-Solver-Library/layers/Physics_Attention.py",
-     "edit_ranges": [
-      {
-       "start": -1,
-       "end": -1
-      }
-     ]
-    },
-    {
-     "filename": "Neural-Solver-Library/layers/FNO_Layers.py",
-     "edit_ranges": [
-      {
-       "start": -1,
-       "end": -1
-      }
-     ]
-    }
-   ],
-   "baselines_code": {
-    "FNO": [
-     {
-      "file": "Neural-Solver-Library/models/Custom.py",
-      "start_line": 78,
-      "end_line": 78,
-      "content": "CONFIG_OVERRIDES = {'NS': {'n_hidden': 64}}\n"
-     },
-     {
-      "file": "Neural-Solver-Library/models/Custom.py",
-      "start_line": 1,
-      "end_line": 65,
-      "content": "import torch\nimport math\nimport torch.nn as nn\nimport numpy as np\nimport torch.nn.functional as F\nfrom timm.models.layers import trunc_normal_\nfrom layers.Basic import MLP\nfrom layers.Embedding import timestep_embedding, unified_pos_embedding\nfrom layers.FNO_Layers import SpectralConv1d, SpectralConv2d, SpectralConv3d\n\nBlockList = [None, SpectralConv1d, SpectralConv2d, SpectralConv3d]\nConvList = [None, nn.Conv1d, nn.Conv2d, nn.Conv3d]\n\n\nclass Model(nn.Module):\n    def __init__(self, args, s1=96, s2=96):\n        super(Model, self).__init__()\n        self.__name__ = 'Custom'\n        self.args = args\n        ## embedding\n        if args.unified_pos and args.geotype != 'unstructured':\n            self.pos = unified_pos_embedding(args.shapelist, args.ref)\n            self.preprocess = MLP(args.fun_dim + args.ref ** len(args.shapelist), args.n_hidden * 2,\n                                  args.n_hidden, n_layers=0, res=False, act=args.act)\n        else:\n            self.preprocess = MLP(args.fun_dim + args.space_dim, args.n_hidden * 2, args.n_hidden,\n                                  n_layers=0, res=False, act=args.act)\n        if args.time_input:\n            self.time_fc = nn.Sequential(nn.Linear(args.n_hidden, args.n_hidden), nn.SiLU(),\n                                         nn.Linear(args.n_hidden, args.n_hidden))\n        self.padding = [(16 - size % 16) % 16 for size in args.shapelist]\n        self.conv0 = BlockList[len(self.padding)](args.n_hidden, args.n_hidden,\n                                                  *[args.modes for _ in range(len(self.padding))])\n        self.conv1 = BlockList[len(self.padding)](args.n_hidden, args.n_hidden,\n                                                  *[args.modes for _ in range(len(self.padding))])\n        self.conv2 = BlockList[len(self.padding)](args.n_hidden, args.n_hidden,\n                                                  *[args.modes for _ in range(len(self.padding))])\n        self.conv3 = BlockList[len(self.padding)](args.n_hidden, args.n_hidden,\n                                                  *[args.modes for _ in range(len(self.padding))])\n        self.w0 = ConvList[len(self.padding)](args.n_hidden, args.n_hidden, 1)\n        self.w1 = ConvList[len(self.padding)](args.n_hidden, args.n_hidden, 1)\n        self.w2 = ConvList[len(self.padding)](args.n_hidden, args.n_hidden, 1)\n        self.w3 = ConvList[len(self.padding)](args.n_hidden, args.n_hidden, 1)\n        self.fc1 = nn.Linear(args.n_hidden, args.n_hidden)\n        self.fc2 = nn.Linear(args.n_hidden, args.out_dim)\n\n    def forward(self, x, fx, T=None, geo=None):\n        B, N, _ = x.shape\n        if self.args.unified_pos:\n            x = self.pos.repeat(x.shape[0], 1, 1)\n        if fx is not None:\n            fx = torch.cat((x, fx), -1)\n            fx = self.preprocess(fx)\n        else:\n            fx = self.preprocess(x)\n\n        if T is not None:\n            Time_emb = timestep_embedding(T, self.args.n_hidden).repeat(1, x.shape[1], 1)\n            Time_emb = self.time_fc(Time_emb)\n            fx = fx + Time_emb\n        x = fx.permute(0, 2, 1).reshape(B, self.args.n_hidden, *self.args.shapelist)\n        if not all(item == 0 for item in self.padding):\n            if len(self.args.shapelist) == 1:\n                x = F.pad(x, [0, self.padding[0]])\n            elif len(self.args.shapelist) == 2:\n                x = F.pad(x, [0, self.padding[1], 0, self.padding[0]])\n\n        x1 = self.conv0(x)\n        x2 = self.w0(x)\n        x = x1 + x2\n        x = F.gelu(x)\n\n        x1 = self.conv1(x)\n        x2 = self.w1(x)\n        x = x1 + x2\n        x = F.gelu(x)\n\n        x1 = self.conv2(x)\n        x2 = self.w2(x)\n        x = x1 + x2\n        x = F.gelu(x)\n\n        x1 = self.conv3(x)\n        x2 = self.w3(x)\n        x = x1 + x2\n\n        if not all(item == 0 for item in self.padding):\n            if len(self.args.shapelist) == 1:\n                x = x[..., :-self.padding[0]]\n            elif len(self.args.shapelist) == 2:\n                x = x[..., :-self.padding[0], :-self.padding[1]]\n        x = x.reshape(B, self.args.n_hidden, -1).permute(0, 2, 1)\n        x = self.fc1(x)\n        x = F.gelu(x)\n        x = self.fc2(x)\n        return x\n"
-     }
-    ],
-    "Transolver": [
-     {
-      "file": "Neural-Solver-Library/models/Custom.py",
-      "start_line": 78,
-      "end_line": 78,
-      "content": "CONFIG_OVERRIDES = {'NS': {'batch_size': 2}}\n"
-     },
-     {
-      "file": "Neural-Solver-Library/models/Custom.py",
-      "start_line": 1,
-      "end_line": 65,
-      "content": "import torch\nimport torch.nn as nn\nimport numpy as np\nfrom timm.models.layers import trunc_normal_\nfrom layers.Basic import MLP\nfrom layers.Embedding import timestep_embedding, unified_pos_embedding\nfrom layers.Physics_Attention import Physics_Attention_Structured_Mesh_1D\nfrom layers.Physics_Attention import Physics_Attention_Structured_Mesh_2D\n\nPHYSICS_ATTENTION = {\n    'structured_1D': Physics_Attention_Structured_Mesh_1D,\n    'structured_2D': Physics_Attention_Structured_Mesh_2D,\n}\n\n\nclass Transolver_block(nn.Module):\n    def __init__(self, num_heads, hidden_dim, dropout, act='gelu', mlp_ratio=4,\n                 last_layer=False, out_dim=1, slice_num=32, geotype='structured_2D', shapelist=None):\n        super().__init__()\n        self.last_layer = last_layer\n        self.ln_1 = nn.LayerNorm(hidden_dim)\n        self.Attn = PHYSICS_ATTENTION[geotype](hidden_dim, heads=num_heads,\n                                                dim_head=hidden_dim // num_heads,\n                                                dropout=dropout, slice_num=slice_num,\n                                                shapelist=shapelist)\n        self.ln_2 = nn.LayerNorm(hidden_dim)\n        self.mlp = MLP(hidden_dim, hidden_dim * mlp_ratio, hidden_dim, n_layers=0, res=False, act=act)\n        if self.last_layer:\n            self.ln_3 = nn.LayerNorm(hidden_dim)\n            self.mlp2 = nn.Linear(hidden_dim, out_dim)\n\n    def forward(self, fx):\n        fx = self.Attn(self.ln_1(fx)) + fx\n        fx = self.mlp(self.ln_2(fx)) + fx\n        if self.last_layer:\n            return self.mlp2(self.ln_3(fx))\n        else:\n            return fx\n\n\nclass Model(nn.Module):\n    def __init__(self, args):\n        super(Model, self).__init__()\n        self.__name__ = 'Custom'\n        self.args = args\n        if args.unified_pos and args.geotype != 'unstructured':\n            self.pos = unified_pos_embedding(args.shapelist, args.ref)\n            self.preprocess = MLP(args.fun_dim + args.ref ** len(args.shapelist), args.n_hidden * 2,\n                                  args.n_hidden, n_layers=0, res=False, act=args.act)\n        else:\n            self.preprocess = MLP(args.fun_dim + args.space_dim, args.n_hidden * 2, args.n_hidden,\n                                  n_layers=0, res=False, act=args.act)\n        if args.time_input:\n            self.time_fc = nn.Sequential(nn.Linear(args.n_hidden, args.n_hidden), nn.SiLU(),\n                                         nn.Linear(args.n_hidden, args.n_hidden))\n        self.blocks = nn.ModuleList([Transolver_block(num_heads=args.n_heads, hidden_dim=args.n_hidden,\n                                                      dropout=args.dropout,\n                                                      act=args.act,\n                                                      mlp_ratio=args.mlp_ratio,\n                                                      out_dim=args.out_dim,\n                                                      slice_num=args.slice_num,\n                                                      last_layer=(_ == args.n_layers - 1),\n                                                      geotype=args.geotype,\n                                                      shapelist=args.shapelist)\n                                     for _ in range(args.n_layers)])\n        self.placeholder = nn.Parameter((1 / (args.n_hidden)) * torch.rand(args.n_hidden, dtype=torch.float))\n        self.initialize_weights()\n\n    def initialize_weights(self):\n        self.apply(self._init_weights)\n\n    def _init_weights(self, m):\n        if isinstance(m, nn.Linear):\n            trunc_normal_(m.weight, std=0.02)\n            if isinstance(m, nn.Linear) and m.bias is not None:\n                nn.init.constant_(m.bias, 0)\n        elif isinstance(m, (nn.LayerNorm, nn.BatchNorm1d)):\n            nn.init.constant_(m.bias, 0)\n            nn.init.constant_(m.weight, 1.0)\n\n    def forward(self, x, fx, T=None, geo=None):\n        if self.args.unified_pos:\n            x = self.pos.repeat(x.shape[0], 1, 1)\n        if fx is not None:\n            fx = torch.cat((x, fx), -1)\n            fx = self.preprocess(fx)\n        else:\n            fx = self.preprocess(x)\n        fx = fx + self.placeholder[None, None, :]\n\n        if T is not None:\n            Time_emb = timestep_embedding(T, self.args.n_hidden).repeat(1, x.shape[1], 1)\n            Time_emb = self.time_fc(Time_emb)\n            fx = fx + Time_emb\n\n        for block in self.blocks:\n            fx = block(fx)\n        return fx\n"
-     }
-    ]
-   },
-   "rigorous_codebase": true,
-   "allow_create": false,
-   "has_agent_logs": false
-  },
-  {
    "id": "pde-design-solver",
    "name": "Unstructured Design Neural Operator",
    "summary": "Studies how neural operators on unstructured meshes support design evaluation and field prediction.",
@@ -151054,44 +150935,6 @@
     }
    ]
   },
-  "pde-autoregressive-solver": {
-   "task_id": "pde-autoregressive-solver",
-   "columns": [
-    "timestamp",
-    "model",
-    "is_final",
-    "seed",
-    "rel_err_NS",
-    "rel_err_Burgers",
-    "rel_err_NS_std",
-    "rel_err_Burgers_std",
-    "elapsed_NS",
-    "elapsed_Burgers"
-   ],
-   "metric_columns": [
-    "rel_err_NS",
-    "rel_err_Burgers"
-   ],
-   "metric_directions": {
-    "rel_err_NS": "lower",
-    "rel_err_Burgers": "lower"
-   },
-   "metric_groups": [
-    {
-     "setting": "Navier-Stokes",
-     "metrics": [
-      "rel_err_NS"
-     ]
-    },
-    {
-     "setting": "Burgers",
-     "metrics": [
-      "rel_err_Burgers"
-     ]
-    }
-   ],
-   "rows": []
-  },
   "pde-design-solver": {
    "task_id": "pde-design-solver",
    "columns": [
@@ -207156,12 +206999,110 @@
     "timestamp",
     "model",
     "is_final",
-    "seed"
+    "seed",
+    "elapsed_train_goal",
+    "elapsed_train_spatial",
+    "success_rate_goal",
+    "elapsed_goal",
+    "success_rate_spatial",
+    "elapsed_spatial"
    ],
-   "metric_columns": [],
-   "metric_directions": {},
-   "metric_groups": [],
-   "rows": []
+   "metric_columns": [
+    "success_rate_goal",
+    "success_rate_spatial"
+   ],
+   "metric_directions": {
+    "success_rate_goal": "higher",
+    "success_rate_spatial": "higher"
+   },
+   "metric_groups": [
+    {
+     "setting": "goal",
+     "metrics": [
+      "success_rate_goal"
+     ]
+    },
+    {
+     "setting": "spatial",
+     "metrics": [
+      "success_rate_spatial"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-02T00:17:04.890207+00:00",
+     "model": "baseline:cont_diffusion",
+     "is_final": true,
+     "seed": "42",
+     "elapsed_train_goal": 6150.722429275513,
+     "elapsed_train_spatial": 6164.237590789795,
+     "success_rate_goal": 0.0,
+     "elapsed_goal": 5111.23973941803,
+     "success_rate_spatial": 0.0,
+     "elapsed_spatial": 4184.8296065330505
+    },
+    {
+     "timestamp": "2026-09-02T00:17:04.890741+00:00",
+     "model": "baseline:cont_diffusion",
+     "is_final": true,
+     "seed": "mean",
+     "elapsed_train_goal": 6150.722429275513,
+     "elapsed_train_spatial": 6164.237590789795,
+     "success_rate_goal": 0.0,
+     "elapsed_goal": 5111.23973941803,
+     "success_rate_spatial": 0.0,
+     "elapsed_spatial": 4184.8296065330505
+    },
+    {
+     "timestamp": "2026-09-02T00:17:04.891312+00:00",
+     "model": "baseline:cont_l1",
+     "is_final": true,
+     "seed": "42",
+     "elapsed_train_goal": 5938.200134754181,
+     "elapsed_train_spatial": 5969.7356951236725,
+     "success_rate_goal": 0.0,
+     "elapsed_goal": 2677.020608663559,
+     "success_rate_spatial": 0.22,
+     "elapsed_spatial": 2161.310051679611
+    },
+    {
+     "timestamp": "2026-09-02T00:17:04.891566+00:00",
+     "model": "baseline:cont_l1",
+     "is_final": true,
+     "seed": "mean",
+     "elapsed_train_goal": 5938.200134754181,
+     "elapsed_train_spatial": 5969.7356951236725,
+     "success_rate_goal": 0.0,
+     "elapsed_goal": 2677.020608663559,
+     "success_rate_spatial": 0.22,
+     "elapsed_spatial": 2161.310051679611
+    },
+    {
+     "timestamp": "2026-09-02T00:17:04.891807+00:00",
+     "model": "baseline:pdac_discrete",
+     "is_final": true,
+     "seed": "42",
+     "elapsed_train_goal": 6015.292503356934,
+     "elapsed_train_spatial": 6045.32848405838,
+     "success_rate_goal": 0.04,
+     "elapsed_goal": 2813.702668905258,
+     "success_rate_spatial": 0.06,
+     "elapsed_spatial": 2459.7191064357758
+    },
+    {
+     "timestamp": "2026-09-02T00:17:04.892048+00:00",
+     "model": "baseline:pdac_discrete",
+     "is_final": true,
+     "seed": "mean",
+     "elapsed_train_goal": 6015.292503356934,
+     "elapsed_train_spatial": 6045.32848405838,
+     "success_rate_goal": 0.04,
+     "elapsed_goal": 2813.702668905258,
+     "success_rate_spatial": 0.06,
+     "elapsed_spatial": 2459.7191064357758
+    }
+   ]
   }
  }
 }
