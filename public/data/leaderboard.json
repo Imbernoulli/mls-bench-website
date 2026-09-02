@@ -89,12 +89,28 @@
       "performance": 31.7
     },
     {
+      "model": "Claude Sonnet 5",
+      "company": "anthropic",
+      "modelOpen": false,
+      "harness": "Claude Code (max effort)",
+      "harnessOpen": false,
+      "performance": 31.4
+    },
+    {
       "model": "Kimi K2.6",
       "company": "moonshot",
       "modelOpen": true,
       "harness": "Kimi-Code",
       "harnessOpen": true,
       "performance": 26.7
+    },
+    {
+      "model": "DeepSeek-V4 Pro Preview",
+      "company": "deepseek",
+      "modelOpen": true,
+      "harness": "Claude Code",
+      "harnessOpen": false,
+      "performance": 24.4
     }
   ]
 }
