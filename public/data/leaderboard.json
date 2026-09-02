@@ -3,7 +3,7 @@
     {
       "model": "Qwen3.8-Max-0902",
       "company": "qwen",
-      "modelOpen": false,
+      "modelOpen": true,
       "harness": "Claude Code",
       "harnessOpen": false,
       "performance": 50.1
@@ -51,7 +51,7 @@
     {
       "model": "Qwen3.8-Max",
       "company": "qwen",
-      "modelOpen": false,
+      "modelOpen": true,
       "harness": "Claude Code",
       "harnessOpen": false,
       "performance": 41.0
