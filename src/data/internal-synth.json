@@ -3710,6 +3710,185 @@
    "has_agent_logs": true
   },
   {
+   "id": "dl-budgeted-batch-selection",
+   "name": "Spending a Fixed Gradient Budget on the Right Examples",
+   "summary": "Training runs under a hard budget on how many examples may receive a gradient",
+   "category": "deep-learning",
+   "category_label": "Deep Learning",
+   "category_abbr": "",
+   "description_md": "# Spending a Fixed Gradient Budget on the Right Examples\n\n## Research Question\n\nTraining runs under a hard budget on how many examples may receive a gradient\nstep. Given the batch of candidates in front of you and whatever you have\nrecorded about the examples the model has already trained on, which of them\nshould the budget be spent on?\n\n## Background\n\nBudgeted training fixes the number of forward and backward passes and asks how\nbest to use them (Li, Yuan, Chen, Wang and Vasconcelos, *Budgeted Training:\nRethinking Deep Neural Network Training Under Resource Constraints*, ICLR 2020,\n[arXiv:1905.04753](https://arxiv.org/abs/1905.04753)). Importance sampling is\nthe natural answer — spend the updates on the examples that carry the most\nsignal — and several concrete rules have been proposed:\n\n- **Active Bias** — Chang, Learned-Miller and McCallum, *Active Bias: Training\n  More Accurate Neural Networks by Emphasizing High Variance Samples*, NeurIPS\n  2017 ([arXiv:1704.07433](https://arxiv.org/abs/1704.07433)). Sample in\n  proportion to a running statistic of the model's own prediction on each\n  example, kept from the passes that already happened so no extra forward pass\n  is needed: the mean of `1 - p_true` across the epochs the example was trained\n  on, or its \"confusion\" `p(1 - p)`.\n- **Selective Backprop** — Jiang, Wong, Zhou, Andersen, Dean, Ganger, Joshi,\n  Kaminsky, Kozuch, Lipton and Pillai, *Accelerating Deep Learning by Focusing\n  on the Biggest Losers*\n  ([arXiv:1910.00762](https://arxiv.org/abs/1910.00762)). Keep an example with a\n  probability given by where its current loss falls in the CDF of the losses of\n  the last `R` examples the model saw, raised to a selectivity exponent; forward\n  passes continue until a full backprop batch has been accumulated.\n- **Ordered SGD** — Kawaguchi and Lu, *Ordered SGD: A New Stochastic\n  Optimization Framework for Empirical Risk Minimization*, AISTATS 2020\n  ([PMLR v108](http://proceedings.mlr.press/v108/kawaguchi20a.html)). Backprop\n  only the `q` largest losses in a mini-batch, with `q` shrinking as training\n  accuracy rises.\n- **Importance sampling with a gradient-norm bound** — Katharopoulos and\n  Fleuret, *Not All Samples Are Created Equal: Deep Learning with Importance\n  Sampling*, ICML 2018 ([arXiv:1803.00942](https://arxiv.org/abs/1803.00942)).\n  Sample proportionally to an upper bound on the per-example gradient norm\n  computed from the last layer, and reweight the loss to keep the estimator\n  unbiased.\n\nArazo, Ortego, Albert, O'Connor and McGuinness, *How Important is Importance\nSampling for Deep Budgeted Training?*, BMVC 2021\n([arXiv:2110.14283](https://arxiv.org/abs/2110.14283)) put these rules on a\ncommon footing by constraining each to the same budget, and report that most of\nthem land close to uniform sampling — which makes uniform selection the\nreference floor rather than a straw man.\n\n## What You Can Modify\n\n`select(cand, state)` in `example-forgetting/custom_select.py`, inside the\nmarked editable region. Nothing else: the network, the optimiser, the learning\nrate schedule, the augmentation, the batch size, the epoch count and the budget\nare fixed and identical for every submission and every baseline.\n\nEach epoch the model may backprop exactly `round(budget * N)` examples and\ntrains for the full epoch schedule regardless. Candidates arrive in batches of\n128 from a reshuffled permutation of the training set; **every** candidate batch\ngets one no-grad selection forward pass, in eval mode, before `select` is\ncalled, so every rule pays the same selection cost whether or not it uses the\nresult. The examples you\nreturn accumulate into backprop batches of 128, and each full batch is one SGD\nstep on the same augmented tensors the selection pass saw. The epoch ends when\nthe budget is spent, so a rule that accepts a small fraction of candidates\nsimply streams more of them (up to a cap, after which the epoch ends with the\nbudget unspent).\n\n`cand` — fresh, no-grad information about the current candidate batch:\n\n| field | shape / dtype | meaning |\n|---|---|---|\n| `cand.size` | int | `B` |\n| `cand.losses` | float32 `[B]` | per-example cross entropy, now |\n| `cand.probs` | float32 `[B, C]` | per-example softmax, now |\n| `cand.labels` | int64 `[B]` | labels |\n| `cand.indices` | int64 `[B]` | positions in the training set |\n\n`state` — persistent across the run. The per-example arrays are updated **only**\nfrom examples that actually received a gradient step:\n\n| field | meaning |\n|---|---|\n| `state.n_examples`, `state.n_classes` | `N`, `C` |\n| `state.budget` | the epoch's backprop budget as a fraction of `N` |\n| `state.epoch`, `state.total_epochs` | 1-indexed epoch, total |\n| `state.backprop_remaining` | budget left this epoch (a read-only mirror; the harness rewrites it before every call) |\n| `state.backprop_per_epoch` | `round(budget * N)` |\n| `state.train_acc_prev` | training accuracy (%) over the previous epoch's candidate stream, an unbiased estimate of training-set accuracy |\n| `state.avg_prob` float64 `[N]` | running mean of `1 - p_true` over the epochs an example was trained on; `-1` if never |\n| `state.times_seen` float64 `[N]` | times each example was trained on (`1e-6` before the first) |\n| `state.last_loss` float64 `[N]` | loss when last trained on; `-1` if never |\n| `state.rng` | seeded `np.random.RandomState` |\n| `state.memo` | a dict that is yours, for any history your rule needs |\n\nReturn integer positions into the candidate batch, without duplicates. An empty\nselection is allowed and skips the batch. Returning more than\n`state.backprop_remaining` is not an error — the surplus is discarded — but it\nwastes budget. `numpy` is available as `np`.\n\n## Fixed Pipeline\n\nA CIFAR ResNet-18 trained with SGD under the budgeted recipe of Arazo et al.\n(Sec. 4.1): momentum, weight decay, batch size, initial learning rate and a\nstep-wise decay at fixed fractions of training, with standard augmentation\n(random crop with 4-pixel padding and random horizontal flip). The training\nprocess saves the final weights and never constructs the test split; a separate\ninterpreter, which imports no submission code, loads those weights and reports\ntop-1 accuracy on the held-out test set. It is always the final epoch, never the\nbest one.\n\n## Evaluation\n\nThree settings, differing in how large the per-epoch gradient budget is. Each is\nscored by the final top-1 test accuracy; the task score is the geometric mean\nover the settings, so a rule has to work at every budget. Two diagnostics are\nrecorded but not scored: `bp_used`, the fraction of the allowance that actually\nreached an optimiser step, and `fwd_passes`, the number of candidate forward\npasses made per epoch expressed in passes over the training set.\n\n## Baselines\n\n- **unif** — a uniform draw without replacement of `round(budget * B)` of the\n  candidates (`unif-SGD` in Arazo et al., Sec. 3).\n- **psgd** — sample by the running mean of `1 - p_true` with the paper's\n  additive smoothing constant (Chang et al., NeurIPS 2017; `p-SGD` in Arazo\n  et al., Eqs. 2-3).\n- **csgd** — the same, using the confusion `p(1 - p)` as the importance\n  (`c-SGD`).\n- **sb** — Selective Backprop: Bernoulli keep with probability\n  `CDF_R(loss) ** b` over a sliding window of the last `R` losses, after a\n  priming stage in which everything is kept (Jiang et al.).\n- **osgd** — Ordered SGD: the `q` largest losses in the batch, with the paper's\n  accuracy-keyed schedule for `q` (Kawaguchi and Lu, AISTATS 2020).\n\n## Metric\n\n`test_acc` — final-epoch top-1 test accuracy in percent, higher is better,\naggregated across settings by geometric mean.\n",
+   "description_html": "<h1>Spending a Fixed Gradient Budget on the Right Examples</h1>\n<h2>Research Question</h2>\n<p>Training runs under a hard budget on how many examples may receive a gradient\nstep. Given the batch of candidates in front of you and whatever you have\nrecorded about the examples the model has already trained on, which of them\nshould the budget be spent on?</p>\n<h2>Background</h2>\n<p>Budgeted training fixes the number of forward and backward passes and asks how\nbest to use them (Li, Yuan, Chen, Wang and Vasconcelos, <em>Budgeted Training:\nRethinking Deep Neural Network Training Under Resource Constraints</em>, ICLR 2020,\n<a href=\"https://arxiv.org/abs/1905.04753\">arXiv:1905.04753</a>). Importance sampling is\nthe natural answer — spend the updates on the examples that carry the most\nsignal — and several concrete rules have been proposed:</p>\n<ul>\n<li><strong>Active Bias</strong> — Chang, Learned-Miller and McCallum, <em>Active Bias: Training\n  More Accurate Neural Networks by Emphasizing High Variance Samples</em>, NeurIPS\n  2017 (<a href=\"https://arxiv.org/abs/1704.07433\">arXiv:1704.07433</a>). Sample in\n  proportion to a running statistic of the model's own prediction on each\n  example, kept from the passes that already happened so no extra forward pass\n  is needed: the mean of <code>1 - p_true</code> across the epochs the example was trained\n  on, or its \"confusion\" <code>p(1 - p)</code>.</li>\n<li><strong>Selective Backprop</strong> — Jiang, Wong, Zhou, Andersen, Dean, Ganger, Joshi,\n  Kaminsky, Kozuch, Lipton and Pillai, <em>Accelerating Deep Learning by Focusing\n  on the Biggest Losers</em>\n  (<a href=\"https://arxiv.org/abs/1910.00762\">arXiv:1910.00762</a>). Keep an example with a\n  probability given by where its current loss falls in the CDF of the losses of\n  the last <code>R</code> examples the model saw, raised to a selectivity exponent; forward\n  passes continue until a full backprop batch has been accumulated.</li>\n<li><strong>Ordered SGD</strong> — Kawaguchi and Lu, <em>Ordered SGD: A New Stochastic\n  Optimization Framework for Empirical Risk Minimization</em>, AISTATS 2020\n  (<a href=\"http://proceedings.mlr.press/v108/kawaguchi20a.html\">PMLR v108</a>). Backprop\n  only the <code>q</code> largest losses in a mini-batch, with <code>q</code> shrinking as training\n  accuracy rises.</li>\n<li><strong>Importance sampling with a gradient-norm bound</strong> — Katharopoulos and\n  Fleuret, <em>Not All Samples Are Created Equal: Deep Learning with Importance\n  Sampling</em>, ICML 2018 (<a href=\"https://arxiv.org/abs/1803.00942\">arXiv:1803.00942</a>).\n  Sample proportionally to an upper bound on the per-example gradient norm\n  computed from the last layer, and reweight the loss to keep the estimator\n  unbiased.</li>\n</ul>\n<p>Arazo, Ortego, Albert, O'Connor and McGuinness, <em>How Important is Importance\nSampling for Deep Budgeted Training?</em>, BMVC 2021\n(<a href=\"https://arxiv.org/abs/2110.14283\">arXiv:2110.14283</a>) put these rules on a\ncommon footing by constraining each to the same budget, and report that most of\nthem land close to uniform sampling — which makes uniform selection the\nreference floor rather than a straw man.</p>\n<h2>What You Can Modify</h2>\n<p><code>select(cand, state)</code> in <code>example-forgetting/custom_select.py</code>, inside the\nmarked editable region. Nothing else: the network, the optimiser, the learning\nrate schedule, the augmentation, the batch size, the epoch count and the budget\nare fixed and identical for every submission and every baseline.</p>\n<p>Each epoch the model may backprop exactly <code>round(budget * N)</code> examples and\ntrains for the full epoch schedule regardless. Candidates arrive in batches of\n128 from a reshuffled permutation of the training set; <strong>every</strong> candidate batch\ngets one no-grad selection forward pass, in eval mode, before <code>select</code> is\ncalled, so every rule pays the same selection cost whether or not it uses the\nresult. The examples you\nreturn accumulate into backprop batches of 128, and each full batch is one SGD\nstep on the same augmented tensors the selection pass saw. The epoch ends when\nthe budget is spent, so a rule that accepts a small fraction of candidates\nsimply streams more of them (up to a cap, after which the epoch ends with the\nbudget unspent).</p>\n<p><code>cand</code> — fresh, no-grad information about the current candidate batch:</p>\n<table>\n<thead>\n<tr>\n<th>field</th>\n<th>shape / dtype</th>\n<th>meaning</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>cand.size</code></td>\n<td>int</td>\n<td><code>B</code></td>\n</tr>\n<tr>\n<td><code>cand.losses</code></td>\n<td>float32 <code>[B]</code></td>\n<td>per-example cross entropy, now</td>\n</tr>\n<tr>\n<td><code>cand.probs</code></td>\n<td>float32 <code>[B, C]</code></td>\n<td>per-example softmax, now</td>\n</tr>\n<tr>\n<td><code>cand.labels</code></td>\n<td>int64 <code>[B]</code></td>\n<td>labels</td>\n</tr>\n<tr>\n<td><code>cand.indices</code></td>\n<td>int64 <code>[B]</code></td>\n<td>positions in the training set</td>\n</tr>\n</tbody>\n</table>\n<p><code>state</code> — persistent across the run. The per-example arrays are updated <strong>only</strong>\nfrom examples that actually received a gradient step:</p>\n<table>\n<thead>\n<tr>\n<th>field</th>\n<th>meaning</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>state.n_examples</code>, <code>state.n_classes</code></td>\n<td><code>N</code>, <code>C</code></td>\n</tr>\n<tr>\n<td><code>state.budget</code></td>\n<td>the epoch's backprop budget as a fraction of <code>N</code></td>\n</tr>\n<tr>\n<td><code>state.epoch</code>, <code>state.total_epochs</code></td>\n<td>1-indexed epoch, total</td>\n</tr>\n<tr>\n<td><code>state.backprop_remaining</code></td>\n<td>budget left this epoch (a read-only mirror; the harness rewrites it before every call)</td>\n</tr>\n<tr>\n<td><code>state.backprop_per_epoch</code></td>\n<td><code>round(budget * N)</code></td>\n</tr>\n<tr>\n<td><code>state.train_acc_prev</code></td>\n<td>training accuracy (%) over the previous epoch's candidate stream, an unbiased estimate of training-set accuracy</td>\n</tr>\n<tr>\n<td><code>state.avg_prob</code> float64 <code>[N]</code></td>\n<td>running mean of <code>1 - p_true</code> over the epochs an example was trained on; <code>-1</code> if never</td>\n</tr>\n<tr>\n<td><code>state.times_seen</code> float64 <code>[N]</code></td>\n<td>times each example was trained on (<code>1e-6</code> before the first)</td>\n</tr>\n<tr>\n<td><code>state.last_loss</code> float64 <code>[N]</code></td>\n<td>loss when last trained on; <code>-1</code> if never</td>\n</tr>\n<tr>\n<td><code>state.rng</code></td>\n<td>seeded <code>np.random.RandomState</code></td>\n</tr>\n<tr>\n<td><code>state.memo</code></td>\n<td>a dict that is yours, for any history your rule needs</td>\n</tr>\n</tbody>\n</table>\n<p>Return integer positions into the candidate batch, without duplicates. An empty\nselection is allowed and skips the batch. Returning more than\n<code>state.backprop_remaining</code> is not an error — the surplus is discarded — but it\nwastes budget. <code>numpy</code> is available as <code>np</code>.</p>\n<h2>Fixed Pipeline</h2>\n<p>A CIFAR ResNet-18 trained with SGD under the budgeted recipe of Arazo et al.\n(Sec. 4.1): momentum, weight decay, batch size, initial learning rate and a\nstep-wise decay at fixed fractions of training, with standard augmentation\n(random crop with 4-pixel padding and random horizontal flip). The training\nprocess saves the final weights and never constructs the test split; a separate\ninterpreter, which imports no submission code, loads those weights and reports\ntop-1 accuracy on the held-out test set. It is always the final epoch, never the\nbest one.</p>\n<h2>Evaluation</h2>\n<p>Three settings, differing in how large the per-epoch gradient budget is. Each is\nscored by the final top-1 test accuracy; the task score is the geometric mean\nover the settings, so a rule has to work at every budget. Two diagnostics are\nrecorded but not scored: <code>bp_used</code>, the fraction of the allowance that actually\nreached an optimiser step, and <code>fwd_passes</code>, the number of candidate forward\npasses made per epoch expressed in passes over the training set.</p>\n<h2>Baselines</h2>\n<ul>\n<li><strong>unif</strong> — a uniform draw without replacement of <code>round(budget * B)</code> of the\n  candidates (<code>unif-SGD</code> in Arazo et al., Sec. 3).</li>\n<li><strong>psgd</strong> — sample by the running mean of <code>1 - p_true</code> with the paper's\n  additive smoothing constant (Chang et al., NeurIPS 2017; <code>p-SGD</code> in Arazo\n  et al., Eqs. 2-3).</li>\n<li><strong>csgd</strong> — the same, using the confusion <code>p(1 - p)</code> as the importance\n  (<code>c-SGD</code>).</li>\n<li><strong>sb</strong> — Selective Backprop: Bernoulli keep with probability\n  <code>CDF_R(loss) ** b</code> over a sliding window of the last <code>R</code> losses, after a\n  priming stage in which everything is kept (Jiang et al.).</li>\n<li><strong>osgd</strong> — Ordered SGD: the <code>q</code> largest losses in the batch, with the paper's\n  accuracy-keyed schedule for <code>q</code> (Kawaguchi and Lu, AISTATS 2020).</li>\n</ul>\n<h2>Metric</h2>\n<p><code>test_acc</code> — final-epoch top-1 test accuracy in percent, higher is better,\naggregated across settings by geometric mean.</p>",
+   "baselines": [
+    "unif",
+    "psgd",
+    "csgd",
+    "sb",
+    "osgd"
+   ],
+   "environments": [
+    "c10_b02",
+    "c10_b03",
+    "c10_b05"
+   ],
+   "packages": [
+    "example-forgetting"
+   ],
+   "files": [
+    {
+     "filename": "example-forgetting/custom_select.py",
+     "edit_ranges": [
+      {
+       "start": 67,
+       "end": 76
+      }
+     ],
+     "content": "\"\"\"Which examples in the batch in front of you should get a gradient step?\n\nTraining runs under a hard budget: each epoch the model is allowed exactly\n`round(budget * N)` backpropped examples, and it trains for the full epoch\nschedule regardless. Candidates arrive in batches of 128 drawn from a reshuffled\npermutation of the training set. The harness gives every candidate batch one\nno-grad *selection* forward pass, in eval mode -- so every rule pays the same\nselection cost whether or not it uses the result -- then calls `select` below. The examples you\nreturn are accumulated into backprop batches of 128; each full batch is one SGD\nstep on the same augmented tensors the selection pass saw. The epoch ends when\nthe budget is exhausted, so a rule that accepts a small fraction of candidates\nsimply streams more of them.\n\n`cand` -- fresh, no-grad information about the current candidate batch:\n\n    cand.size      int                B, the number of candidates\n    cand.losses    float32 [B]        per-example cross entropy, right now\n    cand.probs     float32 [B, C]     per-example softmax, right now\n    cand.labels    int64   [B]        labels\n    cand.indices   int64   [B]        positions in the training set\n\n`state` -- persistent across the whole run. The per-example arrays are updated\nONLY from examples that actually received a gradient step, so they carry no\ninformation a rule could not have obtained for free:\n\n    state.n_examples          int      N\n    state.n_classes           int      C\n    state.budget              float    the epoch's backprop budget as a fraction of N\n    state.epoch               int      1-indexed\n    state.total_epochs        int\n    state.backprop_remaining  int      backprop budget left in this epoch\n    state.backprop_per_epoch  int      round(budget * N)\n    state.train_acc_prev      float    training accuracy (%) over the previous\n                                       epoch's candidate stream (an unbiased\n                                       estimate of training-set accuracy, since\n                                       candidates are a uniform draw)\n    state.avg_prob   float64 [N]   running mean over the epochs an example was\n                                   trained on of (1 - p_true); -1 if never trained on\n    state.times_seen float64 [N]   how many times each example was trained on\n                                   (1e-6 rather than 0 before the first time)\n    state.last_loss  float64 [N]   loss the last time it was trained on; -1 if never\n    state.rng        np.random.RandomState, seeded from the run's seed\n    state.memo       dict     yours; persists across calls, use it for any\n                              history or running statistic your rule needs\n\nContract for `select(cand, state)`:\n\n  * return array-like integer positions INTO the candidate batch (0..cand.size-1),\n    without duplicates. An empty selection is allowed and simply skips the batch;\n  * returning more than `state.backprop_remaining` is not an error -- the surplus\n    is discarded -- but it wastes budget you could have spent later in the epoch;\n  * `state.backprop_remaining` is a read-only mirror of the harness's own\n    counter and is rewritten before every call, so assigning to it does nothing;\n  * you may not change the model, the optimiser, the schedule or the budget.\n    This process never builds the test split and never computes the reported\n    metric: it saves the final weights, and a separate interpreter scores them;\n  * numpy is available as `np`.\n\"\"\"\n\nimport numpy as np\n\n# ==================================================================\n# FIXED -- DO NOT MODIFY ABOVE THIS LINE\n# ==================================================================\n\n# ----- BEGIN EDITABLE REGION -----\ndef select(cand, state):\n    \"\"\"Pick the examples in this candidate batch that get a gradient step.\n\n    Default rule: take the `round(budget * B)` candidates with the largest\n    current loss.\n    \"\"\"\n    k = int(round(state.budget * cand.size))\n    if k <= 0:\n        return np.empty(0, dtype=np.int64)\n    return np.argsort(cand.losses)[-k:].astype(np.int64)\n# ----- END EDITABLE REGION -----\n\n# ==================================================================\n# FIXED -- DO NOT MODIFY BELOW THIS LINE\n# ==================================================================\n"
+    },
+    {
+     "filename": "example-forgetting/budgetsel/common.py",
+     "edit_ranges": []
+    },
+    {
+     "filename": "example-forgetting/budgetsel/train_stage.py",
+     "edit_ranges": []
+    }
+   ],
+   "baselines_code": {
+    "unif": [
+     {
+      "file": "example-forgetting/custom_select.py",
+      "start_line": 67,
+      "end_line": 76,
+      "content": "def select(cand, state):\n    \"\"\"unif-SGD: a uniform draw without replacement of round(budget * B).\"\"\"\n    k = int(round(state.budget * cand.size))\n    if k <= 0:\n        return np.empty(0, dtype=np.int64)\n    return state.rng.choice(cand.size, k, replace=False).astype(np.int64)\n"
+     }
+    ],
+    "psgd": [
+     {
+      "file": "example-forgetting/custom_select.py",
+      "start_line": 67,
+      "end_line": 76,
+      "content": "def _active_bias_importance(state):\n    \"\"\"utils_train.py L217-224: unseen examples inherit the maximum importance.\"\"\"\n    p = state.avg_prob.copy()\n    if p.max() == -1:\n        p = p * -1.0\n    p[p == -1] = p.max()\n    return p\n\n\ndef _draw(cand, state, importance):\n    k = int(round(state.budget * cand.size))\n    if k <= 0:\n        return np.empty(0, dtype=np.int64)\n    # utils_train.py L238-241: smoothing constant = mean importance over the set\n    w = importance + importance.mean()\n    w = w[cand.indices]\n    if w.sum() <= 0:\n        w = np.ones_like(w)\n    w = np.clip(w, 1e-12, None)\n    w = w / w.sum()\n    k = min(k, int((w > 0).sum()))\n    return state.rng.choice(cand.size, k, replace=False, p=w).astype(np.int64)\n\n\ndef select(cand, state):\n    \"\"\"p-SGD: sample by the running mean of (1 - p_true).\"\"\"\n    return _draw(cand, state, _active_bias_importance(state))\n"
+     }
+    ],
+    "csgd": [
+     {
+      "file": "example-forgetting/custom_select.py",
+      "start_line": 67,
+      "end_line": 76,
+      "content": "def _active_bias_importance(state):\n    \"\"\"utils_train.py L226-235: unseen examples inherit the maximum importance.\"\"\"\n    p = state.avg_prob.copy()\n    if p.max() == -1:\n        p = p * -1.0\n    p[p == -1] = p.max()\n    return p\n\n\ndef _draw(cand, state, importance):\n    k = int(round(state.budget * cand.size))\n    if k <= 0:\n        return np.empty(0, dtype=np.int64)\n    w = importance + importance.mean()\n    w = w[cand.indices]\n    if w.sum() <= 0:\n        w = np.ones_like(w)\n    w = np.clip(w, 1e-12, None)\n    w = w / w.sum()\n    k = min(k, int((w > 0).sum()))\n    return state.rng.choice(cand.size, k, replace=False, p=w).astype(np.int64)\n\n\ndef select(cand, state):\n    \"\"\"c-SGD: sample by p * (1 - p), the confusion of the running estimate.\"\"\"\n    p = _active_bias_importance(state)\n    return _draw(cand, state, p * (1.0 - p))\n"
+     }
+    ],
+    "sb": [
+     {
+      "file": "example-forgetting/custom_select.py",
+      "start_line": 67,
+      "end_line": 76,
+      "content": "# SelectiveBackpropper.py L32-39 and Arazo train.py L60\n_SB_HISTORY = 1024\n_SB_BETA = 3.0\n_SB_SAMPLING_MIN = 0.0\n\n\ndef select(cand, state):\n    \"\"\"Selective Backprop: Bernoulli keep with prob = CDF(loss) ** beta.\"\"\"\n    m = state.memo\n    if \"sb_hist\" not in m:\n        m[\"sb_hist\"] = np.zeros(0, dtype=np.float64)\n        m[\"sb_primed\"] = 0\n\n    # PrimedSelector (selectors.py L29-52): keep everything until the model has\n    # been trained on as many images as the training set holds.\n    if m[\"sb_primed\"] < state.n_examples:\n        m[\"sb_primed\"] += cand.size\n        # the history is still fed, exactly as calculators.py L77-80 does\n        h = np.concatenate([m[\"sb_hist\"], cand.losses.astype(np.float64)])\n        m[\"sb_hist\"] = h[-_SB_HISTORY:]\n        return np.arange(cand.size, dtype=np.int64)\n\n    losses = cand.losses.astype(np.float64)\n    # calculators.py L77-80: the window is updated with the whole batch first\n    h = np.concatenate([m[\"sb_hist\"], losses])[-_SB_HISTORY:]\n    m[\"sb_hist\"] = h\n    # hist.py L38-47: percentile_of_score = 100 * #{window < score} / len(window)\n    pct = (h[None, :] < losses[:, None]).sum(axis=1) / float(len(h))\n    prob = np.maximum(_SB_SAMPLING_MIN, np.power(pct, _SB_BETA))\n    keep = state.rng.uniform(0.0, 1.0, size=cand.size) < prob\n    return np.flatnonzero(keep).astype(np.int64)\n"
+     }
+    ],
+    "osgd": [
+     {
+      "file": "example-forgetting/custom_select.py",
+      "start_line": 67,
+      "end_line": 76,
+      "content": "def select(cand, state):\n    \"\"\"Ordered SGD: the top-q losses of the batch, q on the paper's schedule.\"\"\"\n    m = state.memo\n    s = cand.size\n    if \"osgd_q\" not in m:\n        m[\"osgd_q\"] = s                       # main.py L280: ssize starts at s\n    q = m[\"osgd_q\"]\n    acc = state.train_acc_prev\n    # main.py L285-295, in the same order, monotonically decreasing\n    if acc >= 99.5 and q > s // 16:\n        q = s // 16\n    elif acc >= 95 and q > s // 8:\n        q = s // 8\n    elif acc >= 90 and q > s // 4:\n        q = s // 4\n    elif acc >= 80 and q > s // 2:\n        q = s // 2\n    m[\"osgd_q\"] = q\n    q = max(1, min(q, s))\n    return np.argsort(cand.losses)[-q:].astype(np.int64)\n"
+     }
+    ]
+   },
+   "rigorous_codebase": true,
+   "allow_create": false,
+   "has_agent_logs": false
+  },
+  {
+   "id": "dl-data-pruning-score",
+   "name": "Which Training Examples Should Survive Pruning?",
+   "summary": "After a short training run on the full dataset, what statistic of the learning",
+   "category": "deep-learning",
+   "category_label": "Deep Learning",
+   "category_abbr": "",
+   "description_md": "# Which Training Examples Should Survive Pruning?\n\n## Research Question\n\nAfter a short training run on the full dataset, what statistic of the learning\ntrajectory identifies the training examples worth keeping — so that a network\nretrained from scratch on a fixed fraction of the data generalises as well as\npossible?\n\n## Background\n\nNot every training example contributes equally. Two lines of work make this\nconcrete by scoring examples from a training run and then discarding the\nlow-scoring ones:\n\n- **Forgetting events** — Toneva, Sordoni, Tachet des Combes, Trischler, Bengio\n  and Gordon, *An Empirical Study of Example Forgetting during Deep Neural\n  Network Learning*, ICLR 2019 ([arXiv:1812.05159](https://arxiv.org/abs/1812.05159)).\n  A \"forgetting event\" is a transition of an example's classification from\n  correct to incorrect between two consecutive presentations; examples that are\n  never forgotten can be removed from the training set. The reference\n  implementation is the vendored repository this task runs in\n  (`order_examples_by_forgetting.py`), which counts the `1 -> 0` transitions of\n  the per-presentation accuracy and assigns never-learned examples the maximum\n  count.\n- **GraNd and EL2N** — Paul, Ganguli and Dziugaite, *Deep Learning on a Data\n  Diet: Finding Important Examples Early in Training*, NeurIPS 2021\n  ([arXiv:2107.07075](https://arxiv.org/abs/2107.07075)). EL2N is the norm of\n  the error vector, `|| softmax(f(x)) - onehot(y) ||_2`, read off a checkpoint\n  *early* in training; GraNd is the expected norm of the per-example loss\n  gradient. The authors' implementation is `data_diet/scores.py`\n  (`get_lord_error_fn` with `ord=2`).\n- **Area under the margin** — Pleiss, Zhang, Elenberg and Weinberger,\n  *Identifying Mislabeled Data using the Area Under the Margin Ranking*, NeurIPS\n  2020 ([arXiv:2001.10528](https://arxiv.org/abs/2001.10528)). Average the\n  margin `z_y - max_{j != y} z_j` over the presentations of an example; a small\n  average marks an example the network never comfortably fits. Zheng, Liu, Lai\n  and Prakash, *Coverage-centric Coreset Selection for High Pruning Rates*, ICLR\n  2023 ([arXiv:2210.15809](https://arxiv.org/abs/2210.15809)), compare these\n  difficulty rankings side by side on this protocol and argue that ranking by\n  difficulty alone destroys coverage of the data distribution once the kept\n  fraction gets small.\n\nUniformly random selection is the reference floor: both source repositories\nimplement it as their control (`run_cifar.py`'s negative `keep_lowest_n`,\n`data_diet/scripts/run_random_subset.py`).\n\n## What You Can Modify\n\n`compute_scores(traj, seed)` in `example-forgetting/custom_score.py`, inside the\nmarked editable region. Nothing else — the probe run, the pruning mechanism, the\nretraining recipe and the evaluation are fixed.\n\nThe function is called in its own process, which is handed the probe run's\ntrajectory and nothing else: no GPU, no dataset root, no model weights, no test\ndata, and no way to tell which setting it is scoring for -- in particular it is\nnot told the keep fraction, so a rule cannot specialise to it.\n\n`traj` exposes:\n\n| attribute | shape / dtype | meaning |\n|---|---|---|\n| `traj.n_examples` | int | `N`, training-set size |\n| `traj.n_epochs` | int | `E`, number of probe epochs |\n| `traj.n_classes` | int | `C` |\n| `traj.labels` | int64 `[N]` | training labels |\n| `traj.train_loss` | float32 `[E, N]` | presentation-time cross entropy, on the augmented view actually shown that epoch |\n| `traj.train_correct` | uint8 `[E, N]` | presentation-time 0/1 correctness |\n| `traj.train_margin` | float32 `[E, N]` | presentation-time logit margin `z_y - max_{j != y} z_j` |\n| `traj.eval_probs` | float32 `[E, N, C]` | softmax on the *un-augmented* training image at the end of every probe epoch; stored as float16 and widened on access, so about three decimal digits |\n| `traj.probs_at(e)` | float32 `[N, C]` | one epoch of the above |\n| `traj.onehot()` | float32 `[N, C]` | one-hot targets |\n\nReturn a 1-D array of exactly `N` floats. Larger means \"more worth keeping\";\n`+inf` is allowed, `nan` and `-inf` are rejected. The harness keeps the\nhighest-scoring examples up to the setting's budget and breaks ties with a\nper-seed random permutation. Use `seed` for any randomness. `numpy` is\navailable. The stage is killed if it exceeds a generous wall-clock allowance.\n\n## Fixed Pipeline\n\n1. **Probe.** Train the reference ResNet-18 recipe on the *full* training set\n   for a fixed, short number of epochs, recording the trajectory above.\n2. **Score.** Call `compute_scores` in a separate process.\n3. **Prune and retrain.** Keep the highest-scoring examples up to the setting's\n   budget; reinitialise the network and train it from scratch on that subset\n   with the same recipe and the same total number of epochs as the full-data\n   reference.\n4. **Evaluate.** Top-1 accuracy on the held-out test set after the final epoch\n   (never the best epoch).\n\nThe model, optimiser, learning-rate schedule, augmentation, batch size and\nepoch count are those of the vendored `run_cifar.py` and are identical for every\nsubmission and every baseline; the retraining stage imports no submission code.\n\n## Evaluation\n\nThree settings, varying the dataset and how much of the training set survives.\nEach is scored by the final top-1 test accuracy of the retrained network. The\ntask score is the geometric mean over the settings, so a rule has to work in\nall of them.\n\n## Baselines\n\n- **random** — a uniform random score, i.e. a uniformly random subset of the\n  target size. The control used by both source repositories.\n- **el2n** — `|| softmax(f(x)) - onehot(y) ||_2` at the last probe checkpoint\n  (Paul et al., NeurIPS 2021; `data_diet/scores.py` `get_lord_error_fn`,\n  `ord=2`).\n- **forgetting** — the number of `1 -> 0` transitions of the per-presentation\n  accuracy over the probe run, with never-learned examples assigned the maximum\n  count (Toneva et al., ICLR 2019; `order_examples_by_forgetting.py`).\n- **aum** — the negated mean over the probe of the presentation-time margin\n  `z_y - max_{j != y} z_j`, so that the examples the network fits least\n  comfortably are kept (Pleiss et al., NeurIPS 2020; `asappresearch/aum`\n  `aum/aum.py`).\n\n## Metric\n\n`test_acc` — final-epoch top-1 test accuracy in percent, higher is better,\naggregated across settings by geometric mean.\n",
+   "description_html": "<h1>Which Training Examples Should Survive Pruning?</h1>\n<h2>Research Question</h2>\n<p>After a short training run on the full dataset, what statistic of the learning\ntrajectory identifies the training examples worth keeping — so that a network\nretrained from scratch on a fixed fraction of the data generalises as well as\npossible?</p>\n<h2>Background</h2>\n<p>Not every training example contributes equally. Two lines of work make this\nconcrete by scoring examples from a training run and then discarding the\nlow-scoring ones:</p>\n<ul>\n<li><strong>Forgetting events</strong> — Toneva, Sordoni, Tachet des Combes, Trischler, Bengio\n  and Gordon, <em>An Empirical Study of Example Forgetting during Deep Neural\n  Network Learning</em>, ICLR 2019 (<a href=\"https://arxiv.org/abs/1812.05159\">arXiv:1812.05159</a>).\n  A \"forgetting event\" is a transition of an example's classification from\n  correct to incorrect between two consecutive presentations; examples that are\n  never forgotten can be removed from the training set. The reference\n  implementation is the vendored repository this task runs in\n  (<code>order_examples_by_forgetting.py</code>), which counts the <code>1 -&gt; 0</code> transitions of\n  the per-presentation accuracy and assigns never-learned examples the maximum\n  count.</li>\n<li><strong>GraNd and EL2N</strong> — Paul, Ganguli and Dziugaite, <em>Deep Learning on a Data\n  Diet: Finding Important Examples Early in Training</em>, NeurIPS 2021\n  (<a href=\"https://arxiv.org/abs/2107.07075\">arXiv:2107.07075</a>). EL2N is the norm of\n  the error vector, <code>|| softmax(f(x)) - onehot(y) ||_2</code>, read off a checkpoint\n  <em>early</em> in training; GraNd is the expected norm of the per-example loss\n  gradient. The authors' implementation is <code>data_diet/scores.py</code>\n  (<code>get_lord_error_fn</code> with <code>ord=2</code>).</li>\n<li><strong>Area under the margin</strong> — Pleiss, Zhang, Elenberg and Weinberger,\n  <em>Identifying Mislabeled Data using the Area Under the Margin Ranking</em>, NeurIPS\n  2020 (<a href=\"https://arxiv.org/abs/2001.10528\">arXiv:2001.10528</a>). Average the\n  margin <code>z_y - max_{j != y} z_j</code> over the presentations of an example; a small\n  average marks an example the network never comfortably fits. Zheng, Liu, Lai\n  and Prakash, <em>Coverage-centric Coreset Selection for High Pruning Rates</em>, ICLR\n  2023 (<a href=\"https://arxiv.org/abs/2210.15809\">arXiv:2210.15809</a>), compare these\n  difficulty rankings side by side on this protocol and argue that ranking by\n  difficulty alone destroys coverage of the data distribution once the kept\n  fraction gets small.</li>\n</ul>\n<p>Uniformly random selection is the reference floor: both source repositories\nimplement it as their control (<code>run_cifar.py</code>'s negative <code>keep_lowest_n</code>,\n<code>data_diet/scripts/run_random_subset.py</code>).</p>\n<h2>What You Can Modify</h2>\n<p><code>compute_scores(traj, seed)</code> in <code>example-forgetting/custom_score.py</code>, inside the\nmarked editable region. Nothing else — the probe run, the pruning mechanism, the\nretraining recipe and the evaluation are fixed.</p>\n<p>The function is called in its own process, which is handed the probe run's\ntrajectory and nothing else: no GPU, no dataset root, no model weights, no test\ndata, and no way to tell which setting it is scoring for -- in particular it is\nnot told the keep fraction, so a rule cannot specialise to it.</p>\n<p><code>traj</code> exposes:</p>\n<table>\n<thead>\n<tr>\n<th>attribute</th>\n<th>shape / dtype</th>\n<th>meaning</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>traj.n_examples</code></td>\n<td>int</td>\n<td><code>N</code>, training-set size</td>\n</tr>\n<tr>\n<td><code>traj.n_epochs</code></td>\n<td>int</td>\n<td><code>E</code>, number of probe epochs</td>\n</tr>\n<tr>\n<td><code>traj.n_classes</code></td>\n<td>int</td>\n<td><code>C</code></td>\n</tr>\n<tr>\n<td><code>traj.labels</code></td>\n<td>int64 <code>[N]</code></td>\n<td>training labels</td>\n</tr>\n<tr>\n<td><code>traj.train_loss</code></td>\n<td>float32 <code>[E, N]</code></td>\n<td>presentation-time cross entropy, on the augmented view actually shown that epoch</td>\n</tr>\n<tr>\n<td><code>traj.train_correct</code></td>\n<td>uint8 <code>[E, N]</code></td>\n<td>presentation-time 0/1 correctness</td>\n</tr>\n<tr>\n<td><code>traj.train_margin</code></td>\n<td>float32 <code>[E, N]</code></td>\n<td>presentation-time logit margin <code>z_y - max_{j != y} z_j</code></td>\n</tr>\n<tr>\n<td><code>traj.eval_probs</code></td>\n<td>float32 <code>[E, N, C]</code></td>\n<td>softmax on the <em>un-augmented</em> training image at the end of every probe epoch; stored as float16 and widened on access, so about three decimal digits</td>\n</tr>\n<tr>\n<td><code>traj.probs_at(e)</code></td>\n<td>float32 <code>[N, C]</code></td>\n<td>one epoch of the above</td>\n</tr>\n<tr>\n<td><code>traj.onehot()</code></td>\n<td>float32 <code>[N, C]</code></td>\n<td>one-hot targets</td>\n</tr>\n</tbody>\n</table>\n<p>Return a 1-D array of exactly <code>N</code> floats. Larger means \"more worth keeping\";\n<code>+inf</code> is allowed, <code>nan</code> and <code>-inf</code> are rejected. The harness keeps the\nhighest-scoring examples up to the setting's budget and breaks ties with a\nper-seed random permutation. Use <code>seed</code> for any randomness. <code>numpy</code> is\navailable. The stage is killed if it exceeds a generous wall-clock allowance.</p>\n<h2>Fixed Pipeline</h2>\n<ol>\n<li><strong>Probe.</strong> Train the reference ResNet-18 recipe on the <em>full</em> training set\n   for a fixed, short number of epochs, recording the trajectory above.</li>\n<li><strong>Score.</strong> Call <code>compute_scores</code> in a separate process.</li>\n<li><strong>Prune and retrain.</strong> Keep the highest-scoring examples up to the setting's\n   budget; reinitialise the network and train it from scratch on that subset\n   with the same recipe and the same total number of epochs as the full-data\n   reference.</li>\n<li><strong>Evaluate.</strong> Top-1 accuracy on the held-out test set after the final epoch\n   (never the best epoch).</li>\n</ol>\n<p>The model, optimiser, learning-rate schedule, augmentation, batch size and\nepoch count are those of the vendored <code>run_cifar.py</code> and are identical for every\nsubmission and every baseline; the retraining stage imports no submission code.</p>\n<h2>Evaluation</h2>\n<p>Three settings, varying the dataset and how much of the training set survives.\nEach is scored by the final top-1 test accuracy of the retrained network. The\ntask score is the geometric mean over the settings, so a rule has to work in\nall of them.</p>\n<h2>Baselines</h2>\n<ul>\n<li><strong>random</strong> — a uniform random score, i.e. a uniformly random subset of the\n  target size. The control used by both source repositories.</li>\n<li><strong>el2n</strong> — <code>|| softmax(f(x)) - onehot(y) ||_2</code> at the last probe checkpoint\n  (Paul et al., NeurIPS 2021; <code>data_diet/scores.py</code> <code>get_lord_error_fn</code>,\n  <code>ord=2</code>).</li>\n<li><strong>forgetting</strong> — the number of <code>1 -&gt; 0</code> transitions of the per-presentation\n  accuracy over the probe run, with never-learned examples assigned the maximum\n  count (Toneva et al., ICLR 2019; <code>order_examples_by_forgetting.py</code>).</li>\n<li><strong>aum</strong> — the negated mean over the probe of the presentation-time margin\n  <code>z_y - max_{j != y} z_j</code>, so that the examples the network fits least\n  comfortably are kept (Pleiss et al., NeurIPS 2020; <code>asappresearch/aum</code>\n  <code>aum/aum.py</code>).</li>\n</ul>\n<h2>Metric</h2>\n<p><code>test_acc</code> — final-epoch top-1 test accuracy in percent, higher is better,\naggregated across settings by geometric mean.</p>",
+   "baselines": [
+    "random",
+    "el2n",
+    "forgetting",
+    "aum"
+   ],
+   "environments": [
+    "c10_keep70",
+    "c10_keep50",
+    "c100_keep70"
+   ],
+   "packages": [
+    "example-forgetting"
+   ],
+   "files": [
+    {
+     "filename": "example-forgetting/custom_score.py",
+     "edit_ranges": [
+      {
+       "start": 58,
+       "end": 64
+      }
+     ],
+     "content": "\"\"\"Per-example scoring rule for static data pruning.\n\nThe harness runs four stages, and this file is the only one a submission may\nchange:\n\n    probe   -- train the fixed ResNet-18 recipe on the FULL training set for a\n               short, fixed number of epochs and record the learning trajectory\n    score   -- THIS FILE: turn that trajectory into one number per training\n               example, in a separate process that never sees the test set\n    retrain -- keep the highest-scoring fraction of the training set, retrain\n               from scratch on it with the same recipe, report final test\n               accuracy\n    emit    -- print the metric, after every other interpreter has exited\n\n`compute_scores` receives a read-only `traj` object describing the probe run:\n\n    traj.n_examples          int      N, size of the training set\n    traj.n_epochs            int      E, number of probe epochs\n    traj.n_classes           int      C\n    traj.labels              int64   [N]        training labels\n    traj.train_loss          float32 [E, N]     presentation-time cross entropy\n                                                (on the augmented view actually\n                                                shown in that epoch)\n    traj.train_correct       uint8   [E, N]     presentation-time 0/1 correctness\n    traj.train_margin        float32 [E, N]     presentation-time logit margin,\n                                                z_y - max_{j != y} z_j\n    traj.eval_probs          float32 [E, N, C]  softmax on the *un-augmented*\n                                                training image, recorded at the\n                                                end of every probe epoch.\n                                                Stored as float16 and widened on\n                                                access, so it carries about three\n                                                decimal digits\n    traj.probs_at(e)         float32 [N, C]     one epoch of the above (cheaper)\n    traj.onehot()            float32 [N, C]     one-hot targets\n\nContract for `compute_scores(traj, seed)`:\n\n  * return a 1-D array-like of exactly `traj.n_examples` finite floats\n    (`+inf` is allowed, `nan` and `-inf` are not);\n  * larger score = \"more worth keeping\".  The harness keeps the top-scoring\n    fraction and breaks ties with a per-seed random permutation;\n  * `seed` is the run's seed -- use it for any randomness so results are\n    reproducible;\n  * numpy is available; the stage runs in its own process with no GPU, no\n    dataset root, no model weights, no test data and no way to tell which\n    setting it is scoring for -- in particular it is not told the keep fraction\n    -- and it is killed if it exceeds its wall-clock allowance, which is many\n    times what the reference rules need.\n\"\"\"\n\nimport numpy as np\n\n# ==================================================================\n# FIXED -- DO NOT MODIFY ABOVE THIS LINE\n# ==================================================================\n\n# ----- BEGIN EDITABLE REGION -----\ndef compute_scores(traj, seed):\n    \"\"\"Score every training example; higher means keep.\n\n    Default rule: the example's mean presentation-time training loss over the\n    probe run.\n    \"\"\"\n    return traj.train_loss.mean(axis=0).astype(np.float64)\n# ----- END EDITABLE REGION -----\n\n# ==================================================================\n# FIXED -- DO NOT MODIFY BELOW THIS LINE\n# ==================================================================\n"
+    },
+    {
+     "filename": "example-forgetting/dataprune/common.py",
+     "edit_ranges": []
+    },
+    {
+     "filename": "example-forgetting/dataprune/score_stage.py",
+     "edit_ranges": []
+    },
+    {
+     "filename": "example-forgetting/dataprune/probe.py",
+     "edit_ranges": []
+    },
+    {
+     "filename": "example-forgetting/order_examples_by_forgetting.py",
+     "edit_ranges": []
+    }
+   ],
+   "baselines_code": {
+    "random": [
+     {
+      "file": "example-forgetting/custom_score.py",
+      "start_line": 58,
+      "end_line": 64,
+      "content": "def compute_scores(traj, seed):\n    \"\"\"Uniform random score: keeps a uniformly random subset of the target size.\"\"\"\n    rs = np.random.RandomState(seed)\n    return rs.rand(traj.n_examples).astype(np.float64)\n"
+     }
+    ],
+    "el2n": [
+     {
+      "file": "example-forgetting/custom_score.py",
+      "start_line": 58,
+      "end_line": 64,
+      "content": "def compute_scores(traj, seed):\n    \"\"\"EL2N: ||softmax(f(x)) - onehot(y)||_2 at the last probe checkpoint.\"\"\"\n    errors = traj.probs_at(traj.n_epochs - 1) - traj.onehot()\n    return np.linalg.norm(errors, ord=2, axis=-1).astype(np.float64)\n"
+     }
+    ],
+    "forgetting": [
+     {
+      "file": "example-forgetting/custom_score.py",
+      "start_line": 58,
+      "end_line": 64,
+      "content": "def compute_scores(traj, seed):\n    \"\"\"Number of 1 -> 0 transitions in presentation-time correctness.\"\"\"\n    acc = traj.train_correct.astype(np.int8)          # [E, N]\n    transitions = acc[1:] - acc[:-1]                  # [E-1, N]\n    forgets = (transitions == -1).sum(axis=0).astype(np.float64)\n    never_learned = acc.max(axis=0) == 0\n    forgets[never_learned] = float(traj.n_epochs)\n    return forgets\n"
+     }
+    ],
+    "aum": [
+     {
+      "file": "example-forgetting/custom_score.py",
+      "start_line": 58,
+      "end_line": 64,
+      "content": "def compute_scores(traj, seed):\n    \"\"\"Negated area under the margin: keep the examples with the smallest AUM.\"\"\"\n    aum = traj.train_margin.mean(axis=0).astype(np.float64)\n    return -aum\n"
+     }
+    ]
+   },
+   "rigorous_codebase": true,
+   "allow_create": false,
+   "has_agent_logs": false
+  },
+  {
    "id": "dl-lr-schedule",
    "name": "Architecture-Aware Learning-Rate Scheduling",
    "summary": "Designs an epoch-level learning-rate curve conditioned on architecture and dataset to improve convergence and final classification accuracy.",
@@ -46400,6 +46579,292 @@
      "elapsed_resnet20-cifar100mt": 824.0,
      "elapsed_resnet56-cifar100mt": 1844.0,
      "elapsed_vgg16bn-cifar100mt": 872.0
+    }
+   ]
+  },
+  "cv-noisy-early-learning-regulariser": {
+   "task_id": "cv-noisy-early-learning-regulariser",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "test_acc_c10n-worst",
+    "mean_cls_acc_c10n-worst",
+    "test_acc_c100n-noisy",
+    "mean_cls_acc_c100n-noisy",
+    "test_acc_c10n-aggre",
+    "mean_cls_acc_c10n-aggre"
+   ],
+   "metric_columns": [
+    "test_acc_c10n-worst",
+    "test_acc_c100n-noisy",
+    "test_acc_c10n-aggre"
+   ],
+   "metric_directions": {
+    "test_acc_c10n-worst": "higher",
+    "test_acc_c100n-noisy": "higher",
+    "test_acc_c10n-aggre": "higher"
+   },
+   "metric_groups": [
+    {
+     "setting": "c10n-worst",
+     "metrics": [
+      "test_acc_c10n-worst"
+     ]
+    },
+    {
+     "setting": "c100n-noisy",
+     "metrics": [
+      "test_acc_c100n-noisy"
+     ]
+    },
+    {
+     "setting": "c10n-aggre",
+     "metrics": [
+      "test_acc_c10n-aggre"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-02T22:18:07.781809+00:00",
+     "model": "baseline:bootstrap_soft",
+     "is_final": true,
+     "seed": "42",
+     "test_acc_c10n-worst": 70.71,
+     "mean_cls_acc_c10n-worst": 70.71,
+     "test_acc_c100n-noisy": 48.43,
+     "mean_cls_acc_c100n-noisy": 48.43,
+     "test_acc_c10n-aggre": 87.2,
+     "mean_cls_acc_c10n-aggre": 87.2
+    },
+    {
+     "timestamp": "2026-09-02T22:18:07.782360+00:00",
+     "model": "baseline:bootstrap_soft",
+     "is_final": true,
+     "seed": "mean",
+     "test_acc_c10n-worst": 70.71,
+     "mean_cls_acc_c10n-worst": 70.71,
+     "test_acc_c100n-noisy": 48.43,
+     "mean_cls_acc_c100n-noisy": 48.43,
+     "test_acc_c10n-aggre": 87.2,
+     "mean_cls_acc_c10n-aggre": 87.2
+    },
+    {
+     "timestamp": "2026-09-02T22:18:07.782959+00:00",
+     "model": "baseline:cross_entropy",
+     "is_final": true,
+     "seed": "42",
+     "test_acc_c10n-worst": 68.7,
+     "mean_cls_acc_c10n-worst": 68.7,
+     "test_acc_c100n-noisy": 48.36,
+     "mean_cls_acc_c100n-noisy": 48.36,
+     "test_acc_c10n-aggre": 87.77,
+     "mean_cls_acc_c10n-aggre": 87.77
+    },
+    {
+     "timestamp": "2026-09-02T22:18:07.783318+00:00",
+     "model": "baseline:cross_entropy",
+     "is_final": true,
+     "seed": "mean",
+     "test_acc_c10n-worst": 68.7,
+     "mean_cls_acc_c10n-worst": 68.7,
+     "test_acc_c100n-noisy": 48.36,
+     "mean_cls_acc_c100n-noisy": 48.36,
+     "test_acc_c10n-aggre": 87.77,
+     "mean_cls_acc_c10n-aggre": 87.77
+    },
+    {
+     "timestamp": "2026-09-02T22:18:07.783652+00:00",
+     "model": "baseline:elr",
+     "is_final": true,
+     "seed": "42",
+     "test_acc_c10n-worst": 85.07,
+     "mean_cls_acc_c10n-worst": 85.07,
+     "test_acc_c100n-noisy": 57.44,
+     "mean_cls_acc_c100n-noisy": 57.44,
+     "test_acc_c10n-aggre": 89.9,
+     "mean_cls_acc_c10n-aggre": 89.9
+    },
+    {
+     "timestamp": "2026-09-02T22:18:07.784138+00:00",
+     "model": "baseline:elr",
+     "is_final": true,
+     "seed": "mean",
+     "test_acc_c10n-worst": 85.07,
+     "mean_cls_acc_c10n-worst": 85.07,
+     "test_acc_c100n-noisy": 57.44,
+     "mean_cls_acc_c100n-noisy": 57.44,
+     "test_acc_c10n-aggre": 89.9,
+     "mean_cls_acc_c10n-aggre": 89.9
+    },
+    {
+     "timestamp": "2026-09-02T22:18:07.784417+00:00",
+     "model": "baseline:sat",
+     "is_final": true,
+     "seed": "42",
+     "test_acc_c10n-worst": 85.84,
+     "mean_cls_acc_c10n-worst": 85.84,
+     "test_acc_c100n-noisy": 60.86,
+     "mean_cls_acc_c100n-noisy": 60.86,
+     "test_acc_c10n-aggre": 90.95,
+     "mean_cls_acc_c10n-aggre": 90.95
+    },
+    {
+     "timestamp": "2026-09-02T22:18:07.784671+00:00",
+     "model": "baseline:sat",
+     "is_final": true,
+     "seed": "mean",
+     "test_acc_c10n-worst": 85.84,
+     "mean_cls_acc_c10n-worst": 85.84,
+     "test_acc_c100n-noisy": 60.86,
+     "mean_cls_acc_c100n-noisy": 60.86,
+     "test_acc_c10n-aggre": 90.95,
+     "mean_cls_acc_c10n-aggre": 90.95
+    }
+   ]
+  },
+  "cv-noisy-robust-loss-shape": {
+   "task_id": "cv-noisy-robust-loss-shape",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "test_acc_c10n-worst",
+    "mean_cls_acc_c10n-worst",
+    "test_acc_c100n-noisy",
+    "mean_cls_acc_c100n-noisy",
+    "test_acc_c10n-aggre",
+    "mean_cls_acc_c10n-aggre"
+   ],
+   "metric_columns": [
+    "test_acc_c10n-worst",
+    "test_acc_c100n-noisy",
+    "test_acc_c10n-aggre"
+   ],
+   "metric_directions": {
+    "test_acc_c10n-worst": "higher",
+    "test_acc_c100n-noisy": "higher",
+    "test_acc_c10n-aggre": "higher"
+   },
+   "metric_groups": [
+    {
+     "setting": "c10n-worst",
+     "metrics": [
+      "test_acc_c10n-worst"
+     ]
+    },
+    {
+     "setting": "c100n-noisy",
+     "metrics": [
+      "test_acc_c100n-noisy"
+     ]
+    },
+    {
+     "setting": "c10n-aggre",
+     "metrics": [
+      "test_acc_c10n-aggre"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-02T22:18:05.383048+00:00",
+     "model": "baseline:cross_entropy",
+     "is_final": true,
+     "seed": "42",
+     "test_acc_c10n-worst": 67.74,
+     "mean_cls_acc_c10n-worst": 67.74,
+     "test_acc_c100n-noisy": 49.86,
+     "mean_cls_acc_c100n-noisy": 49.86,
+     "test_acc_c10n-aggre": 87.97,
+     "mean_cls_acc_c10n-aggre": 87.97
+    },
+    {
+     "timestamp": "2026-09-02T22:18:05.383358+00:00",
+     "model": "baseline:cross_entropy",
+     "is_final": true,
+     "seed": "mean",
+     "test_acc_c10n-worst": 67.74,
+     "mean_cls_acc_c10n-worst": 67.74,
+     "test_acc_c100n-noisy": 49.86,
+     "mean_cls_acc_c100n-noisy": 49.86,
+     "test_acc_c10n-aggre": 87.97,
+     "mean_cls_acc_c10n-aggre": 87.97
+    },
+    {
+     "timestamp": "2026-09-02T22:18:05.383735+00:00",
+     "model": "baseline:gce",
+     "is_final": true,
+     "seed": "42",
+     "test_acc_c10n-worst": 80.01,
+     "mean_cls_acc_c10n-worst": 80.01,
+     "test_acc_c100n-noisy": 53.81,
+     "mean_cls_acc_c100n-noisy": 53.81,
+     "test_acc_c10n-aggre": 89.6,
+     "mean_cls_acc_c10n-aggre": 89.6
+    },
+    {
+     "timestamp": "2026-09-02T22:18:05.384005+00:00",
+     "model": "baseline:gce",
+     "is_final": true,
+     "seed": "mean",
+     "test_acc_c10n-worst": 80.01,
+     "mean_cls_acc_c10n-worst": 80.01,
+     "test_acc_c100n-noisy": 53.81,
+     "mean_cls_acc_c100n-noisy": 53.81,
+     "test_acc_c10n-aggre": 89.6,
+     "mean_cls_acc_c10n-aggre": 89.6
+    },
+    {
+     "timestamp": "2026-09-02T22:18:05.384308+00:00",
+     "model": "baseline:nce_rce",
+     "is_final": true,
+     "seed": "42",
+     "test_acc_c10n-worst": 71.58,
+     "mean_cls_acc_c10n-worst": 71.58,
+     "test_acc_c100n-noisy": 49.34,
+     "mean_cls_acc_c100n-noisy": 49.34,
+     "test_acc_c10n-aggre": 83.45,
+     "mean_cls_acc_c10n-aggre": 83.45
+    },
+    {
+     "timestamp": "2026-09-02T22:18:05.384539+00:00",
+     "model": "baseline:nce_rce",
+     "is_final": true,
+     "seed": "mean",
+     "test_acc_c10n-worst": 71.58,
+     "mean_cls_acc_c10n-worst": 71.58,
+     "test_acc_c100n-noisy": 49.34,
+     "mean_cls_acc_c100n-noisy": 49.34,
+     "test_acc_c10n-aggre": 83.45,
+     "mean_cls_acc_c10n-aggre": 83.45
+    },
+    {
+     "timestamp": "2026-09-02T22:18:05.384816+00:00",
+     "model": "baseline:sce",
+     "is_final": true,
+     "seed": "42",
+     "test_acc_c10n-worst": 81.86,
+     "mean_cls_acc_c10n-worst": 81.86,
+     "test_acc_c100n-noisy": 48.48,
+     "mean_cls_acc_c100n-noisy": 48.48,
+     "test_acc_c10n-aggre": 90.71,
+     "mean_cls_acc_c10n-aggre": 90.71
+    },
+    {
+     "timestamp": "2026-09-02T22:18:05.385065+00:00",
+     "model": "baseline:sce",
+     "is_final": true,
+     "seed": "mean",
+     "test_acc_c10n-worst": 81.86,
+     "mean_cls_acc_c10n-worst": 81.86,
+     "test_acc_c100n-noisy": 48.48,
+     "mean_cls_acc_c100n-noisy": 48.48,
+     "test_acc_c10n-aggre": 90.71,
+     "mean_cls_acc_c10n-aggre": 90.71
     }
    ]
   },
