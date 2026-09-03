@@ -8000,102 +8000,6 @@
    "has_agent_logs": false
   },
   {
-   "id": "humanoid-ppo-extractor",
-   "name": "Humanoid Control: PPO Feature Extractor Architecture",
-   "summary": "Improve PPO performance on humanoid locomotion by designing a better feature extractor network architecture. You can modify the `CustomFeatureExtractor` class (lines 20-38) and add custom imports (lines 14-16) in `train_custom.py`.",
-   "category": "other",
-   "category_label": "Other",
-   "category_abbr": "",
-   "description_md": "# Humanoid Control: PPO Feature Extractor Architecture\n\n## Objective\nImprove PPO performance on humanoid locomotion by designing a better feature extractor network architecture. You can modify the `CustomFeatureExtractor` class (lines 20-38) and add custom imports (lines 14-16) in `train_custom.py`.\n\n## Background\nThe training uses Stable Baselines3 PPO with 4 parallel environments on three tasks from humanoid-bench: h1-stand-v0, h1-walk-v0, and h1-run-v0. The Unitree H1 humanoid robot must learn standing, walking, and running locomotion. The feature extractor processes raw proprioceptive observation vectors into feature representations used by the policy and value networks.\n\nThe default feature extractor is a 2-layer MLP with Tanh activations (64 hidden units, 64 output features). Training runs for 10M timesteps with a learning rate of 3e-5 and batch size 512, matching the PPO configuration of the HumanoidBench baselines (Sferrazza et al. 2024, arXiv:2403.10506, `ppo/run_sb3_ppo.py`); the paper's released PPO curves are still improving at this budget, so representation quality has room to matter. Be aware of the regime you are working in: HumanoidBench's own released PPO curve for h1-walk reaches a return of about 36 at 10M steps against a task success threshold of 700, and is still climbing at the cutoff. PPO here is early on a shaping curve rather than near competence, so improvements show up as faster early learning.\n\n## Interface\nYour `CustomFeatureExtractor` must:\n- Inherit from `BaseFeaturesExtractor`\n- Call `super().__init__(observation_space, features_dim)` in `__init__`\n- Accept `observation_space` and `features_dim` as constructor arguments\n- Implement `forward(self, observations) -> torch.Tensor` returning a tensor of shape `(batch, features_dim)`\n\n## Evaluation\nFinal performance is measured by mean reward over 20 evaluation episodes with deterministic policy after 10M training timesteps, across all three environments.\n",
-   "description_html": "<h1>Humanoid Control: PPO Feature Extractor Architecture</h1>\n<h2>Objective</h2>\n<p>Improve PPO performance on humanoid locomotion by designing a better feature extractor network architecture. You can modify the <code>CustomFeatureExtractor</code> class (lines 20-38) and add custom imports (lines 14-16) in <code>train_custom.py</code>.</p>\n<h2>Background</h2>\n<p>The training uses Stable Baselines3 PPO with 4 parallel environments on three tasks from humanoid-bench: h1-stand-v0, h1-walk-v0, and h1-run-v0. The Unitree H1 humanoid robot must learn standing, walking, and running locomotion. The feature extractor processes raw proprioceptive observation vectors into feature representations used by the policy and value networks.</p>\n<p>The default feature extractor is a 2-layer MLP with Tanh activations (64 hidden units, 64 output features). Training runs for 10M timesteps with a learning rate of 3e-5 and batch size 512, matching the PPO configuration of the HumanoidBench baselines (Sferrazza et al. 2024, arXiv:2403.10506, <code>ppo/run_sb3_ppo.py</code>); the paper's released PPO curves are still improving at this budget, so representation quality has room to matter. Be aware of the regime you are working in: HumanoidBench's own released PPO curve for h1-walk reaches a return of about 36 at 10M steps against a task success threshold of 700, and is still climbing at the cutoff. PPO here is early on a shaping curve rather than near competence, so improvements show up as faster early learning.</p>\n<h2>Interface</h2>\n<p>Your <code>CustomFeatureExtractor</code> must:\n- Inherit from <code>BaseFeaturesExtractor</code>\n- Call <code>super().__init__(observation_space, features_dim)</code> in <code>__init__</code>\n- Accept <code>observation_space</code> and <code>features_dim</code> as constructor arguments\n- Implement <code>forward(self, observations) -&gt; torch.Tensor</code> returning a tensor of shape <code>(batch, features_dim)</code></p>\n<h2>Evaluation</h2>\n<p>Final performance is measured by mean reward over 20 evaluation episodes with deterministic policy after 10M training timesteps, across all three environments.</p>",
-   "baselines": [
-    "default",
-    "wide_mlp",
-    "layernorm_mlp",
-    "residual_mlp",
-    "spectral_norm_mlp",
-    "gated_residual_mlp",
-    "obs_group_attention"
-   ],
-   "environments": [
-    "h1-stand",
-    "h1-walk",
-    "h1-run"
-   ],
-   "packages": [
-    "humanoid-bench"
-   ],
-   "files": [
-    {
-     "filename": "humanoid-bench/ppo/train_custom.py",
-     "edit_ranges": [
-      {
-       "start": 14,
-       "end": 16
-      },
-      {
-       "start": 20,
-       "end": 38
-      }
-     ],
-     "content": "import argparse\nimport numpy as np\nimport torch\nimport torch.nn as nn\nimport gymnasium as gym\nfrom gymnasium.wrappers import TimeLimit\nfrom stable_baselines3 import PPO\nfrom stable_baselines3.common.monitor import Monitor\nfrom stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv\nfrom stable_baselines3.common.evaluation import evaluate_policy\nfrom stable_baselines3.common.torch_layers import BaseFeaturesExtractor\nfrom stable_baselines3.common.callbacks import BaseCallback\nimport humanoid_bench\n# ── Custom imports (editable) ────────────────────────────────────────────\n\n\n# ======================================================================\n# EDITABLE — Custom feature extractor\n# ======================================================================\nclass CustomFeatureExtractor(BaseFeaturesExtractor):\n    \"\"\"Custom feature extractor for PPO on humanoid control.\n\n    Input: observation vector from the environment (observation_space.shape[0] dims).\n    Output: feature vector of size features_dim.\n    \"\"\"\n    def __init__(self, observation_space, features_dim=64):\n        super().__init__(observation_space, features_dim)\n        n_input = observation_space.shape[0]\n        self.net = nn.Sequential(\n            nn.Linear(n_input, 64),\n            nn.Tanh(),\n            nn.Linear(64, features_dim),\n            nn.Tanh(),\n        )\n\n    def forward(self, observations):\n        return self.net(observations)\n\n# ======================================================================\n# FIXED — Training infrastructure (do not edit below)\n# ======================================================================\n\n\ndef parse_args():\n    parser = argparse.ArgumentParser(\n        description=\"PPO with custom feature extractor for humanoid control\"\n    )\n    parser.add_argument(\"--env_name\", type=str, default=\"h1-stand-v0\")\n    parser.add_argument(\"--seed\", type=int, default=42)\n    parser.add_argument(\"--num_envs\", type=int, default=4)\n    parser.add_argument(\"--learning_rate\", type=float, default=3e-5)\n    parser.add_argument(\"--total_timesteps\", type=int, default=10000000)\n    parser.add_argument(\"--n_eval_episodes\", type=int, default=20)\n    return parser.parse_args()\n\n\ndef make_env(env_name, rank, seed=0):\n    def _init():\n        env = gym.make(env_name)\n        env = TimeLimit(env, max_episode_steps=1000)\n        env = Monitor(env)\n        env.action_space.seed(seed + rank)\n        return env\n    return _init\n\n\nclass TrainMetricsCallback(BaseCallback):\n    \"\"\"Callback that prints training metrics in a parseable format.\"\"\"\n\n    def __init__(self, log_interval=50000, verbose=0):\n        super().__init__(verbose)\n        self.log_interval = log_interval\n        self.episode_rewards = []\n        self.episode_lengths = []\n\n    def _on_step(self):\n        infos = self.locals.get(\"infos\", [])\n        for info in infos:\n            if \"episode\" in info:\n                self.episode_rewards.append(info[\"episode\"][\"r\"])\n                self.episode_lengths.append(info[\"episode\"][\"l\"])\n        if (self.num_timesteps % self.log_interval < self.model.n_envs\n                and self.episode_rewards):\n            recent = self.episode_rewards[-100:]\n            mean_r = np.mean(recent)\n            mean_l = np.mean(self.episode_lengths[-100:])\n            print(\n                f\"TRAIN_METRICS timestep={self.num_timesteps} \"\n                f\"mean_reward={mean_r:.2f} mean_length={mean_l:.1f}\",\n                flush=True,\n            )\n        return True\n\n\ndef main():\n    args = parse_args()\n\n    torch.manual_seed(args.seed)\n    np.random.seed(args.seed)\n\n    env = SubprocVecEnv(\n        [make_env(args.env_name, i, args.seed) for i in range(args.num_envs)]\n    )\n\n    policy_kwargs = dict(\n        features_extractor_class=CustomFeatureExtractor,\n        features_extractor_kwargs={},\n    )\n\n    model = PPO(\n        \"MlpPolicy\",\n        env,\n        policy_kwargs=policy_kwargs,\n        verbose=0,\n        learning_rate=args.learning_rate,\n        batch_size=512,\n        n_steps=2048,\n        seed=args.seed,\n    )\n\n    callback = TrainMetricsCallback(log_interval=50000)\n    model.learn(total_timesteps=args.total_timesteps, callback=callback)\n\n    # Final evaluation\n    eval_env = DummyVecEnv(\n        [make_env(args.env_name, 0, args.seed + 1000)]\n    )\n    mean_reward, std_reward = evaluate_policy(\n        model, eval_env, n_eval_episodes=args.n_eval_episodes,\n        deterministic=True,\n    )\n    print(\n        f\"TEST_METRICS mean_reward={mean_reward:.2f} \"\n        f\"std_reward={std_reward:.2f}\",\n        flush=True,\n    )\n\n    # Authoritative final-metric channel: write the eval result atomically\n    # to $MLSBENCH_METRIC_FILE; the run script re-emits it AFTER this\n    # process exits. The parser is last-match-wins, so a TEST_METRICS line\n    # forged from inside the process (including via atexit) can never be\n    # the final match.\n    import os as _os\n    _mf = _os.environ.get(\"MLSBENCH_METRIC_FILE\")\n    if _mf:\n        with open(_mf + \".tmp\", \"w\") as _fh:\n            _fh.write(\n                f\"mean_reward={mean_reward:.2f} std_reward={std_reward:.2f}\\n\"\n            )\n        _os.replace(_mf + \".tmp\", _mf)\n\n    env.close()\n    eval_env.close()\n\n\nif __name__ == \"__main__\":\n    main()\n"
-    }
-   ],
-   "baselines_code": {
-    "wide_mlp": [
-     {
-      "file": "humanoid-bench/ppo/train_custom.py",
-      "start_line": 20,
-      "end_line": 38,
-      "content": "class CustomFeatureExtractor(BaseFeaturesExtractor):\n    \"\"\"Wide MLP feature extractor with 256-unit hidden layers.\"\"\"\n    def __init__(self, observation_space, features_dim=256):\n        super().__init__(observation_space, features_dim)\n        n_input = observation_space.shape[0]\n        self.net = nn.Sequential(\n            nn.Linear(n_input, 256),\n            nn.Tanh(),\n            nn.Linear(256, 256),\n            nn.Tanh(),\n            nn.Linear(256, features_dim),\n            nn.Tanh(),\n        )\n\n    def forward(self, observations):\n        return self.net(observations)\n\n"
-     }
-    ],
-    "layernorm_mlp": [
-     {
-      "file": "humanoid-bench/ppo/train_custom.py",
-      "start_line": 20,
-      "end_line": 38,
-      "content": "class CustomFeatureExtractor(BaseFeaturesExtractor):\n    \"\"\"MLP feature extractor with LayerNorm for stable training.\"\"\"\n    def __init__(self, observation_space, features_dim=64):\n        super().__init__(observation_space, features_dim)\n        n_input = observation_space.shape[0]\n        self.net = nn.Sequential(\n            nn.Linear(n_input, 256),\n            nn.LayerNorm(256),\n            nn.Tanh(),\n            nn.Linear(256, 128),\n            nn.LayerNorm(128),\n            nn.Tanh(),\n            nn.Linear(128, features_dim),\n            nn.Tanh(),\n        )\n\n    def forward(self, observations):\n        return self.net(observations)\n\n"
-     }
-    ],
-    "residual_mlp": [
-     {
-      "file": "humanoid-bench/ppo/train_custom.py",
-      "start_line": 20,
-      "end_line": 38,
-      "content": "class CustomFeatureExtractor(BaseFeaturesExtractor):\n    \"\"\"Residual MLP feature extractor with skip connections.\"\"\"\n    def __init__(self, observation_space, features_dim=64):\n        super().__init__(observation_space, features_dim)\n        n_input = observation_space.shape[0]\n        self.input_proj = nn.Linear(n_input, 256)\n        self.block1 = nn.Sequential(\n            nn.Linear(256, 256),\n            nn.ReLU(),\n            nn.Linear(256, 256),\n        )\n        self.block2 = nn.Sequential(\n            nn.Linear(256, 256),\n            nn.ReLU(),\n            nn.Linear(256, 256),\n        )\n        self.output_proj = nn.Linear(256, features_dim)\n\n    def forward(self, observations):\n        x = torch.relu(self.input_proj(observations))\n        x = torch.relu(x + self.block1(x))\n        x = torch.relu(x + self.block2(x))\n        return self.output_proj(x)\n\n"
-     }
-    ],
-    "spectral_norm_mlp": [
-     {
-      "file": "humanoid-bench/ppo/train_custom.py",
-      "start_line": 20,
-      "end_line": 38,
-      "content": "class CustomFeatureExtractor(BaseFeaturesExtractor):\n    \"\"\"MLP with spectral normalization to maintain plasticity.\"\"\"\n    def __init__(self, observation_space, features_dim=128):\n        super().__init__(observation_space, features_dim)\n        n_input = observation_space.shape[0]\n        self.net = nn.Sequential(\n            nn.utils.spectral_norm(nn.Linear(n_input, 256)),\n            nn.ELU(),\n            nn.utils.spectral_norm(nn.Linear(256, 256)),\n            nn.ELU(),\n            nn.utils.spectral_norm(nn.Linear(256, features_dim)),\n            nn.ELU(),\n        )\n\n    def forward(self, observations):\n        return self.net(observations)\n\n"
-     }
-    ],
-    "gated_residual_mlp": [
-     {
-      "file": "humanoid-bench/ppo/train_custom.py",
-      "start_line": 20,
-      "end_line": 38,
-      "content": "class _GatedResBlock(nn.Module):\n    \"\"\"Residual block with sigmoid gating for adaptive skip connections.\"\"\"\n    def __init__(self, dim):\n        super().__init__()\n        self.fc = nn.Linear(dim, dim)\n        self.gate_fc = nn.Linear(dim, dim)\n\n    def forward(self, x):\n        h = torch.relu(self.fc(x))\n        gate = torch.sigmoid(self.gate_fc(x))\n        return gate * h + (1 - gate) * x\n\n\nclass CustomFeatureExtractor(BaseFeaturesExtractor):\n    \"\"\"Gated residual MLP with adaptive skip connections.\"\"\"\n    def __init__(self, observation_space, features_dim=128):\n        super().__init__(observation_space, features_dim)\n        n_input = observation_space.shape[0]\n        self.input_proj = nn.Linear(n_input, 256)\n        self.block1 = _GatedResBlock(256)\n        self.block2 = _GatedResBlock(256)\n        self.output_proj = nn.Linear(256, features_dim)\n\n    def forward(self, observations):\n        x = torch.relu(self.input_proj(observations))\n        x = self.block1(x)\n        x = self.block2(x)\n        return self.output_proj(x)\n\n"
-     }
-    ],
-    "obs_group_attention": [
-     {
-      "file": "humanoid-bench/ppo/train_custom.py",
-      "start_line": 20,
-      "end_line": 38,
-      "content": "class CustomFeatureExtractor(BaseFeaturesExtractor):\n    \"\"\"Observation group attention: split obs into groups, encode, attend, fuse.\"\"\"\n    def __init__(self, observation_space, features_dim=128, n_groups=8, d_group=32, n_heads=4):\n        super().__init__(observation_space, features_dim)\n        n_input = observation_space.shape[0]\n        self.n_groups = n_groups\n        # Compute group sizes (last group absorbs remainder)\n        base_size = n_input // n_groups\n        self.group_sizes = [base_size] * (n_groups - 1) + [n_input - base_size * (n_groups - 1)]\n        # Per-group encoders\n        self.group_encoders = nn.ModuleList([\n            nn.Sequential(nn.Linear(gs, d_group), nn.ReLU()) for gs in self.group_sizes\n        ])\n        # Self-attention over group tokens\n        self.attn = nn.MultiheadAttention(embed_dim=d_group, num_heads=n_heads, batch_first=True)\n        self.attn_norm = nn.LayerNorm(d_group)\n        # Output projection\n        self.output_proj = nn.Linear(n_groups * d_group, features_dim)\n\n    def forward(self, observations):\n        # Split obs into groups\n        groups = torch.split(observations, self.group_sizes, dim=-1)\n        # Encode each group: (batch, n_groups, d_group)\n        tokens = torch.stack([enc(g) for enc, g in zip(self.group_encoders, groups)], dim=1)\n        # Self-attention\n        attn_out, _ = self.attn(tokens, tokens, tokens)\n        tokens = self.attn_norm(tokens + attn_out)\n        # Flatten and project\n        fused = tokens.reshape(tokens.size(0), -1)\n        return self.output_proj(fused)\n\n"
-     }
-    ]
-   },
-   "rigorous_codebase": true,
-   "allow_create": false,
-   "has_agent_logs": false
-  },
-  {
    "id": "jepa-mask-strategy",
    "name": "I-JEPA Mask Sampling Strategy",
    "summary": "This task isolates a single ML-science research question from the I-JEPA",
@@ -8546,117 +8450,6 @@
    "rigorous_codebase": true,
    "allow_create": false,
    "has_agent_logs": true
-  },
-  {
-   "id": "llm-hybrid-posttraining",
-   "name": "LLM Hybrid Post-Training: Shared-Train Question Router",
-   "summary": "Implement a better **question-level hybrid router** for `Unify-Post-Training`'s HPT scaffold.",
-   "category": "language-models",
-   "category_label": "Language Models",
-   "category_abbr": "",
-   "description_md": "# LLM Hybrid Post-Training: Shared-Train Question Router\n\n## Research Question\nImplement a better **question-level hybrid router** for `Unify-Post-Training`'s HPT scaffold.\n\nThe scaffold is the reference implementation of *Towards a Unified View of\nLarge Language Model Post-Training* (HPT), which alternates between an\non-policy RL objective and an off-policy SFT target per question, conditioned\non how well the model is already doing on it\n(`Unify-Post-Training/README.md`).\n\nThis task keeps the repo's original HPT-style training path much more intact:\n\n- `algorithm.adv_estimator=grpo`\n- `trainer.unify_strategy=switch`\n- `actor.offline_loss_type=sft`\n\nand opens the trainer-side routing logic that decides whether a question should\nkeep its on-policy RL samples or switch to an off-policy SFT target.\n\nThe editable code is all in:\n\n- `Unify-Post-Training/hpt/verl/verl/mix_src/mix_trainer.py`\n\nThe editable regions are:\n\n- `select_on_off_ada_balance()` at lines `394-414`\n- per-question statistics and routing state at lines `599-620`\n- off-policy sample construction at lines `759-799`\n- on-policy retention/deletion at lines `942-963`\n\nThe controller still returns:\n\n```python\n(on_remove_num, on_add_num, off_add_num)\n```\n\nCurrent semantics are:\n\n- `on_remove_num`: **a flag, not a count.** The retention code at\n  `mix_trainer.py:942-963` tests it for non-zero and then drops *every*\n  on-policy sample for that question. Partial removal is not expressible\n  through this return value — return 0 to keep the on-policy group, anything\n  non-zero to drop it.\n- `on_add_num`: how many additional on-policy rollouts are generated\n- `off_add_num > 0`: add off-policy SFT samples\n- `off_add_num < 0`: nominally \"off-policy RL\" (`whether_off=True`), but **this\n  route is inert in the fixed configuration.** The run pins\n  `actor.offline_loss_type=sft`, and the active branch of `mix_actor.py`\n  (lines 135-166) treats every `prefix_mask` off-policy sample as SFT and never\n  reads `whether_off` — that flag is only consulted in the `off_sft` branch at\n  lines 280-305, which this configuration does not take. A negative\n  `off_add_num` therefore behaves like a positive one. Do not spend the budget\n  designing around it.\n\n## What Is Fixed\nThe rest of the HPT scaffold is intentionally fixed and read-only:\n\n- `mix_actor.py` uses `offline_loss_type=sft`\n- `mix_trainer.py` uses `algorithm.adv_estimator=grpo`\n- `mix_vllm_rollout.py` and `mix_hf_rollout.py` define how on-policy and off-policy sequences are built\n- `rl_dataset_with_target.py` provides each prompt's demonstration target\n\nSo the benchmark question is not “invent a whole new post-training stack”. It is:\n\n**Given a fixed HPT training stack, what is the best per-question routing rule between on-policy RL and off-policy SFT?**\n\n## Evaluation Setup\nThe task trains **once** on a shared mixed OpenR1 subset and validates on three benchmark splits.\n\n### Reproduction notes\n\nRun the full task through MLS-Bench rather than launching the relay commands\nalone. The `AIME24` command performs the shared training run and writes\n`final_metrics.txt`; the `AMC23` and `MATH-500` commands only relay the\ncorresponding scores from that file. If you run scripts manually, use the same\n`OUTPUT_DIR` for the training and relay commands.\n\nBaseline training requires a machine with:\n\n- `4` visible CUDA GPUs with at least H100-class memory for the default\n  `rollout.name=vllm`, `tensor_model_parallel_size=2`, and 16K-context run.\n- Python `3.10` in a conda environment.\n- CUDA-compatible PyTorch, vLLM 0.6.3, Ray, flash-attn, xFormers, pandas/pyarrow,\n  `tensordict`, `codetiming`, `pyvers`, `math-verify==0.6.0`, and\n  `latex2sympy2_extended==1.0.9`, `pylatexenc==2.10`.\n- Local copies of `Qwen2.5-Math-1.5B` and `upt-data/openr1.parquet` prepared\n  by the package `data_deps`.\n\nFor local conda execution, first put `conda` on `PATH`, then run:\n\n```bash\nPYTHONPATH=src python3 -m mlsbench build Unify-Post-Training --config configs/config.gpublaze.local.yaml\nPYTHONPATH=src python3 -m mlsbench baseline llm-hybrid-posttraining --name hpt --seed 42 --config configs/config.gpublaze.local.yaml\n```\n\nIf an older `mlsbench-Unify-Post-Training` environment already exists, rebuild\nwith `--force` so the package `local_install_cmds` install vLLM and the pinned\ntraining dependencies.\n\nMLS-Bench applies package-level `pre_edit.py` infrastructure patches before the\ntask edit ops. Those patches keep the HPT controller as the only task-level\nresearch surface while making the upstream UPT checkout runnable in the\nbenchmark harness.\n\n### Model and runtime\n\n- Model: `Qwen/Qwen2.5-Math-1.5B`\n- Backend: `rollout.name=vllm`, `tensor_model_parallel_size=2`\n- GPUs: 4, H100/H200 class\n- Training objective scaffold: fixed `offline_loss_type=sft`\n- Advantage estimator: fixed `grpo`\n- Reward implementation: fixed `reward_impl_version=6`\n\n`AMC23` and `MATH-500` are relay commands: the `AIME24` command runs the single\nshared training job, which validates on all three splits, and the relays read\nthose numbers back out of `final_metrics.txt`. They are declared CPU-only.\n\n### Training settings\n\nEvery arm -- each baseline and any agent submission -- runs exactly this\nconfiguration; nothing is keyed off which method is being evaluated.\n\n- `train_batch_size=128`\n- `max_prompt_length=1024`, `max_response_length=4096`\n- `ppo_mini_batch_size=32`\n- `ppo_micro_batch_size=2`\n- `ppo_max_token_len_per_gpu=32768`\n- `rollout.n=4`\n- `rollout.n_verify=4`\n- `rollout.n_val=16`, `val_temperature=0.6`, `val_top_p=0.95`\n- `total_training_steps=200` (199 optimizer updates)\n- `actor.sft_loss_coef=0.3` (upstream's value for Qwen2.5-Math-1.5B)\n- `actor.optim.lr=5e-6`, `use_kl_loss=False`, `ref.use_ref=False`\n- `actor.use_dynamic_bsz=False`\n- `actor.model.use_remove_padding=True`\n- `trainer.unify_strategy=switch`, `switch_gate=0`, `switch_gate_off=0`\n- `trainer.test_freq=0`, `val_before_train=False` -- the only validation is the\n  post-training one\n- model override: `max_position_embeddings=16384`, `sliding_window=16384`,\n  `rope_theta=40000`\n\n`unify_strategy=switch` is what makes `select_on_off_ada_balance` the live\nresearch surface: `mix_trainer.py` calls the controller only when the strategy\nis neither `no` nor `soft`.\n\nThis is a reduction of the upstream recipe, which runs a 7B model for 500 steps\nat `rollout.n=8` / `n_verify=8` on 8 GPUs with an 8192-token response budget.\nThe routing mechanism itself is unchanged -- what a question's all-fail event\ntriggers is the same -- but the absolute accuracies are lower than the paper's.\n\n### Data split\n\nThe task builds:\n\n- one deterministic random OpenR1 train subset with `25600` requested rows\n  (`train_batch_size * 199 updates = 25472`, i.e. about one pass)\n- no source-bucket quota or length-proxy sorting is applied\n\nand validates on the full benchmark splits generated by the upstream\n`Unify-Post-Training/data/preprocess.py` script:\n\n1. `AIME24`: `30` held-out examples\n2. `AMC23`: `40` held-out examples\n3. `MATH-500`: `500` held-out examples (`hidden`)\n\n`train_shared_hpt.sh` reads those canonical package data files directly from\n`Unify-Post-Training/data/<benchmark>/test.parquet`, so evaluation uses the\nsame full held-out sets across baselines and agent submissions.\n\n## Metric\nThe metric is the **final validation score** for each benchmark.\n\nThe underlying repo metrics come from:\n\n```text\nval/test_score/<benchmark>\n```\n\nHigher is better.\n\n## Additional Context\nUseful read-only files:\n\n- `mix_actor.py`\n- `mix_core_alg.py`\n- `mix_vllm_rollout.py`\n- `mix_hf_rollout.py`\n- `rl_dataset_with_target.py`\n- `exp_scripts/train.sh`\n- `exp_scripts/train_luffy.sh`\n",
-   "description_html": "<h1>LLM Hybrid Post-Training: Shared-Train Question Router</h1>\n<h2>Research Question</h2>\n<p>Implement a better <strong>question-level hybrid router</strong> for <code>Unify-Post-Training</code>'s HPT scaffold.</p>\n<p>The scaffold is the reference implementation of <em>Towards a Unified View of\nLarge Language Model Post-Training</em> (HPT), which alternates between an\non-policy RL objective and an off-policy SFT target per question, conditioned\non how well the model is already doing on it\n(<code>Unify-Post-Training/README.md</code>).</p>\n<p>This task keeps the repo's original HPT-style training path much more intact:</p>\n<ul>\n<li><code>algorithm.adv_estimator=grpo</code></li>\n<li><code>trainer.unify_strategy=switch</code></li>\n<li><code>actor.offline_loss_type=sft</code></li>\n</ul>\n<p>and opens the trainer-side routing logic that decides whether a question should\nkeep its on-policy RL samples or switch to an off-policy SFT target.</p>\n<p>The editable code is all in:</p>\n<ul>\n<li><code>Unify-Post-Training/hpt/verl/verl/mix_src/mix_trainer.py</code></li>\n</ul>\n<p>The editable regions are:</p>\n<ul>\n<li><code>select_on_off_ada_balance()</code> at lines <code>394-414</code></li>\n<li>per-question statistics and routing state at lines <code>599-620</code></li>\n<li>off-policy sample construction at lines <code>759-799</code></li>\n<li>on-policy retention/deletion at lines <code>942-963</code></li>\n</ul>\n<p>The controller still returns:</p>\n<pre class=\"codehilite\"><code class=\"language-python\">(on_remove_num, on_add_num, off_add_num)\n</code></pre>\n\n<p>Current semantics are:</p>\n<ul>\n<li><code>on_remove_num</code>: <strong>a flag, not a count.</strong> The retention code at\n  <code>mix_trainer.py:942-963</code> tests it for non-zero and then drops <em>every</em>\n  on-policy sample for that question. Partial removal is not expressible\n  through this return value — return 0 to keep the on-policy group, anything\n  non-zero to drop it.</li>\n<li><code>on_add_num</code>: how many additional on-policy rollouts are generated</li>\n<li><code>off_add_num &gt; 0</code>: add off-policy SFT samples</li>\n<li><code>off_add_num &lt; 0</code>: nominally \"off-policy RL\" (<code>whether_off=True</code>), but <strong>this\n  route is inert in the fixed configuration.</strong> The run pins\n  <code>actor.offline_loss_type=sft</code>, and the active branch of <code>mix_actor.py</code>\n  (lines 135-166) treats every <code>prefix_mask</code> off-policy sample as SFT and never\n  reads <code>whether_off</code> — that flag is only consulted in the <code>off_sft</code> branch at\n  lines 280-305, which this configuration does not take. A negative\n  <code>off_add_num</code> therefore behaves like a positive one. Do not spend the budget\n  designing around it.</li>\n</ul>\n<h2>What Is Fixed</h2>\n<p>The rest of the HPT scaffold is intentionally fixed and read-only:</p>\n<ul>\n<li><code>mix_actor.py</code> uses <code>offline_loss_type=sft</code></li>\n<li><code>mix_trainer.py</code> uses <code>algorithm.adv_estimator=grpo</code></li>\n<li><code>mix_vllm_rollout.py</code> and <code>mix_hf_rollout.py</code> define how on-policy and off-policy sequences are built</li>\n<li><code>rl_dataset_with_target.py</code> provides each prompt's demonstration target</li>\n</ul>\n<p>So the benchmark question is not “invent a whole new post-training stack”. It is:</p>\n<p><strong>Given a fixed HPT training stack, what is the best per-question routing rule between on-policy RL and off-policy SFT?</strong></p>\n<h2>Evaluation Setup</h2>\n<p>The task trains <strong>once</strong> on a shared mixed OpenR1 subset and validates on three benchmark splits.</p>\n<h3>Reproduction notes</h3>\n<p>Run the full task through MLS-Bench rather than launching the relay commands\nalone. The <code>AIME24</code> command performs the shared training run and writes\n<code>final_metrics.txt</code>; the <code>AMC23</code> and <code>MATH-500</code> commands only relay the\ncorresponding scores from that file. If you run scripts manually, use the same\n<code>OUTPUT_DIR</code> for the training and relay commands.</p>\n<p>Baseline training requires a machine with:</p>\n<ul>\n<li><code>4</code> visible CUDA GPUs with at least H100-class memory for the default\n  <code>rollout.name=vllm</code>, <code>tensor_model_parallel_size=2</code>, and 16K-context run.</li>\n<li>Python <code>3.10</code> in a conda environment.</li>\n<li>CUDA-compatible PyTorch, vLLM 0.6.3, Ray, flash-attn, xFormers, pandas/pyarrow,\n  <code>tensordict</code>, <code>codetiming</code>, <code>pyvers</code>, <code>math-verify==0.6.0</code>, and\n  <code>latex2sympy2_extended==1.0.9</code>, <code>pylatexenc==2.10</code>.</li>\n<li>Local copies of <code>Qwen2.5-Math-1.5B</code> and <code>upt-data/openr1.parquet</code> prepared\n  by the package <code>data_deps</code>.</li>\n</ul>\n<p>For local conda execution, first put <code>conda</code> on <code>PATH</code>, then run:</p>\n<pre class=\"codehilite\"><code class=\"language-bash\">PYTHONPATH=src python3 -m mlsbench build Unify-Post-Training --config configs/config.gpublaze.local.yaml\nPYTHONPATH=src python3 -m mlsbench baseline llm-hybrid-posttraining --name hpt --seed 42 --config configs/config.gpublaze.local.yaml\n</code></pre>\n\n<p>If an older <code>mlsbench-Unify-Post-Training</code> environment already exists, rebuild\nwith <code>--force</code> so the package <code>local_install_cmds</code> install vLLM and the pinned\ntraining dependencies.</p>\n<p>MLS-Bench applies package-level <code>pre_edit.py</code> infrastructure patches before the\ntask edit ops. Those patches keep the HPT controller as the only task-level\nresearch surface while making the upstream UPT checkout runnable in the\nbenchmark harness.</p>\n<h3>Model and runtime</h3>\n<ul>\n<li>Model: <code>Qwen/Qwen2.5-Math-1.5B</code></li>\n<li>Backend: <code>rollout.name=vllm</code>, <code>tensor_model_parallel_size=2</code></li>\n<li>GPUs: 4, H100/H200 class</li>\n<li>Training objective scaffold: fixed <code>offline_loss_type=sft</code></li>\n<li>Advantage estimator: fixed <code>grpo</code></li>\n<li>Reward implementation: fixed <code>reward_impl_version=6</code></li>\n</ul>\n<p><code>AMC23</code> and <code>MATH-500</code> are relay commands: the <code>AIME24</code> command runs the single\nshared training job, which validates on all three splits, and the relays read\nthose numbers back out of <code>final_metrics.txt</code>. They are declared CPU-only.</p>\n<h3>Training settings</h3>\n<p>Every arm -- each baseline and any agent submission -- runs exactly this\nconfiguration; nothing is keyed off which method is being evaluated.</p>\n<ul>\n<li><code>train_batch_size=128</code></li>\n<li><code>max_prompt_length=1024</code>, <code>max_response_length=4096</code></li>\n<li><code>ppo_mini_batch_size=32</code></li>\n<li><code>ppo_micro_batch_size=2</code></li>\n<li><code>ppo_max_token_len_per_gpu=32768</code></li>\n<li><code>rollout.n=4</code></li>\n<li><code>rollout.n_verify=4</code></li>\n<li><code>rollout.n_val=16</code>, <code>val_temperature=0.6</code>, <code>val_top_p=0.95</code></li>\n<li><code>total_training_steps=200</code> (199 optimizer updates)</li>\n<li><code>actor.sft_loss_coef=0.3</code> (upstream's value for Qwen2.5-Math-1.5B)</li>\n<li><code>actor.optim.lr=5e-6</code>, <code>use_kl_loss=False</code>, <code>ref.use_ref=False</code></li>\n<li><code>actor.use_dynamic_bsz=False</code></li>\n<li><code>actor.model.use_remove_padding=True</code></li>\n<li><code>trainer.unify_strategy=switch</code>, <code>switch_gate=0</code>, <code>switch_gate_off=0</code></li>\n<li><code>trainer.test_freq=0</code>, <code>val_before_train=False</code> -- the only validation is the\n  post-training one</li>\n<li>model override: <code>max_position_embeddings=16384</code>, <code>sliding_window=16384</code>,\n  <code>rope_theta=40000</code></li>\n</ul>\n<p><code>unify_strategy=switch</code> is what makes <code>select_on_off_ada_balance</code> the live\nresearch surface: <code>mix_trainer.py</code> calls the controller only when the strategy\nis neither <code>no</code> nor <code>soft</code>.</p>\n<p>This is a reduction of the upstream recipe, which runs a 7B model for 500 steps\nat <code>rollout.n=8</code> / <code>n_verify=8</code> on 8 GPUs with an 8192-token response budget.\nThe routing mechanism itself is unchanged -- what a question's all-fail event\ntriggers is the same -- but the absolute accuracies are lower than the paper's.</p>\n<h3>Data split</h3>\n<p>The task builds:</p>\n<ul>\n<li>one deterministic random OpenR1 train subset with <code>25600</code> requested rows\n  (<code>train_batch_size * 199 updates = 25472</code>, i.e. about one pass)</li>\n<li>no source-bucket quota or length-proxy sorting is applied</li>\n</ul>\n<p>and validates on the full benchmark splits generated by the upstream\n<code>Unify-Post-Training/data/preprocess.py</code> script:</p>\n<ol>\n<li><code>AIME24</code>: <code>30</code> held-out examples</li>\n<li><code>AMC23</code>: <code>40</code> held-out examples</li>\n<li><code>MATH-500</code>: <code>500</code> held-out examples (<code>hidden</code>)</li>\n</ol>\n<p><code>train_shared_hpt.sh</code> reads those canonical package data files directly from\n<code>Unify-Post-Training/data/&lt;benchmark&gt;/test.parquet</code>, so evaluation uses the\nsame full held-out sets across baselines and agent submissions.</p>\n<h2>Metric</h2>\n<p>The metric is the <strong>final validation score</strong> for each benchmark.</p>\n<p>The underlying repo metrics come from:</p>\n<pre class=\"codehilite\"><code class=\"language-text\">val/test_score/&lt;benchmark&gt;\n</code></pre>\n\n<p>Higher is better.</p>\n<h2>Additional Context</h2>\n<p>Useful read-only files:</p>\n<ul>\n<li><code>mix_actor.py</code></li>\n<li><code>mix_core_alg.py</code></li>\n<li><code>mix_vllm_rollout.py</code></li>\n<li><code>mix_hf_rollout.py</code></li>\n<li><code>rl_dataset_with_target.py</code></li>\n<li><code>exp_scripts/train.sh</code></li>\n<li><code>exp_scripts/train_luffy.sh</code></li>\n</ul>",
-   "baselines": [
-    "sft",
-    "grpo",
-    "hpt"
-   ],
-   "environments": [
-    "AIME24",
-    "AMC23",
-    "MATH-500"
-   ],
-   "packages": [
-    "Unify-Post-Training"
-   ],
-   "files": [
-    {
-     "filename": "Unify-Post-Training/hpt/verl/verl/mix_src/mix_trainer.py",
-     "edit_ranges": [
-      {
-       "start": 394,
-       "end": 414
-      },
-      {
-       "start": 599,
-       "end": 620
-      },
-      {
-       "start": 759,
-       "end": 799
-      },
-      {
-       "start": 942,
-       "end": 963
-      }
-     ]
-    },
-    {
-     "filename": "Unify-Post-Training/hpt/verl/verl/mix_src/mix_actor.py",
-     "edit_ranges": []
-    },
-    {
-     "filename": "Unify-Post-Training/hpt/verl/verl/mix_src/mix_core_alg.py",
-     "edit_ranges": []
-    },
-    {
-     "filename": "Unify-Post-Training/hpt/verl/verl/mix_src/mix_vllm_rollout.py",
-     "edit_ranges": []
-    },
-    {
-     "filename": "Unify-Post-Training/hpt/verl/verl/mix_src/mix_hf_rollout.py",
-     "edit_ranges": []
-    },
-    {
-     "filename": "Unify-Post-Training/hpt/verl/verl/mix_src/mix_fsdp_worker.py",
-     "edit_ranges": []
-    },
-    {
-     "filename": "Unify-Post-Training/hpt/verl/verl/mix_src/rl_dataset_with_target.py",
-     "edit_ranges": []
-    },
-    {
-     "filename": "Unify-Post-Training/hpt/verl/verl/mix_src/main_mix_ppo.py",
-     "edit_ranges": []
-    },
-    {
-     "filename": "Unify-Post-Training/exp_scripts/train.sh",
-     "edit_ranges": []
-    },
-    {
-     "filename": "Unify-Post-Training/exp_scripts/train_luffy.sh",
-     "edit_ranges": []
-    }
-   ],
-   "baselines_code": {
-    "sft": [
-     {
-      "file": "Unify-Post-Training/hpt/verl/verl/mix_src/mix_trainer.py",
-      "start_line": 394,
-      "end_line": 414,
-      "content": "    def select_on_off_ada_balance(self, on_solve_num: int):\n        del on_solve_num\n        return self.config.actor_rollout_ref.rollout.n_verify, 0, 1\n"
-     }
-    ],
-    "grpo": [
-     {
-      "file": "Unify-Post-Training/hpt/verl/verl/mix_src/mix_trainer.py",
-      "start_line": 394,
-      "end_line": 414,
-      "content": "    def select_on_off_ada_balance(self, on_solve_num: int):\n        del on_solve_num\n        return 0, 0, 0\n"
-     }
-    ],
-    "hpt": [
-     {
-      "file": "Unify-Post-Training/hpt/verl/verl/mix_src/mix_trainer.py",
-      "start_line": 394,
-      "end_line": 414,
-      "content": "    def select_on_off_ada_balance(self, on_solve_num: int):\n        if self.config.trainer.unify_strategy == 'switch':\n            on_add_num = 0\n            if on_solve_num <= self.config.trainer.switch_gate:\n                on_remove_num = self.config.actor_rollout_ref.rollout.n_verify\n                off_add_num = 1\n            elif on_solve_num <= self.config.trainer.switch_gate_off:\n                on_remove_num = self.config.actor_rollout_ref.rollout.n_verify\n                off_add_num = -1\n            else:\n                on_remove_num = 0\n                off_add_num = 0\n\n            return on_remove_num, on_add_num, off_add_num\n\n        if self.config.trainer.unify_strategy == 'soft':\n            on_remove_num = 0\n            on_add_num = 0\n            off_add_num = 1\n\n            return on_remove_num, on_add_num, off_add_num\n"
-     }
-    ]
-   },
-   "rigorous_codebase": true,
-   "allow_create": false,
-   "has_agent_logs": false
   },
   {
    "id": "llm-kv-adaptive-quantization",
@@ -50479,6 +50272,78 @@
      "elapsed_c10_b05": null
     },
     {
+     "timestamp": "2026-09-03T04:45:59.807692+00:00",
+     "model": "baseline:psgd",
+     "is_final": true,
+     "seed": "123",
+     "test_acc_c10_b02": 90.45,
+     "bp_used_c10_b02": 1.0,
+     "fwd_passes_c10_b02": 0.983,
+     "elapsed_c10_b02": 2123.4,
+     "test_acc_c10_b03": 92.74,
+     "bp_used_c10_b03": 1.0,
+     "fwd_passes_c10_b03": 1.0112,
+     "elapsed_c10_b03": 2315.4,
+     "test_acc_c10_b05": 93.32,
+     "bp_used_c10_b05": 1.0,
+     "fwd_passes_c10_b05": 0.9984,
+     "elapsed_c10_b05": 2525.2
+    },
+    {
+     "timestamp": "2026-09-03T04:45:59.803288+00:00",
+     "model": "baseline:psgd",
+     "is_final": true,
+     "seed": "42",
+     "test_acc_c10_b02": 90.63,
+     "bp_used_c10_b02": 1.0,
+     "fwd_passes_c10_b02": 0.983,
+     "elapsed_c10_b02": 1638.1,
+     "test_acc_c10_b03": 92.25,
+     "bp_used_c10_b03": 1.0,
+     "fwd_passes_c10_b03": 1.0112,
+     "elapsed_c10_b03": 1810.4,
+     "test_acc_c10_b05": 93.61,
+     "bp_used_c10_b05": 1.0,
+     "fwd_passes_c10_b05": 0.9984,
+     "elapsed_c10_b05": 1987.3
+    },
+    {
+     "timestamp": "2026-09-03T04:45:59.808208+00:00",
+     "model": "baseline:psgd",
+     "is_final": true,
+     "seed": "456",
+     "test_acc_c10_b02": 90.82,
+     "bp_used_c10_b02": 1.0,
+     "fwd_passes_c10_b02": 0.983,
+     "elapsed_c10_b02": 2329.5,
+     "test_acc_c10_b03": 92.39,
+     "bp_used_c10_b03": 1.0,
+     "fwd_passes_c10_b03": 1.0112,
+     "elapsed_c10_b03": 2577.8,
+     "test_acc_c10_b05": 92.66,
+     "bp_used_c10_b05": 1.0,
+     "fwd_passes_c10_b05": 0.9984,
+     "elapsed_c10_b05": 2803.9
+    },
+    {
+     "timestamp": "2026-09-03T04:45:59.808674+00:00",
+     "model": "baseline:psgd",
+     "is_final": true,
+     "seed": "mean",
+     "test_acc_c10_b02": 90.63333333333333,
+     "bp_used_c10_b02": 1.0,
+     "fwd_passes_c10_b02": 0.983,
+     "elapsed_c10_b02": 2030.3333333333333,
+     "test_acc_c10_b03": 92.46,
+     "bp_used_c10_b03": 1.0,
+     "fwd_passes_c10_b03": 1.0112,
+     "elapsed_c10_b03": 2234.5333333333333,
+     "test_acc_c10_b05": 93.19666666666666,
+     "bp_used_c10_b05": 1.0,
+     "fwd_passes_c10_b05": 0.9983999999999998,
+     "elapsed_c10_b05": 2438.7999999999997
+    },
+    {
      "timestamp": "2026-09-03T00:11:37.235695+00:00",
      "model": "baseline:unif",
      "is_final": true,
@@ -84880,7 +84745,10 @@
     "mape_PEMS04_std",
     "rmse_METR-LA_std",
     "rmse_PEMS-BAY_std",
-    "rmse_PEMS04_std"
+    "rmse_PEMS04_std",
+    "elapsed_METR-LA",
+    "elapsed_PEMS-BAY",
+    "elapsed_PEMS04"
    ],
    "metric_columns": [
     "mae_METR-LA",
@@ -84930,56 +84798,62 @@
      ]
     }
    ],
-   "rows": []
-  },
-  "humanoid-ppo-extractor": {
-   "task_id": "humanoid-ppo-extractor",
-   "columns": [
-    "timestamp",
-    "model",
-    "is_final",
-    "seed",
-    "mean_reward_h1_stand",
-    "std_reward_h1_stand",
-    "mean_reward_h1_walk",
-    "std_reward_h1_walk",
-    "mean_reward_h1_run",
-    "std_reward_h1_run",
-    "elapsed_h1_stand",
-    "elapsed_h1_walk",
-    "elapsed_h1_run"
-   ],
-   "metric_columns": [
-    "mean_reward_h1_stand",
-    "mean_reward_h1_walk",
-    "mean_reward_h1_run"
-   ],
-   "metric_directions": {
-    "mean_reward_h1_stand": "higher",
-    "mean_reward_h1_walk": "higher",
-    "mean_reward_h1_run": "higher"
-   },
-   "metric_groups": [
+   "rows": [
     {
-     "setting": "h1-stand",
-     "metrics": [
-      "mean_reward_h1_stand"
-     ]
+     "timestamp": "2026-09-03T06:17:03.698722+00:00",
+     "model": "baseline:gwnet",
+     "is_final": true,
+     "seed": "42",
+     "mae_METR-LA": 4.095565,
+     "mae_PEMS-BAY": 2.142727,
+     "mae_PEMS04": 34.416507,
+     "mape_METR-LA": 0.117092,
+     "mape_PEMS-BAY": 0.05166,
+     "mape_PEMS04": 0.396261,
+     "rmse_METR-LA": 7.786111,
+     "rmse_PEMS-BAY": 4.623837,
+     "rmse_PEMS04": 49.27767,
+     "mae_METR-LA_std": null,
+     "mae_PEMS-BAY_std": null,
+     "mae_PEMS04_std": null,
+     "mape_METR-LA_std": null,
+     "mape_PEMS-BAY_std": null,
+     "mape_PEMS04_std": null,
+     "rmse_METR-LA_std": null,
+     "rmse_PEMS-BAY_std": null,
+     "rmse_PEMS04_std": null,
+     "elapsed_METR-LA": 2172.0,
+     "elapsed_PEMS-BAY": 3320.0,
+     "elapsed_PEMS04": 1574.0
     },
     {
-     "setting": "h1-walk",
-     "metrics": [
-      "mean_reward_h1_walk"
-     ]
-    },
-    {
-     "setting": "h1-run",
-     "metrics": [
-      "mean_reward_h1_run"
-     ]
+     "timestamp": "2026-09-03T06:17:03.705170+00:00",
+     "model": "baseline:gwnet",
+     "is_final": true,
+     "seed": "mean",
+     "mae_METR-LA": 4.095565,
+     "mae_PEMS-BAY": 2.142727,
+     "mae_PEMS04": 34.416507,
+     "mape_METR-LA": 0.117092,
+     "mape_PEMS-BAY": 0.05166,
+     "mape_PEMS04": 0.396261,
+     "rmse_METR-LA": 7.786111,
+     "rmse_PEMS-BAY": 4.623837,
+     "rmse_PEMS04": 49.27767,
+     "mae_METR-LA_std": null,
+     "mae_PEMS-BAY_std": null,
+     "mae_PEMS04_std": null,
+     "mape_METR-LA_std": null,
+     "mape_PEMS-BAY_std": null,
+     "mape_PEMS04_std": null,
+     "rmse_METR-LA_std": null,
+     "rmse_PEMS-BAY_std": null,
+     "rmse_PEMS04_std": null,
+     "elapsed_METR-LA": 2172.0,
+     "elapsed_PEMS-BAY": 3320.0,
+     "elapsed_PEMS04": 1574.0
     }
-   ],
-   "rows": []
+   ]
   },
   "jepa-mask-strategy": {
    "task_id": "jepa-mask-strategy",
@@ -87658,14 +87532,6 @@
      "elapsed_dream-text": null
     }
    ]
-  },
-  "llm-hybrid-posttraining": {
-   "task_id": "llm-hybrid-posttraining",
-   "columns": [],
-   "metric_columns": [],
-   "metric_directions": {},
-   "metric_groups": [],
-   "rows": []
   },
   "llm-kv-adaptive-quantization": {
    "task_id": "llm-kv-adaptive-quantization",
