@@ -84745,12 +84745,94 @@
     "timestamp",
     "model",
     "is_final",
-    "seed"
+    "seed",
+    "val_acc_vit_tiny",
+    "elapsed_vit_tiny",
+    "val_acc_vit_small",
+    "elapsed_vit_small",
+    "val_acc_vit_base",
+    "elapsed_vit_base"
    ],
-   "metric_columns": [],
-   "metric_directions": {},
-   "metric_groups": [],
-   "rows": []
+   "metric_columns": [
+    "val_acc_vit_tiny",
+    "val_acc_vit_small",
+    "val_acc_vit_base"
+   ],
+   "metric_directions": {
+    "val_acc_vit_tiny": "higher",
+    "val_acc_vit_small": "higher",
+    "val_acc_vit_base": "higher"
+   },
+   "metric_groups": [
+    {
+     "setting": "vit_tiny",
+     "metrics": [
+      "val_acc_vit_tiny"
+     ]
+    },
+    {
+     "setting": "vit_small",
+     "metrics": [
+      "val_acc_vit_small"
+     ]
+    },
+    {
+     "setting": "vit_base",
+     "metrics": [
+      "val_acc_vit_base"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-05-02T18:57:31.132717+00:00",
+     "model": "baseline:block",
+     "is_final": true,
+     "seed": "42",
+     "val_acc_vit_tiny": 19.78,
+     "elapsed_vit_tiny": 10578.0,
+     "val_acc_vit_small": 21.33,
+     "elapsed_vit_small": 15058.0,
+     "val_acc_vit_base": 15.85,
+     "elapsed_vit_base": 20478.0
+    },
+    {
+     "timestamp": "2026-05-02T21:11:42.287242+00:00",
+     "model": "baseline:multiblock",
+     "is_final": true,
+     "seed": "42",
+     "val_acc_vit_tiny": 16.53,
+     "elapsed_vit_tiny": 17934.0,
+     "val_acc_vit_small": 20.77,
+     "elapsed_vit_small": 22707.0,
+     "val_acc_vit_base": 19.93,
+     "elapsed_vit_base": 28552.0
+    },
+    {
+     "timestamp": "2026-05-03T00:06:51.286747+00:00",
+     "model": "baseline:random",
+     "is_final": true,
+     "seed": "42",
+     "val_acc_vit_tiny": 11.18,
+     "elapsed_vit_tiny": 16427.0,
+     "val_acc_vit_small": 13.68,
+     "elapsed_vit_small": 23408.0,
+     "val_acc_vit_base": 12.9,
+     "elapsed_vit_base": 32012.0
+    },
+    {
+     "timestamp": "2026-05-02T23:47:50.835970+00:00",
+     "model": "baseline:rasterized",
+     "is_final": true,
+     "seed": "42",
+     "val_acc_vit_tiny": 15.18,
+     "elapsed_vit_tiny": 17067.0,
+     "val_acc_vit_small": 16.75,
+     "elapsed_vit_small": 24373.0,
+     "val_acc_vit_base": 19.82,
+     "elapsed_vit_base": 33546.0
+    }
+   ]
   },
   "jepa-planning": {
    "task_id": "jepa-planning",
