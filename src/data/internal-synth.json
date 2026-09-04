@@ -4132,6 +4132,207 @@
    "has_agent_logs": true
   },
   {
+   "id": "dl-optim-mup-coord-stability",
+   "name": "Coordinate stability across width and depth",
+   "summary": "Which algorithmic parameterization keeps activation coordinates at a stable scale when both network width and depth grow?",
+   "category": "deep-learning",
+   "category_label": "Deep Learning",
+   "category_abbr": "",
+   "description_md": "# Coordinate stability across width and depth\n\n## Research question\nWhich algorithmic parameterization keeps activation coordinates at a stable scale when both network width and depth grow?\n\n## Background\nThe μP paper (Yang & Hu, “Tensor Programs V,” ICML 2022) proposes a coordinate check: the mean absolute coordinate of each activation should remain order one across widths after a few updates.  This task measures that falsifiable implementation prediction rather than final accuracy.  It uses the released `mup` shape bookkeeping and optimizers, with standard and NTK controls.\n\n## What you may modify\nImplement only `Parametrization` in `mup/mlsb_mup_coord.py`.  The fixed MLP, CIFAR-10 minibatch, update count, and width ladder are not editable.  Return a model and optimizer; do not special-case the public widths.\n\n## Metric and baselines\nThe harness reports the absolute slope of log mean-absolute activation coordinate versus log width (lower is better, zero is perfectly width-stable), for depth 2, 4, and a hidden depth 8 setting.  Baselines are standard fan-in SGD (`sp`), maximal-update μP (`mup`), and the NTK control (`ntk`).\n",
+   "description_html": "<h1>Coordinate stability across width and depth</h1>\n<h2>Research question</h2>\n<p>Which algorithmic parameterization keeps activation coordinates at a stable scale when both network width and depth grow?</p>\n<h2>Background</h2>\n<p>The μP paper (Yang &amp; Hu, “Tensor Programs V,” ICML 2022) proposes a coordinate check: the mean absolute coordinate of each activation should remain order one across widths after a few updates.  This task measures that falsifiable implementation prediction rather than final accuracy.  It uses the released <code>mup</code> shape bookkeeping and optimizers, with standard and NTK controls.</p>\n<h2>What you may modify</h2>\n<p>Implement only <code>Parametrization</code> in <code>mup/mlsb_mup_coord.py</code>.  The fixed MLP, CIFAR-10 minibatch, update count, and width ladder are not editable.  Return a model and optimizer; do not special-case the public widths.</p>\n<h2>Metric and baselines</h2>\n<p>The harness reports the absolute slope of log mean-absolute activation coordinate versus log width (lower is better, zero is perfectly width-stable), for depth 2, 4, and a hidden depth 8 setting.  Baselines are standard fan-in SGD (<code>sp</code>), maximal-update μP (<code>mup</code>), and the NTK control (<code>ntk</code>).</p>",
+   "baselines": [
+    "sp",
+    "mup",
+    "ntk"
+   ],
+   "environments": [
+    "depth-2",
+    "depth-4",
+    "depth-8"
+   ],
+   "packages": [
+    "mup"
+   ],
+   "files": [
+    {
+     "filename": "mup/mlsb_mup_coord.py",
+     "edit_ranges": [
+      {
+       "start": 30,
+       "end": 41
+      }
+     ],
+     "content": "\"\"\"Coordinate-stability probe for maximal-update parametrization.\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path: sys.path.insert(0, str(PKG_DIR))\nimport mup\n\nclass _MLP(nn.Module):\n    def __init__(self, width: int, depth: int, mu_readout: bool = False):\n        super().__init__()\n        layers = [nn.Linear(3072, width, bias=False)]\n        layers += [nn.Linear(width, width, bias=False) for _ in range(max(1, depth - 1))]\n        self.hidden = nn.ModuleList(layers)\n        self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True) if mu_readout else nn.Linear(width, 10, bias=False)\n        self.coord_l1 = []\n    def forward(self, x):\n        self.coord_l1 = []\n        for layer in self.hidden:\n            x = torch.relu(layer(x)); self.coord_l1.append(float(x.detach().abs().mean()))\n        return self.readout(x)\n\n# ============================================================================\n# FIXED — only the parametrization rule below is editable.\n# ----- BEGIN EDITABLE REGION (lines 30..41) -----\nclass Parametrization:\n    \"\"\"Return a model and optimizer implementing a width-scaling algorithm.\"\"\"\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width); self.depth = int(depth); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, self.depth, mu_readout=True)\n        base = _MLP(self.base_width, self.depth); delta = _MLP(self.base_width + 1, self.depth)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in model.parameters(): mup.init.kaiming_normal_(p)\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n# ----- END EDITABLE REGION -----\n\ndef main():\n    depth = {\"depth-2\": 2, \"depth-4\": 4, \"depth-8\": 8}[os.environ.get(\"ENV\", \"depth-2\")]\n    smoke = bool(os.environ.get(\"MLSB_SMOKE\")); seed = int(os.environ.get(\"SEED\", \"42\")); torch.manual_seed(seed)\n    from torchvision import datasets, transforms\n    root = os.environ.get(\"DATA_ROOT\", \"/opt/mlsb-data\")\n    tfm = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,) * 3, (0.5,) * 3)])\n    ds = datasets.CIFAR10(root=root, train=True, download=False, transform=tfm)\n    ds = torch.utils.data.Subset(ds, range(min(64 if smoke else 256, len(ds))))\n    xb, yb = next(iter(torch.utils.data.DataLoader(ds, batch_size=len(ds), shuffle=False, num_workers=0)))\n    device = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\"); xb, yb = xb.to(device), yb.to(device)\n    vals = []\n    widths = [64, 256] if smoke else [64, 256, 1024]\n    for width in widths:\n        rule = Parametrization(width, depth); model = rule.build().to(device); opt = rule.optimizer(model, 0.1)\n        opt.zero_grad(set_to_none=True); loss = torch.nn.functional.cross_entropy(model(xb.flatten(1)), yb); loss.backward(); opt.step()\n        # Probe coordinates at the post-update point, matching the coordinate\n        # check in the source paper rather than only measuring initialization.\n        with torch.no_grad(): model(xb.flatten(1))\n        vals.append((math.log(width), math.log(max(1e-12, sum(model.coord_l1) / len(model.coord_l1)))))\n    x0, y0 = vals[0]; x1, y1 = vals[-1]; slope = (y1 - y0) / max(1e-12, x1 - x0)\n    print(f\"TRAIN_METRICS: depth={depth} coord_l1={math.exp(y1):.6g} log_width_slope={slope:.6f}\", flush=True)\n    # Include the fixed post-update loss in the score so a constant/zero model\n    # cannot win by collapsing every activation to zero while reporting a flat\n    # coordinate curve.\n    print(f\"TEST_METRICS: coord_slope={abs(slope):.6f} train_loss={float(loss):.6f} depth={depth}\", flush=True)\n\nif __name__ == \"__main__\": main()\n"
+    }
+   ],
+   "baselines_code": {
+    "sp": [
+     {
+      "file": "mup/mlsb_mup_coord.py",
+      "start_line": 30,
+      "end_line": 41,
+      "content": "class Parametrization:\n    \"\"\"Standard fan-in parametrization used as the null control.\"\"\"\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width); self.depth = int(depth); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, self.depth)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        return model\n    def optimizer(self, model, lr):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
+     }
+    ],
+    "mup": [
+     {
+      "file": "mup/mlsb_mup_coord.py",
+      "start_line": 30,
+      "end_line": 41,
+      "content": "class Parametrization:\n    \"\"\"Maximal-update parametrization, including μReadout and μSGD.\"\"\"\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width); self.depth = int(depth); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, self.depth, mu_readout=True); base = _MLP(self.base_width, self.depth, mu_readout=True); delta = _MLP(self.base_width + 1, self.depth, mu_readout=True)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in model.parameters(): mup.init.kaiming_normal_(p)\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
+     }
+    ],
+    "ntk": [
+     {
+      "file": "mup/mlsb_mup_coord.py",
+      "start_line": 30,
+      "end_line": 41,
+      "content": "class Parametrization:\n    \"\"\"NTK control: hidden parameters are initialized and updated at 1/width.\"\"\"\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width); self.depth = int(depth); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, self.depth)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        with torch.no_grad():\n            for layer in model.hidden[1:]: layer.weight.div_(math.sqrt(self.width / self.base_width))\n        return model\n    def optimizer(self, model, lr):\n        groups = [{\"params\": list(model.hidden.parameters()), \"lr\": lr / self.width}, {\"params\": list(model.readout.parameters()), \"lr\": lr}]\n        return torch.optim.SGD(groups, momentum=0.9, weight_decay=5e-4)\n"
+     }
+    ]
+   },
+   "rigorous_codebase": true,
+   "allow_create": false,
+   "has_agent_logs": false
+  },
+  {
+   "id": "dl-optim-mup-parametrization",
+   "name": "Maximal-update parametrization and width transfer",
+   "summary": "Can one algorithmic parametrization make a learning rate selected on a narrow neural network transfer to wider networks without retuning?",
+   "category": "deep-learning",
+   "category_label": "Deep Learning",
+   "category_abbr": "",
+   "description_md": "# Maximal-update parametrization and width transfer\n\n## Research question\nCan one algorithmic parametrization make a learning rate selected on a narrow neural network transfer to wider networks without retuning?\n\n## Background\nYang and Hu, “Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer” (ICML 2022, [PMLR](https://proceedings.mlr.press/v162/yang22h.html)), predicts that maximal-update parametrization (μP) keeps feature updates at order one as width grows.  The released `mup` package implements the paper's base-shape bookkeeping, μP initializers, and μSGD optimizer.  Standard (SP), NTK, and inverse-width-learning-rate controls test the competing explanations.\n\n## What you may modify\nImplement `Parametrization` in `mup/mlsb_mup_rule.py`.  `build()` must create the fixed 3-layer MLP at the requested width and `optimizer()` must use the supplied learning rate; do not change the data, model depth, training steps, or evaluation.  Widths include one held-out value, so hard-coded per-width constants are not valid scientific contributions.\n\n## Fixed protocol and metric\nThe harness trains on real CIFAR-10 images with a fixed SGD momentum, batch size, seed, and learning rate chosen at the proxy width.  It reports test top-1 accuracy (higher is better) at three widths.  The agent's code is run independently for each width.\n\n## Reference baselines\n`sp` (standard fan-in initialization and global SGD), `mup` (Yang & Hu maximal-update scaling), `ntk` (NTK scaling), and `sp_lr_over_width` (the commonly suggested inverse-width learning-rate control).\n",
+   "description_html": "<h1>Maximal-update parametrization and width transfer</h1>\n<h2>Research question</h2>\n<p>Can one algorithmic parametrization make a learning rate selected on a narrow neural network transfer to wider networks without retuning?</p>\n<h2>Background</h2>\n<p>Yang and Hu, “Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer” (ICML 2022, <a href=\"https://proceedings.mlr.press/v162/yang22h.html\">PMLR</a>), predicts that maximal-update parametrization (μP) keeps feature updates at order one as width grows.  The released <code>mup</code> package implements the paper's base-shape bookkeeping, μP initializers, and μSGD optimizer.  Standard (SP), NTK, and inverse-width-learning-rate controls test the competing explanations.</p>\n<h2>What you may modify</h2>\n<p>Implement <code>Parametrization</code> in <code>mup/mlsb_mup_rule.py</code>.  <code>build()</code> must create the fixed 3-layer MLP at the requested width and <code>optimizer()</code> must use the supplied learning rate; do not change the data, model depth, training steps, or evaluation.  Widths include one held-out value, so hard-coded per-width constants are not valid scientific contributions.</p>\n<h2>Fixed protocol and metric</h2>\n<p>The harness trains on real CIFAR-10 images with a fixed SGD momentum, batch size, seed, and learning rate chosen at the proxy width.  It reports test top-1 accuracy (higher is better) at three widths.  The agent's code is run independently for each width.</p>\n<h2>Reference baselines</h2>\n<p><code>sp</code> (standard fan-in initialization and global SGD), <code>mup</code> (Yang &amp; Hu maximal-update scaling), <code>ntk</code> (NTK scaling), and <code>sp_lr_over_width</code> (the commonly suggested inverse-width learning-rate control).</p>",
+   "baselines": [
+    "sp",
+    "mup",
+    "ntk",
+    "sp_lr_over_width"
+   ],
+   "environments": [
+    "width-64",
+    "width-256",
+    "width-1024"
+   ],
+   "packages": [
+    "mup"
+   ],
+   "files": [
+    {
+     "filename": "mup/mlsb_mup_rule.py",
+     "edit_ranges": [
+      {
+       "start": 36,
+       "end": 56
+      }
+     ],
+     "content": "\"\"\"Editable μP parametrization rule for a fixed CIFAR-10 MLP experiment.\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\n\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path:\n    sys.path.insert(0, str(PKG_DIR))\nimport mup\n\n\nclass _MLP(nn.Module):\n    \"\"\"Fixed architecture: 3072 -> width -> width -> 10.\"\"\"\n    def __init__(self, width: int, mu_readout: bool = False):\n        super().__init__()\n        self.fc1 = nn.Linear(3072, width, bias=False)\n        self.fc2 = nn.Linear(width, width, bias=False)\n        self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True) if mu_readout else nn.Linear(width, 10, bias=False)\n\n    def forward(self, x):\n        x = torch.relu(self.fc1(x))\n        x = torch.relu(self.fc2(x))\n        return self.readout(x)\n\n\n# ============================================================================\n# FIXED — the data, architecture, and optimizer interface are below/around this\n# marker.  Only Parametrization is editable by the agent.\n# ============================================================================\n\n# ----- BEGIN EDITABLE REGION (lines 36..56) -----\nclass Parametrization:\n    \"\"\"Algorithmic width-scaling rule.\n\n    ``build`` must return the fixed MLP at the requested width and ``optimizer``\n    must return an optimizer for it.  The learning rate is fixed by the harness;\n    an implementation may only apply the scaling prescribed by its paper.\n    \"\"\"\n\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width)\n        self.base_width = int(base_width)\n\n    def build(self) -> nn.Module:\n        # Standard parametrization (the runnable null).\n        model = _MLP(self.width, mu_readout=False)\n        for p in model.parameters():\n            nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        return model\n\n    def optimizer(self, model: nn.Module, lr: float):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n# ----- END EDITABLE REGION -----\n\n\ndef _setting_width(setting: str) -> int:\n    return {\"width-64\": 64, \"width-256\": 256, \"width-1024\": 1024}[setting]\n\n\ndef _load_data(root: str, smoke: bool):\n    from torchvision import datasets, transforms\n    tfm = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,) * 3, (0.5,) * 3)])\n    train = datasets.CIFAR10(root=root, train=True, download=False, transform=tfm)\n    test = datasets.CIFAR10(root=root, train=False, download=False, transform=tfm)\n    if smoke:\n        train = torch.utils.data.Subset(train, range(min(256, len(train))))\n        test = torch.utils.data.Subset(test, range(min(256, len(test))))\n    return train, test\n\n\ndef main():\n    setting = os.environ.get(\"ENV\", \"width-64\")\n    width = _setting_width(setting)\n    smoke = bool(os.environ.get(\"MLSB_SMOKE\"))\n    seed = int(os.environ.get(\"SEED\", \"42\"))\n    torch.manual_seed(seed)\n    train, test = _load_data(os.environ.get(\"DATA_ROOT\", \"/opt/mlsb-data\"), smoke)\n    model = Parametrization(width).build()\n    model.train()\n    opt = Parametrization(width).optimizer(model, lr=0.1)\n    epochs = 1 if smoke else 20\n    batch = 64\n    loader = torch.utils.data.DataLoader(train, batch_size=batch, shuffle=True, num_workers=0)\n    device = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\")\n    model.to(device)\n    for ep in range(epochs):\n        running = 0.0\n        for xb, yb in loader:\n            xb, yb = xb.to(device), yb.to(device)\n            opt.zero_grad(set_to_none=True)\n            loss = torch.nn.functional.cross_entropy(model(xb.flatten(1)), yb)\n            loss.backward(); opt.step(); running += float(loss)\n        print(f\"TRAIN_METRICS: epoch={ep + 1} loss={running / max(1, len(loader)):.5f}\", flush=True)\n    model.eval(); correct = total = 0\n    with torch.no_grad():\n        for xb, yb in torch.utils.data.DataLoader(test, batch_size=256, shuffle=False, num_workers=0):\n            out = model(xb.to(device).flatten(1)); pred = out.argmax(1).cpu()\n            correct += int((pred == yb).sum()); total += len(yb)\n    acc = 100.0 * correct / max(1, total)\n    print(f\"TEST_METRICS: test_acc={acc:.6f} width={width}\", flush=True)\n\n\nif __name__ == \"__main__\":\n    main()\n"
+    }
+   ],
+   "baselines_code": {
+    "sp": [
+     {
+      "file": "mup/mlsb_mup_rule.py",
+      "start_line": 36,
+      "end_line": 56,
+      "content": "class Parametrization:\n    \"\"\"Standard parametrization: fan-in init and one global SGD learning rate.\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=False)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        return model\n    def optimizer(self, model, lr):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
+     }
+    ],
+    "mup": [
+     {
+      "file": "mup/mlsb_mup_rule.py",
+      "start_line": 36,
+      "end_line": 56,
+      "content": "class Parametrization:\n    \"\"\"Maximal-update parametrization from Yang & Hu (2022).\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=True)\n        base = _MLP(self.base_width, mu_readout=True)\n        delta = _MLP(self.base_width + 1, mu_readout=True)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in model.parameters():\n            if p.infshape.ninf() <= 1: mup.init.kaiming_normal_(p)\n            else: mup.init.kaiming_normal_(p, mode=\"fan_in\")\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
+     }
+    ],
+    "ntk": [
+     {
+      "file": "mup/mlsb_mup_rule.py",
+      "start_line": 36,
+      "end_line": 56,
+      "content": "class Parametrization:\n    \"\"\"NTK parametrization: width-normalized hidden updates, fixed readout.\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=False)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        with torch.no_grad():\n            model.fc2.weight.div_(math.sqrt(self.width / self.base_width))\n        return model\n    def optimizer(self, model, lr):\n        groups = [{\"params\": list(model.fc1.parameters()), \"lr\": lr / self.width},\n                  {\"params\": list(model.fc2.parameters()), \"lr\": lr / self.width},\n                  {\"params\": list(model.readout.parameters()), \"lr\": lr}]\n        return torch.optim.SGD(groups, momentum=0.9, weight_decay=5e-4)\n"
+     }
+    ],
+    "sp_lr_over_width": [
+     {
+      "file": "mup/mlsb_mup_rule.py",
+      "start_line": 36,
+      "end_line": 56,
+      "content": "class Parametrization:\n    \"\"\"Folk control: SP with a learning rate inversely proportional to width.\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=False)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        return model\n    def optimizer(self, model, lr):\n        return torch.optim.SGD(model.parameters(), lr=lr * self.base_width / self.width,\n                               momentum=0.9, weight_decay=5e-4)\n"
+     }
+    ]
+   },
+   "rigorous_codebase": true,
+   "allow_create": false,
+   "has_agent_logs": false
+  },
+  {
+   "id": "dl-optim-mup-readout-scaling",
+   "name": "μReadout scaling under width transfer",
+   "summary": "Does the output-layer scaling and initialization prescribed by μP preserve useful logits as hidden width grows, independently of the hidden-layer update rule?",
+   "category": "deep-learning",
+   "category_label": "Deep Learning",
+   "category_abbr": "",
+   "description_md": "# μReadout scaling under width transfer\n\n## Research question\nDoes the output-layer scaling and initialization prescribed by μP preserve useful logits as hidden width grows, independently of the hidden-layer update rule?\n\n## Background\nYang and Hu, “Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer” (ICML 2022), distinguishes finite readout dimensions from width dimensions.  The released `mup.MuReadout` applies the corresponding constant-variance initialization and inverse-width output multiplier.  This task isolates that readout mechanism while keeping the two hidden layers fixed.\n\n## What you may modify\nImplement `ReadoutRule` in `mup/mlsb_mup_readout.py`.  Only the output-layer construction, its paper-prescribed scaling, and its optimizer parameter groups may change; the CIFAR-10 pipeline, hidden architecture, learning rate, and epochs are fixed.  The width-1024 setting is held out.\n\n## Metric and baselines\nThe metric is CIFAR-10 test top-1 accuracy (higher is better) at widths 64, 256, and hidden 1024.  Baselines are the standard readout (`standard`), the μP `MuReadout` (`mu_readout`), and an NTK-style inverse-width readout control (`ntk_readout`).\n",
+   "description_html": "<h1>μReadout scaling under width transfer</h1>\n<h2>Research question</h2>\n<p>Does the output-layer scaling and initialization prescribed by μP preserve useful logits as hidden width grows, independently of the hidden-layer update rule?</p>\n<h2>Background</h2>\n<p>Yang and Hu, “Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer” (ICML 2022), distinguishes finite readout dimensions from width dimensions.  The released <code>mup.MuReadout</code> applies the corresponding constant-variance initialization and inverse-width output multiplier.  This task isolates that readout mechanism while keeping the two hidden layers fixed.</p>\n<h2>What you may modify</h2>\n<p>Implement <code>ReadoutRule</code> in <code>mup/mlsb_mup_readout.py</code>.  Only the output-layer construction, its paper-prescribed scaling, and its optimizer parameter groups may change; the CIFAR-10 pipeline, hidden architecture, learning rate, and epochs are fixed.  The width-1024 setting is held out.</p>\n<h2>Metric and baselines</h2>\n<p>The metric is CIFAR-10 test top-1 accuracy (higher is better) at widths 64, 256, and hidden 1024.  Baselines are the standard readout (<code>standard</code>), the μP <code>MuReadout</code> (<code>mu_readout</code>), and an NTK-style inverse-width readout control (<code>ntk_readout</code>).</p>",
+   "baselines": [
+    "standard",
+    "mu_readout",
+    "ntk_readout"
+   ],
+   "environments": [
+    "width-64",
+    "width-256",
+    "width-1024"
+   ],
+   "packages": [
+    "mup"
+   ],
+   "files": [
+    {
+     "filename": "mup/mlsb_mup_readout.py",
+     "edit_ranges": [
+      {
+       "start": 24,
+       "end": 33
+      }
+     ],
+     "content": "\"\"\"Readout scaling experiment for width transfer on CIFAR-10.\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path: sys.path.insert(0, str(PKG_DIR))\nimport mup\n\nclass _MLP(nn.Module):\n    def __init__(self, width: int, mu_readout: bool = False):\n        super().__init__()\n        self.fc1 = nn.Linear(3072, width, bias=False)\n        self.fc2 = nn.Linear(width, width, bias=False)\n        self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True) if mu_readout else nn.Linear(width, 10, bias=False)\n    def forward(self, x): return self.readout(torch.relu(self.fc2(torch.relu(self.fc1(x)))))\n\n# ============================================================================\n# FIXED — dataset, architecture, and training loop are immutable.\n# ----- BEGIN EDITABLE REGION (lines 24..33) -----\nclass ReadoutRule:\n    \"\"\"Algorithmic output-layer scaling rule; hidden layers remain fixed.\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=False)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        return model\n    def optimizer(self, model, lr):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n# ----- END EDITABLE REGION -----\n\ndef main():\n    setting = os.environ.get(\"ENV\", \"width-64\"); width = {\"width-64\": 64, \"width-256\": 256, \"width-1024\": 1024}[setting]\n    smoke = bool(os.environ.get(\"MLSB_SMOKE\")); seed = int(os.environ.get(\"SEED\", \"42\")); torch.manual_seed(seed)\n    from torchvision import datasets, transforms\n    tfm = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,) * 3, (0.5,) * 3)])\n    root = os.environ.get(\"DATA_ROOT\", \"/opt/mlsb-data\"); train = datasets.CIFAR10(root=root, train=True, download=False, transform=tfm); test = datasets.CIFAR10(root=root, train=False, download=False, transform=tfm)\n    if smoke: train = torch.utils.data.Subset(train, range(min(256, len(train)))); test = torch.utils.data.Subset(test, range(min(256, len(test))))\n    model = ReadoutRule(width).build(); device = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\"); model.to(device); opt = ReadoutRule(width).optimizer(model, 0.1)\n    loader = torch.utils.data.DataLoader(train, batch_size=64, shuffle=True, num_workers=0); epochs = 1 if smoke else 20\n    for ep in range(epochs):\n        total = 0.0\n        for xb, yb in loader:\n            opt.zero_grad(set_to_none=True); loss = torch.nn.functional.cross_entropy(model(xb.to(device).flatten(1)), yb.to(device)); loss.backward(); opt.step(); total += float(loss)\n        print(f\"TRAIN_METRICS: epoch={ep + 1} loss={total / max(1, len(loader)):.5f}\", flush=True)\n    model.eval(); correct = total = 0\n    with torch.no_grad():\n        for xb, yb in torch.utils.data.DataLoader(test, batch_size=256, shuffle=False, num_workers=0):\n            pred = model(xb.to(device).flatten(1)).argmax(1).cpu(); correct += int((pred == yb).sum()); total += len(yb)\n    print(f\"TEST_METRICS: test_acc={100.0 * correct / max(1, total):.6f} width={width}\", flush=True)\n\nif __name__ == \"__main__\": main()\n"
+    }
+   ],
+   "baselines_code": {
+    "standard": [
+     {
+      "file": "mup/mlsb_mup_readout.py",
+      "start_line": 24,
+      "end_line": 33,
+      "content": "class ReadoutRule:\n    \"\"\"Standard readout: fan-in initialization and a global learning rate.\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=False)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        return model\n    def optimizer(self, model, lr):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
+     }
+    ],
+    "mu_readout": [
+     {
+      "file": "mup/mlsb_mup_readout.py",
+      "start_line": 24,
+      "end_line": 33,
+      "content": "class ReadoutRule:\n    \"\"\"μReadout: constant-variance output weights with 1/width logits.\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=True); base = _MLP(self.base_width, mu_readout=True); delta = _MLP(self.base_width + 1, mu_readout=True)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in model.parameters(): mup.init.kaiming_normal_(p)\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
+     }
+    ],
+    "ntk_readout": [
+     {
+      "file": "mup/mlsb_mup_readout.py",
+      "start_line": 24,
+      "end_line": 33,
+      "content": "class ReadoutRule:\n    \"\"\"NTK readout control: standard features with output multiplier 1/sqrt(width).\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=False)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        return model\n    def optimizer(self, model, lr):\n        groups = [{\"params\": list(model.fc1.parameters()) + list(model.fc2.parameters()), \"lr\": lr}, {\"params\": model.readout.parameters(), \"lr\": lr / math.sqrt(self.width / self.base_width)}]\n        return torch.optim.SGD(groups, momentum=0.9, weight_decay=5e-4)\n"
+     }
+    ]
+   },
+   "rigorous_codebase": true,
+   "allow_create": false,
+   "has_agent_logs": false
+  },
+  {
    "id": "dl-regularization",
    "name": "Adaptive Regularization Loss",
    "summary": "Adds a model-, output-, input-, or epoch-dependent regularization term to improve classification generalization beyond standard weight decay.",
