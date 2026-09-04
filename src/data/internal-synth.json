@@ -4159,10 +4159,10 @@
      "edit_ranges": [
       {
        "start": 30,
-       "end": 41
+       "end": 42
       }
      ],
-     "content": "\"\"\"Coordinate-stability probe for maximal-update parametrization.\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path: sys.path.insert(0, str(PKG_DIR))\nimport mup\n\nclass _MLP(nn.Module):\n    def __init__(self, width: int, depth: int, mu_readout: bool = False):\n        super().__init__()\n        layers = [nn.Linear(3072, width, bias=False)]\n        layers += [nn.Linear(width, width, bias=False) for _ in range(max(1, depth - 1))]\n        self.hidden = nn.ModuleList(layers)\n        self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True) if mu_readout else nn.Linear(width, 10, bias=False)\n        self.coord_l1 = []\n    def forward(self, x):\n        self.coord_l1 = []\n        for layer in self.hidden:\n            x = torch.relu(layer(x)); self.coord_l1.append(float(x.detach().abs().mean()))\n        return self.readout(x)\n\n# ============================================================================\n# FIXED — only the parametrization rule below is editable.\n# ----- BEGIN EDITABLE REGION (lines 30..41) -----\nclass Parametrization:\n    \"\"\"Return a model and optimizer implementing a width-scaling algorithm.\"\"\"\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width); self.depth = int(depth); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, self.depth, mu_readout=True)\n        base = _MLP(self.base_width, self.depth); delta = _MLP(self.base_width + 1, self.depth)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in list(model.hidden.parameters()): mup.init.kaiming_normal_(p, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n# ----- END EDITABLE REGION -----\n\ndef main():\n    depth = {\"depth-2\": 2, \"depth-4\": 4, \"depth-8\": 8}[os.environ.get(\"ENV\", \"depth-2\")]\n    smoke = bool(os.environ.get(\"MLSB_SMOKE\")); seed = int(os.environ.get(\"SEED\", \"42\")); torch.manual_seed(seed)\n    from torchvision import datasets, transforms\n    root = os.environ.get(\"DATA_ROOT\", \"/opt/mlsb-data\")\n    tfm = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,) * 3, (0.5,) * 3)])\n    ds = datasets.CIFAR10(root=root, train=True, download=False, transform=tfm)\n    ds = torch.utils.data.Subset(ds, range(min(64 if smoke else 256, len(ds))))\n    xb, yb = next(iter(torch.utils.data.DataLoader(ds, batch_size=len(ds), shuffle=False, num_workers=0)))\n    device = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\"); xb, yb = xb.to(device), yb.to(device)\n    vals = []\n    widths = [64, 256] if smoke else [64, 256, 1024]\n    for width in widths:\n        rule = Parametrization(width, depth); model = rule.build().to(device); opt = rule.optimizer(model, 0.1)\n        opt.zero_grad(set_to_none=True); loss = torch.nn.functional.cross_entropy(model(xb.flatten(1)), yb); loss.backward(); opt.step()\n        # Probe coordinates at the post-update point, matching the coordinate\n        # check in the source paper rather than only measuring initialization.\n        with torch.no_grad(): model(xb.flatten(1))\n        vals.append((math.log(width), math.log(max(1e-12, sum(model.coord_l1) / len(model.coord_l1)))))\n    x0, y0 = vals[0]; x1, y1 = vals[-1]; slope = (y1 - y0) / max(1e-12, x1 - x0)\n    print(f\"TRAIN_METRICS: depth={depth} coord_l1={math.exp(y1):.6g} log_width_slope={slope:.6f}\", flush=True)\n    # Include the fixed post-update loss in the score so a constant/zero model\n    # cannot win by collapsing every activation to zero while reporting a flat\n    # coordinate curve.\n    print(f\"TEST_METRICS: coord_slope={abs(slope):.6f} train_loss={float(loss):.6f} depth={depth}\", flush=True)\n\nif __name__ == \"__main__\": main()\n"
+     "content": "\"\"\"Coordinate-stability probe for maximal-update parametrization.\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path: sys.path.insert(0, str(PKG_DIR))\nimport mup\n\nclass _MLP(nn.Module):\n    def __init__(self, width: int, depth: int, mu_readout: bool = False):\n        super().__init__()\n        layers = [nn.Linear(3072, width, bias=False)]\n        layers += [nn.Linear(width, width, bias=False) for _ in range(max(1, depth - 1))]\n        self.hidden = nn.ModuleList(layers)\n        self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True) if mu_readout else nn.Linear(width, 10, bias=False)\n        self.coord_l1 = []\n    def forward(self, x):\n        self.coord_l1 = []\n        for layer in self.hidden:\n            x = torch.relu(layer(x)); self.coord_l1.append(float(x.detach().abs().mean()))\n        return self.readout(x)\n\n# ============================================================================\n# FIXED — only the parametrization rule below is editable.\n# ----- BEGIN EDITABLE REGION (lines 30..42) -----\nclass Parametrization:\n    \"\"\"Return a model and optimizer implementing a width-scaling algorithm.\"\"\"\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width); self.depth = int(depth); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, self.depth, mu_readout=True)\n        base = _MLP(self.base_width, self.depth); delta = _MLP(self.base_width + 1, self.depth)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in list(model.hidden.parameters()): mup.init.kaiming_normal_(p, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n# ----- END EDITABLE REGION -----\n\ndef main():\n    depth = {\"depth-2\": 2, \"depth-4\": 4, \"depth-8\": 8}[os.environ.get(\"ENV\", \"depth-2\")]\n    smoke = bool(os.environ.get(\"MLSB_SMOKE\")); seed = int(os.environ.get(\"SEED\", \"42\")); torch.manual_seed(seed)\n    from torchvision import datasets, transforms\n    root = os.environ.get(\"DATA_ROOT\", \"/opt/mlsb-data\")\n    tfm = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,) * 3, (0.5,) * 3)])\n    ds = datasets.CIFAR10(root=root, train=True, download=False, transform=tfm)\n    ds = torch.utils.data.Subset(ds, range(min(64 if smoke else 256, len(ds))))\n    xb, yb = next(iter(torch.utils.data.DataLoader(ds, batch_size=len(ds), shuffle=False, num_workers=0)))\n    device = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\"); xb, yb = xb.to(device), yb.to(device)\n    vals = []\n    widths = [64, 256] if smoke else [64, 256, 1024]\n    for width in widths:\n        rule = Parametrization(width, depth); model = rule.build().to(device); opt = rule.optimizer(model, 0.1)\n        opt.zero_grad(set_to_none=True); loss = torch.nn.functional.cross_entropy(model(xb.flatten(1)), yb); loss.backward(); opt.step()\n        # Probe coordinates at the post-update point, matching the coordinate\n        # check in the source paper rather than only measuring initialization.\n        with torch.no_grad(): model(xb.flatten(1))\n        vals.append((math.log(width), math.log(max(1e-12, sum(model.coord_l1) / len(model.coord_l1)))))\n    x0, y0 = vals[0]; x1, y1 = vals[-1]; slope = (y1 - y0) / max(1e-12, x1 - x0)\n    print(f\"TRAIN_METRICS: depth={depth} coord_l1={math.exp(y1):.6g} log_width_slope={slope:.6f}\", flush=True)\n    # Include the fixed post-update loss in the score so a constant/zero model\n    # cannot win by collapsing every activation to zero while reporting a flat\n    # coordinate curve.\n    print(f\"TEST_METRICS: coord_slope={abs(slope):.6f} train_loss={float(loss):.6f} depth={depth}\", flush=True)\n\nif __name__ == \"__main__\": main()\n"
     }
    ],
    "baselines_code": {
@@ -4170,7 +4170,7 @@
      {
       "file": "mup/mlsb_mup_coord.py",
       "start_line": 30,
-      "end_line": 41,
+      "end_line": 42,
       "content": "class Parametrization:\n    \"\"\"Standard fan-in parametrization used as the null control.\"\"\"\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width); self.depth = int(depth); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, self.depth)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        return model\n    def optimizer(self, model, lr):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
      }
     ],
@@ -4178,7 +4178,7 @@
      {
       "file": "mup/mlsb_mup_coord.py",
       "start_line": 30,
-      "end_line": 41,
+      "end_line": 42,
       "content": "class Parametrization:\n    \"\"\"Maximal-update parametrization, including μReadout and μSGD.\"\"\"\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width); self.depth = int(depth); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, self.depth, mu_readout=True); base = _MLP(self.base_width, self.depth, mu_readout=True); delta = _MLP(self.base_width + 1, self.depth, mu_readout=True)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in list(model.hidden.parameters()): mup.init.kaiming_normal_(p, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
      }
     ],
@@ -4186,7 +4186,7 @@
      {
       "file": "mup/mlsb_mup_coord.py",
       "start_line": 30,
-      "end_line": 41,
+      "end_line": 42,
       "content": "class Parametrization:\n    \"\"\"NTK control: hidden parameters are initialized and updated at 1/width.\"\"\"\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width); self.depth = int(depth); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, self.depth)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        with torch.no_grad():\n            for layer in model.hidden[1:]: layer.weight.div_(math.sqrt(self.width / self.base_width))\n        return model\n    def optimizer(self, model, lr):\n        groups = [{\"params\": list(model.hidden.parameters()), \"lr\": lr / self.width}, {\"params\": list(model.readout.parameters()), \"lr\": lr}]\n        return torch.optim.SGD(groups, momentum=0.9, weight_decay=5e-4)\n"
      }
     ]
@@ -130765,6 +130765,203 @@
      "sdpa_latency_ms_hdim128_seq8k": 1.7927,
      "speedup_vs_sdpa_hdim256_seq16k": 0.0,
      "sdpa_latency_ms_hdim256_seq16k": 0.0
+    }
+   ]
+  },
+  "mlsys-gavel-allocation-policy": {
+   "task_id": "mlsys-gavel-allocation-policy",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "avg_jct_balanced",
+    "p99_jct_balanced",
+    "makespan_balanced",
+    "num_jobs_balanced",
+    "avg_jct_v100_rich",
+    "p99_jct_v100_rich",
+    "makespan_v100_rich",
+    "num_jobs_v100_rich",
+    "avg_jct_k80_rich",
+    "p99_jct_k80_rich",
+    "makespan_k80_rich",
+    "num_jobs_k80_rich"
+   ],
+   "metric_columns": [
+    "avg_jct_balanced",
+    "avg_jct_v100_rich",
+    "avg_jct_k80_rich"
+   ],
+   "metric_directions": {
+    "avg_jct_balanced": "lower",
+    "avg_jct_v100_rich": "lower",
+    "avg_jct_k80_rich": "lower"
+   },
+   "metric_groups": [
+    {
+     "setting": "balanced",
+     "metrics": [
+      "avg_jct_balanced"
+     ]
+    },
+    {
+     "setting": "v100_rich",
+     "metrics": [
+      "avg_jct_v100_rich"
+     ]
+    },
+    {
+     "setting": "k80_rich",
+     "metrics": [
+      "avg_jct_k80_rich"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-04T08:20:57.065481+00:00",
+     "model": "baseline:allox",
+     "is_final": true,
+     "seed": "42",
+     "avg_jct_balanced": 79988.579547,
+     "p99_jct_balanced": 732017.549647,
+     "makespan_balanced": 1123278.383031,
+     "num_jobs_balanced": 40.0,
+     "avg_jct_v100_rich": 58868.443494,
+     "p99_jct_v100_rich": 382718.838645,
+     "makespan_v100_rich": 543291.627684,
+     "num_jobs_v100_rich": 40.0,
+     "avg_jct_k80_rich": 87563.686458,
+     "p99_jct_k80_rich": 631155.165459,
+     "makespan_k80_rich": 1029734.05464,
+     "num_jobs_k80_rich": 40.0
+    },
+    {
+     "timestamp": "2026-09-04T08:20:57.065783+00:00",
+     "model": "baseline:allox",
+     "is_final": true,
+     "seed": "mean",
+     "avg_jct_balanced": 79988.579547,
+     "p99_jct_balanced": 732017.549647,
+     "makespan_balanced": 1123278.383031,
+     "num_jobs_balanced": 40.0,
+     "avg_jct_v100_rich": 58868.443494,
+     "p99_jct_v100_rich": 382718.838645,
+     "makespan_v100_rich": 543291.627684,
+     "num_jobs_v100_rich": 40.0,
+     "avg_jct_k80_rich": 87563.686458,
+     "p99_jct_k80_rich": 631155.165459,
+     "makespan_k80_rich": 1029734.05464,
+     "num_jobs_k80_rich": 40.0
+    },
+    {
+     "timestamp": "2026-09-04T08:20:57.066059+00:00",
+     "model": "baseline:gandiva",
+     "is_final": true,
+     "seed": "42",
+     "avg_jct_balanced": 84018.846005,
+     "p99_jct_balanced": 650582.586426,
+     "makespan_balanced": 933681.688608,
+     "num_jobs_balanced": 40.0,
+     "avg_jct_v100_rich": 70139.941582,
+     "p99_jct_v100_rich": 508602.615782,
+     "makespan_v100_rich": 697790.956338,
+     "num_jobs_v100_rich": 40.0,
+     "avg_jct_k80_rich": 112793.965806,
+     "p99_jct_k80_rich": 1003126.46244,
+     "makespan_k80_rich": 1550828.420497,
+     "num_jobs_k80_rich": 40.0
+    },
+    {
+     "timestamp": "2026-09-04T08:20:57.066518+00:00",
+     "model": "baseline:gandiva",
+     "is_final": true,
+     "seed": "mean",
+     "avg_jct_balanced": 84018.846005,
+     "p99_jct_balanced": 650582.586426,
+     "makespan_balanced": 933681.688608,
+     "num_jobs_balanced": 40.0,
+     "avg_jct_v100_rich": 70139.941582,
+     "p99_jct_v100_rich": 508602.615782,
+     "makespan_v100_rich": 697790.956338,
+     "num_jobs_v100_rich": 40.0,
+     "avg_jct_k80_rich": 112793.965806,
+     "p99_jct_k80_rich": 1003126.46244,
+     "makespan_k80_rich": 1550828.420497,
+     "num_jobs_k80_rich": 40.0
+    },
+    {
+     "timestamp": "2026-09-04T08:20:57.066833+00:00",
+     "model": "baseline:max_min_fairness",
+     "is_final": true,
+     "seed": "42",
+     "avg_jct_balanced": 118376.399773,
+     "p99_jct_balanced": 1047176.93906,
+     "makespan_balanced": 1340668.281674,
+     "num_jobs_balanced": 40.0,
+     "avg_jct_v100_rich": 83487.460188,
+     "p99_jct_v100_rich": 619886.79782,
+     "makespan_v100_rich": 808423.802723,
+     "num_jobs_v100_rich": 40.0,
+     "avg_jct_k80_rich": 119923.942627,
+     "p99_jct_k80_rich": 938315.781595,
+     "makespan_k80_rich": 1276882.827779,
+     "num_jobs_k80_rich": 40.0
+    },
+    {
+     "timestamp": "2026-09-04T08:20:57.067150+00:00",
+     "model": "baseline:max_min_fairness",
+     "is_final": true,
+     "seed": "mean",
+     "avg_jct_balanced": 118376.399773,
+     "p99_jct_balanced": 1047176.93906,
+     "makespan_balanced": 1340668.281674,
+     "num_jobs_balanced": 40.0,
+     "avg_jct_v100_rich": 83487.460188,
+     "p99_jct_v100_rich": 619886.79782,
+     "makespan_v100_rich": 808423.802723,
+     "num_jobs_v100_rich": 40.0,
+     "avg_jct_k80_rich": 119923.942627,
+     "p99_jct_k80_rich": 938315.781595,
+     "makespan_k80_rich": 1276882.827779,
+     "num_jobs_k80_rich": 40.0
+    },
+    {
+     "timestamp": "2026-09-04T08:20:57.064690+00:00",
+     "model": "baseline:max_min_fairness_perf",
+     "is_final": true,
+     "seed": "42",
+     "avg_jct_balanced": 71609.301485,
+     "p99_jct_balanced": 535869.788675,
+     "makespan_balanced": 754823.207978,
+     "num_jobs_balanced": 40.0,
+     "avg_jct_v100_rich": 61622.050717,
+     "p99_jct_v100_rich": 421485.700039,
+     "makespan_v100_rich": 584991.374405,
+     "num_jobs_v100_rich": 40.0,
+     "avg_jct_k80_rich": 75010.28429,
+     "p99_jct_k80_rich": 556959.505329,
+     "makespan_k80_rich": 858976.406993,
+     "num_jobs_k80_rich": 40.0
+    },
+    {
+     "timestamp": "2026-09-04T08:20:57.065069+00:00",
+     "model": "baseline:max_min_fairness_perf",
+     "is_final": true,
+     "seed": "mean",
+     "avg_jct_balanced": 71609.301485,
+     "p99_jct_balanced": 535869.788675,
+     "makespan_balanced": 754823.207978,
+     "num_jobs_balanced": 40.0,
+     "avg_jct_v100_rich": 61622.050717,
+     "p99_jct_v100_rich": 421485.700039,
+     "makespan_v100_rich": 584991.374405,
+     "num_jobs_v100_rich": 40.0,
+     "avg_jct_k80_rich": 75010.28429,
+     "p99_jct_k80_rich": 556959.505329,
+     "makespan_k80_rich": 858976.406993,
+     "num_jobs_k80_rich": 40.0
     }
    ]
   },
