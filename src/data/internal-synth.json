@@ -1917,17 +1917,17 @@
   },
   {
    "id": "causal-discovery-fci",
-   "name": "Fast Causal Inference with Latent Variables",
-   "summary": "Can a constraint-based causal discovery algorithm recover the partial",
+   "name": "Latent-Confounding Causal Discovery with PAGs",
+   "summary": "Design a constraint-based algorithm that recovers a Partial Ancestral Graph",
    "category": "structured-and-causal-reasoning",
    "category_label": "Structured & Causal Reasoning",
    "category_abbr": "",
-   "description_md": "# Fast Causal Inference with Latent Variables\n\n## Research question\n\nCan a constraint-based causal discovery algorithm recover the partial\nancestral graph (PAG) of observed variables when some causes are unmeasured?\nThe contribution should be an algorithmic improvement to FCI or a principled\nalternative that preserves the endpoint semantics of a PAG.\n\n## Background\n\nFast Causal Inference (FCI) is designed for Markov and structural causal models\nwith latent common causes and selection effects. Unlike a CPDAG, its PAG uses\narrowheads, tails, and circles to represent what is and is not identifiable\nfrom observational data. The task follows the FCI formulation of Spirtes,\nMeek & Richardson, *Causation, Prediction, and Search* (2000), and the\nsoundness/completeness analysis of Zhang, “Causal reasoning with ancestral\ngraphs,” *JMLR* 9 (2008),\nhttps://jmlr.org/papers/v9/zhang08a.html.\n\n## Editable interface\n\nModify only `run_fci` in `causal-learn/bench/custom_algorithm.py`. It receives\nan observed NumPy array of shape `(n_samples, n_variables)` and must return a\n`causallearn.graph.GeneralGraph.GeneralGraph` over those variables. The graph\nmatrix must use causal-learn's endpoint conventions, including circle and\nbidirected endpoints where appropriate. Do not read files, access hidden\ngraphs, or print metrics.\n\n## Evaluation\n\nThe fixed driver loads opaque observational data, calls `run_fci`, and emits\nthe estimated endpoint matrix. Host-side scoring compares it with a held-out\nPAG using structural Hamming distance (SHD), adjacency precision/recall, and\narrowhead precision/recall. Lower SHD and higher precision/recall are better;\nper-setting normalized scores are aggregated geometrically. One setting is\nheld out from intermediate feedback.\n\n## Reference baselines\n\n- **FCI/Fisher-Z** — the standard FCI pipeline with the Fisher-Z conditional\n  independence test (Spirtes, Glymour & Scheines, 2000).\n- **FCI/KCI** — FCI with the kernel conditional-independence test of Zhang,\n  Peters, Janzing & Schölkopf, UAI 2011,\n  https://arxiv.org/abs/1202.3779.\n- **PC/Fisher-Z** — the observed-variable PC pipeline, included as the\n  no-latent-confounding comparator (Spirtes, Glymour & Scheines, 2000).\n",
-   "description_html": "<h1>Fast Causal Inference with Latent Variables</h1>\n<h2>Research question</h2>\n<p>Can a constraint-based causal discovery algorithm recover the partial\nancestral graph (PAG) of observed variables when some causes are unmeasured?\nThe contribution should be an algorithmic improvement to FCI or a principled\nalternative that preserves the endpoint semantics of a PAG.</p>\n<h2>Background</h2>\n<p>Fast Causal Inference (FCI) is designed for Markov and structural causal models\nwith latent common causes and selection effects. Unlike a CPDAG, its PAG uses\narrowheads, tails, and circles to represent what is and is not identifiable\nfrom observational data. The task follows the FCI formulation of Spirtes,\nMeek &amp; Richardson, <em>Causation, Prediction, and Search</em> (2000), and the\nsoundness/completeness analysis of Zhang, “Causal reasoning with ancestral\ngraphs,” <em>JMLR</em> 9 (2008),\nhttps://jmlr.org/papers/v9/zhang08a.html.</p>\n<h2>Editable interface</h2>\n<p>Modify only <code>run_fci</code> in <code>causal-learn/bench/custom_algorithm.py</code>. It receives\nan observed NumPy array of shape <code>(n_samples, n_variables)</code> and must return a\n<code>causallearn.graph.GeneralGraph.GeneralGraph</code> over those variables. The graph\nmatrix must use causal-learn's endpoint conventions, including circle and\nbidirected endpoints where appropriate. Do not read files, access hidden\ngraphs, or print metrics.</p>\n<h2>Evaluation</h2>\n<p>The fixed driver loads opaque observational data, calls <code>run_fci</code>, and emits\nthe estimated endpoint matrix. Host-side scoring compares it with a held-out\nPAG using structural Hamming distance (SHD), adjacency precision/recall, and\narrowhead precision/recall. Lower SHD and higher precision/recall are better;\nper-setting normalized scores are aggregated geometrically. One setting is\nheld out from intermediate feedback.</p>\n<h2>Reference baselines</h2>\n<ul>\n<li><strong>FCI/Fisher-Z</strong> — the standard FCI pipeline with the Fisher-Z conditional\n  independence test (Spirtes, Glymour &amp; Scheines, 2000).</li>\n<li><strong>FCI/KCI</strong> — FCI with the kernel conditional-independence test of Zhang,\n  Peters, Janzing &amp; Schölkopf, UAI 2011,\n  https://arxiv.org/abs/1202.3779.</li>\n<li><strong>PC/Fisher-Z</strong> — the observed-variable PC pipeline, included as the\n  no-latent-confounding comparator (Spirtes, Glymour &amp; Scheines, 2000).</li>\n</ul>",
+   "description_md": "# Latent-Confounding Causal Discovery with PAGs\n\n## Research Question\n\nDesign a constraint-based algorithm that recovers a Partial Ancestral Graph\n(PAG) when the observed variables may share latent common causes.\n\n## Background\n\nThe Fast Causal Inference (FCI) algorithm uses conditional-independence tests,\npossible-d-separation, and orientation rules to represent latent and selection\nvariables. The foundational treatment is Spirtes, Glymour & Scheines,\n*Causation, Prediction, and Search*, 2nd ed. (MIT Press, 2000). Order-independent\norientation is studied by Colombo & Maathuis, *Order-independent constraint-based\ncausal structure learning*, JMLR 15 (2014), [paper](https://jmlr.org/papers/v15/colombo14a.html).\nKernel conditional-independence tests follow Zhang, Peters, Janzing & Schölkopf,\nUAI 2011, [paper](https://arxiv.org/abs/1202.3779).\n\n## Editable Interface\n\nModify only `run_causal_discovery` in\n`causal-learn/bench/custom_algorithm.py`. Input `X` is a NumPy array of\nobservations. Return a `GeneralGraph` whose endpoint matrix has one row and\ncolumn per observed variable. Directed, bidirected, and circle endpoints are\nvalid PAG output. Do not read files or print scores.\n\n## Fixed Pipeline\n\nThe driver stages only opaque observations. Latent variables, the true PAG, and\nthe host-side metric are unavailable to the agent. Settings vary topology,\nlatent-confounder density, and sample size; one setting is hidden from\nintermediate feedback. Three independent seeds are used and all runs are CPU-only.\n\n## Evaluation\n\nThe host computes structural Hamming distance, adjacency precision/recall, and\narrowhead precision/recall against the held-out PAG. SHD is minimized; the four\nprecision/recall metrics are maximized. A geometric mean over settings is the\nleaderboard score.\n\n## Baselines\n\n- **FCI (Fisher-Z)** — canonical FCI with a linear-Gaussian CI test (Spirtes,\n  Glymour & Scheines, 2000).\n- **PC (Fisher-Z)** — stabilized PC, a no-latent-confounder comparator (Spirtes\n  et al., 2000).\n- **FCI (KCI)** — FCI using the nonparametric kernel CI test (Zhang et al.,\n  UAI 2011).\n\n## Metric\n\nPer-setting normalized means combine SHD and adjacency/arrowhead precision and\nrecall. The parser decodes predictions and computes all metrics host-side,\nwithout exposing the reference graph.\n",
+   "description_html": "<h1>Latent-Confounding Causal Discovery with PAGs</h1>\n<h2>Research Question</h2>\n<p>Design a constraint-based algorithm that recovers a Partial Ancestral Graph\n(PAG) when the observed variables may share latent common causes.</p>\n<h2>Background</h2>\n<p>The Fast Causal Inference (FCI) algorithm uses conditional-independence tests,\npossible-d-separation, and orientation rules to represent latent and selection\nvariables. The foundational treatment is Spirtes, Glymour &amp; Scheines,\n<em>Causation, Prediction, and Search</em>, 2nd ed. (MIT Press, 2000). Order-independent\norientation is studied by Colombo &amp; Maathuis, <em>Order-independent constraint-based\ncausal structure learning</em>, JMLR 15 (2014), <a href=\"https://jmlr.org/papers/v15/colombo14a.html\">paper</a>.\nKernel conditional-independence tests follow Zhang, Peters, Janzing &amp; Schölkopf,\nUAI 2011, <a href=\"https://arxiv.org/abs/1202.3779\">paper</a>.</p>\n<h2>Editable Interface</h2>\n<p>Modify only <code>run_causal_discovery</code> in\n<code>causal-learn/bench/custom_algorithm.py</code>. Input <code>X</code> is a NumPy array of\nobservations. Return a <code>GeneralGraph</code> whose endpoint matrix has one row and\ncolumn per observed variable. Directed, bidirected, and circle endpoints are\nvalid PAG output. Do not read files or print scores.</p>\n<h2>Fixed Pipeline</h2>\n<p>The driver stages only opaque observations. Latent variables, the true PAG, and\nthe host-side metric are unavailable to the agent. Settings vary topology,\nlatent-confounder density, and sample size; one setting is hidden from\nintermediate feedback. Three independent seeds are used and all runs are CPU-only.</p>\n<h2>Evaluation</h2>\n<p>The host computes structural Hamming distance, adjacency precision/recall, and\narrowhead precision/recall against the held-out PAG. SHD is minimized; the four\nprecision/recall metrics are maximized. A geometric mean over settings is the\nleaderboard score.</p>\n<h2>Baselines</h2>\n<ul>\n<li><strong>FCI (Fisher-Z)</strong> — canonical FCI with a linear-Gaussian CI test (Spirtes,\n  Glymour &amp; Scheines, 2000).</li>\n<li><strong>PC (Fisher-Z)</strong> — stabilized PC, a no-latent-confounder comparator (Spirtes\n  et al., 2000).</li>\n<li><strong>FCI (KCI)</strong> — FCI using the nonparametric kernel CI test (Zhang et al.,\n  UAI 2011).</li>\n</ul>\n<h2>Metric</h2>\n<p>Per-setting normalized means combine SHD and adjacency/arrowhead precision and\nrecall. The parser decodes predictions and computes all metrics host-side,\nwithout exposing the reference graph.</p>",
    "baselines": [
-    "fci_fisherz",
-    "fci_kci",
-    "pc_fisherz"
+    "fci",
+    "pc",
+    "fci_kci"
    ],
    "environments": [
     "S1",
@@ -1943,7 +1943,7 @@
      "edit_ranges": [
       {
        "start": 8,
-       "end": 27
+       "end": 17
       }
      ]
     },
@@ -1953,28 +1953,28 @@
     }
    ],
    "baselines_code": {
-    "fci_fisherz": [
+    "fci": [
      {
       "file": "causal-learn/bench/custom_algorithm.py",
       "start_line": 8,
-      "end_line": 14,
-      "content": "def run_fci(X: np.ndarray) -> GeneralGraph:\n    from causallearn.search.ConstraintBased.FCI import fci\n    from causallearn.utils.cit import fisherz\n    graph, _ = fci(np.asarray(X, dtype=float), independence_test_method=fisherz,\n                   alpha=0.05, depth=-1, max_path_length=-1, verbose=False,\n                   show_progress=False)\n    return graph\n"
+      "end_line": 17,
+      "content": "def run_causal_discovery(X: np.ndarray) -> GeneralGraph:\n    from causallearn.search.ConstraintBased.FCI import fci\n    from causallearn.utils.cit import fisherz\n    cg, _ = fci(np.asarray(X, dtype=float), independence_test_method=fisherz, alpha=0.05, depth=2, verbose=False, show_progress=False)\n    return cg\n"
+     }
+    ],
+    "pc": [
+     {
+      "file": "causal-learn/bench/custom_algorithm.py",
+      "start_line": 8,
+      "end_line": 17,
+      "content": "def run_causal_discovery(X: np.ndarray) -> GeneralGraph:\n    from causallearn.search.ConstraintBased.PC import pc\n    from causallearn.utils.cit import fisherz\n    return pc(np.asarray(X, dtype=float), alpha=0.05, indep_test=fisherz, stable=True, uc_rule=0, uc_priority=2, verbose=False, show_progress=False).G\n"
      }
     ],
     "fci_kci": [
      {
       "file": "causal-learn/bench/custom_algorithm.py",
       "start_line": 8,
-      "end_line": 14,
-      "content": "def run_fci(X: np.ndarray) -> GeneralGraph:\n    from causallearn.search.ConstraintBased.FCI import fci\n    from causallearn.utils.cit import kci\n    graph, _ = fci(np.asarray(X, dtype=float), independence_test_method=kci,\n                   alpha=0.05, depth=-1, max_path_length=-1, verbose=False,\n                   show_progress=False)\n    return graph\n"
-     }
-    ],
-    "pc_fisherz": [
-     {
-      "file": "causal-learn/bench/custom_algorithm.py",
-      "start_line": 8,
-      "end_line": 14,
-      "content": "def run_fci(X: np.ndarray) -> GeneralGraph:\n    from causallearn.search.ConstraintBased.PC import pc\n    from causallearn.utils.cit import fisherz\n    return pc(np.asarray(X, dtype=float), alpha=0.05, indep_test=fisherz,\n              stable=True, uc_rule=0, uc_priority=2, verbose=False,\n              show_progress=False).G\n"
+      "end_line": 17,
+      "content": "def run_causal_discovery(X: np.ndarray) -> GeneralGraph:\n    from causallearn.search.ConstraintBased.FCI import fci\n    from causallearn.utils.cit import kci\n    cg, _ = fci(np.asarray(X, dtype=float), independence_test_method=kci, alpha=0.05, depth=2, verbose=False, show_progress=False)\n    return cg\n"
      }
     ]
    },
@@ -12911,8 +12911,8 @@
    "category": "classical-and-adaptive-learning",
    "category_label": "Classical & Adaptive Learning",
    "category_abbr": "",
-   "description_md": "# Robust regression under distribution shift\n\n## Research question\n\nCan a single, modular regression estimator remain accurate when the training\nresponses have heavy tails, gross errors, or leverage-point corruption? Design\nan influence-control and/or weighting rule that transfers across these regimes,\nrather than tuning a separate model for each one. The editable artifact is the\n`RobustRegressor` class in `scikit-learn/custom_robust.py`; do not change the\ndriver, data, metric, or interface.\n\nThis question is grounded in Huber, “Robust Estimation of a Location\nParameter,” *Annals of Mathematical Statistics* 35(1), 1964,\ndoi:10.1214/aoms/1177703732, and Huber, “Robust Regression,” *Annals of\nStatistics* 1(5), 1973, doi:10.1214/aos/1176342503. The challenge is to improve\non classical bounded-influence estimation while retaining efficiency on clean\nobservations. RANSAC (Fischler and Bolles, CACM 24(6), 1981,\ndoi:10.1145/358669.358692) is included as a consensus reference.\n\n## Interface\n\nImplement `RobustRegressor(seed: int, d: int)`, `reset()`, and\n`fit(data: dict) -> numpy.ndarray`. `data[\"X\"]` is an `(n, d)` floating-point\nmatrix and `data[\"y\"]` is a length-`n` vector. Return a finite vector of shape\n`(d,)`. All estimator randomness must come from `self.rng`; the evaluator may\ncall `fit` repeatedly on fresh samples.\n\nThe supplied driver centers features and includes an intercept column. It gives\nthe estimator only a contaminated training sample and scores predictions on a\nseparate clean holdout. The data source is a baked scikit-learn regression\ndataset. Exact splits, corruption draws, and holdout targets are evaluator\ndetails; infer the intended generalization behavior from the interface and\nmetric rather than relying on constants.\n\n## Evaluation\n\nThe metric is test RMSE (lower is better), aggregated geometrically across\nthree settings. Reference implementations are provided for comparison:\n\n- `ols`: ordinary least squares, a non-robust control.\n- `huber`: Huber M-estimation solved by MAD-scaled IRLS (Huber 1964/1973).\n- `ransac`: random-sample consensus regression (Fischler and Bolles 1981).\n\nKeep changes confined to the editable class. Do not access hidden targets,\nalter the driver, or rely on network access.\n",
-   "description_html": "<h1>Robust regression under distribution shift</h1>\n<h2>Research question</h2>\n<p>Can a single, modular regression estimator remain accurate when the training\nresponses have heavy tails, gross errors, or leverage-point corruption? Design\nan influence-control and/or weighting rule that transfers across these regimes,\nrather than tuning a separate model for each one. The editable artifact is the\n<code>RobustRegressor</code> class in <code>scikit-learn/custom_robust.py</code>; do not change the\ndriver, data, metric, or interface.</p>\n<p>This question is grounded in Huber, “Robust Estimation of a Location\nParameter,” <em>Annals of Mathematical Statistics</em> 35(1), 1964,\ndoi:10.1214/aoms/1177703732, and Huber, “Robust Regression,” <em>Annals of\nStatistics</em> 1(5), 1973, doi:10.1214/aos/1176342503. The challenge is to improve\non classical bounded-influence estimation while retaining efficiency on clean\nobservations. RANSAC (Fischler and Bolles, CACM 24(6), 1981,\ndoi:10.1145/358669.358692) is included as a consensus reference.</p>\n<h2>Interface</h2>\n<p>Implement <code>RobustRegressor(seed: int, d: int)</code>, <code>reset()</code>, and\n<code>fit(data: dict) -&gt; numpy.ndarray</code>. <code>data[\"X\"]</code> is an <code>(n, d)</code> floating-point\nmatrix and <code>data[\"y\"]</code> is a length-<code>n</code> vector. Return a finite vector of shape\n<code>(d,)</code>. All estimator randomness must come from <code>self.rng</code>; the evaluator may\ncall <code>fit</code> repeatedly on fresh samples.</p>\n<p>The supplied driver centers features and includes an intercept column. It gives\nthe estimator only a contaminated training sample and scores predictions on a\nseparate clean holdout. The data source is a baked scikit-learn regression\ndataset. Exact splits, corruption draws, and holdout targets are evaluator\ndetails; infer the intended generalization behavior from the interface and\nmetric rather than relying on constants.</p>\n<h2>Evaluation</h2>\n<p>The metric is test RMSE (lower is better), aggregated geometrically across\nthree settings. Reference implementations are provided for comparison:</p>\n<ul>\n<li><code>ols</code>: ordinary least squares, a non-robust control.</li>\n<li><code>huber</code>: Huber M-estimation solved by MAD-scaled IRLS (Huber 1964/1973).</li>\n<li><code>ransac</code>: random-sample consensus regression (Fischler and Bolles 1981).</li>\n</ul>\n<p>Keep changes confined to the editable class. Do not access hidden targets,\nalter the driver, or rely on network access.</p>",
+   "description_md": "# Robust regression under distribution shift\n\n## Research question\n\nCan a single, modular regression estimator remain accurate when the training\nresponses have heavy tails, gross errors, or leverage-point corruption? Design\nan influence-control and/or weighting rule that transfers across these regimes,\nrather than tuning a separate model for each one. The editable artifact is the\n`RobustRegressor` class in `scikit-learn/custom_robust.py`; do not change the\ndriver, data, metric, or interface.\n\nThis question is grounded in Huber, “Robust Estimation of a Location\nParameter,” *Annals of Mathematical Statistics* 35(1), 1964,\ndoi:10.1214/aoms/1177703732, and Huber, “Robust Regression,” *Annals of\nStatistics* 1(5), 1973, doi:10.1214/aos/1176342503. The challenge is to improve\non classical bounded-influence estimation while retaining efficiency on clean\nobservations. RANSAC (Fischler and Bolles, CACM 24(6), 1981,\ndoi:10.1145/358669.358692) is included as a consensus reference.\n\n## Interface\n\nImplement `RobustRegressor(seed: int, d: int)`, `reset()`, and\n`fit(data: dict) -> numpy.ndarray`. `data[\"X\"]` is an `(n, d)` floating-point\nmatrix and `data[\"y\"]` is a length-`n` vector. Return a finite vector of shape\n`(d,)`. All estimator randomness must come from `self.rng`; the evaluator may\ncall `fit` repeatedly on fresh samples.\n\nThe supplied driver centers features and includes an intercept column. It gives\nthe estimator only a contaminated training sample and scores predictions on a\nseparate clean holdout. The evaluator uses a controlled linear-regression\ngenerator with a verifier-only keyed seed; exact coefficients, draws, and\nholdout targets are evaluator details. Infer the intended generalization\nbehavior from the interface and metric rather than relying on constants.\n\n## Evaluation\n\nThe metric is test RMSE (lower is better), aggregated geometrically across\nthree settings. Reference implementations are provided for comparison:\n\n- `ols`: ordinary least squares, a non-robust control.\n- `huber`: Huber M-estimation solved by MAD-scaled IRLS (Huber 1964/1973).\n- `ransac`: random-sample consensus regression (Fischler and Bolles 1981).\n\nKeep changes confined to the editable class. Do not access hidden targets,\nalter the driver, or rely on network access.\n",
+   "description_html": "<h1>Robust regression under distribution shift</h1>\n<h2>Research question</h2>\n<p>Can a single, modular regression estimator remain accurate when the training\nresponses have heavy tails, gross errors, or leverage-point corruption? Design\nan influence-control and/or weighting rule that transfers across these regimes,\nrather than tuning a separate model for each one. The editable artifact is the\n<code>RobustRegressor</code> class in <code>scikit-learn/custom_robust.py</code>; do not change the\ndriver, data, metric, or interface.</p>\n<p>This question is grounded in Huber, “Robust Estimation of a Location\nParameter,” <em>Annals of Mathematical Statistics</em> 35(1), 1964,\ndoi:10.1214/aoms/1177703732, and Huber, “Robust Regression,” <em>Annals of\nStatistics</em> 1(5), 1973, doi:10.1214/aos/1176342503. The challenge is to improve\non classical bounded-influence estimation while retaining efficiency on clean\nobservations. RANSAC (Fischler and Bolles, CACM 24(6), 1981,\ndoi:10.1145/358669.358692) is included as a consensus reference.</p>\n<h2>Interface</h2>\n<p>Implement <code>RobustRegressor(seed: int, d: int)</code>, <code>reset()</code>, and\n<code>fit(data: dict) -&gt; numpy.ndarray</code>. <code>data[\"X\"]</code> is an <code>(n, d)</code> floating-point\nmatrix and <code>data[\"y\"]</code> is a length-<code>n</code> vector. Return a finite vector of shape\n<code>(d,)</code>. All estimator randomness must come from <code>self.rng</code>; the evaluator may\ncall <code>fit</code> repeatedly on fresh samples.</p>\n<p>The supplied driver centers features and includes an intercept column. It gives\nthe estimator only a contaminated training sample and scores predictions on a\nseparate clean holdout. The evaluator uses a controlled linear-regression\ngenerator with a verifier-only keyed seed; exact coefficients, draws, and\nholdout targets are evaluator details. Infer the intended generalization\nbehavior from the interface and metric rather than relying on constants.</p>\n<h2>Evaluation</h2>\n<p>The metric is test RMSE (lower is better), aggregated geometrically across\nthree settings. Reference implementations are provided for comparison:</p>\n<ul>\n<li><code>ols</code>: ordinary least squares, a non-robust control.</li>\n<li><code>huber</code>: Huber M-estimation solved by MAD-scaled IRLS (Huber 1964/1973).</li>\n<li><code>ransac</code>: random-sample consensus regression (Fischler and Bolles 1981).</li>\n</ul>\n<p>Keep changes confined to the editable class. Do not access hidden targets,\nalter the driver, or rely on network access.</p>",
    "baselines": [
     "ols",
     "huber",
@@ -13274,8 +13274,8 @@
    "category": "ml-systems-and-efficient-ml",
    "category_label": "ML Systems & Efficient ML",
    "category_abbr": "",
-   "description_md": "# Adaptive bitrate selection for video streaming\n\n## Research question\n\nA client streaming video over HTTP (DASH) downloads the video one chunk at a\ntime. Every chunk is available at several bitrate levels, and after each chunk\nfinishes the client must choose the bitrate of the *next* chunk. It wants the\nhighest sustainable quality, but the network throughput varies and is unknown in\nadvance: request too high a bitrate and the playback buffer drains and the video\nstalls (rebuffers); request too low and quality is wasted; switch too often and\nthe picture is visibly unstable. **From only what it can observe — how full the\nbuffer is, how fast recent chunks arrived, and the known byte sizes of every\nchunk at every level — how should the client pick each chunk's bitrate to\nmaximise quality of experience across changing network conditions?**\n\nThis is the adaptive-bitrate (ABR) problem that Pensieve (Mao, Netravali &\nAlizadeh, \"Neural Adaptive Video Streaming with Pensieve\", SIGCOMM 2017) studies\nand that a line of control-theoretic and buffer-based controllers address. Your\ncontribution is the bitrate-selection rule.\n\n## What you can modify\n\nOnly the `AbrPolicy` class in `pensieve/abr/policy.py` (the marked editable\nregion). Implement:\n\n```\nselect(self, state) -> int      # bitrate LEVEL (index into state.video_bit_rate) for the next chunk\nreset(self)                      # clear any per-video state; called at the start of each video\n```\n\n`state` (a read-only `State`, fully documented in `pensieve/abr/views.py`) gives\nyou, at the moment before the next chunk is fetched: the bitrate ladder\n(`video_bit_rate`, kbps), the current `buffer_size` (seconds), the `last_bit_rate`\nlevel and `last_rebuffer`, the throughput of every chunk downloaded so far\n(`throughput_history`, MB/s) and its download time, the index of the next chunk,\nhow many chunks remain, and the full static manifest of chunk byte sizes\n(`chunk_sizes[level][index]`). You never see future throughput. Keep `select`\nreasonably cheap: its per-call wall time is measured and a policy that averages\nan impractically long time per chunk (order of 100 ms) is rejected as unusable\nfor a real player -- ordinary control logic, including a short brute-force\nlookahead, is well within budget. Use only the `State` fields; do not read the\nnetwork trace, the simulator, or any file.\n\n## Fixed setup\n\nA deterministic, trace-driven playback simulator — a faithful port of Pensieve's\n`sim/` environment (48 chunks, a 6-level bitrate ladder, a 60-second buffer cap,\nan 80 ms link RTT) — replays real network throughput traces and applies your\nbitrate choices: downloading a chunk drains the buffer by its download time,\nplayback drains it in real time, and the buffer emptying causes a rebuffer. The\nsimulator, the QoE definition, and the trace pools are all fixed. Each evaluation\ndraws a fresh random subset of the setting's traces and averages several such\ndraws; the QoE is recomputed off the recorded bitrate sequence in a separate\nprocess after your policy has run.\n\n## Evaluation\n\nYour policy is run on three network regimes, each a pool of real throughput\ntraces:\n\n- `fcc` — FCC broadband (fixed-line) access.\n- `norway_road` — Norway HSDPA 3G cellular, road mobility (bus / car / tram).\n- `norway_transit` — Norway HSDPA 3G cellular, rail/water transit (held out).\n\n## Metric\n\nPer chunk, quality of experience is\n\n```\nQoE = bitrate(Mbps)  -  4.3 * rebuffer_seconds  -  | bitrate(Mbps) - previous_bitrate(Mbps) |\n```\n\n(the \"linear\" QoE of Yin et al., SIGCOMM 2015). A video's QoE is the sum over its\nchunks; a run's score is the mean over the drawn videos. Higher is better. The\ntask metric is the geometric mean of mean-QoE across the three regimes.\n\n## Reference baselines\n\n- `bba` — buffer-based selection (Huang et al., \"A Buffer-Based Approach to Rate\n  Adaptation\", SIGCOMM 2014): bitrate is a function of buffer occupancy alone\n  (Pensieve's `test/bb.py`). This is the starter policy.\n- `fastmpc` — model-predictive control that maximises predicted QoE over a\n  short lookahead using the harmonic mean of recent throughput as the bandwidth\n  estimate (Yin et al., SIGCOMM 2015).\n- `robustmpc` — the same lookahead with the bandwidth estimate discounted by\n  recent prediction error (Yin et al., SIGCOMM 2015; Pensieve's `test/mpc.py`).\n- `null_low` — a null that always requests the lowest bitrate.\n\nAn offline dynamic-programming controller that plans with full knowledge of the\nfuture throughput (Pensieve's `test/dp.py`) gives an approximate upper bound on\nachievable QoE for a trace; it is a ceiling reference, not an online policy and\nnot a baseline you are compared against.\n",
-   "description_html": "<h1>Adaptive bitrate selection for video streaming</h1>\n<h2>Research question</h2>\n<p>A client streaming video over HTTP (DASH) downloads the video one chunk at a\ntime. Every chunk is available at several bitrate levels, and after each chunk\nfinishes the client must choose the bitrate of the <em>next</em> chunk. It wants the\nhighest sustainable quality, but the network throughput varies and is unknown in\nadvance: request too high a bitrate and the playback buffer drains and the video\nstalls (rebuffers); request too low and quality is wasted; switch too often and\nthe picture is visibly unstable. <strong>From only what it can observe — how full the\nbuffer is, how fast recent chunks arrived, and the known byte sizes of every\nchunk at every level — how should the client pick each chunk's bitrate to\nmaximise quality of experience across changing network conditions?</strong></p>\n<p>This is the adaptive-bitrate (ABR) problem that Pensieve (Mao, Netravali &amp;\nAlizadeh, \"Neural Adaptive Video Streaming with Pensieve\", SIGCOMM 2017) studies\nand that a line of control-theoretic and buffer-based controllers address. Your\ncontribution is the bitrate-selection rule.</p>\n<h2>What you can modify</h2>\n<p>Only the <code>AbrPolicy</code> class in <code>pensieve/abr/policy.py</code> (the marked editable\nregion). Implement:</p>\n<pre class=\"codehilite\"><code>select(self, state) -&gt; int      # bitrate LEVEL (index into state.video_bit_rate) for the next chunk\nreset(self)                      # clear any per-video state; called at the start of each video\n</code></pre>\n\n<p><code>state</code> (a read-only <code>State</code>, fully documented in <code>pensieve/abr/views.py</code>) gives\nyou, at the moment before the next chunk is fetched: the bitrate ladder\n(<code>video_bit_rate</code>, kbps), the current <code>buffer_size</code> (seconds), the <code>last_bit_rate</code>\nlevel and <code>last_rebuffer</code>, the throughput of every chunk downloaded so far\n(<code>throughput_history</code>, MB/s) and its download time, the index of the next chunk,\nhow many chunks remain, and the full static manifest of chunk byte sizes\n(<code>chunk_sizes[level][index]</code>). You never see future throughput. Keep <code>select</code>\nreasonably cheap: its per-call wall time is measured and a policy that averages\nan impractically long time per chunk (order of 100 ms) is rejected as unusable\nfor a real player -- ordinary control logic, including a short brute-force\nlookahead, is well within budget. Use only the <code>State</code> fields; do not read the\nnetwork trace, the simulator, or any file.</p>\n<h2>Fixed setup</h2>\n<p>A deterministic, trace-driven playback simulator — a faithful port of Pensieve's\n<code>sim/</code> environment (48 chunks, a 6-level bitrate ladder, a 60-second buffer cap,\nan 80 ms link RTT) — replays real network throughput traces and applies your\nbitrate choices: downloading a chunk drains the buffer by its download time,\nplayback drains it in real time, and the buffer emptying causes a rebuffer. The\nsimulator, the QoE definition, and the trace pools are all fixed. Each evaluation\ndraws a fresh random subset of the setting's traces and averages several such\ndraws; the QoE is recomputed off the recorded bitrate sequence in a separate\nprocess after your policy has run.</p>\n<h2>Evaluation</h2>\n<p>Your policy is run on three network regimes, each a pool of real throughput\ntraces:</p>\n<ul>\n<li><code>fcc</code> — FCC broadband (fixed-line) access.</li>\n<li><code>norway_road</code> — Norway HSDPA 3G cellular, road mobility (bus / car / tram).</li>\n<li><code>norway_transit</code> — Norway HSDPA 3G cellular, rail/water transit (held out).</li>\n</ul>\n<h2>Metric</h2>\n<p>Per chunk, quality of experience is</p>\n<pre class=\"codehilite\"><code>QoE = bitrate(Mbps)  -  4.3 * rebuffer_seconds  -  | bitrate(Mbps) - previous_bitrate(Mbps) |\n</code></pre>\n\n<p>(the \"linear\" QoE of Yin et al., SIGCOMM 2015). A video's QoE is the sum over its\nchunks; a run's score is the mean over the drawn videos. Higher is better. The\ntask metric is the geometric mean of mean-QoE across the three regimes.</p>\n<h2>Reference baselines</h2>\n<ul>\n<li><code>bba</code> — buffer-based selection (Huang et al., \"A Buffer-Based Approach to Rate\n  Adaptation\", SIGCOMM 2014): bitrate is a function of buffer occupancy alone\n  (Pensieve's <code>test/bb.py</code>). This is the starter policy.</li>\n<li><code>fastmpc</code> — model-predictive control that maximises predicted QoE over a\n  short lookahead using the harmonic mean of recent throughput as the bandwidth\n  estimate (Yin et al., SIGCOMM 2015).</li>\n<li><code>robustmpc</code> — the same lookahead with the bandwidth estimate discounted by\n  recent prediction error (Yin et al., SIGCOMM 2015; Pensieve's <code>test/mpc.py</code>).</li>\n<li><code>null_low</code> — a null that always requests the lowest bitrate.</li>\n</ul>\n<p>An offline dynamic-programming controller that plans with full knowledge of the\nfuture throughput (Pensieve's <code>test/dp.py</code>) gives an approximate upper bound on\nachievable QoE for a trace; it is a ceiling reference, not an online policy and\nnot a baseline you are compared against.</p>",
+   "description_md": "# Adaptive bitrate selection for video streaming\n\n## Research question\n\nA client streaming video over HTTP (DASH) downloads the video one chunk at a\ntime. Every chunk is available at several bitrate levels, and after each chunk\nfinishes the client must choose the bitrate of the *next* chunk. It wants the\nhighest sustainable quality, but the network throughput varies and is unknown in\nadvance: request too high a bitrate and the playback buffer drains and the video\nstalls (rebuffers); request too low and quality is wasted; switch too often and\nthe picture is visibly unstable. **From only what it can observe — how full the\nbuffer is, how fast recent chunks arrived, and the known byte sizes of every\nchunk at every level — how should the client pick each chunk's bitrate to\nmaximise quality of experience across changing network conditions?**\n\nThis is the adaptive-bitrate (ABR) problem that Pensieve (Mao, Netravali &\nAlizadeh, \"Neural Adaptive Video Streaming with Pensieve\", SIGCOMM 2017) studies\nand that a line of control-theoretic and buffer-based controllers address. Your\ncontribution is the bitrate-selection rule.\n\n## What you can modify\n\nOnly the `AbrPolicy` class in `pensieve/abr/policy.py` (the marked editable\nregion). Implement:\n\n```\nselect(self, state) -> int      # bitrate LEVEL (index into state.video_bit_rate) for the next chunk\nreset(self)                      # clear any per-video state; called at the start of each video\n```\n\n`state` (a read-only `State`, fully documented in `pensieve/abr/views.py`) gives\nyou, at the moment before the next chunk is fetched: the bitrate ladder\n(`video_bit_rate`, kbps), the current `buffer_size` (seconds), the `last_bit_rate`\nlevel and `last_rebuffer`, the throughput of every chunk downloaded so far\n(`throughput_history`, MB/s) and its download time, the index of the next chunk,\nhow many chunks remain, and the full static manifest of chunk byte sizes\n(`chunk_sizes[level][index]`). You never see future throughput. Keep `select`\nreasonably cheap: its per-call wall time is measured and a policy that averages\nan impractically long time per chunk (order of 100 ms) is rejected as unusable\nfor a real player -- ordinary control logic, including a short brute-force\nlookahead, is well within budget. Use only the `State` fields; do not read the\nnetwork trace, the simulator, or any file.\n\n## Fixed setup\n\nA deterministic, trace-driven playback simulator — a faithful port of Pensieve's\n`sim/` environment (48 chunks, a 6-level bitrate ladder, a 60-second buffer cap,\nan 80 ms link RTT) — replays real network throughput traces and applies your\nbitrate choices: downloading a chunk drains the buffer by its download time,\nplayback drains it in real time, and the buffer emptying causes a rebuffer. The\nsimulator, the QoE definition, and the trace pools are all fixed. Each evaluation\ndraws a fresh random subset of the setting's traces and averages several such\ndraws; the QoE is recomputed off the recorded bitrate sequence in a separate\nprocess after your policy has run.\n\n## Evaluation\n\nYour policy is run on several network regimes, each a pool of real measured\nthroughput traces spanning fixed-line broadband and cellular links under\nmobility, and at least one regime is held out from the settings you can run.\nThe regimes differ in mean bandwidth and, more importantly, in how variable it\nis, so a policy tuned to one trace pool will not transfer — what is measured is\nwhether the rule generalises across link behaviour.\n\n## Metric\n\nPer chunk, quality of experience is\n\n```\nQoE = bitrate(Mbps)  -  4.3 * rebuffer_seconds  -  | bitrate(Mbps) - previous_bitrate(Mbps) |\n```\n\n(the \"linear\" QoE of Yin et al., SIGCOMM 2015). A video's QoE is the sum over its\nchunks; a run's score is the mean over the drawn videos. Higher is better. The\ntask metric is the geometric mean of mean-QoE across the three regimes.\n\n## Reference baselines\n\n- `bba` — buffer-based selection (Huang et al., \"A Buffer-Based Approach to Rate\n  Adaptation\", SIGCOMM 2014): bitrate is a function of buffer occupancy alone\n  (Pensieve's `test/bb.py`). This is the starter policy.\n- `fastmpc` — model-predictive control that maximises predicted QoE over a\n  short lookahead using the harmonic mean of recent throughput as the bandwidth\n  estimate (Yin et al., SIGCOMM 2015).\n- `robustmpc` — the same lookahead with the bandwidth estimate discounted by\n  recent prediction error (Yin et al., SIGCOMM 2015; Pensieve's `test/mpc.py`).\n- `null_low` — a null that always requests the lowest bitrate.\n\nAn offline dynamic-programming controller that plans with full knowledge of the\nfuture throughput (Pensieve's `test/dp.py`) gives an approximate upper bound on\nachievable QoE for a trace; it is a ceiling reference, not an online policy and\nnot a baseline you are compared against.\n",
+   "description_html": "<h1>Adaptive bitrate selection for video streaming</h1>\n<h2>Research question</h2>\n<p>A client streaming video over HTTP (DASH) downloads the video one chunk at a\ntime. Every chunk is available at several bitrate levels, and after each chunk\nfinishes the client must choose the bitrate of the <em>next</em> chunk. It wants the\nhighest sustainable quality, but the network throughput varies and is unknown in\nadvance: request too high a bitrate and the playback buffer drains and the video\nstalls (rebuffers); request too low and quality is wasted; switch too often and\nthe picture is visibly unstable. <strong>From only what it can observe — how full the\nbuffer is, how fast recent chunks arrived, and the known byte sizes of every\nchunk at every level — how should the client pick each chunk's bitrate to\nmaximise quality of experience across changing network conditions?</strong></p>\n<p>This is the adaptive-bitrate (ABR) problem that Pensieve (Mao, Netravali &amp;\nAlizadeh, \"Neural Adaptive Video Streaming with Pensieve\", SIGCOMM 2017) studies\nand that a line of control-theoretic and buffer-based controllers address. Your\ncontribution is the bitrate-selection rule.</p>\n<h2>What you can modify</h2>\n<p>Only the <code>AbrPolicy</code> class in <code>pensieve/abr/policy.py</code> (the marked editable\nregion). Implement:</p>\n<pre class=\"codehilite\"><code>select(self, state) -&gt; int      # bitrate LEVEL (index into state.video_bit_rate) for the next chunk\nreset(self)                      # clear any per-video state; called at the start of each video\n</code></pre>\n\n<p><code>state</code> (a read-only <code>State</code>, fully documented in <code>pensieve/abr/views.py</code>) gives\nyou, at the moment before the next chunk is fetched: the bitrate ladder\n(<code>video_bit_rate</code>, kbps), the current <code>buffer_size</code> (seconds), the <code>last_bit_rate</code>\nlevel and <code>last_rebuffer</code>, the throughput of every chunk downloaded so far\n(<code>throughput_history</code>, MB/s) and its download time, the index of the next chunk,\nhow many chunks remain, and the full static manifest of chunk byte sizes\n(<code>chunk_sizes[level][index]</code>). You never see future throughput. Keep <code>select</code>\nreasonably cheap: its per-call wall time is measured and a policy that averages\nan impractically long time per chunk (order of 100 ms) is rejected as unusable\nfor a real player -- ordinary control logic, including a short brute-force\nlookahead, is well within budget. Use only the <code>State</code> fields; do not read the\nnetwork trace, the simulator, or any file.</p>\n<h2>Fixed setup</h2>\n<p>A deterministic, trace-driven playback simulator — a faithful port of Pensieve's\n<code>sim/</code> environment (48 chunks, a 6-level bitrate ladder, a 60-second buffer cap,\nan 80 ms link RTT) — replays real network throughput traces and applies your\nbitrate choices: downloading a chunk drains the buffer by its download time,\nplayback drains it in real time, and the buffer emptying causes a rebuffer. The\nsimulator, the QoE definition, and the trace pools are all fixed. Each evaluation\ndraws a fresh random subset of the setting's traces and averages several such\ndraws; the QoE is recomputed off the recorded bitrate sequence in a separate\nprocess after your policy has run.</p>\n<h2>Evaluation</h2>\n<p>Your policy is run on several network regimes, each a pool of real measured\nthroughput traces spanning fixed-line broadband and cellular links under\nmobility, and at least one regime is held out from the settings you can run.\nThe regimes differ in mean bandwidth and, more importantly, in how variable it\nis, so a policy tuned to one trace pool will not transfer — what is measured is\nwhether the rule generalises across link behaviour.</p>\n<h2>Metric</h2>\n<p>Per chunk, quality of experience is</p>\n<pre class=\"codehilite\"><code>QoE = bitrate(Mbps)  -  4.3 * rebuffer_seconds  -  | bitrate(Mbps) - previous_bitrate(Mbps) |\n</code></pre>\n\n<p>(the \"linear\" QoE of Yin et al., SIGCOMM 2015). A video's QoE is the sum over its\nchunks; a run's score is the mean over the drawn videos. Higher is better. The\ntask metric is the geometric mean of mean-QoE across the three regimes.</p>\n<h2>Reference baselines</h2>\n<ul>\n<li><code>bba</code> — buffer-based selection (Huang et al., \"A Buffer-Based Approach to Rate\n  Adaptation\", SIGCOMM 2014): bitrate is a function of buffer occupancy alone\n  (Pensieve's <code>test/bb.py</code>). This is the starter policy.</li>\n<li><code>fastmpc</code> — model-predictive control that maximises predicted QoE over a\n  short lookahead using the harmonic mean of recent throughput as the bandwidth\n  estimate (Yin et al., SIGCOMM 2015).</li>\n<li><code>robustmpc</code> — the same lookahead with the bandwidth estimate discounted by\n  recent prediction error (Yin et al., SIGCOMM 2015; Pensieve's <code>test/mpc.py</code>).</li>\n<li><code>null_low</code> — a null that always requests the lowest bitrate.</li>\n</ul>\n<p>An offline dynamic-programming controller that plans with full knowledge of the\nfuture throughput (Pensieve's <code>test/dp.py</code>) gives an approximate upper bound on\nachievable QoE for a trace; it is a ceiling reference, not an online policy and\nnot a baseline you are compared against.</p>",
    "baselines": [
     "bba",
     "null_low",
@@ -13407,9 +13407,10 @@
    "category": "ml-systems-and-efficient-ml",
    "category_label": "ML Systems & Efficient ML",
    "category_abbr": "",
-   "description_md": "# Heterogeneity-aware allocation for a DL training cluster\n\n## Research question\n\nA shared cluster trains many deep-learning jobs on a mix of GPU generations\n(here v100, p100, k80). The same job runs at very different speeds on different\nGPU types, and the speed-up is job-dependent: an image model may gain far more\nfrom a v100 over a k80 than a language model does. A cluster scheduler must\ndecide, continuously, **what fraction of time each job should spend on each GPU\ntype** so that jobs finish quickly on average.\n\nGavel (Narayanan et al., \"Heterogeneity-Aware Cluster Scheduling Policies for\nDeep Learning Workloads\", OSDI 2020, arXiv:2008.09213) formalises this as a\npolicy that takes a per-job x per-GPU-type **throughput matrix** and returns a\nfractional time-share **allocation** matrix, computed by solving an optimization\nproblem, which a round-based mechanism then realises on the physical GPUs. The\nresearch question, as the paper poses it: **which allocation objective, computed\nover the heterogeneity throughput matrix, minimises average job completion\ntime (JCT)?**\n\nYour contribution is the allocation policy itself: `CustomPolicy.get_allocation`\nin `scheduler/policies/custom_allocation.py`.\n\n## Environment\n\nGavel's deterministic, trace-driven cluster simulator\n(`scheduler/scheduler.py`, `simulate=True`). Jobs are drawn from the paper's\njob table (image classification, language modelling, translation, recommendation\nand others) with Poisson arrivals; per-job per-GPU-type throughputs come from\nthe paper's measured oracle table (`simulation_throughputs.json`). The simulator\nis deterministic given the workload draw, and each evaluation averages several\nindependent draws (fresh entropy per run), so a policy has to generalise across\nworkloads rather than fit one trace. All optimization problems are solved with\nthe free ECOS solver; no GPUs are used.\n\n## What you can modify\n\nOnly `CustomPolicy` in `scheduler/policies/custom_allocation.py`. Each scheduling\nround the simulator calls\n\n```\nget_allocation(unflattened_throughputs, scale_factors,\n               unflattened_priority_weights, times_since_start,\n               num_steps_remaining, cluster_spec) -> {job_id: {worker_type: fraction}}\n```\n\n* `unflattened_throughputs[job_id][worker_type]` — steps/second of each active\n  job on each GPU type (the heterogeneity matrix); `self.flatten(...)` /\n  `self.unflatten(...)` convert between the dict form and a\n  (num_jobs x num_worker_types) array.\n* `scale_factors[job_id]` — GPUs the job requests (1 here).\n* `unflattened_priority_weights[job_id]` — per-job priority (1.0 here).\n* `times_since_start[job_id]`, `num_steps_remaining[job_id]` — the job's\n  accumulated wall time and remaining steps.\n* `cluster_spec[worker_type]` — count of each GPU type.\n\n`self.get_base_constraints(x, scale_factors_array)` returns the feasibility\nconstraints (non-negativity, no GPU type over-subscribed, each job's fractions\nsum to at most 1); an allocation that violates them is not schedulable. Solve any\nconvex objective over the allocation variable with cvxpy + ECOS and return the\nallocation via `self.unflatten(...)`. Keep the class named `CustomPolicy`, keep\n`self._name` starting with `'Custom'`, and keep the `get_allocation` signature.\nThe per-round solve must be cheap enough to run every round.\n\nThe starter is Gavel's own Least-Attained-Service (LAS) objective in\nheterogeneity-aware mode: it maximises the minimum, over jobs, of the normalised\neffective throughput each job is allocated. It is a real, strong policy.\n\n## Fixed pipeline\n\nThe cluster composition, workload distribution, arrival process, round-based\nscheduling mechanism, throughput oracle and evaluation protocol are fixed by the\nharness. The allocation policy is the only thing you change. Average JCT is\ncomputed by a host-side scorer from the simulator's per-job completion times\nafter the simulator process exits.\n\n## Reference baselines\n\n`max_min_fairness_perf` — the starter: Gavel's heterogeneity-aware LAS\nallocation (`scheduler/policies/max_min_fairness.py`).\n\n`allox` — AlloX (Le et al., \"AlloX: Compute Allocation in Hybrid Clusters\",\nEuroSys 2020): each round solves a min-cost bipartite assignment (Hungarian\nmethod) of jobs to interchangeable GPU slots to minimise average JCT directly\n(`scheduler/policies/allox.py`).\n\n`gandiva` — Gandiva (Xiao et al., \"Gandiva: Introspective Cluster Scheduling for\nDeep Learning\", OSDI 2018): keeps each job on the GPU type where it runs best and\ntime-slices/packs under contention (`scheduler/policies/gandiva.py`).\n\n`max_min_fairness` — the heterogeneity-blind LAS null: the same max-min-fairness\nallocation computed as if every GPU type were identical (all throughputs set to\n1). It is the paper's own heterogeneity ablation\n(`scheduler/policies/max_min_fairness.py`, `MaxMinFairnessPolicy`).\n\n## Metric\n\nAverage job completion time (JCT) over the measurement window, in simulated\nseconds, **lower is better**, aggregated across the evaluation settings.\n",
-   "description_html": "<h1>Heterogeneity-aware allocation for a DL training cluster</h1>\n<h2>Research question</h2>\n<p>A shared cluster trains many deep-learning jobs on a mix of GPU generations\n(here v100, p100, k80). The same job runs at very different speeds on different\nGPU types, and the speed-up is job-dependent: an image model may gain far more\nfrom a v100 over a k80 than a language model does. A cluster scheduler must\ndecide, continuously, <strong>what fraction of time each job should spend on each GPU\ntype</strong> so that jobs finish quickly on average.</p>\n<p>Gavel (Narayanan et al., \"Heterogeneity-Aware Cluster Scheduling Policies for\nDeep Learning Workloads\", OSDI 2020, arXiv:2008.09213) formalises this as a\npolicy that takes a per-job x per-GPU-type <strong>throughput matrix</strong> and returns a\nfractional time-share <strong>allocation</strong> matrix, computed by solving an optimization\nproblem, which a round-based mechanism then realises on the physical GPUs. The\nresearch question, as the paper poses it: <strong>which allocation objective, computed\nover the heterogeneity throughput matrix, minimises average job completion\ntime (JCT)?</strong></p>\n<p>Your contribution is the allocation policy itself: <code>CustomPolicy.get_allocation</code>\nin <code>scheduler/policies/custom_allocation.py</code>.</p>\n<h2>Environment</h2>\n<p>Gavel's deterministic, trace-driven cluster simulator\n(<code>scheduler/scheduler.py</code>, <code>simulate=True</code>). Jobs are drawn from the paper's\njob table (image classification, language modelling, translation, recommendation\nand others) with Poisson arrivals; per-job per-GPU-type throughputs come from\nthe paper's measured oracle table (<code>simulation_throughputs.json</code>). The simulator\nis deterministic given the workload draw, and each evaluation averages several\nindependent draws (fresh entropy per run), so a policy has to generalise across\nworkloads rather than fit one trace. All optimization problems are solved with\nthe free ECOS solver; no GPUs are used.</p>\n<h2>What you can modify</h2>\n<p>Only <code>CustomPolicy</code> in <code>scheduler/policies/custom_allocation.py</code>. Each scheduling\nround the simulator calls</p>\n<pre class=\"codehilite\"><code>get_allocation(unflattened_throughputs, scale_factors,\n               unflattened_priority_weights, times_since_start,\n               num_steps_remaining, cluster_spec) -&gt; {job_id: {worker_type: fraction}}\n</code></pre>\n\n<ul>\n<li><code>unflattened_throughputs[job_id][worker_type]</code> — steps/second of each active\n  job on each GPU type (the heterogeneity matrix); <code>self.flatten(...)</code> /\n  <code>self.unflatten(...)</code> convert between the dict form and a\n  (num_jobs x num_worker_types) array.</li>\n<li><code>scale_factors[job_id]</code> — GPUs the job requests (1 here).</li>\n<li><code>unflattened_priority_weights[job_id]</code> — per-job priority (1.0 here).</li>\n<li><code>times_since_start[job_id]</code>, <code>num_steps_remaining[job_id]</code> — the job's\n  accumulated wall time and remaining steps.</li>\n<li><code>cluster_spec[worker_type]</code> — count of each GPU type.</li>\n</ul>\n<p><code>self.get_base_constraints(x, scale_factors_array)</code> returns the feasibility\nconstraints (non-negativity, no GPU type over-subscribed, each job's fractions\nsum to at most 1); an allocation that violates them is not schedulable. Solve any\nconvex objective over the allocation variable with cvxpy + ECOS and return the\nallocation via <code>self.unflatten(...)</code>. Keep the class named <code>CustomPolicy</code>, keep\n<code>self._name</code> starting with <code>'Custom'</code>, and keep the <code>get_allocation</code> signature.\nThe per-round solve must be cheap enough to run every round.</p>\n<p>The starter is Gavel's own Least-Attained-Service (LAS) objective in\nheterogeneity-aware mode: it maximises the minimum, over jobs, of the normalised\neffective throughput each job is allocated. It is a real, strong policy.</p>\n<h2>Fixed pipeline</h2>\n<p>The cluster composition, workload distribution, arrival process, round-based\nscheduling mechanism, throughput oracle and evaluation protocol are fixed by the\nharness. The allocation policy is the only thing you change. Average JCT is\ncomputed by a host-side scorer from the simulator's per-job completion times\nafter the simulator process exits.</p>\n<h2>Reference baselines</h2>\n<p><code>max_min_fairness_perf</code> — the starter: Gavel's heterogeneity-aware LAS\nallocation (<code>scheduler/policies/max_min_fairness.py</code>).</p>\n<p><code>allox</code> — AlloX (Le et al., \"AlloX: Compute Allocation in Hybrid Clusters\",\nEuroSys 2020): each round solves a min-cost bipartite assignment (Hungarian\nmethod) of jobs to interchangeable GPU slots to minimise average JCT directly\n(<code>scheduler/policies/allox.py</code>).</p>\n<p><code>gandiva</code> — Gandiva (Xiao et al., \"Gandiva: Introspective Cluster Scheduling for\nDeep Learning\", OSDI 2018): keeps each job on the GPU type where it runs best and\ntime-slices/packs under contention (<code>scheduler/policies/gandiva.py</code>).</p>\n<p><code>max_min_fairness</code> — the heterogeneity-blind LAS null: the same max-min-fairness\nallocation computed as if every GPU type were identical (all throughputs set to\n1). It is the paper's own heterogeneity ablation\n(<code>scheduler/policies/max_min_fairness.py</code>, <code>MaxMinFairnessPolicy</code>).</p>\n<h2>Metric</h2>\n<p>Average job completion time (JCT) over the measurement window, in simulated\nseconds, <strong>lower is better</strong>, aggregated across the evaluation settings.</p>",
+   "description_md": "# Heterogeneity-aware allocation for a DL training cluster\n\n## Research question\n\nA shared cluster trains many deep-learning jobs on a mix of GPU generations\n(here v100, p100, k80). The same job runs at very different speeds on different\nGPU types, and the speed-up is job-dependent: an image model may gain far more\nfrom a v100 over a k80 than a language model does. A cluster scheduler must\ndecide, continuously, **what fraction of time each job should spend on each GPU\ntype** so that jobs finish quickly on average.\n\nGavel (Narayanan et al., \"Heterogeneity-Aware Cluster Scheduling Policies for\nDeep Learning Workloads\", OSDI 2020, arXiv:2008.09213) formalises this as a\npolicy that takes a per-job x per-GPU-type **throughput matrix** and returns a\nfractional time-share **allocation** matrix, computed by solving an optimization\nproblem, which a round-based mechanism then realises on the physical GPUs. The\nresearch question, as the paper poses it: **which allocation objective, computed\nover the heterogeneity throughput matrix, minimises average job completion\ntime (JCT)?**\n\nYour contribution is the allocation policy itself: `CustomPolicy.get_allocation`\nin `scheduler/policies/custom_allocation.py`.\n\n## Environment\n\nGavel's deterministic, trace-driven cluster simulator\n(`scheduler/scheduler.py`, `simulate=True`). Jobs are drawn from the paper's\njob table (image classification, language modelling, translation, recommendation\nand others) with Poisson arrivals; per-job per-GPU-type throughputs come from\nthe paper's measured oracle table (`simulation_throughputs.json`). The simulator\nis deterministic given the workload draw, and each evaluation averages several\nindependent draws (fresh entropy per run), so a policy has to generalise across\nworkloads rather than fit one trace. All optimization problems are solved with\nthe free ECOS solver; no GPUs are used.\n\n## What you can modify\n\nOnly `CustomPolicy` in `scheduler/policies/custom_allocation.py`. Each scheduling\nround the simulator calls\n\n```\nget_allocation(unflattened_throughputs, scale_factors,\n               unflattened_priority_weights, times_since_start,\n               num_steps_remaining, cluster_spec) -> {job_id: {worker_type: fraction}}\n```\n\n* `unflattened_throughputs[job_id][worker_type]` — steps/second of each active\n  job on each GPU type (the heterogeneity matrix); `self.flatten(...)` /\n  `self.unflatten(...)` convert between the dict form and a\n  (num_jobs x num_worker_types) array.\n* `scale_factors[job_id]` — GPUs the job requests (1 here).\n* `unflattened_priority_weights[job_id]` — per-job priority (1.0 here).\n* `times_since_start[job_id]`, `num_steps_remaining[job_id]` — the job's\n  accumulated wall time and remaining steps.\n* `cluster_spec[worker_type]` — count of each GPU type.\n\n`self.get_base_constraints(x, scale_factors_array)` returns the feasibility\nconstraints (non-negativity, no GPU type over-subscribed, each job's fractions\nsum to at most 1); an allocation that violates them is not schedulable. Solve any\nconvex objective over the allocation variable with cvxpy + ECOS and return the\nallocation via `self.unflatten(...)`. Keep the class named `CustomPolicy`, keep\n`self._name` starting with `'Custom'`, and keep the `get_allocation` signature.\nThe per-round solve must be cheap enough to run every round.\n\nThe starter is deliberately a floor rather than a method: it is\n**heterogeneity-blind**. It discards the throughput matrix and solves a max-min\nfairness objective on a homogeneous one (every job assumed to run at the same\nrate on every GPU type), so the allocation it returns cannot depend on which GPU\ntype is fast for which job. It shares out wall-clock time, not useful work.\n\n## Fixed pipeline\n\nThe cluster composition, workload distribution, arrival process, round-based\nscheduling mechanism, throughput oracle and evaluation protocol are fixed by the\nharness. The allocation policy is the only thing you change. Average JCT is\ncomputed by a host-side scorer from the simulator's per-job completion times\nafter the simulator process exits.\n\n## Reference baselines\n\n`null_blind_las` — the starter, and the declared null: the max-min-fairness\nobjective solved on a homogeneous throughput matrix, i.e. blind to GPU-type\ndifferences. This is Gavel's own heterogeneity ablation\n(`scheduler/policies/max_min_fairness.py`, `MaxMinFairnessPolicy`) expressed on\nthe editable surface. Editing nothing scores here.\n\n`max_min_fairness_perf` — Gavel's heterogeneity-aware LAS allocation: the same\nmax-min-fairness objective, solved on the real per-job x per-GPU-type throughput\nmatrix (`scheduler/policies/max_min_fairness.py`,\n`MaxMinFairnessPolicyWithPerf`). The paper's headline allocation policy, and the\nother half of its heterogeneity ablation.\n\n`allox` — AlloX (Le et al., \"AlloX: Compute Allocation in Hybrid Clusters\",\nEuroSys 2020): each round solves a min-cost bipartite assignment (Hungarian\nmethod) of jobs to interchangeable GPU slots to minimise average JCT directly\n(`scheduler/policies/allox.py`).\n\n`gandiva` — Gandiva (Xiao et al., \"Gandiva: Introspective Cluster Scheduling for\nDeep Learning\", OSDI 2018): keeps each job on the GPU type where it runs best and\ntime-slices/packs under contention (`scheduler/policies/gandiva.py`).\n\n`max_min_fairness` — the same heterogeneity-blind LAS ablation run through\ngavel's own shipped class and its own scheduler dispatch (which, being a\nnon-`Perf` policy, additionally randomises the worker-type order), rather than\nthrough the editable surface. A second, independently-measured null.\n\n## Metric\n\nAverage job completion time (JCT) over the measurement window, in simulated\nseconds, **lower is better**, aggregated across the evaluation settings.\n",
+   "description_html": "<h1>Heterogeneity-aware allocation for a DL training cluster</h1>\n<h2>Research question</h2>\n<p>A shared cluster trains many deep-learning jobs on a mix of GPU generations\n(here v100, p100, k80). The same job runs at very different speeds on different\nGPU types, and the speed-up is job-dependent: an image model may gain far more\nfrom a v100 over a k80 than a language model does. A cluster scheduler must\ndecide, continuously, <strong>what fraction of time each job should spend on each GPU\ntype</strong> so that jobs finish quickly on average.</p>\n<p>Gavel (Narayanan et al., \"Heterogeneity-Aware Cluster Scheduling Policies for\nDeep Learning Workloads\", OSDI 2020, arXiv:2008.09213) formalises this as a\npolicy that takes a per-job x per-GPU-type <strong>throughput matrix</strong> and returns a\nfractional time-share <strong>allocation</strong> matrix, computed by solving an optimization\nproblem, which a round-based mechanism then realises on the physical GPUs. The\nresearch question, as the paper poses it: <strong>which allocation objective, computed\nover the heterogeneity throughput matrix, minimises average job completion\ntime (JCT)?</strong></p>\n<p>Your contribution is the allocation policy itself: <code>CustomPolicy.get_allocation</code>\nin <code>scheduler/policies/custom_allocation.py</code>.</p>\n<h2>Environment</h2>\n<p>Gavel's deterministic, trace-driven cluster simulator\n(<code>scheduler/scheduler.py</code>, <code>simulate=True</code>). Jobs are drawn from the paper's\njob table (image classification, language modelling, translation, recommendation\nand others) with Poisson arrivals; per-job per-GPU-type throughputs come from\nthe paper's measured oracle table (<code>simulation_throughputs.json</code>). The simulator\nis deterministic given the workload draw, and each evaluation averages several\nindependent draws (fresh entropy per run), so a policy has to generalise across\nworkloads rather than fit one trace. All optimization problems are solved with\nthe free ECOS solver; no GPUs are used.</p>\n<h2>What you can modify</h2>\n<p>Only <code>CustomPolicy</code> in <code>scheduler/policies/custom_allocation.py</code>. Each scheduling\nround the simulator calls</p>\n<pre class=\"codehilite\"><code>get_allocation(unflattened_throughputs, scale_factors,\n               unflattened_priority_weights, times_since_start,\n               num_steps_remaining, cluster_spec) -&gt; {job_id: {worker_type: fraction}}\n</code></pre>\n\n<ul>\n<li><code>unflattened_throughputs[job_id][worker_type]</code> — steps/second of each active\n  job on each GPU type (the heterogeneity matrix); <code>self.flatten(...)</code> /\n  <code>self.unflatten(...)</code> convert between the dict form and a\n  (num_jobs x num_worker_types) array.</li>\n<li><code>scale_factors[job_id]</code> — GPUs the job requests (1 here).</li>\n<li><code>unflattened_priority_weights[job_id]</code> — per-job priority (1.0 here).</li>\n<li><code>times_since_start[job_id]</code>, <code>num_steps_remaining[job_id]</code> — the job's\n  accumulated wall time and remaining steps.</li>\n<li><code>cluster_spec[worker_type]</code> — count of each GPU type.</li>\n</ul>\n<p><code>self.get_base_constraints(x, scale_factors_array)</code> returns the feasibility\nconstraints (non-negativity, no GPU type over-subscribed, each job's fractions\nsum to at most 1); an allocation that violates them is not schedulable. Solve any\nconvex objective over the allocation variable with cvxpy + ECOS and return the\nallocation via <code>self.unflatten(...)</code>. Keep the class named <code>CustomPolicy</code>, keep\n<code>self._name</code> starting with <code>'Custom'</code>, and keep the <code>get_allocation</code> signature.\nThe per-round solve must be cheap enough to run every round.</p>\n<p>The starter is deliberately a floor rather than a method: it is\n<strong>heterogeneity-blind</strong>. It discards the throughput matrix and solves a max-min\nfairness objective on a homogeneous one (every job assumed to run at the same\nrate on every GPU type), so the allocation it returns cannot depend on which GPU\ntype is fast for which job. It shares out wall-clock time, not useful work.</p>\n<h2>Fixed pipeline</h2>\n<p>The cluster composition, workload distribution, arrival process, round-based\nscheduling mechanism, throughput oracle and evaluation protocol are fixed by the\nharness. The allocation policy is the only thing you change. Average JCT is\ncomputed by a host-side scorer from the simulator's per-job completion times\nafter the simulator process exits.</p>\n<h2>Reference baselines</h2>\n<p><code>null_blind_las</code> — the starter, and the declared null: the max-min-fairness\nobjective solved on a homogeneous throughput matrix, i.e. blind to GPU-type\ndifferences. This is Gavel's own heterogeneity ablation\n(<code>scheduler/policies/max_min_fairness.py</code>, <code>MaxMinFairnessPolicy</code>) expressed on\nthe editable surface. Editing nothing scores here.</p>\n<p><code>max_min_fairness_perf</code> — Gavel's heterogeneity-aware LAS allocation: the same\nmax-min-fairness objective, solved on the real per-job x per-GPU-type throughput\nmatrix (<code>scheduler/policies/max_min_fairness.py</code>,\n<code>MaxMinFairnessPolicyWithPerf</code>). The paper's headline allocation policy, and the\nother half of its heterogeneity ablation.</p>\n<p><code>allox</code> — AlloX (Le et al., \"AlloX: Compute Allocation in Hybrid Clusters\",\nEuroSys 2020): each round solves a min-cost bipartite assignment (Hungarian\nmethod) of jobs to interchangeable GPU slots to minimise average JCT directly\n(<code>scheduler/policies/allox.py</code>).</p>\n<p><code>gandiva</code> — Gandiva (Xiao et al., \"Gandiva: Introspective Cluster Scheduling for\nDeep Learning\", OSDI 2018): keeps each job on the GPU type where it runs best and\ntime-slices/packs under contention (<code>scheduler/policies/gandiva.py</code>).</p>\n<p><code>max_min_fairness</code> — the same heterogeneity-blind LAS ablation run through\ngavel's own shipped class and its own scheduler dispatch (which, being a\nnon-<code>Perf</code> policy, additionally randomises the worker-type order), rather than\nthrough the editable surface. A second, independently-measured null.</p>\n<h2>Metric</h2>\n<p>Average job completion time (JCT) over the measurement window, in simulated\nseconds, <strong>lower is better</strong>, aggregated across the evaluation settings.</p>",
    "baselines": [
+    "null_blind_las",
     "max_min_fairness_perf",
     "allox",
     "gandiva",
@@ -13428,35 +13429,43 @@
      "filename": "gavel/scheduler/policies/custom_allocation.py",
      "edit_ranges": [
       {
-       "start": 58,
-       "end": 97
+       "start": 60,
+       "end": 107
       }
      ],
-     "content": "\"\"\"Heterogeneity-aware allocation policy for the gavel cluster scheduler.\n\nA cluster holds several GPU types (v100, p100, k80) that differ, per job, in\nthroughput.  Every scheduling round the scheduler asks the policy for an\nALLOCATION: a fraction of time each active job should spend on each GPU type.\nThat fractional allocation is a matrix ``x`` with one row per job and one column\nper GPU type; the scheduler's round-based mechanism then realises those\nfractions on the physical GPUs and runs the jobs.  How the allocation is\ncomputed is the whole scheduling policy, and it is what you design here.\n\nYour job: implement ``CustomPolicy.get_allocation``.\n\nWhat it receives (all read-only; see gavel scheduler/policies/policy.py):\n\n  unflattened_throughputs : {job_id: {worker_type: throughput}}\n      steps/second each active job achieves on each GPU type -- the\n      heterogeneity throughput matrix.  ``self.flatten(...)`` turns it into a\n      (num_jobs x num_worker_types) numpy array plus an index for unflatten.\n  scale_factors : {job_id: int}    number of GPUs the job requests (1 here).\n  unflattened_priority_weights : {job_id: float}   per-job priority (1.0 here).\n  times_since_start : {job_id: float}   wall time the job has already run.\n  num_steps_remaining : {job_id: float} steps the job still has to run.\n  cluster_spec : {worker_type: count}   GPUs of each type in the cluster.\n\nReturn the allocation as ``self.unflatten(x_value, index)`` -- a\n{job_id: {worker_type: fraction}} dict.  ``self.get_base_constraints(x,\nscale_factors_array)`` gives the feasibility constraints (x >= 0, each GPU type\nnot over-subscribed, each job's fractions sum to <= 1); an allocation that\nviolates them is not schedulable.  Solve any convex objective over ``x`` with\ncvxpy and the free ECOS solver.\n\nContract you must keep:\n  * the class stays named ``CustomPolicy`` and ``self._name`` keeps the\n    ``'Custom'`` prefix (that is what routes it to the allocation-state\n    signature above and marks it heterogeneity-aware);\n  * ``get_allocation`` keeps this exact signature;\n  * decisions must be cheap enough to run every round.\n\nThe starter below is Gavel's own Least-Attained-Service (LAS) objective run in\nheterogeneity-aware mode -- it maximises the minimum normalised effective\nthroughput across jobs.  It is a real, strong policy; the research question is\nwhether a better allocation objective lowers average job completion time.\n\"\"\"\nimport os, sys\nsys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))\n\nimport cvxpy as cp\nimport numpy as np\n\nfrom policy import Policy\nfrom proportional import ProportionalPolicy\n\n# ================================================================\n# FIXED -- do not modify above this line\n# ================================================================\n\n# ----- BEGIN EDITABLE REGION -----\nclass CustomPolicy(Policy):\n    \"\"\"Heterogeneity-aware allocation (starter = Gavel's LAS objective).\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        Policy.__init__(self, solver)\n        self._name = 'Custom_Perf'\n        self._proportional_policy = ProportionalPolicy()\n\n    def get_allocation(self, unflattened_throughputs, scale_factors,\n                       unflattened_priority_weights, times_since_start,\n                       num_steps_remaining, cluster_spec):\n        throughputs, index = self.flatten(unflattened_throughputs, cluster_spec)\n        if throughputs is None:\n            return None\n        (m, n) = throughputs.shape\n        (job_ids, worker_types) = index\n\n        scale_factors_array = self.scale_factors_array(\n            scale_factors, job_ids, m, n)\n        priority_weights = np.array(\n            [1. / unflattened_priority_weights[job_id] for job_id in job_ids])\n        proportional_throughputs = self._proportional_policy.get_throughputs(\n            throughputs, index, cluster_spec)\n        priority_weights = np.multiply(\n            priority_weights.reshape((m, 1)),\n            1.0 / proportional_throughputs.reshape((m, 1)))\n\n        x = cp.Variable(throughputs.shape)\n        # Objective: maximise the minimum, over jobs, of the normalised\n        # effective throughput each job is allocated (heterogeneity-aware LAS).\n        objective = cp.Maximize(cp.min(cp.sum(cp.multiply(\n            np.multiply(throughputs * priority_weights.reshape((m, 1)),\n                        scale_factors_array), x), axis=1)))\n        constraints = self.get_base_constraints(x, scale_factors_array)\n        cvxprob = cp.Problem(objective, constraints)\n        cvxprob.solve(solver=self._solver)\n        if cvxprob.status != \"optimal\":\n            print('WARNING: Allocation returned by policy not optimal!')\n\n        return self.unflatten(x.value.clip(min=0.0).clip(max=1.0), index)\n# ----- END EDITABLE REGION -----\n"
+     "content": "\"\"\"Allocation policy for the gavel heterogeneous cluster scheduler.\n\nA cluster holds several GPU types (v100, p100, k80) that differ, per job, in\nthroughput.  Every scheduling round the scheduler asks the policy for an\nALLOCATION: a fraction of time each active job should spend on each GPU type.\nThat fractional allocation is a matrix ``x`` with one row per job and one column\nper GPU type; the scheduler's round-based mechanism then realises those\nfractions on the physical GPUs and runs the jobs.  How the allocation is\ncomputed is the whole scheduling policy, and it is what you design here.\n\nYour job: implement ``CustomPolicy.get_allocation``.\n\nWhat it receives (all read-only; see gavel scheduler/policies/policy.py):\n\n  unflattened_throughputs : {job_id: {worker_type: throughput}}\n      steps/second each active job achieves on each GPU type -- the\n      heterogeneity throughput matrix.  ``self.flatten(...)`` turns it into a\n      (num_jobs x num_worker_types) numpy array plus an index for unflatten.\n  scale_factors : {job_id: int}    number of GPUs the job requests (1 here).\n  unflattened_priority_weights : {job_id: float}   per-job priority (1.0 here).\n  times_since_start : {job_id: float}   wall time the job has already run.\n  num_steps_remaining : {job_id: float} steps the job still has to run.\n  cluster_spec : {worker_type: count}   GPUs of each type in the cluster.\n\nReturn the allocation as ``self.unflatten(x_value, index)`` -- a\n{job_id: {worker_type: fraction}} dict.  ``self.get_base_constraints(x,\nscale_factors_array)`` gives the feasibility constraints (x >= 0, each GPU type\nnot over-subscribed, each job's fractions sum to <= 1); an allocation that\nviolates them is not schedulable.  Solve any convex objective over ``x`` with\ncvxpy and the free ECOS solver.\n\nContract you must keep:\n  * the class stays named ``CustomPolicy`` and ``self._name`` keeps the\n    ``'Custom'`` prefix (that is what routes it to the allocation-state\n    signature above);\n  * ``get_allocation`` keeps this exact signature;\n  * decisions must be cheap enough to run every round.\n\nThe starter below is deliberately a FLOOR, not a method: it is heterogeneity\nBLIND.  It throws the throughput matrix away and solves a max-min-fairness\nobjective on a homogeneous matrix -- every job assumed to run at the same rate\non every GPU type -- so the allocation it returns cannot depend on which GPU\ntype is fast for which job.  Replacing it with an objective that actually reads\nthe heterogeneity matrix is the point of the task.\n\"\"\"\nimport os, sys\nsys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))\n\nimport cvxpy as cp\nimport numpy as np\n\nfrom policy import Policy\nfrom proportional import ProportionalPolicy\n\n# ================================================================\n# FIXED -- do not modify above this line\n# ================================================================\n\n# ----- BEGIN EDITABLE REGION -----\nclass CustomPolicy(Policy):\n    \"\"\"Heterogeneity-BLIND max-min-fairness allocation (the starter floor).\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        Policy.__init__(self, solver)\n        self._name = 'Custom_Blind'\n        self._proportional_policy = ProportionalPolicy()\n\n    def get_allocation(self, unflattened_throughputs, scale_factors,\n                       unflattened_priority_weights, times_since_start,\n                       num_steps_remaining, cluster_spec):\n        # HETEROGENEITY-BLIND: discard the measured throughputs and pretend\n        # every job runs at the same rate on every GPU type.  Everything below\n        # therefore shares out wall-clock TIME rather than useful work, and\n        # cannot tell a v100 from a k80.\n        blind_throughputs = {\n            job_id: {worker_type: 1.0 for worker_type in per_job}\n            for job_id, per_job in unflattened_throughputs.items()\n        }\n        throughputs, index = self.flatten(blind_throughputs, cluster_spec)\n        if throughputs is None:\n            return None\n        (m, n) = throughputs.shape\n        (job_ids, worker_types) = index\n\n        scale_factors_array = self.scale_factors_array(\n            scale_factors, job_ids, m, n)\n        priority_weights = np.array(\n            [1. / unflattened_priority_weights[job_id] for job_id in job_ids])\n        proportional_throughputs = self._proportional_policy.get_throughputs(\n            throughputs, index, cluster_spec)\n        priority_weights = np.multiply(\n            priority_weights.reshape((m, 1)),\n            1.0 / proportional_throughputs.reshape((m, 1)))\n\n        x = cp.Variable(throughputs.shape)\n        # Objective: maximise the minimum, over jobs, of the (blind) effective\n        # throughput each job is allocated.\n        objective = cp.Maximize(cp.min(cp.sum(cp.multiply(\n            np.multiply(throughputs * priority_weights.reshape((m, 1)),\n                        scale_factors_array), x), axis=1)))\n        constraints = self.get_base_constraints(x, scale_factors_array)\n        cvxprob = cp.Problem(objective, constraints)\n        cvxprob.solve(solver=self._solver)\n        if cvxprob.status != \"optimal\":\n            print('WARNING: Allocation returned by policy not optimal!')\n\n        return self.unflatten(x.value.clip(min=0.0).clip(max=1.0), index)\n# ----- END EDITABLE REGION -----\n"
     }
    ],
    "baselines_code": {
+    "max_min_fairness_perf": [
+     {
+      "file": "gavel/scheduler/policies/custom_allocation.py",
+      "start_line": 60,
+      "end_line": 107,
+      "content": "class CustomPolicy(Policy):\n    \"\"\"Heterogeneity-aware max-min fairness (Gavel's LAS objective, OSDI 2020).\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        Policy.__init__(self, solver)\n        self._name = 'Custom_Perf'\n        self._proportional_policy = ProportionalPolicy()\n\n    def get_allocation(self, unflattened_throughputs, scale_factors,\n                       unflattened_priority_weights, times_since_start,\n                       num_steps_remaining, cluster_spec):\n        throughputs, index = self.flatten(unflattened_throughputs, cluster_spec)\n        if throughputs is None:\n            return None\n        (m, n) = throughputs.shape\n        (job_ids, worker_types) = index\n\n        scale_factors_array = self.scale_factors_array(\n            scale_factors, job_ids, m, n)\n        priority_weights = np.array(\n            [1. / unflattened_priority_weights[job_id] for job_id in job_ids])\n        proportional_throughputs = self._proportional_policy.get_throughputs(\n            throughputs, index, cluster_spec)\n        priority_weights = np.multiply(\n            priority_weights.reshape((m, 1)),\n            1.0 / proportional_throughputs.reshape((m, 1)))\n\n        x = cp.Variable(throughputs.shape)\n        # Objective: maximise the minimum, over jobs, of the normalised\n        # effective throughput each job is allocated (heterogeneity-aware LAS).\n        objective = cp.Maximize(cp.min(cp.sum(cp.multiply(\n            np.multiply(throughputs * priority_weights.reshape((m, 1)),\n                        scale_factors_array), x), axis=1)))\n        constraints = self.get_base_constraints(x, scale_factors_array)\n        cvxprob = cp.Problem(objective, constraints)\n        cvxprob.solve(solver=self._solver)\n        if cvxprob.status != \"optimal\":\n            print('WARNING: Allocation returned by policy not optimal!')\n\n        return self.unflatten(x.value.clip(min=0.0).clip(max=1.0), index)\n"
+     }
+    ],
     "allox": [
      {
       "file": "gavel/scheduler/policies/custom_allocation.py",
-      "start_line": 58,
-      "end_line": 97,
+      "start_line": 60,
+      "end_line": 107,
       "content": "class CustomPolicy(Policy):\n    \"\"\"AlloX: JCT-minimising Hungarian assignment (shipped AlloXPolicy, alpha=1.0).\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        from allox import AlloXPolicy\n        self._impl = AlloXPolicy(alpha=1.0)\n        self._name = self._impl.name  # 'AlloX_Perf' -> scheduler's AlloX dispatch\n\n    def get_allocation(self, unflattened_throughputs, scale_factors,\n                       times_since_start, num_steps_remaining, cluster_spec):\n        return self._impl.get_allocation(\n            unflattened_throughputs, scale_factors,\n            times_since_start, num_steps_remaining, cluster_spec)\n"
      }
     ],
     "gandiva": [
      {
       "file": "gavel/scheduler/policies/custom_allocation.py",
-      "start_line": 58,
-      "end_line": 97,
+      "start_line": 60,
+      "end_line": 107,
       "content": "class CustomPolicy(Policy):\n    \"\"\"Gandiva: introspective heterogeneity-aware packing (shipped GandivaPolicy).\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        from gandiva import GandivaPolicy\n        self._impl = GandivaPolicy(seed=seed)\n        self._name = self._impl.name  # 'Gandiva_Packing' -> scheduler's default dispatch\n\n    def get_allocation(self, unflattened_throughputs, scale_factors, cluster_spec):\n        return self._impl.get_allocation(\n            unflattened_throughputs, scale_factors, cluster_spec)\n"
      }
     ],
     "max_min_fairness": [
      {
       "file": "gavel/scheduler/policies/custom_allocation.py",
-      "start_line": 58,
-      "end_line": 97,
+      "start_line": 60,
+      "end_line": 107,
       "content": "class CustomPolicy(Policy):\n    \"\"\"Heterogeneity-blind LAS (shipped MaxMinFairnessPolicy): the declared null.\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        from max_min_fairness import MaxMinFairnessPolicy\n        self._impl = MaxMinFairnessPolicy(solver=solver)\n        self._name = self._impl.name  # 'MaxMinFairness' -> scheduler's MaxMinFairness dispatch\n\n    def get_allocation(self, unflattened_throughputs, scale_factors,\n                       unflattened_priority_weights, cluster_spec):\n        return self._impl.get_allocation(\n            unflattened_throughputs, scale_factors,\n            unflattened_priority_weights, cluster_spec)\n"
      }
     ]
@@ -13472,9 +13481,10 @@
    "category": "ml-systems-and-efficient-ml",
    "category_label": "ML Systems & Efficient ML",
    "category_abbr": "",
-   "description_md": "# Heterogeneity-aware makespan scheduling for a DL job batch\n\n## Research question\n\nA fixed batch of deep-learning training jobs has to be run to completion on a\nshared cluster of mixed GPU generations (here v100, p100, k80). Each job runs at\na different speed on each GPU type, and the speed-up is job-dependent. The\nscheduler decides, continuously, **what fraction of time each job spends on each\nGPU type**, and a round-based mechanism realises those fractions on the physical\nGPUs. The objective here is throughput of the whole batch: minimise the\n**makespan**, the time at which the last job finishes.\n\nGavel (Narayanan et al., \"Heterogeneity-Aware Cluster Scheduling Policies for\nDeep Learning Workloads\", OSDI 2020, arXiv:2008.09213) formalises makespan\nminimisation as a policy that takes the per-job x per-GPU-type **throughput\nmatrix** and the remaining work of each job and returns a fractional allocation,\ncomputed by solving an optimization problem. The research question: **which\nallocation objective clears a heterogeneous batch of jobs in the least wall-clock\ntime?**\n\nYour contribution is the allocation policy itself: `CustomPolicy.get_allocation`\nin `scheduler/policies/custom_allocation.py`.\n\n## Environment\n\nGavel's deterministic, trace-driven cluster simulator\n(`scheduler/scheduler.py`, `simulate=True`), run on a static batch (all jobs\npresent at the start). Jobs are drawn from the paper's job table; per-job\nper-GPU-type throughputs come from the paper's measured oracle table\n(`simulation_throughputs.json`). The simulator is deterministic given the batch\ndraw, and each evaluation averages several independent draws (fresh entropy per\nrun). All optimization problems are solved with the free ECOS solver; no GPUs are\nused.\n\n## What you can modify\n\nOnly `CustomPolicy` in `scheduler/policies/custom_allocation.py`. Each scheduling\nround the simulator calls\n\n```\nget_allocation(unflattened_throughputs, scale_factors,\n               unflattened_priority_weights, times_since_start,\n               num_steps_remaining, cluster_spec) -> {job_id: {worker_type: fraction}}\n```\n\n* `unflattened_throughputs[job_id][worker_type]` — steps/second of each active\n  job on each GPU type (the heterogeneity matrix); `self.flatten` /\n  `self.unflatten` convert between the dict form and a\n  (num_jobs x num_worker_types) array.\n* `scale_factors[job_id]` — GPUs the job requests (1 here).\n* `num_steps_remaining[job_id]` — the steps the job still has to run (the\n  remaining work that must be scheduled before the batch is done).\n* `times_since_start[job_id]`, `unflattened_priority_weights[job_id]`,\n  `cluster_spec[worker_type]` — accumulated wall time, per-job priority (1.0),\n  and the count of each GPU type.\n\n`self.get_base_constraints(x, scale_factors_array)` returns the feasibility\nconstraints (non-negativity, no GPU type over-subscribed, each job's fractions\nsum to at most 1). Solve any convex program over the allocation variable with\ncvxpy + ECOS and return the allocation via `self.unflatten(...)`. Keep the class\nnamed `CustomPolicy`, keep `self._name` starting with `'Custom'`, and keep the\n`get_allocation` signature. The per-round solve must be cheap enough to run every\nround.\n\nThe starter is Gavel's own min-total-duration objective in heterogeneity-aware\nmode: it binary-searches the smallest horizon in which every job can finish its\nremaining work. It is a real, strong policy.\n\n## Fixed pipeline\n\nThe cluster composition, batch distribution, round-based scheduling mechanism,\nthroughput oracle and evaluation protocol are fixed by the harness. The\nallocation policy is the only thing you change. Makespan is read by a host-side\nscorer from the simulator's clock after the simulator process exits.\n\n## Reference baselines\n\n`min_total_duration_perf` — the starter: Gavel's heterogeneity-aware\nmin-total-duration (makespan) allocation\n(`scheduler/policies/min_total_duration.py`).\n\n`gandiva` — Gandiva (Xiao et al., \"Gandiva: Introspective Cluster Scheduling for\nDeep Learning\", OSDI 2018): keeps each job on the GPU type where it runs best and\ntime-slices/packs under contention (`scheduler/policies/gandiva.py`).\n\n`min_total_duration` — the heterogeneity-blind makespan null: the same\nmin-total-duration allocation computed as if every GPU type ran each job at its\nfastest (v100) rate (`scheduler/policies/min_total_duration.py`,\n`MinTotalDurationPolicy`).\n\n`fifo` — first-in-first-out placement in arrival order, blind to heterogeneity\nand to batch completion time (`scheduler/policies/fifo.py`).\n\n## Metric\n\nMakespan — the time at which the last job in the batch finishes, in simulated\nseconds, **lower is better**, aggregated across the evaluation settings.\n",
-   "description_html": "<h1>Heterogeneity-aware makespan scheduling for a DL job batch</h1>\n<h2>Research question</h2>\n<p>A fixed batch of deep-learning training jobs has to be run to completion on a\nshared cluster of mixed GPU generations (here v100, p100, k80). Each job runs at\na different speed on each GPU type, and the speed-up is job-dependent. The\nscheduler decides, continuously, <strong>what fraction of time each job spends on each\nGPU type</strong>, and a round-based mechanism realises those fractions on the physical\nGPUs. The objective here is throughput of the whole batch: minimise the\n<strong>makespan</strong>, the time at which the last job finishes.</p>\n<p>Gavel (Narayanan et al., \"Heterogeneity-Aware Cluster Scheduling Policies for\nDeep Learning Workloads\", OSDI 2020, arXiv:2008.09213) formalises makespan\nminimisation as a policy that takes the per-job x per-GPU-type <strong>throughput\nmatrix</strong> and the remaining work of each job and returns a fractional allocation,\ncomputed by solving an optimization problem. The research question: <strong>which\nallocation objective clears a heterogeneous batch of jobs in the least wall-clock\ntime?</strong></p>\n<p>Your contribution is the allocation policy itself: <code>CustomPolicy.get_allocation</code>\nin <code>scheduler/policies/custom_allocation.py</code>.</p>\n<h2>Environment</h2>\n<p>Gavel's deterministic, trace-driven cluster simulator\n(<code>scheduler/scheduler.py</code>, <code>simulate=True</code>), run on a static batch (all jobs\npresent at the start). Jobs are drawn from the paper's job table; per-job\nper-GPU-type throughputs come from the paper's measured oracle table\n(<code>simulation_throughputs.json</code>). The simulator is deterministic given the batch\ndraw, and each evaluation averages several independent draws (fresh entropy per\nrun). All optimization problems are solved with the free ECOS solver; no GPUs are\nused.</p>\n<h2>What you can modify</h2>\n<p>Only <code>CustomPolicy</code> in <code>scheduler/policies/custom_allocation.py</code>. Each scheduling\nround the simulator calls</p>\n<pre class=\"codehilite\"><code>get_allocation(unflattened_throughputs, scale_factors,\n               unflattened_priority_weights, times_since_start,\n               num_steps_remaining, cluster_spec) -&gt; {job_id: {worker_type: fraction}}\n</code></pre>\n\n<ul>\n<li><code>unflattened_throughputs[job_id][worker_type]</code> — steps/second of each active\n  job on each GPU type (the heterogeneity matrix); <code>self.flatten</code> /\n  <code>self.unflatten</code> convert between the dict form and a\n  (num_jobs x num_worker_types) array.</li>\n<li><code>scale_factors[job_id]</code> — GPUs the job requests (1 here).</li>\n<li><code>num_steps_remaining[job_id]</code> — the steps the job still has to run (the\n  remaining work that must be scheduled before the batch is done).</li>\n<li><code>times_since_start[job_id]</code>, <code>unflattened_priority_weights[job_id]</code>,\n  <code>cluster_spec[worker_type]</code> — accumulated wall time, per-job priority (1.0),\n  and the count of each GPU type.</li>\n</ul>\n<p><code>self.get_base_constraints(x, scale_factors_array)</code> returns the feasibility\nconstraints (non-negativity, no GPU type over-subscribed, each job's fractions\nsum to at most 1). Solve any convex program over the allocation variable with\ncvxpy + ECOS and return the allocation via <code>self.unflatten(...)</code>. Keep the class\nnamed <code>CustomPolicy</code>, keep <code>self._name</code> starting with <code>'Custom'</code>, and keep the\n<code>get_allocation</code> signature. The per-round solve must be cheap enough to run every\nround.</p>\n<p>The starter is Gavel's own min-total-duration objective in heterogeneity-aware\nmode: it binary-searches the smallest horizon in which every job can finish its\nremaining work. It is a real, strong policy.</p>\n<h2>Fixed pipeline</h2>\n<p>The cluster composition, batch distribution, round-based scheduling mechanism,\nthroughput oracle and evaluation protocol are fixed by the harness. The\nallocation policy is the only thing you change. Makespan is read by a host-side\nscorer from the simulator's clock after the simulator process exits.</p>\n<h2>Reference baselines</h2>\n<p><code>min_total_duration_perf</code> — the starter: Gavel's heterogeneity-aware\nmin-total-duration (makespan) allocation\n(<code>scheduler/policies/min_total_duration.py</code>).</p>\n<p><code>gandiva</code> — Gandiva (Xiao et al., \"Gandiva: Introspective Cluster Scheduling for\nDeep Learning\", OSDI 2018): keeps each job on the GPU type where it runs best and\ntime-slices/packs under contention (<code>scheduler/policies/gandiva.py</code>).</p>\n<p><code>min_total_duration</code> — the heterogeneity-blind makespan null: the same\nmin-total-duration allocation computed as if every GPU type ran each job at its\nfastest (v100) rate (<code>scheduler/policies/min_total_duration.py</code>,\n<code>MinTotalDurationPolicy</code>).</p>\n<p><code>fifo</code> — first-in-first-out placement in arrival order, blind to heterogeneity\nand to batch completion time (<code>scheduler/policies/fifo.py</code>).</p>\n<h2>Metric</h2>\n<p>Makespan — the time at which the last job in the batch finishes, in simulated\nseconds, <strong>lower is better</strong>, aggregated across the evaluation settings.</p>",
+   "description_md": "# Heterogeneity-aware makespan scheduling for a DL job batch\n\n## Research question\n\nA fixed batch of deep-learning training jobs has to be run to completion on a\nshared cluster of mixed GPU generations (here v100, p100, k80). Each job runs at\na different speed on each GPU type, and the speed-up is job-dependent. The\nscheduler decides, continuously, **what fraction of time each job spends on each\nGPU type**, and a round-based mechanism realises those fractions on the physical\nGPUs. The objective here is throughput of the whole batch: minimise the\n**makespan**, the time at which the last job finishes.\n\nGavel (Narayanan et al., \"Heterogeneity-Aware Cluster Scheduling Policies for\nDeep Learning Workloads\", OSDI 2020, arXiv:2008.09213) formalises makespan\nminimisation as a policy that takes the per-job x per-GPU-type **throughput\nmatrix** and the remaining work of each job and returns a fractional allocation,\ncomputed by solving an optimization problem. The research question: **which\nallocation objective clears a heterogeneous batch of jobs in the least wall-clock\ntime?**\n\nYour contribution is the allocation policy itself: `CustomPolicy.get_allocation`\nin `scheduler/policies/custom_allocation.py`.\n\n## Environment\n\nGavel's deterministic, trace-driven cluster simulator\n(`scheduler/scheduler.py`, `simulate=True`), run on a static batch (all jobs\npresent at the start). Jobs are drawn from the paper's job table; per-job\nper-GPU-type throughputs come from the paper's measured oracle table\n(`simulation_throughputs.json`). The simulator is deterministic given the batch\ndraw, and each evaluation averages several independent draws (fresh entropy per\nrun). All optimization problems are solved with the free ECOS solver; no GPUs are\nused.\n\n## What you can modify\n\nOnly `CustomPolicy` in `scheduler/policies/custom_allocation.py`. Each scheduling\nround the simulator calls\n\n```\nget_allocation(unflattened_throughputs, scale_factors,\n               unflattened_priority_weights, times_since_start,\n               num_steps_remaining, cluster_spec) -> {job_id: {worker_type: fraction}}\n```\n\n* `unflattened_throughputs[job_id][worker_type]` — steps/second of each active\n  job on each GPU type (the heterogeneity matrix); `self.flatten` /\n  `self.unflatten` convert between the dict form and a\n  (num_jobs x num_worker_types) array.\n* `scale_factors[job_id]` — GPUs the job requests (1 here).\n* `num_steps_remaining[job_id]` — the steps the job still has to run (the\n  remaining work that must be scheduled before the batch is done).\n* `times_since_start[job_id]`, `unflattened_priority_weights[job_id]`,\n  `cluster_spec[worker_type]` — accumulated wall time, per-job priority (1.0),\n  and the count of each GPU type.\n\n`self.get_base_constraints(x, scale_factors_array)` returns the feasibility\nconstraints (non-negativity, no GPU type over-subscribed, each job's fractions\nsum to at most 1). Solve any convex program over the allocation variable with\ncvxpy + ECOS and return the allocation via `self.unflatten(...)`. Keep the class\nnamed `CustomPolicy`, keep `self._name` starting with `'Custom'`, and keep the\n`get_allocation` signature. The per-round solve must be cheap enough to run every\nround.\n\nThe starter is deliberately a floor rather than a method: it is\n**heterogeneity-blind**. It still binary-searches the smallest horizon in which\nevery job can finish its remaining work, but it does so on a homogeneous\nthroughput matrix (each job assumed to run at its v100 rate on every GPU type),\nso the allocation cannot depend on which GPU type is fast for which job and the\nhorizon it believes in is not one the cluster can deliver.\n\n## Fixed pipeline\n\nThe cluster composition, batch distribution, round-based scheduling mechanism,\nthroughput oracle and evaluation protocol are fixed by the harness. The\nallocation policy is the only thing you change. Makespan is read by a host-side\nscorer from the simulator's clock after the simulator process exits.\n\n## Reference baselines\n\n`null_blind_makespan` — the starter, and the declared null: the\nmin-total-duration horizon search solved on a homogeneous throughput matrix\n(each job at its v100 rate on every GPU type), i.e. blind to GPU-type\ndifferences. This is Gavel's own heterogeneity ablation\n(`scheduler/policies/min_total_duration.py`, `MinTotalDurationPolicy`) expressed\non the editable surface. Editing nothing scores here.\n\n`min_total_duration_perf` — Gavel's heterogeneity-aware min-total-duration\n(makespan) allocation: the same horizon search, solved on the real per-job x\nper-GPU-type throughput matrix (`scheduler/policies/min_total_duration.py`,\n`MinTotalDurationPolicyWithPerf`). The paper's makespan policy, and the other\nhalf of its heterogeneity ablation.\n\n`gandiva` — Gandiva (Xiao et al., \"Gandiva: Introspective Cluster Scheduling for\nDeep Learning\", OSDI 2018): keeps each job on the GPU type where it runs best and\ntime-slices/packs under contention (`scheduler/policies/gandiva.py`).\n\n`min_total_duration` — the same heterogeneity-blind ablation run through gavel's\nown shipped class and its own scheduler dispatch (which, being a non-`Perf`\npolicy, additionally randomises the worker-type order), rather than through the\neditable surface. A second, independently-measured null.\n\n`fifo` — first-in-first-out placement in arrival order, blind to heterogeneity\nand to batch completion time (`scheduler/policies/fifo.py`). The trivial null.\n\n## Metric\n\nMakespan — the time at which the last job in the batch finishes, in simulated\nseconds, **lower is better**, aggregated across the evaluation settings.\n",
+   "description_html": "<h1>Heterogeneity-aware makespan scheduling for a DL job batch</h1>\n<h2>Research question</h2>\n<p>A fixed batch of deep-learning training jobs has to be run to completion on a\nshared cluster of mixed GPU generations (here v100, p100, k80). Each job runs at\na different speed on each GPU type, and the speed-up is job-dependent. The\nscheduler decides, continuously, <strong>what fraction of time each job spends on each\nGPU type</strong>, and a round-based mechanism realises those fractions on the physical\nGPUs. The objective here is throughput of the whole batch: minimise the\n<strong>makespan</strong>, the time at which the last job finishes.</p>\n<p>Gavel (Narayanan et al., \"Heterogeneity-Aware Cluster Scheduling Policies for\nDeep Learning Workloads\", OSDI 2020, arXiv:2008.09213) formalises makespan\nminimisation as a policy that takes the per-job x per-GPU-type <strong>throughput\nmatrix</strong> and the remaining work of each job and returns a fractional allocation,\ncomputed by solving an optimization problem. The research question: <strong>which\nallocation objective clears a heterogeneous batch of jobs in the least wall-clock\ntime?</strong></p>\n<p>Your contribution is the allocation policy itself: <code>CustomPolicy.get_allocation</code>\nin <code>scheduler/policies/custom_allocation.py</code>.</p>\n<h2>Environment</h2>\n<p>Gavel's deterministic, trace-driven cluster simulator\n(<code>scheduler/scheduler.py</code>, <code>simulate=True</code>), run on a static batch (all jobs\npresent at the start). Jobs are drawn from the paper's job table; per-job\nper-GPU-type throughputs come from the paper's measured oracle table\n(<code>simulation_throughputs.json</code>). The simulator is deterministic given the batch\ndraw, and each evaluation averages several independent draws (fresh entropy per\nrun). All optimization problems are solved with the free ECOS solver; no GPUs are\nused.</p>\n<h2>What you can modify</h2>\n<p>Only <code>CustomPolicy</code> in <code>scheduler/policies/custom_allocation.py</code>. Each scheduling\nround the simulator calls</p>\n<pre class=\"codehilite\"><code>get_allocation(unflattened_throughputs, scale_factors,\n               unflattened_priority_weights, times_since_start,\n               num_steps_remaining, cluster_spec) -&gt; {job_id: {worker_type: fraction}}\n</code></pre>\n\n<ul>\n<li><code>unflattened_throughputs[job_id][worker_type]</code> — steps/second of each active\n  job on each GPU type (the heterogeneity matrix); <code>self.flatten</code> /\n  <code>self.unflatten</code> convert between the dict form and a\n  (num_jobs x num_worker_types) array.</li>\n<li><code>scale_factors[job_id]</code> — GPUs the job requests (1 here).</li>\n<li><code>num_steps_remaining[job_id]</code> — the steps the job still has to run (the\n  remaining work that must be scheduled before the batch is done).</li>\n<li><code>times_since_start[job_id]</code>, <code>unflattened_priority_weights[job_id]</code>,\n  <code>cluster_spec[worker_type]</code> — accumulated wall time, per-job priority (1.0),\n  and the count of each GPU type.</li>\n</ul>\n<p><code>self.get_base_constraints(x, scale_factors_array)</code> returns the feasibility\nconstraints (non-negativity, no GPU type over-subscribed, each job's fractions\nsum to at most 1). Solve any convex program over the allocation variable with\ncvxpy + ECOS and return the allocation via <code>self.unflatten(...)</code>. Keep the class\nnamed <code>CustomPolicy</code>, keep <code>self._name</code> starting with <code>'Custom'</code>, and keep the\n<code>get_allocation</code> signature. The per-round solve must be cheap enough to run every\nround.</p>\n<p>The starter is deliberately a floor rather than a method: it is\n<strong>heterogeneity-blind</strong>. It still binary-searches the smallest horizon in which\nevery job can finish its remaining work, but it does so on a homogeneous\nthroughput matrix (each job assumed to run at its v100 rate on every GPU type),\nso the allocation cannot depend on which GPU type is fast for which job and the\nhorizon it believes in is not one the cluster can deliver.</p>\n<h2>Fixed pipeline</h2>\n<p>The cluster composition, batch distribution, round-based scheduling mechanism,\nthroughput oracle and evaluation protocol are fixed by the harness. The\nallocation policy is the only thing you change. Makespan is read by a host-side\nscorer from the simulator's clock after the simulator process exits.</p>\n<h2>Reference baselines</h2>\n<p><code>null_blind_makespan</code> — the starter, and the declared null: the\nmin-total-duration horizon search solved on a homogeneous throughput matrix\n(each job at its v100 rate on every GPU type), i.e. blind to GPU-type\ndifferences. This is Gavel's own heterogeneity ablation\n(<code>scheduler/policies/min_total_duration.py</code>, <code>MinTotalDurationPolicy</code>) expressed\non the editable surface. Editing nothing scores here.</p>\n<p><code>min_total_duration_perf</code> — Gavel's heterogeneity-aware min-total-duration\n(makespan) allocation: the same horizon search, solved on the real per-job x\nper-GPU-type throughput matrix (<code>scheduler/policies/min_total_duration.py</code>,\n<code>MinTotalDurationPolicyWithPerf</code>). The paper's makespan policy, and the other\nhalf of its heterogeneity ablation.</p>\n<p><code>gandiva</code> — Gandiva (Xiao et al., \"Gandiva: Introspective Cluster Scheduling for\nDeep Learning\", OSDI 2018): keeps each job on the GPU type where it runs best and\ntime-slices/packs under contention (<code>scheduler/policies/gandiva.py</code>).</p>\n<p><code>min_total_duration</code> — the same heterogeneity-blind ablation run through gavel's\nown shipped class and its own scheduler dispatch (which, being a non-<code>Perf</code>\npolicy, additionally randomises the worker-type order), rather than through the\neditable surface. A second, independently-measured null.</p>\n<p><code>fifo</code> — first-in-first-out placement in arrival order, blind to heterogeneity\nand to batch completion time (<code>scheduler/policies/fifo.py</code>). The trivial null.</p>\n<h2>Metric</h2>\n<p>Makespan — the time at which the last job in the batch finishes, in simulated\nseconds, <strong>lower is better</strong>, aggregated across the evaluation settings.</p>",
    "baselines": [
+    "null_blind_makespan",
     "min_total_duration_perf",
     "gandiva",
     "min_total_duration",
@@ -13493,35 +13503,43 @@
      "filename": "gavel/scheduler/policies/custom_allocation.py",
      "edit_ranges": [
       {
-       "start": 52,
-       "end": 101
+       "start": 56,
+       "end": 116
       }
      ],
-     "content": "\"\"\"Heterogeneity-aware makespan allocation for the gavel cluster scheduler.\n\nA fixed batch of deep-learning jobs has to be run to completion on a cluster of\nmixed GPU types (v100, p100, k80) that run each job at different speeds. The\nscheduler decides, each round, what fraction of time each job spends on each GPU\ntype -- a matrix ``x`` with one row per job and one column per GPU type -- and a\nround-based mechanism realises those fractions on the physical GPUs. The goal\nhere is to clear the whole batch as fast as possible: minimise the **makespan**,\nthe time at which the last job finishes.\n\nYour job: implement ``CustomPolicy.get_allocation``.\n\nWhat it receives (all read-only; see gavel scheduler/policies/policy.py):\n\n  unflattened_throughputs : {job_id: {worker_type: throughput}}\n      steps/second each active job achieves on each GPU type; ``self.flatten``\n      turns it into a (num_jobs x num_worker_types) array + an index.\n  scale_factors : {job_id: int}    GPUs the job requests (1 here).\n  unflattened_priority_weights : {job_id: float}   per-job priority (1.0 here).\n  times_since_start : {job_id: float}   wall time the job has already run.\n  num_steps_remaining : {job_id: float} steps the job still has to run -- the\n      remaining work that has to be scheduled before the batch is done.\n  cluster_spec : {worker_type: count}   GPUs of each type in the cluster.\n\nReturn ``self.unflatten(x_value, index)``.  ``self.get_base_constraints(x,\nscale_factors_array)`` gives the feasibility constraints (x >= 0, no GPU type\nover-subscribed, each job's fractions sum to <= 1). Solve any convex program over\n``x`` with cvxpy + ECOS.\n\nContract: keep the class named ``CustomPolicy``, keep ``self._name`` starting\nwith ``'Custom'``, keep the ``get_allocation`` signature, and keep the per-round\nsolve cheap.\n\nThe starter is Gavel's own min-total-duration objective in heterogeneity-aware\nmode: it binary-searches the smallest horizon T in which every job can finish its\nremaining work, i.e. it directly minimises the makespan. The research question is\nwhether a better allocation objective clears the batch sooner.\n\"\"\"\nimport os, sys\nsys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))\n\nimport cvxpy as cp\nimport numpy as np\n\nfrom policy import Policy\n\n# ================================================================\n# FIXED -- do not modify above this line\n# ================================================================\n\n# ----- BEGIN EDITABLE REGION -----\nclass CustomPolicy(Policy):\n    \"\"\"Heterogeneity-aware makespan allocation (starter = Gavel's min-total-duration).\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        Policy.__init__(self, solver)\n        self._name = 'Custom_Perf'\n\n    def _feasible(self, throughputs, scale_factors_array, steps, T):\n        x = cp.Variable(throughputs.shape)\n        constraints = self.get_base_constraints(x, scale_factors_array)\n        # Every job must be able to finish its remaining work within horizon T.\n        constraints.append(\n            cp.sum(cp.multiply(throughputs, x), axis=1) >= (steps / T))\n        prob = cp.Problem(cp.Maximize(1), constraints)\n        prob.solve(solver=self._solver)\n        return prob.status, x\n\n    def get_allocation(self, unflattened_throughputs, scale_factors,\n                       unflattened_priority_weights, times_since_start,\n                       num_steps_remaining, cluster_spec):\n        throughputs, index = self.flatten(unflattened_throughputs, cluster_spec)\n        if index is None or throughputs is None:\n            return None\n        (m, n) = throughputs.shape\n        (job_ids, worker_types) = index\n        steps = np.array([num_steps_remaining[job_id] for job_id in job_ids])\n        scale_factors_array = self.scale_factors_array(\n            scale_factors, job_ids, m, n)\n\n        # Objective: minimise the makespan by binary-searching the smallest\n        # horizon T for which a feasible allocation exists.\n        max_T, min_T = 1000000., 100.\n        last_max_T = max_T\n        last_feasible_x = None\n        while last_feasible_x is None:\n            while (1.05 * min_T) < max_T:\n                T = (min_T + max_T) / 2.\n                status, x = self._feasible(\n                    throughputs, scale_factors_array, steps, T)\n                if status == \"optimal\":\n                    last_feasible_x = x\n                    max_T = T\n                else:\n                    min_T = T\n            max_T = last_max_T * 10.\n            min_T = last_max_T\n            last_max_T *= 10\n\n        return self.unflatten(\n            last_feasible_x.value.clip(min=0.0).clip(max=1.0), index)\n# ----- END EDITABLE REGION -----\n"
+     "content": "\"\"\"Makespan allocation policy for the gavel heterogeneous cluster scheduler.\n\nA fixed batch of deep-learning jobs has to be run to completion on a cluster of\nmixed GPU types (v100, p100, k80) that run each job at different speeds. The\nscheduler decides, each round, what fraction of time each job spends on each GPU\ntype -- a matrix ``x`` with one row per job and one column per GPU type -- and a\nround-based mechanism realises those fractions on the physical GPUs. The goal\nhere is to clear the whole batch as fast as possible: minimise the **makespan**,\nthe time at which the last job finishes.\n\nYour job: implement ``CustomPolicy.get_allocation``.\n\nWhat it receives (all read-only; see gavel scheduler/policies/policy.py):\n\n  unflattened_throughputs : {job_id: {worker_type: throughput}}\n      steps/second each active job achieves on each GPU type; ``self.flatten``\n      turns it into a (num_jobs x num_worker_types) array + an index.\n  scale_factors : {job_id: int}    GPUs the job requests (1 here).\n  unflattened_priority_weights : {job_id: float}   per-job priority (1.0 here).\n  times_since_start : {job_id: float}   wall time the job has already run.\n  num_steps_remaining : {job_id: float} steps the job still has to run -- the\n      remaining work that has to be scheduled before the batch is done.\n  cluster_spec : {worker_type: count}   GPUs of each type in the cluster.\n\nReturn ``self.unflatten(x_value, index)``.  ``self.get_base_constraints(x,\nscale_factors_array)`` gives the feasibility constraints (x >= 0, no GPU type\nover-subscribed, each job's fractions sum to <= 1). Solve any convex program over\n``x`` with cvxpy + ECOS.\n\nContract: keep the class named ``CustomPolicy``, keep ``self._name`` starting\nwith ``'Custom'``, keep the ``get_allocation`` signature, and keep the per-round\nsolve cheap.\n\nThe starter below is deliberately a FLOOR, not a method: it is heterogeneity\nBLIND.  It still binary-searches the smallest horizon in which every job can\nfinish its remaining work, but it does so on a homogeneous throughput matrix --\neach job assumed to run at its v100 rate on every GPU type -- so the allocation\nit returns cannot depend on which GPU type is fast for which job, and the\nhorizon it believes in is not the one the cluster can actually deliver.\nReplacing it with an objective that reads the real heterogeneity matrix is the\npoint of the task.\n\"\"\"\nimport os, sys\nsys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))\n\nimport cvxpy as cp\nimport numpy as np\n\nfrom policy import Policy\n\n# ================================================================\n# FIXED -- do not modify above this line\n# ================================================================\n\n# ----- BEGIN EDITABLE REGION -----\nclass CustomPolicy(Policy):\n    \"\"\"Heterogeneity-BLIND min-total-duration allocation (the starter floor).\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        Policy.__init__(self, solver)\n        self._name = 'Custom_Blind'\n\n    def _feasible(self, throughputs, scale_factors_array, steps, T):\n        x = cp.Variable(throughputs.shape)\n        constraints = self.get_base_constraints(x, scale_factors_array)\n        # Every job must be able to finish its remaining work within horizon T.\n        constraints.append(\n            cp.sum(cp.multiply(throughputs, x), axis=1) >= (steps / T))\n        prob = cp.Problem(cp.Maximize(1), constraints)\n        prob.solve(solver=self._solver)\n        return prob.status, x\n\n    def get_allocation(self, unflattened_throughputs, scale_factors,\n                       unflattened_priority_weights, times_since_start,\n                       num_steps_remaining, cluster_spec):\n        # HETEROGENEITY-BLIND: replace the measured throughputs with the job's\n        # v100 rate on EVERY GPU type, so the horizon below is computed as if\n        # the cluster were homogeneous and the allocation cannot tell a v100\n        # from a k80.\n        blind_throughputs = {}\n        for job_id, per_job in unflattened_throughputs.items():\n            if not per_job:\n                blind_throughputs[job_id] = {}\n                continue\n            rate = per_job.get('v100', max(per_job.values()))\n            blind_throughputs[job_id] = {w: rate for w in per_job}\n        throughputs, index = self.flatten(blind_throughputs, cluster_spec)\n        if index is None or throughputs is None:\n            return None\n        (m, n) = throughputs.shape\n        (job_ids, worker_types) = index\n        steps = np.array([num_steps_remaining[job_id] for job_id in job_ids])\n        scale_factors_array = self.scale_factors_array(\n            scale_factors, job_ids, m, n)\n\n        # Objective: binary-search the smallest horizon T for which a feasible\n        # allocation exists under the (blind) throughputs above.\n        max_T, min_T = 1000000., 100.\n        last_max_T = max_T\n        last_feasible_x = None\n        while last_feasible_x is None:\n            while (1.05 * min_T) < max_T:\n                T = (min_T + max_T) / 2.\n                status, x = self._feasible(\n                    throughputs, scale_factors_array, steps, T)\n                if status == \"optimal\":\n                    last_feasible_x = x\n                    max_T = T\n                else:\n                    min_T = T\n            max_T = last_max_T * 10.\n            min_T = last_max_T\n            last_max_T *= 10\n\n        return self.unflatten(\n            last_feasible_x.value.clip(min=0.0).clip(max=1.0), index)\n# ----- END EDITABLE REGION -----\n"
     }
    ],
    "baselines_code": {
+    "min_total_duration_perf": [
+     {
+      "file": "gavel/scheduler/policies/custom_allocation.py",
+      "start_line": 56,
+      "end_line": 116,
+      "content": "class CustomPolicy(Policy):\n    \"\"\"Heterogeneity-aware min-total-duration (Gavel's makespan objective, OSDI 2020).\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        Policy.__init__(self, solver)\n        self._name = 'Custom_Perf'\n\n    def _feasible(self, throughputs, scale_factors_array, steps, T):\n        x = cp.Variable(throughputs.shape)\n        constraints = self.get_base_constraints(x, scale_factors_array)\n        # Every job must be able to finish its remaining work within horizon T.\n        constraints.append(\n            cp.sum(cp.multiply(throughputs, x), axis=1) >= (steps / T))\n        prob = cp.Problem(cp.Maximize(1), constraints)\n        prob.solve(solver=self._solver)\n        return prob.status, x\n\n    def get_allocation(self, unflattened_throughputs, scale_factors,\n                       unflattened_priority_weights, times_since_start,\n                       num_steps_remaining, cluster_spec):\n        throughputs, index = self.flatten(unflattened_throughputs, cluster_spec)\n        if index is None or throughputs is None:\n            return None\n        (m, n) = throughputs.shape\n        (job_ids, worker_types) = index\n        steps = np.array([num_steps_remaining[job_id] for job_id in job_ids])\n        scale_factors_array = self.scale_factors_array(\n            scale_factors, job_ids, m, n)\n\n        # Objective: minimise the makespan by binary-searching the smallest\n        # horizon T for which a feasible allocation exists.\n        max_T, min_T = 1000000., 100.\n        last_max_T = max_T\n        last_feasible_x = None\n        while last_feasible_x is None:\n            while (1.05 * min_T) < max_T:\n                T = (min_T + max_T) / 2.\n                status, x = self._feasible(\n                    throughputs, scale_factors_array, steps, T)\n                if status == \"optimal\":\n                    last_feasible_x = x\n                    max_T = T\n                else:\n                    min_T = T\n            max_T = last_max_T * 10.\n            min_T = last_max_T\n            last_max_T *= 10\n\n        return self.unflatten(\n            last_feasible_x.value.clip(min=0.0).clip(max=1.0), index)\n"
+     }
+    ],
     "gandiva": [
      {
       "file": "gavel/scheduler/policies/custom_allocation.py",
-      "start_line": 52,
-      "end_line": 101,
+      "start_line": 56,
+      "end_line": 116,
       "content": "class CustomPolicy(Policy):\n    \"\"\"Gandiva: introspective heterogeneity-aware packing (shipped GandivaPolicy).\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        from gandiva import GandivaPolicy\n        self._impl = GandivaPolicy(seed=seed)\n        self._name = self._impl.name  # 'Gandiva_Packing' -> scheduler's default dispatch\n\n    def get_allocation(self, unflattened_throughputs, scale_factors, cluster_spec):\n        return self._impl.get_allocation(\n            unflattened_throughputs, scale_factors, cluster_spec)\n"
      }
     ],
     "min_total_duration": [
      {
       "file": "gavel/scheduler/policies/custom_allocation.py",
-      "start_line": 52,
-      "end_line": 101,
+      "start_line": 56,
+      "end_line": 116,
       "content": "class CustomPolicy(Policy):\n    \"\"\"Heterogeneity-blind min-total-duration (shipped MinTotalDurationPolicy).\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        from min_total_duration import MinTotalDurationPolicy\n        self._impl = MinTotalDurationPolicy(solver=solver)\n        self._name = self._impl.name  # 'MinTotalDuration' -> scheduler's MinTotalDuration dispatch\n\n    def get_allocation(self, unflattened_throughputs, scale_factors,\n                       num_steps_remaining, cluster_spec):\n        return self._impl.get_allocation(\n            unflattened_throughputs, scale_factors,\n            num_steps_remaining, cluster_spec)\n"
      }
     ],
     "fifo": [
      {
       "file": "gavel/scheduler/policies/custom_allocation.py",
-      "start_line": 52,
-      "end_line": 101,
+      "start_line": 56,
+      "end_line": 116,
       "content": "class CustomPolicy(Policy):\n    \"\"\"FIFO: arrival-order placement, heterogeneity-blind (shipped FIFOPolicy).\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        from fifo import FIFOPolicy\n        self._impl = FIFOPolicy(seed=seed)\n        self._name = self._impl.name  # 'FIFO' -> scheduler's default (FIFO) dispatch\n\n    def get_allocation(self, unflattened_throughputs, scale_factors, cluster_spec):\n        return self._impl.get_allocation(\n            unflattened_throughputs, scale_factors, cluster_spec)\n"
      }
     ]
@@ -32025,7 +32043,10 @@
     "normalized_regret_heteroscedastic",
     "elapsed_heteroscedastic",
     "normalized_regret_nonstationary",
-    "elapsed_nonstationary"
+    "elapsed_nonstationary",
+    "cumulative_regret_stochastic_mab",
+    "cumulative_regret_heteroscedastic",
+    "cumulative_regret_nonstationary"
    ],
    "metric_columns": [
     "normalized_regret_stochastic_mab",
@@ -32057,7 +32078,188 @@
      ]
     }
    ],
-   "rows": []
+   "rows": [
+    {
+     "timestamp": "2026-09-04T15:59:36.177709+00:00",
+     "model": "baseline:phe",
+     "is_final": true,
+     "seed": "123",
+     "normalized_regret_stochastic_mab": 0.006635,
+     "elapsed_stochastic_mab": 1.507601261138916,
+     "normalized_regret_heteroscedastic": 0.011493,
+     "elapsed_heteroscedastic": 1.5053436756134033,
+     "normalized_regret_nonstationary": 0.265685,
+     "elapsed_nonstationary": 1.5033538341522217,
+     "cumulative_regret_stochastic_mab": 66.35,
+     "cumulative_regret_heteroscedastic": 114.93,
+     "cumulative_regret_nonstationary": 2656.85
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.183195+00:00",
+     "model": "baseline:phe",
+     "is_final": true,
+     "seed": "42",
+     "normalized_regret_stochastic_mab": 0.001605,
+     "elapsed_stochastic_mab": 1.508254051208496,
+     "normalized_regret_heteroscedastic": 0.012148,
+     "elapsed_heteroscedastic": 1.5060408115386963,
+     "normalized_regret_nonstationary": 0.26057,
+     "elapsed_nonstationary": 1.5039114952087402,
+     "cumulative_regret_stochastic_mab": 16.05,
+     "cumulative_regret_heteroscedastic": 121.475,
+     "cumulative_regret_nonstationary": 2605.7
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.243370+00:00",
+     "model": "baseline:phe",
+     "is_final": true,
+     "seed": "456",
+     "normalized_regret_stochastic_mab": 0.001865,
+     "elapsed_stochastic_mab": 1.5066707134246826,
+     "normalized_regret_heteroscedastic": 0.011814,
+     "elapsed_heteroscedastic": 1.504624843597412,
+     "normalized_regret_nonstationary": 0.271745,
+     "elapsed_nonstationary": 1.5024592876434326,
+     "cumulative_regret_stochastic_mab": 18.65,
+     "cumulative_regret_heteroscedastic": 118.135,
+     "cumulative_regret_nonstationary": 2717.45
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.244267+00:00",
+     "model": "baseline:phe",
+     "is_final": true,
+     "seed": "mean",
+     "normalized_regret_stochastic_mab": 0.003368333333333334,
+     "elapsed_stochastic_mab": 1.507508675257365,
+     "normalized_regret_heteroscedastic": 0.011818333333333333,
+     "elapsed_heteroscedastic": 1.5053364435831706,
+     "normalized_regret_nonstationary": 0.266,
+     "elapsed_nonstationary": 1.5032415390014648,
+     "cumulative_regret_stochastic_mab": 33.68333333333333,
+     "cumulative_regret_heteroscedastic": 118.18,
+     "cumulative_regret_nonstationary": 2659.9999999999995
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.244798+00:00",
+     "model": "baseline:thompson_sampling",
+     "is_final": true,
+     "seed": "123",
+     "normalized_regret_stochastic_mab": 0.004755,
+     "elapsed_stochastic_mab": 1.509568452835083,
+     "normalized_regret_heteroscedastic": 0.020465,
+     "elapsed_heteroscedastic": 1.5066730976104736,
+     "normalized_regret_nonstationary": 0.28379,
+     "elapsed_nonstationary": 1.5038695335388184,
+     "cumulative_regret_stochastic_mab": 47.55,
+     "cumulative_regret_heteroscedastic": 204.65,
+     "cumulative_regret_nonstationary": 2837.9
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.245321+00:00",
+     "model": "baseline:thompson_sampling",
+     "is_final": true,
+     "seed": "42",
+     "normalized_regret_stochastic_mab": 0.007445,
+     "elapsed_stochastic_mab": 1.5104639530181885,
+     "normalized_regret_heteroscedastic": 0.021424,
+     "elapsed_heteroscedastic": 1.507861614227295,
+     "normalized_regret_nonstationary": 0.230835,
+     "elapsed_nonstationary": 1.5046849250793457,
+     "cumulative_regret_stochastic_mab": 74.45,
+     "cumulative_regret_heteroscedastic": 214.245,
+     "cumulative_regret_nonstationary": 2308.35
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.245818+00:00",
+     "model": "baseline:thompson_sampling",
+     "is_final": true,
+     "seed": "456",
+     "normalized_regret_stochastic_mab": 0.00642,
+     "elapsed_stochastic_mab": 1.5086207389831543,
+     "normalized_regret_heteroscedastic": 0.021527,
+     "elapsed_heteroscedastic": 1.505544900894165,
+     "normalized_regret_nonstationary": 0.207465,
+     "elapsed_nonstationary": 1.503049373626709,
+     "cumulative_regret_stochastic_mab": 64.2,
+     "cumulative_regret_heteroscedastic": 215.275,
+     "cumulative_regret_nonstationary": 2074.65
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.246324+00:00",
+     "model": "baseline:thompson_sampling",
+     "is_final": true,
+     "seed": "mean",
+     "normalized_regret_stochastic_mab": 0.006206666666666666,
+     "elapsed_stochastic_mab": 1.5095510482788086,
+     "normalized_regret_heteroscedastic": 0.021138666666666667,
+     "elapsed_heteroscedastic": 1.5066932042439778,
+     "normalized_regret_nonstationary": 0.24069666666666667,
+     "elapsed_nonstationary": 1.5038679440816243,
+     "cumulative_regret_stochastic_mab": 62.06666666666666,
+     "cumulative_regret_heteroscedastic": 211.39,
+     "cumulative_regret_nonstationary": 2406.9666666666667
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.246853+00:00",
+     "model": "baseline:ucb1",
+     "is_final": true,
+     "seed": "123",
+     "normalized_regret_stochastic_mab": 0.03479,
+     "elapsed_stochastic_mab": 1.013878583908081,
+     "normalized_regret_heteroscedastic": 0.032982,
+     "elapsed_heteroscedastic": 1.511993169784546,
+     "normalized_regret_nonstationary": 0.08263,
+     "elapsed_nonstationary": 1.0084218978881836,
+     "cumulative_regret_stochastic_mab": 347.9,
+     "cumulative_regret_heteroscedastic": 329.82,
+     "cumulative_regret_nonstationary": 826.3
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.247486+00:00",
+     "model": "baseline:ucb1",
+     "is_final": true,
+     "seed": "42",
+     "normalized_regret_stochastic_mab": 0.039685,
+     "elapsed_stochastic_mab": 1.014793872833252,
+     "normalized_regret_heteroscedastic": 0.031552,
+     "elapsed_heteroscedastic": 1.0122110843658447,
+     "normalized_regret_nonstationary": 0.077025,
+     "elapsed_nonstationary": 1.5097815990447998,
+     "cumulative_regret_stochastic_mab": 396.85,
+     "cumulative_regret_heteroscedastic": 315.525,
+     "cumulative_regret_nonstationary": 770.25
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.248149+00:00",
+     "model": "baseline:ucb1",
+     "is_final": true,
+     "seed": "456",
+     "normalized_regret_stochastic_mab": 0.038935,
+     "elapsed_stochastic_mab": 1.0130531787872314,
+     "normalized_regret_heteroscedastic": 0.032665,
+     "elapsed_heteroscedastic": 1.0103957653045654,
+     "normalized_regret_nonstationary": 0.08905,
+     "elapsed_nonstationary": 1.5084786415100098,
+     "cumulative_regret_stochastic_mab": 389.35,
+     "cumulative_regret_heteroscedastic": 326.65,
+     "cumulative_regret_nonstationary": 890.5
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.248806+00:00",
+     "model": "baseline:ucb1",
+     "is_final": true,
+     "seed": "mean",
+     "normalized_regret_stochastic_mab": 0.037803333333333335,
+     "elapsed_stochastic_mab": 1.0139085451761882,
+     "normalized_regret_heteroscedastic": 0.03239966666666667,
+     "elapsed_heteroscedastic": 1.1782000064849854,
+     "normalized_regret_nonstationary": 0.08290166666666667,
+     "elapsed_nonstationary": 1.3422273794809978,
+     "cumulative_regret_stochastic_mab": 378.0333333333333,
+     "cumulative_regret_heteroscedastic": 323.99833333333333,
+     "cumulative_regret_nonstationary": 829.0166666666668
+    }
+   ]
   },
   "bandit-rotting-fewa": {
    "task_id": "bandit-rotting-fewa",
@@ -32071,7 +32273,10 @@
     "normalized_regret_rotting",
     "elapsed_rotting",
     "normalized_regret_nonstationary",
-    "elapsed_nonstationary"
+    "elapsed_nonstationary",
+    "cumulative_regret_stochastic_mab",
+    "cumulative_regret_rotting",
+    "cumulative_regret_nonstationary"
    ],
    "metric_columns": [
     "normalized_regret_stochastic_mab",
@@ -32103,7 +32308,379 @@
      ]
     }
    ],
-   "rows": []
+   "rows": [
+    {
+     "timestamp": "2026-09-04T15:59:36.411767+00:00",
+     "model": "baseline:fewa",
+     "is_final": true,
+     "seed": "123",
+     "normalized_regret_stochastic_mab": 0.178547,
+     "elapsed_stochastic-mab": 692.0082306861877,
+     "normalized_regret_rotting": 0.217409,
+     "elapsed_rotting": 905.8563446998596,
+     "normalized_regret_nonstationary": 0.069831,
+     "elapsed_nonstationary": 972.9244909286499,
+     "cumulative_regret_stochastic_mab": 1785.4672,
+     "cumulative_regret_rotting": 2174.0862,
+     "cumulative_regret_nonstationary": 698.307
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.412464+00:00",
+     "model": "baseline:fewa",
+     "is_final": true,
+     "seed": "42",
+     "normalized_regret_stochastic_mab": 0.009098,
+     "elapsed_stochastic-mab": 826.7760498523712,
+     "normalized_regret_rotting": 0.210774,
+     "elapsed_rotting": 847.294903755188,
+     "normalized_regret_nonstationary": 0.080346,
+     "elapsed_nonstationary": 867.8134880065918,
+     "cumulative_regret_stochastic_mab": 90.9841,
+     "cumulative_regret_rotting": 2107.7368,
+     "cumulative_regret_nonstationary": 803.4551
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.412808+00:00",
+     "model": "baseline:fewa",
+     "is_final": true,
+     "seed": "456",
+     "normalized_regret_stochastic_mab": 0.004554,
+     "elapsed_stochastic-mab": 694.0098764896393,
+     "normalized_regret_rotting": 0.031781,
+     "elapsed_rotting": 886.836697101593,
+     "normalized_regret_nonstationary": 0.227121,
+     "elapsed_nonstationary": 899.8480768203735,
+     "cumulative_regret_stochastic_mab": 45.5365,
+     "cumulative_regret_rotting": 317.8091,
+     "cumulative_regret_nonstationary": 2271.2105
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.413142+00:00",
+     "model": "baseline:fewa",
+     "is_final": true,
+     "seed": "mean",
+     "normalized_regret_stochastic_mab": 0.06406633333333334,
+     "elapsed_stochastic-mab": 737.5980523427328,
+     "normalized_regret_rotting": 0.15332133333333334,
+     "elapsed_rotting": 879.9959818522135,
+     "normalized_regret_nonstationary": 0.12576600000000002,
+     "elapsed_nonstationary": 913.5286852518717,
+     "cumulative_regret_stochastic_mab": 640.6626,
+     "cumulative_regret_rotting": 1533.2107000000003,
+     "cumulative_regret_nonstationary": 1257.6575333333333
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.413482+00:00",
+     "model": "baseline:thompson_sampling",
+     "is_final": true,
+     "seed": "123",
+     "normalized_regret_stochastic_mab": 0.035484,
+     "elapsed_stochastic-mab": 1.508054494857788,
+     "normalized_regret_rotting": 0.031474,
+     "elapsed_rotting": 1.5057294368743896,
+     "normalized_regret_nonstationary": 0.031675,
+     "elapsed_nonstationary": 1.5031874179840088,
+     "cumulative_regret_stochastic_mab": 354.841,
+     "cumulative_regret_rotting": 314.7407,
+     "cumulative_regret_nonstationary": 316.7522
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.413799+00:00",
+     "model": "baseline:thompson_sampling",
+     "is_final": true,
+     "seed": "42",
+     "normalized_regret_stochastic_mab": 0.037071,
+     "elapsed_stochastic-mab": 1.509004831314087,
+     "normalized_regret_rotting": 0.029865,
+     "elapsed_rotting": 1.5063276290893555,
+     "normalized_regret_nonstationary": 0.037358,
+     "elapsed_nonstationary": 1.5040056705474854,
+     "cumulative_regret_stochastic_mab": 370.7145,
+     "cumulative_regret_rotting": 298.652,
+     "cumulative_regret_nonstationary": 373.5773
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.414118+00:00",
+     "model": "baseline:thompson_sampling",
+     "is_final": true,
+     "seed": "456",
+     "normalized_regret_stochastic_mab": 0.038137,
+     "elapsed_stochastic-mab": 1.507169246673584,
+     "normalized_regret_rotting": 0.037324,
+     "elapsed_rotting": 1.5048015117645264,
+     "normalized_regret_nonstationary": 0.040184,
+     "elapsed_nonstationary": 1.5026922225952148,
+     "cumulative_regret_stochastic_mab": 381.3716,
+     "cumulative_regret_rotting": 373.2431,
+     "cumulative_regret_nonstationary": 401.839
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.414448+00:00",
+     "model": "baseline:thompson_sampling",
+     "is_final": true,
+     "seed": "mean",
+     "normalized_regret_stochastic_mab": 0.03689733333333334,
+     "elapsed_stochastic-mab": 1.5080761909484863,
+     "normalized_regret_rotting": 0.03288766666666667,
+     "elapsed_rotting": 1.5056195259094238,
+     "normalized_regret_nonstationary": 0.03640566666666667,
+     "elapsed_nonstationary": 1.503295103708903,
+     "cumulative_regret_stochastic_mab": 368.97569999999996,
+     "cumulative_regret_rotting": 328.8786,
+     "cumulative_regret_nonstationary": 364.0561666666667
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.414808+00:00",
+     "model": "baseline:ucb1",
+     "is_final": true,
+     "seed": "123",
+     "normalized_regret_stochastic_mab": 0.047579,
+     "elapsed_stochastic-mab": 1.068385124206543,
+     "normalized_regret_rotting": 0.049742,
+     "elapsed_rotting": 1.5662927627563477,
+     "normalized_regret_nonstationary": 0.085321,
+     "elapsed_nonstationary": 1.5633420944213867,
+     "cumulative_regret_stochastic_mab": 475.7857,
+     "cumulative_regret_rotting": 497.4221,
+     "cumulative_regret_nonstationary": 853.2138
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.415156+00:00",
+     "model": "baseline:ucb1",
+     "is_final": true,
+     "seed": "42",
+     "normalized_regret_stochastic_mab": 0.033822,
+     "elapsed_stochastic-mab": 1.0691862106323242,
+     "normalized_regret_rotting": 0.037436,
+     "elapsed_rotting": 1.567627191543579,
+     "normalized_regret_nonstationary": 0.075764,
+     "elapsed_nonstationary": 1.5639739036560059,
+     "cumulative_regret_stochastic_mab": 338.2176,
+     "cumulative_regret_rotting": 374.3608,
+     "cumulative_regret_nonstationary": 757.6351
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.415520+00:00",
+     "model": "baseline:ucb1",
+     "is_final": true,
+     "seed": "456",
+     "normalized_regret_stochastic_mab": 0.040957,
+     "elapsed_stochastic-mab": 1.56843900680542,
+     "normalized_regret_rotting": 0.044978,
+     "elapsed_rotting": 1.565033197402954,
+     "normalized_regret_nonstationary": 0.010413,
+     "elapsed_nonstationary": 1.0613887310028076,
+     "cumulative_regret_stochastic_mab": 409.5742,
+     "cumulative_regret_rotting": 449.7844,
+     "cumulative_regret_nonstationary": 104.126
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.415880+00:00",
+     "model": "baseline:ucb1",
+     "is_final": true,
+     "seed": "mean",
+     "normalized_regret_stochastic_mab": 0.040785999999999996,
+     "elapsed_stochastic-mab": 1.2353367805480957,
+     "normalized_regret_rotting": 0.044052,
+     "elapsed_rotting": 1.5663177172342937,
+     "normalized_regret_nonstationary": 0.057165999999999995,
+     "elapsed_nonstationary": 1.3962349096934001,
+     "cumulative_regret_stochastic_mab": 407.8591666666667,
+     "cumulative_regret_rotting": 440.5224333333333,
+     "cumulative_regret_nonstationary": 571.6582999999999
+    }
+   ]
+  },
+  "bandit-sparse-ucb": {
+   "task_id": "bandit-sparse-ucb",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "normalized_regret_sparse_one",
+    "elapsed_sparse-one",
+    "normalized_regret_sparse_three",
+    "elapsed_sparse-three",
+    "normalized_regret_dense_control",
+    "elapsed_dense-control"
+   ],
+   "metric_columns": [
+    "normalized_regret_sparse_one",
+    "normalized_regret_sparse_three",
+    "normalized_regret_dense_control"
+   ],
+   "metric_directions": {
+    "normalized_regret_sparse_one": "lower",
+    "normalized_regret_sparse_three": "lower",
+    "normalized_regret_dense_control": "lower"
+   },
+   "metric_groups": [
+    {
+     "setting": "sparse-one",
+     "metrics": [
+      "normalized_regret_sparse_one"
+     ]
+    },
+    {
+     "setting": "sparse-three",
+     "metrics": [
+      "normalized_regret_sparse_three"
+     ]
+    },
+    {
+     "setting": "dense-control",
+     "metrics": [
+      "normalized_regret_dense_control"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-04T15:50:13.912616+00:00",
+     "model": "baseline:moss",
+     "is_final": true,
+     "seed": "123",
+     "normalized_regret_sparse_one": 0.11631128149029868,
+     "elapsed_sparse-one": 1.0245697498321533,
+     "normalized_regret_sparse_three": 0.043108333776506025,
+     "elapsed_sparse-three": 1.0225379467010498,
+     "normalized_regret_dense_control": 0.0684638715748126,
+     "elapsed_dense-control": 1.0202386379241943
+    },
+    {
+     "timestamp": "2026-09-04T15:50:13.912997+00:00",
+     "model": "baseline:moss",
+     "is_final": true,
+     "seed": "42",
+     "normalized_regret_sparse_one": 0.0794557761633826,
+     "elapsed_sparse-one": 1.0252742767333984,
+     "normalized_regret_sparse_three": 0.04932559297321827,
+     "elapsed_sparse-three": 1.0232391357421875,
+     "normalized_regret_dense_control": 0.08016401754280039,
+     "elapsed_dense-control": 1.0206987857818604
+    },
+    {
+     "timestamp": "2026-09-04T15:50:13.913567+00:00",
+     "model": "baseline:moss",
+     "is_final": true,
+     "seed": "456",
+     "normalized_regret_sparse_one": 0.08274576786469293,
+     "elapsed_sparse-one": 1.023782730102539,
+     "normalized_regret_sparse_three": 0.05101643910655845,
+     "elapsed_sparse-three": 1.0215003490447998,
+     "normalized_regret_dense_control": 0.07217808644418025,
+     "elapsed_dense-control": 1.019684076309204
+    },
+    {
+     "timestamp": "2026-09-04T15:50:13.913899+00:00",
+     "model": "baseline:moss",
+     "is_final": true,
+     "seed": "mean",
+     "normalized_regret_sparse_one": 0.09283760850612473,
+     "elapsed_sparse-one": 1.024542252222697,
+     "normalized_regret_sparse_three": 0.04781678861876091,
+     "elapsed_sparse-three": 1.0224258104960124,
+     "normalized_regret_dense_control": 0.07360199185393108,
+     "elapsed_dense-control": 1.020207166671753
+    },
+    {
+     "timestamp": "2026-09-04T15:50:13.914179+00:00",
+     "model": "baseline:thompson_sampling",
+     "is_final": true,
+     "seed": "123",
+     "normalized_regret_sparse_one": 0.2604940387861286,
+     "elapsed_sparse-one": 1.0054519176483154,
+     "normalized_regret_sparse_three": 0.20041554255782262,
+     "elapsed_sparse-three": 1.0040252208709717,
+     "normalized_regret_dense_control": 0.09577650381680858,
+     "elapsed_dense-control": 1.0025315284729004
+    },
+    {
+     "timestamp": "2026-09-04T15:50:13.914460+00:00",
+     "model": "baseline:thompson_sampling",
+     "is_final": true,
+     "seed": "42",
+     "normalized_regret_sparse_one": 0.23180673913891658,
+     "elapsed_sparse-one": 1.0059354305267334,
+     "normalized_regret_sparse_three": 0.1872960024261656,
+     "elapsed_sparse-three": 1.004502534866333,
+     "normalized_regret_dense_control": 0.1001238379526292,
+     "elapsed_dense-control": 1.0029280185699463
+    },
+    {
+     "timestamp": "2026-09-04T15:50:13.914749+00:00",
+     "model": "baseline:thompson_sampling",
+     "is_final": true,
+     "seed": "456",
+     "normalized_regret_sparse_one": 0.257424159510838,
+     "elapsed_sparse-one": 1.005035638809204,
+     "normalized_regret_sparse_three": 0.14798678618387373,
+     "elapsed_sparse-three": 1.0033674240112305,
+     "normalized_regret_dense_control": 0.09833358658019863,
+     "elapsed_dense-control": 1.0021133422851562
+    },
+    {
+     "timestamp": "2026-09-04T15:50:13.915040+00:00",
+     "model": "baseline:thompson_sampling",
+     "is_final": true,
+     "seed": "mean",
+     "normalized_regret_sparse_one": 0.24990831247862774,
+     "elapsed_sparse-one": 1.005474328994751,
+     "normalized_regret_sparse_three": 0.1785661103892873,
+     "elapsed_sparse-three": 1.0039650599161785,
+     "normalized_regret_dense_control": 0.09807797611654546,
+     "elapsed_dense-control": 1.0025242964426677
+    },
+    {
+     "timestamp": "2026-09-04T15:50:13.915338+00:00",
+     "model": "baseline:ucb1",
+     "is_final": true,
+     "seed": "123",
+     "normalized_regret_sparse_one": 0.193031583250082,
+     "elapsed_sparse-one": 1.0059585571289062,
+     "normalized_regret_sparse_three": 0.12859202331176872,
+     "elapsed_sparse-three": 1.0042362213134766,
+     "normalized_regret_dense_control": 0.08032653897130097,
+     "elapsed_dense-control": 1.0020644664764404
+    },
+    {
+     "timestamp": "2026-09-04T15:50:13.915647+00:00",
+     "model": "baseline:ucb1",
+     "is_final": true,
+     "seed": "42",
+     "normalized_regret_sparse_one": 0.16280438892688853,
+     "elapsed_sparse-one": 1.006410837173462,
+     "normalized_regret_sparse_three": 0.10857419853464018,
+     "elapsed_sparse-three": 1.0048091411590576,
+     "normalized_regret_dense_control": 0.09116165558838914,
+     "elapsed_dense-control": 1.002784252166748
+    },
+    {
+     "timestamp": "2026-09-04T15:50:13.915961+00:00",
+     "model": "baseline:ucb1",
+     "is_final": true,
+     "seed": "456",
+     "normalized_regret_sparse_one": 0.1336054460055812,
+     "elapsed_sparse-one": 1.005507230758667,
+     "normalized_regret_sparse_three": 0.09803053339223168,
+     "elapsed_sparse-three": 1.0035488605499268,
+     "normalized_regret_dense_control": 0.09070566689371584,
+     "elapsed_dense-control": 1.0015461444854736
+    },
+    {
+     "timestamp": "2026-09-04T15:50:13.916305+00:00",
+     "model": "baseline:ucb1",
+     "is_final": true,
+     "seed": "mean",
+     "normalized_regret_sparse_one": 0.1631471393941839,
+     "elapsed_sparse-one": 1.005958875020345,
+     "normalized_regret_sparse_three": 0.11173225174621353,
+     "elapsed_sparse-three": 1.0041980743408203,
+     "normalized_regret_dense_control": 0.08739795381780198,
+     "elapsed_dense-control": 1.0021316210428874
+    }
+   ]
   },
   "bandit-ucbv-variance": {
    "task_id": "bandit-ucbv-variance",
@@ -32117,7 +32694,10 @@
     "normalized_regret_heteroscedastic",
     "elapsed_heteroscedastic",
     "normalized_regret_nonstationary",
-    "elapsed_nonstationary"
+    "elapsed_nonstationary",
+    "cumulative_regret_stochastic_mab",
+    "cumulative_regret_heteroscedastic",
+    "cumulative_regret_nonstationary"
    ],
    "metric_columns": [
     "normalized_regret_stochastic_mab",
@@ -32149,7 +32729,98 @@
      ]
     }
    ],
-   "rows": []
+   "rows": [
+    {
+     "timestamp": "2026-09-04T15:59:36.609909+00:00",
+     "model": "baseline:thompson_sampling",
+     "is_final": true,
+     "seed": "42",
+     "normalized_regret_stochastic_mab": 0.037875,
+     "elapsed_stochastic-mab": 1.00361967086792,
+     "normalized_regret_heteroscedastic": 0.030722,
+     "elapsed_heteroscedastic": 1.0027580261230469,
+     "normalized_regret_nonstationary": 0.072565,
+     "elapsed_nonstationary": 1.001892328262329,
+     "cumulative_regret_stochastic_mab": 378.75,
+     "cumulative_regret_heteroscedastic": 307.225,
+     "cumulative_regret_nonstationary": 725.65
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.628287+00:00",
+     "model": "baseline:thompson_sampling",
+     "is_final": true,
+     "seed": "mean",
+     "normalized_regret_stochastic_mab": 0.037875,
+     "elapsed_stochastic-mab": 1.00361967086792,
+     "normalized_regret_heteroscedastic": 0.030722,
+     "elapsed_heteroscedastic": 1.0027580261230469,
+     "normalized_regret_nonstationary": 0.072565,
+     "elapsed_nonstationary": 1.001892328262329,
+     "cumulative_regret_stochastic_mab": 378.75,
+     "cumulative_regret_heteroscedastic": 307.225,
+     "cumulative_regret_nonstationary": 725.65
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.629118+00:00",
+     "model": "baseline:ucb1",
+     "is_final": true,
+     "seed": "42",
+     "normalized_regret_stochastic_mab": 0.039685,
+     "elapsed_stochastic-mab": 1.0033998489379883,
+     "normalized_regret_heteroscedastic": 0.031552,
+     "elapsed_heteroscedastic": 1.0025665760040283,
+     "normalized_regret_nonstationary": 0.077025,
+     "elapsed_nonstationary": 1.0017404556274414,
+     "cumulative_regret_stochastic_mab": 396.85,
+     "cumulative_regret_heteroscedastic": 315.525,
+     "cumulative_regret_nonstationary": 770.25
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.629896+00:00",
+     "model": "baseline:ucb1",
+     "is_final": true,
+     "seed": "mean",
+     "normalized_regret_stochastic_mab": 0.039685,
+     "elapsed_stochastic-mab": 1.0033998489379883,
+     "normalized_regret_heteroscedastic": 0.031552,
+     "elapsed_heteroscedastic": 1.0025665760040283,
+     "normalized_regret_nonstationary": 0.077025,
+     "elapsed_nonstationary": 1.0017404556274414,
+     "cumulative_regret_stochastic_mab": 396.85,
+     "cumulative_regret_heteroscedastic": 315.525,
+     "cumulative_regret_nonstationary": 770.25
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.630430+00:00",
+     "model": "baseline:ucbv",
+     "is_final": true,
+     "seed": "42",
+     "normalized_regret_stochastic_mab": 0.04932,
+     "elapsed_stochastic-mab": 1.0029611587524414,
+     "normalized_regret_heteroscedastic": 0.026789,
+     "elapsed_heteroscedastic": 1.0023713111877441,
+     "normalized_regret_nonstationary": 0.106235,
+     "elapsed_nonstationary": 1.00180983543396,
+     "cumulative_regret_stochastic_mab": 493.2,
+     "cumulative_regret_heteroscedastic": 267.89,
+     "cumulative_regret_nonstationary": 1062.35
+    },
+    {
+     "timestamp": "2026-09-04T15:59:36.631076+00:00",
+     "model": "baseline:ucbv",
+     "is_final": true,
+     "seed": "mean",
+     "normalized_regret_stochastic_mab": 0.04932,
+     "elapsed_stochastic-mab": 1.0029611587524414,
+     "normalized_regret_heteroscedastic": 0.026789,
+     "elapsed_heteroscedastic": 1.0023713111877441,
+     "normalized_regret_nonstationary": 0.106235,
+     "elapsed_nonstationary": 1.00180983543396,
+     "cumulative_regret_stochastic_mab": 493.2,
+     "cumulative_regret_heteroscedastic": 267.89,
+     "cumulative_regret_nonstationary": 1062.35
+    }
+   ]
   },
   "causal-discovery-discrete": {
    "task_id": "causal-discovery-discrete",
@@ -91546,12 +92217,234 @@
     "timestamp",
     "model",
     "is_final",
-    "seed"
+    "seed",
+    "spatial_fwt",
+    "spatial_nbt",
+    "spatial_auc",
+    "spatial_avg_final_success",
+    "elapsed_spatial",
+    "goal_fwt",
+    "goal_nbt",
+    "goal_auc",
+    "goal_avg_final_success",
+    "elapsed_goal"
    ],
-   "metric_columns": [],
-   "metric_directions": {},
-   "metric_groups": [],
-   "rows": []
+   "metric_columns": [
+    "spatial_auc",
+    "goal_auc"
+   ],
+   "metric_directions": {
+    "spatial_auc": "higher",
+    "goal_auc": "higher"
+   },
+   "metric_groups": [
+    {
+     "setting": "spatial",
+     "metrics": [
+      "spatial_auc"
+     ]
+    },
+    {
+     "setting": "goal",
+     "metrics": [
+      "goal_auc"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-03T08:19:57.104618+00:00",
+     "model": "baseline:default",
+     "is_final": true,
+     "seed": "42",
+     "spatial_fwt": 0.0,
+     "spatial_nbt": 0.0,
+     "spatial_auc": 0.0,
+     "spatial_avg_final_success": 0.0,
+     "elapsed_spatial": 5.1,
+     "goal_fwt": 0.0,
+     "goal_nbt": 0.0,
+     "goal_auc": 0.0,
+     "goal_avg_final_success": 0.0,
+     "elapsed_goal": 5.0
+    },
+    {
+     "timestamp": "2026-09-03T10:13:52.739329+00:00",
+     "model": "baseline:default",
+     "is_final": true,
+     "seed": "42",
+     "spatial_fwt": 0.0,
+     "spatial_nbt": 0.0,
+     "spatial_auc": 0.0,
+     "spatial_avg_final_success": 0.0,
+     "elapsed_spatial": 6305.6,
+     "goal_fwt": 0.0,
+     "goal_nbt": 0.0,
+     "goal_auc": 0.0,
+     "goal_avg_final_success": 0.0,
+     "elapsed_goal": 6470.2
+    },
+    {
+     "timestamp": "2026-09-03T11:57:31.529763+00:00",
+     "model": "baseline:default",
+     "is_final": true,
+     "seed": "42",
+     "spatial_fwt": 0.0,
+     "spatial_nbt": 0.0,
+     "spatial_auc": 0.0,
+     "spatial_avg_final_success": 0.0,
+     "elapsed_spatial": 208.9,
+     "goal_fwt": 0.0,
+     "goal_nbt": 0.0,
+     "goal_auc": 0.0,
+     "goal_avg_final_success": 0.0,
+     "elapsed_goal": 250.3
+    },
+    {
+     "timestamp": "2026-09-03T08:19:57.106132+00:00",
+     "model": "baseline:default",
+     "is_final": true,
+     "seed": "mean",
+     "spatial_fwt": 0.0,
+     "spatial_nbt": 0.0,
+     "spatial_auc": 0.0,
+     "spatial_avg_final_success": 0.0,
+     "elapsed_spatial": 5.1,
+     "goal_fwt": 0.0,
+     "goal_nbt": 0.0,
+     "goal_auc": 0.0,
+     "goal_avg_final_success": 0.0,
+     "elapsed_goal": 5.0
+    },
+    {
+     "timestamp": "2026-09-03T10:13:52.740312+00:00",
+     "model": "baseline:default",
+     "is_final": true,
+     "seed": "mean",
+     "spatial_fwt": 0.0,
+     "spatial_nbt": 0.0,
+     "spatial_auc": 0.0,
+     "spatial_avg_final_success": 0.0,
+     "elapsed_spatial": 6305.6,
+     "goal_fwt": 0.0,
+     "goal_nbt": 0.0,
+     "goal_auc": 0.0,
+     "goal_avg_final_success": 0.0,
+     "elapsed_goal": 6470.2
+    },
+    {
+     "timestamp": "2026-09-03T11:57:31.570807+00:00",
+     "model": "baseline:default",
+     "is_final": true,
+     "seed": "mean",
+     "spatial_fwt": 0.0,
+     "spatial_nbt": 0.0,
+     "spatial_auc": 0.0,
+     "spatial_avg_final_success": 0.0,
+     "elapsed_spatial": 208.9,
+     "goal_fwt": 0.0,
+     "goal_nbt": 0.0,
+     "goal_auc": 0.0,
+     "goal_avg_final_success": 0.0,
+     "elapsed_goal": 250.3
+    },
+    {
+     "timestamp": "2026-09-03T11:57:56.351370+00:00",
+     "model": "baseline:er",
+     "is_final": true,
+     "seed": "42",
+     "spatial_fwt": 0.0,
+     "spatial_nbt": 0.0,
+     "spatial_auc": 0.0,
+     "spatial_avg_final_success": 0.0,
+     "elapsed_spatial": 214.2,
+     "goal_fwt": 0.0,
+     "goal_nbt": 0.0,
+     "goal_auc": 0.0,
+     "goal_avg_final_success": 0.0,
+     "elapsed_goal": 269.5
+    },
+    {
+     "timestamp": "2026-09-03T11:57:56.352334+00:00",
+     "model": "baseline:er",
+     "is_final": true,
+     "seed": "mean",
+     "spatial_fwt": 0.0,
+     "spatial_nbt": 0.0,
+     "spatial_auc": 0.0,
+     "spatial_avg_final_success": 0.0,
+     "elapsed_spatial": 214.2,
+     "goal_fwt": 0.0,
+     "goal_nbt": 0.0,
+     "goal_auc": 0.0,
+     "goal_avg_final_success": 0.0,
+     "elapsed_goal": 269.5
+    },
+    {
+     "timestamp": "2026-09-03T11:58:04.414158+00:00",
+     "model": "baseline:ewc",
+     "is_final": true,
+     "seed": "42",
+     "spatial_fwt": 0.0,
+     "spatial_nbt": 0.0,
+     "spatial_auc": 0.0,
+     "spatial_avg_final_success": 0.0,
+     "elapsed_spatial": 226.0,
+     "goal_fwt": 0.0,
+     "goal_nbt": 0.0,
+     "goal_auc": 0.0,
+     "goal_avg_final_success": 0.0,
+     "elapsed_goal": 274.0
+    },
+    {
+     "timestamp": "2026-09-04T14:27:23.832612+00:00",
+     "model": "baseline:ewc",
+     "is_final": true,
+     "seed": "42",
+     "spatial_fwt": 0.2514,
+     "spatial_nbt": 0.25,
+     "spatial_auc": 0.0393,
+     "spatial_avg_final_success": 0.0,
+     "elapsed_spatial": 95001.0,
+     "goal_fwt": 0.3582,
+     "goal_nbt": 0.455,
+     "goal_auc": 0.0647,
+     "goal_avg_final_success": 0.0,
+     "elapsed_goal": 95262.1
+    },
+    {
+     "timestamp": "2026-09-03T11:58:04.415017+00:00",
+     "model": "baseline:ewc",
+     "is_final": true,
+     "seed": "mean",
+     "spatial_fwt": 0.0,
+     "spatial_nbt": 0.0,
+     "spatial_auc": 0.0,
+     "spatial_avg_final_success": 0.0,
+     "elapsed_spatial": 226.0,
+     "goal_fwt": 0.0,
+     "goal_nbt": 0.0,
+     "goal_auc": 0.0,
+     "goal_avg_final_success": 0.0,
+     "elapsed_goal": 274.0
+    },
+    {
+     "timestamp": "2026-09-04T14:27:23.841434+00:00",
+     "model": "baseline:ewc",
+     "is_final": true,
+     "seed": "mean",
+     "spatial_fwt": 0.2514,
+     "spatial_nbt": 0.25,
+     "spatial_auc": 0.0393,
+     "spatial_avg_final_success": 0.0,
+     "elapsed_spatial": 95001.0,
+     "goal_fwt": 0.3582,
+     "goal_nbt": 0.455,
+     "goal_auc": 0.0647,
+     "goal_avg_final_success": 0.0,
+     "elapsed_goal": 95262.1
+    }
+   ]
   },
   "llm-dllm-demask-strategy": {
    "task_id": "llm-dllm-demask-strategy",
@@ -132539,7 +133432,7 @@
    ],
    "rows": [
     {
-     "timestamp": "2026-09-04T08:20:57.065481+00:00",
+     "timestamp": "2026-09-04T15:27:54.850846+00:00",
      "model": "baseline:allox",
      "is_final": true,
      "seed": "42",
@@ -132557,7 +133450,7 @@
      "num_jobs_k80_rich": 40.0
     },
     {
-     "timestamp": "2026-09-04T08:20:57.065783+00:00",
+     "timestamp": "2026-09-04T15:27:54.850848+00:00",
      "model": "baseline:allox",
      "is_final": true,
      "seed": "mean",
@@ -132575,43 +133468,43 @@
      "num_jobs_k80_rich": 40.0
     },
     {
-     "timestamp": "2026-09-04T08:20:57.066059+00:00",
+     "timestamp": "2026-09-04T15:27:54.850852+00:00",
      "model": "baseline:gandiva",
      "is_final": true,
      "seed": "42",
-     "avg_jct_balanced": 84018.846005,
-     "p99_jct_balanced": 650582.586426,
-     "makespan_balanced": 933681.688608,
+     "avg_jct_balanced": 88241.576488,
+     "p99_jct_balanced": 695710.444213,
+     "makespan_balanced": 984856.103545,
      "num_jobs_balanced": 40.0,
-     "avg_jct_v100_rich": 70139.941582,
-     "p99_jct_v100_rich": 508602.615782,
-     "makespan_v100_rich": 697790.956338,
+     "avg_jct_v100_rich": 76798.321548,
+     "p99_jct_v100_rich": 589917.262575,
+     "makespan_v100_rich": 788029.472104,
      "num_jobs_v100_rich": 40.0,
-     "avg_jct_k80_rich": 112793.965806,
-     "p99_jct_k80_rich": 1003126.46244,
-     "makespan_k80_rich": 1550828.420497,
+     "avg_jct_k80_rich": 87474.860621,
+     "p99_jct_k80_rich": 679098.428853,
+     "makespan_k80_rich": 1018270.814057,
      "num_jobs_k80_rich": 40.0
     },
     {
-     "timestamp": "2026-09-04T08:20:57.066518+00:00",
+     "timestamp": "2026-09-04T15:27:54.850854+00:00",
      "model": "baseline:gandiva",
      "is_final": true,
      "seed": "mean",
-     "avg_jct_balanced": 84018.846005,
-     "p99_jct_balanced": 650582.586426,
-     "makespan_balanced": 933681.688608,
+     "avg_jct_balanced": 88241.576488,
+     "p99_jct_balanced": 695710.444213,
+     "makespan_balanced": 984856.103545,
      "num_jobs_balanced": 40.0,
-     "avg_jct_v100_rich": 70139.941582,
-     "p99_jct_v100_rich": 508602.615782,
-     "makespan_v100_rich": 697790.956338,
+     "avg_jct_v100_rich": 76798.321548,
+     "p99_jct_v100_rich": 589917.262575,
+     "makespan_v100_rich": 788029.472104,
      "num_jobs_v100_rich": 40.0,
-     "avg_jct_k80_rich": 112793.965806,
-     "p99_jct_k80_rich": 1003126.46244,
-     "makespan_k80_rich": 1550828.420497,
+     "avg_jct_k80_rich": 87474.860621,
+     "p99_jct_k80_rich": 679098.428853,
+     "makespan_k80_rich": 1018270.814057,
      "num_jobs_k80_rich": 40.0
     },
     {
-     "timestamp": "2026-09-04T08:20:57.066833+00:00",
+     "timestamp": "2026-09-04T15:27:54.850861+00:00",
      "model": "baseline:max_min_fairness",
      "is_final": true,
      "seed": "42",
@@ -132629,7 +133522,7 @@
      "num_jobs_k80_rich": 40.0
     },
     {
-     "timestamp": "2026-09-04T08:20:57.067150+00:00",
+     "timestamp": "2026-09-04T15:27:54.850863+00:00",
      "model": "baseline:max_min_fairness",
      "is_final": true,
      "seed": "mean",
@@ -132647,7 +133540,7 @@
      "num_jobs_k80_rich": 40.0
     },
     {
-     "timestamp": "2026-09-04T08:20:57.064690+00:00",
+     "timestamp": "2026-09-04T15:27:54.850838+00:00",
      "model": "baseline:max_min_fairness_perf",
      "is_final": true,
      "seed": "42",
@@ -132665,7 +133558,7 @@
      "num_jobs_k80_rich": 40.0
     },
     {
-     "timestamp": "2026-09-04T08:20:57.065069+00:00",
+     "timestamp": "2026-09-04T15:27:54.850841+00:00",
      "model": "baseline:max_min_fairness_perf",
      "is_final": true,
      "seed": "mean",
@@ -132680,6 +133573,42 @@
      "avg_jct_k80_rich": 75010.28429,
      "p99_jct_k80_rich": 556959.505329,
      "makespan_k80_rich": 858976.406993,
+     "num_jobs_k80_rich": 40.0
+    },
+    {
+     "timestamp": "2026-09-04T15:27:54.850812+00:00",
+     "model": "baseline:null_blind_las",
+     "is_final": true,
+     "seed": "42",
+     "avg_jct_balanced": 100097.953543,
+     "p99_jct_balanced": 906553.312255,
+     "makespan_balanced": 1173908.444325,
+     "num_jobs_balanced": 40.0,
+     "avg_jct_v100_rich": 71306.573145,
+     "p99_jct_v100_rich": 521453.002076,
+     "makespan_v100_rich": 688728.739604,
+     "num_jobs_v100_rich": 40.0,
+     "avg_jct_k80_rich": 87102.389566,
+     "p99_jct_k80_rich": 673995.894276,
+     "makespan_k80_rich": 995469.634048,
+     "num_jobs_k80_rich": 40.0
+    },
+    {
+     "timestamp": "2026-09-04T15:27:54.850831+00:00",
+     "model": "baseline:null_blind_las",
+     "is_final": true,
+     "seed": "mean",
+     "avg_jct_balanced": 100097.953543,
+     "p99_jct_balanced": 906553.312255,
+     "makespan_balanced": 1173908.444325,
+     "num_jobs_balanced": 40.0,
+     "avg_jct_v100_rich": 71306.573145,
+     "p99_jct_v100_rich": 521453.002076,
+     "makespan_v100_rich": 688728.739604,
+     "num_jobs_v100_rich": 40.0,
+     "avg_jct_k80_rich": 87102.389566,
+     "p99_jct_k80_rich": 673995.894276,
+     "makespan_k80_rich": 995469.634048,
      "num_jobs_k80_rich": 40.0
     }
    ]
@@ -132736,148 +133665,184 @@
    ],
    "rows": [
     {
-     "timestamp": "2026-09-04T08:08:46.168151+00:00",
+     "timestamp": "2026-09-04T16:10:00.615455+00:00",
      "model": "baseline:fifo",
      "is_final": true,
      "seed": "42",
-     "avg_jct_balanced": 122202.665316,
-     "p99_jct_balanced": 606499.634276,
-     "makespan_balanced": 655574.098253,
-     "num_jobs_balanced": 40.0,
-     "avg_jct_v100_rich": 95595.632674,
-     "p99_jct_v100_rich": 802812.494084,
-     "makespan_v100_rich": 1017818.916714,
-     "num_jobs_v100_rich": 40.0,
-     "avg_jct_k80_rich": 168532.587294,
-     "p99_jct_k80_rich": 773991.241144,
-     "makespan_k80_rich": 826424.69266,
-     "num_jobs_k80_rich": 40.0
+     "avg_jct_balanced": 379291.454056,
+     "p99_jct_balanced": 1306021.100852,
+     "makespan_balanced": 1610778.748533,
+     "num_jobs_balanced": 150.0,
+     "avg_jct_v100_rich": 260586.140538,
+     "p99_jct_v100_rich": 978830.393672,
+     "makespan_v100_rich": 2200105.351707,
+     "num_jobs_v100_rich": 200.0,
+     "avg_jct_k80_rich": 547038.743877,
+     "p99_jct_k80_rich": 1905362.410027,
+     "makespan_k80_rich": 2729225.972541,
+     "num_jobs_k80_rich": 150.0
     },
     {
-     "timestamp": "2026-09-04T08:08:46.168427+00:00",
+     "timestamp": "2026-09-04T16:10:00.615465+00:00",
      "model": "baseline:fifo",
      "is_final": true,
      "seed": "mean",
-     "avg_jct_balanced": 122202.665316,
-     "p99_jct_balanced": 606499.634276,
-     "makespan_balanced": 655574.098253,
-     "num_jobs_balanced": 40.0,
-     "avg_jct_v100_rich": 95595.632674,
-     "p99_jct_v100_rich": 802812.494084,
-     "makespan_v100_rich": 1017818.916714,
-     "num_jobs_v100_rich": 40.0,
-     "avg_jct_k80_rich": 168532.587294,
-     "p99_jct_k80_rich": 773991.241144,
-     "makespan_k80_rich": 826424.69266,
-     "num_jobs_k80_rich": 40.0
+     "avg_jct_balanced": 379291.454056,
+     "p99_jct_balanced": 1306021.100852,
+     "makespan_balanced": 1610778.748533,
+     "num_jobs_balanced": 150.0,
+     "avg_jct_v100_rich": 260586.140538,
+     "p99_jct_v100_rich": 978830.393672,
+     "makespan_v100_rich": 2200105.351707,
+     "num_jobs_v100_rich": 200.0,
+     "avg_jct_k80_rich": 547038.743877,
+     "p99_jct_k80_rich": 1905362.410027,
+     "makespan_k80_rich": 2729225.972541,
+     "num_jobs_k80_rich": 150.0
     },
     {
-     "timestamp": "2026-09-04T08:08:46.167061+00:00",
+     "timestamp": "2026-09-04T16:10:00.615433+00:00",
      "model": "baseline:gandiva",
      "is_final": true,
      "seed": "42",
-     "avg_jct_balanced": 75246.11003,
-     "p99_jct_balanced": 456224.525874,
-     "makespan_balanced": 489540.681728,
-     "num_jobs_balanced": 40.0,
-     "avg_jct_v100_rich": 66386.337182,
-     "p99_jct_v100_rich": 436545.383295,
-     "makespan_v100_rich": 470410.930456,
-     "num_jobs_v100_rich": 40.0,
-     "avg_jct_k80_rich": 85770.743684,
-     "p99_jct_k80_rich": 481863.489023,
-     "makespan_k80_rich": 513829.287621,
-     "num_jobs_k80_rich": 40.0
+     "avg_jct_balanced": 161493.116622,
+     "p99_jct_balanced": 718520.275775,
+     "makespan_balanced": 805634.350828,
+     "num_jobs_balanced": 150.0,
+     "avg_jct_v100_rich": 146415.370618,
+     "p99_jct_v100_rich": 666493.368911,
+     "makespan_v100_rich": 772388.824321,
+     "num_jobs_v100_rich": 200.0,
+     "avg_jct_k80_rich": 201958.717969,
+     "p99_jct_k80_rich": 857113.509794,
+     "makespan_k80_rich": 946825.965189,
+     "num_jobs_k80_rich": 150.0
     },
     {
-     "timestamp": "2026-09-04T08:08:46.167342+00:00",
+     "timestamp": "2026-09-04T16:10:00.615443+00:00",
      "model": "baseline:gandiva",
      "is_final": true,
      "seed": "mean",
-     "avg_jct_balanced": 75246.11003,
-     "p99_jct_balanced": 456224.525874,
-     "makespan_balanced": 489540.681728,
-     "num_jobs_balanced": 40.0,
-     "avg_jct_v100_rich": 66386.337182,
-     "p99_jct_v100_rich": 436545.383295,
-     "makespan_v100_rich": 470410.930456,
-     "num_jobs_v100_rich": 40.0,
-     "avg_jct_k80_rich": 85770.743684,
-     "p99_jct_k80_rich": 481863.489023,
-     "makespan_k80_rich": 513829.287621,
-     "num_jobs_k80_rich": 40.0
+     "avg_jct_balanced": 161493.116622,
+     "p99_jct_balanced": 718520.275775,
+     "makespan_balanced": 805634.350828,
+     "num_jobs_balanced": 150.0,
+     "avg_jct_v100_rich": 146415.370618,
+     "p99_jct_v100_rich": 666493.368911,
+     "makespan_v100_rich": 772388.824321,
+     "num_jobs_v100_rich": 200.0,
+     "avg_jct_k80_rich": 201958.717969,
+     "p99_jct_k80_rich": 857113.509794,
+     "makespan_k80_rich": 946825.965189,
+     "num_jobs_k80_rich": 150.0
     },
     {
-     "timestamp": "2026-09-04T08:08:46.167600+00:00",
+     "timestamp": "2026-09-04T16:10:00.615360+00:00",
      "model": "baseline:min_total_duration",
      "is_final": true,
      "seed": "42",
-     "avg_jct_balanced": 96735.252751,
-     "p99_jct_balanced": 631395.478714,
-     "makespan_balanced": 670545.336038,
-     "num_jobs_balanced": 40.0,
-     "avg_jct_v100_rich": 84479.574483,
-     "p99_jct_v100_rich": 621959.78531,
-     "makespan_v100_rich": 662737.280661,
-     "num_jobs_v100_rich": 40.0,
-     "avg_jct_k80_rich": 112531.314133,
-     "p99_jct_k80_rich": 662932.989545,
-     "makespan_k80_rich": 696466.692207,
-     "num_jobs_k80_rich": 40.0
+     "avg_jct_balanced": 398133.398981,
+     "p99_jct_balanced": 731465.489928,
+     "makespan_balanced": 840655.144633,
+     "num_jobs_balanced": 150.0,
+     "avg_jct_v100_rich": 398434.684619,
+     "p99_jct_v100_rich": 634596.653368,
+     "makespan_v100_rich": 726999.842654,
+     "num_jobs_v100_rich": 200.0,
+     "avg_jct_k80_rich": 424346.015501,
+     "p99_jct_k80_rich": 994596.92839,
+     "makespan_k80_rich": 1136370.301166,
+     "num_jobs_k80_rich": 150.0
     },
     {
-     "timestamp": "2026-09-04T08:08:46.167866+00:00",
+     "timestamp": "2026-09-04T16:10:00.615391+00:00",
      "model": "baseline:min_total_duration",
      "is_final": true,
      "seed": "mean",
-     "avg_jct_balanced": 96735.252751,
-     "p99_jct_balanced": 631395.478714,
-     "makespan_balanced": 670545.336038,
-     "num_jobs_balanced": 40.0,
-     "avg_jct_v100_rich": 84479.574483,
-     "p99_jct_v100_rich": 621959.78531,
-     "makespan_v100_rich": 662737.280661,
-     "num_jobs_v100_rich": 40.0,
-     "avg_jct_k80_rich": 112531.314133,
-     "p99_jct_k80_rich": 662932.989545,
-     "makespan_k80_rich": 696466.692207,
-     "num_jobs_k80_rich": 40.0
+     "avg_jct_balanced": 398133.398981,
+     "p99_jct_balanced": 731465.489928,
+     "makespan_balanced": 840655.144633,
+     "num_jobs_balanced": 150.0,
+     "avg_jct_v100_rich": 398434.684619,
+     "p99_jct_v100_rich": 634596.653368,
+     "makespan_v100_rich": 726999.842654,
+     "num_jobs_v100_rich": 200.0,
+     "avg_jct_k80_rich": 424346.015501,
+     "p99_jct_k80_rich": 994596.92839,
+     "makespan_k80_rich": 1136370.301166,
+     "num_jobs_k80_rich": 150.0
     },
     {
-     "timestamp": "2026-09-04T08:08:46.166157+00:00",
+     "timestamp": "2026-09-04T16:10:00.615477+00:00",
      "model": "baseline:min_total_duration_perf",
      "is_final": true,
      "seed": "42",
-     "avg_jct_balanced": 84023.563994,
-     "p99_jct_balanced": 428390.917017,
-     "makespan_balanced": 459253.135211,
-     "num_jobs_balanced": 40.0,
-     "avg_jct_v100_rich": 69148.981867,
-     "p99_jct_v100_rich": 425979.494458,
-     "makespan_v100_rich": 459475.671172,
-     "num_jobs_v100_rich": 40.0,
-     "avg_jct_k80_rich": 101775.962842,
-     "p99_jct_k80_rich": 432077.265091,
-     "makespan_k80_rich": 459632.257586,
-     "num_jobs_k80_rich": 40.0
+     "avg_jct_balanced": 501446.332562,
+     "p99_jct_balanced": 544562.761157,
+     "makespan_balanced": 551065.003198,
+     "num_jobs_balanced": 150.0,
+     "avg_jct_v100_rich": 430437.667378,
+     "p99_jct_v100_rich": 533859.050606,
+     "makespan_v100_rich": 558831.633886,
+     "num_jobs_v100_rich": 200.0,
+     "avg_jct_k80_rich": 651151.811536,
+     "p99_jct_k80_rich": 660132.625698,
+     "makespan_k80_rich": 660142.060369,
+     "num_jobs_k80_rich": 150.0
     },
     {
-     "timestamp": "2026-09-04T08:08:46.166557+00:00",
+     "timestamp": "2026-09-04T16:10:00.615488+00:00",
      "model": "baseline:min_total_duration_perf",
      "is_final": true,
      "seed": "mean",
-     "avg_jct_balanced": 84023.563994,
-     "p99_jct_balanced": 428390.917017,
-     "makespan_balanced": 459253.135211,
-     "num_jobs_balanced": 40.0,
-     "avg_jct_v100_rich": 69148.981867,
-     "p99_jct_v100_rich": 425979.494458,
-     "makespan_v100_rich": 459475.671172,
-     "num_jobs_v100_rich": 40.0,
-     "avg_jct_k80_rich": 101775.962842,
-     "p99_jct_k80_rich": 432077.265091,
-     "makespan_k80_rich": 459632.257586,
-     "num_jobs_k80_rich": 40.0
+     "avg_jct_balanced": 501446.332562,
+     "p99_jct_balanced": 544562.761157,
+     "makespan_balanced": 551065.003198,
+     "num_jobs_balanced": 150.0,
+     "avg_jct_v100_rich": 430437.667378,
+     "p99_jct_v100_rich": 533859.050606,
+     "makespan_v100_rich": 558831.633886,
+     "num_jobs_v100_rich": 200.0,
+     "avg_jct_k80_rich": 651151.811536,
+     "p99_jct_k80_rich": 660132.625698,
+     "makespan_k80_rich": 660142.060369,
+     "num_jobs_k80_rich": 150.0
+    },
+    {
+     "timestamp": "2026-09-04T16:10:00.615408+00:00",
+     "model": "baseline:null_blind_makespan",
+     "is_final": true,
+     "seed": "42",
+     "avg_jct_balanced": 403686.044159,
+     "p99_jct_balanced": 661341.633302,
+     "makespan_balanced": 700154.443628,
+     "num_jobs_balanced": 150.0,
+     "avg_jct_v100_rich": 412921.234158,
+     "p99_jct_v100_rich": 579899.888244,
+     "makespan_v100_rich": 606706.365806,
+     "num_jobs_v100_rich": 200.0,
+     "avg_jct_k80_rich": 413597.897448,
+     "p99_jct_k80_rich": 853439.322626,
+     "makespan_k80_rich": 926648.438739,
+     "num_jobs_k80_rich": 150.0
+    },
+    {
+     "timestamp": "2026-09-04T16:10:00.615420+00:00",
+     "model": "baseline:null_blind_makespan",
+     "is_final": true,
+     "seed": "mean",
+     "avg_jct_balanced": 403686.044159,
+     "p99_jct_balanced": 661341.633302,
+     "makespan_balanced": 700154.443628,
+     "num_jobs_balanced": 150.0,
+     "avg_jct_v100_rich": 412921.234158,
+     "p99_jct_v100_rich": 579899.888244,
+     "makespan_v100_rich": 606706.365806,
+     "num_jobs_v100_rich": 200.0,
+     "avg_jct_k80_rich": 413597.897448,
+     "p99_jct_k80_rich": 853439.322626,
+     "makespan_k80_rich": 926648.438739,
+     "num_jobs_k80_rich": 150.0
     }
    ]
   },
