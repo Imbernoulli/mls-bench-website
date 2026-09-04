@@ -12463,6 +12463,50 @@
    "has_agent_logs": true
   },
   {
+   "id": "mlsys-helix-request-scheduling",
+   "name": "Request scheduling for LLM serving over heterogeneous GPU pipelines",
+   "summary": "A large language model is served over a cluster of **heterogeneous** GPUs (fast",
+   "category": "ml-systems-and-efficient-ml",
+   "category_label": "ML Systems & Efficient ML",
+   "category_abbr": "",
+   "description_md": "# Request scheduling for LLM serving over heterogeneous GPU pipelines\n\n## Research question\n\nA large language model is served over a cluster of **heterogeneous** GPUs (fast\nand slow cards, different memory sizes). The model is too large for one machine,\nso its layers are spread across machines as a set of **pipelines**: a machine\nholds a contiguous block of layers, and every request must travel a path\n`source -> ... -> sink` that visits machines holding consecutive layers, being\ntransmitted over network links and executed layer-by-layer along the way. The\nmodel placement (which machine holds which layers) is **fixed and given**.\n\nThe research question, as posed by Helix (Mei et al., *Helix: Serving Large\nLanguage Models over Heterogeneous GPUs using Max-Flow*, ASPLOS 2025,\narXiv:2406.01566): **given a fixed placement over heterogeneous GPUs, how should\nrequests be routed through the pipelines to maximise serving throughput?** A good\nrouter must balance load across paths of unequal capacity, keep fast machines\nbusy, and avoid stalling behind a slow hop or an out-of-memory instance -- all\nwithout knowing a request's output length in advance.\n\nYour contribution is the **routing rule**: for a node that is ready to send and\nthe requests queued to leave it, decide which outbound link (i.e. which next node\nin the pipeline) each request takes. This is ``schedule_transmission`` in a\n``BaseScheduler`` subclass. Execution/batching (``schedule_execution``, FIFO\ncontinuous batching) is held FIXED and identical for every method, so the\ncomparison isolates routing.\n\n## Environment\n\nHelix's cycle-level discrete-event simulator for distributed LLM serving\n(``simulator/`` in Thesys-lab/Helix-ASPLOS25). It models per-machine compute,\npaged KV-cache capacity, network links and pipeline execution from profiled\nmachine characteristics, and is fully deterministic given the workload draw. The\nmodel placement is loaded from disk (a fixed layer assignment produced offline);\nno solver runs at evaluation time. The cluster mixes several GPU types of\ndifferent speed and memory.\n\n## What you can modify\n\nOnly ``CustomScheduler`` in ``simulator/scheduler/custom/custom_scheduler.py``\n(the marked editable region). You implement ``schedule_transmission(node)`` and\nmay keep any per-node state (build it in ``__init__`` / ``reset_topology``).\n\n``schedule_transmission(node)`` receives a node ready to transmit and returns\n``(schedules, retransmission_node_uids)``:\n\n* ``node.outbound_links`` maps ``link_uid -> NetworkLink``; ``link.node_out`` is\n  the next node, ``link.get_available_bandwidth()`` its free bandwidth,\n  ``link.node_out.inbound_request_queue`` its queue. ``node.outbound_request_dict``\n  holds the requests waiting to leave. ``node.in_vram_model_layers`` are the\n  layers this node holds. ``self.cluster`` exposes the topology\n  (``compute_nodes``, ``source_node``, ``sink_node``, ``current_time``).\n* ``request.phase`` is ``RequestPhase.Initialization`` (prompt) or ``.Increment``\n  (decode). For an Initialization request you must record its path with\n  ``request.add_pipeline_stage(PipelineStage(...))`` / ``mark_pipeline_set()`` /\n  ``march_pipeline_stage()``; an Increment request already carries its path\n  (read ``get_next_pipeline_stage()`` and only ``march_pipeline_stage()``).\n* Return a list of ``TransmissionSchedule(link_uid, bandwidth_usage, requests=[req],\n  transmission_type)`` -- at most one request per free link.\n\nA request's **output length is never available** (a real router does not know it).\nKeep decisions cheap -- this runs on the simulator's hot path. Do not import\n``simulator.scheduler.*`` other than the given base. Do not override\n``schedule_execution`` (batching is fixed). ``custom_base.py`` documents the full\ncontract and is read-only.\n\nThe starter policy is deterministic round-robin over free links; replace it.\n\n## Fixed pipeline\n\nThe model, the GPU cluster and its network, the model placement, the KV-cache and\nbatching behaviour, the request-length workload and the offered load are all fixed\nby the harness. Only the routing rule changes.\n\n## Reference baselines\n\nAll four are the request schedulers shipped with Helix, run through the\nsimulator's own code unchanged:\n\n* ``maxflow`` -- Helix's global **max-flow** scheduler\n  (``simulator/scheduler/global_maxflow/``): it formulates request routing over\n  the heterogeneous pipeline as a max-flow problem and assigns each request a\n  route with a per-edge bandwidth from the precomputed flow (Mei et al., ASPLOS\n  2025, arXiv:2406.01566).\n* ``swarm`` -- a **SWARM**-style stochastic wiring heuristic\n  (``simulator/scheduler/swarm/``): interleaved weighted round-robin over\n  outbound links whose weights track observed per-link service time (Ryabinin et\n  al., *SWARM Parallelism*, ICML 2023).\n* ``shortest_queue`` -- route to the outbound link whose next node has the\n  shortest inbound queue (``simulator/scheduler/shortest_queue/``).\n* ``random`` -- state-blind random routing over valid outbound links\n  (``simulator/scheduler/naive_scheduler.py``); the declared null.\n\n## Metric\n\nSustained **decode throughput** (tokens/s) over the analysis window, HIGHER is\nbetter -- Helix's headline serving metric. It is computed host-side by a scorer\nthat runs after the simulator process exits and reads the per-request record it\nwrote. The leaderboard also reports mean prompt and decode latency for reading.\nThe task score is the geometric mean of decode throughput across the evaluation\nsettings (which vary the request-length workload and the offered load). Your\nrouting rule's own decision cost is on the simulator's critical path, so keep it\ncheap.\n",
+   "description_html": "<h1>Request scheduling for LLM serving over heterogeneous GPU pipelines</h1>\n<h2>Research question</h2>\n<p>A large language model is served over a cluster of <strong>heterogeneous</strong> GPUs (fast\nand slow cards, different memory sizes). The model is too large for one machine,\nso its layers are spread across machines as a set of <strong>pipelines</strong>: a machine\nholds a contiguous block of layers, and every request must travel a path\n<code>source -&gt; ... -&gt; sink</code> that visits machines holding consecutive layers, being\ntransmitted over network links and executed layer-by-layer along the way. The\nmodel placement (which machine holds which layers) is <strong>fixed and given</strong>.</p>\n<p>The research question, as posed by Helix (Mei et al., <em>Helix: Serving Large\nLanguage Models over Heterogeneous GPUs using Max-Flow</em>, ASPLOS 2025,\narXiv:2406.01566): <strong>given a fixed placement over heterogeneous GPUs, how should\nrequests be routed through the pipelines to maximise serving throughput?</strong> A good\nrouter must balance load across paths of unequal capacity, keep fast machines\nbusy, and avoid stalling behind a slow hop or an out-of-memory instance -- all\nwithout knowing a request's output length in advance.</p>\n<p>Your contribution is the <strong>routing rule</strong>: for a node that is ready to send and\nthe requests queued to leave it, decide which outbound link (i.e. which next node\nin the pipeline) each request takes. This is <code>schedule_transmission</code> in a\n<code>BaseScheduler</code> subclass. Execution/batching (<code>schedule_execution</code>, FIFO\ncontinuous batching) is held FIXED and identical for every method, so the\ncomparison isolates routing.</p>\n<h2>Environment</h2>\n<p>Helix's cycle-level discrete-event simulator for distributed LLM serving\n(<code>simulator/</code> in Thesys-lab/Helix-ASPLOS25). It models per-machine compute,\npaged KV-cache capacity, network links and pipeline execution from profiled\nmachine characteristics, and is fully deterministic given the workload draw. The\nmodel placement is loaded from disk (a fixed layer assignment produced offline);\nno solver runs at evaluation time. The cluster mixes several GPU types of\ndifferent speed and memory.</p>\n<h2>What you can modify</h2>\n<p>Only <code>CustomScheduler</code> in <code>simulator/scheduler/custom/custom_scheduler.py</code>\n(the marked editable region). You implement <code>schedule_transmission(node)</code> and\nmay keep any per-node state (build it in <code>__init__</code> / <code>reset_topology</code>).</p>\n<p><code>schedule_transmission(node)</code> receives a node ready to transmit and returns\n<code>(schedules, retransmission_node_uids)</code>:</p>\n<ul>\n<li><code>node.outbound_links</code> maps <code>link_uid -&gt; NetworkLink</code>; <code>link.node_out</code> is\n  the next node, <code>link.get_available_bandwidth()</code> its free bandwidth,\n  <code>link.node_out.inbound_request_queue</code> its queue. <code>node.outbound_request_dict</code>\n  holds the requests waiting to leave. <code>node.in_vram_model_layers</code> are the\n  layers this node holds. <code>self.cluster</code> exposes the topology\n  (<code>compute_nodes</code>, <code>source_node</code>, <code>sink_node</code>, <code>current_time</code>).</li>\n<li><code>request.phase</code> is <code>RequestPhase.Initialization</code> (prompt) or <code>.Increment</code>\n  (decode). For an Initialization request you must record its path with\n  <code>request.add_pipeline_stage(PipelineStage(...))</code> / <code>mark_pipeline_set()</code> /\n  <code>march_pipeline_stage()</code>; an Increment request already carries its path\n  (read <code>get_next_pipeline_stage()</code> and only <code>march_pipeline_stage()</code>).</li>\n<li>Return a list of <code>TransmissionSchedule(link_uid, bandwidth_usage, requests=[req],\n  transmission_type)</code> -- at most one request per free link.</li>\n</ul>\n<p>A request's <strong>output length is never available</strong> (a real router does not know it).\nKeep decisions cheap -- this runs on the simulator's hot path. Do not import\n<code>simulator.scheduler.*</code> other than the given base. Do not override\n<code>schedule_execution</code> (batching is fixed). <code>custom_base.py</code> documents the full\ncontract and is read-only.</p>\n<p>The starter policy is deterministic round-robin over free links; replace it.</p>\n<h2>Fixed pipeline</h2>\n<p>The model, the GPU cluster and its network, the model placement, the KV-cache and\nbatching behaviour, the request-length workload and the offered load are all fixed\nby the harness. Only the routing rule changes.</p>\n<h2>Reference baselines</h2>\n<p>All four are the request schedulers shipped with Helix, run through the\nsimulator's own code unchanged:</p>\n<ul>\n<li><code>maxflow</code> -- Helix's global <strong>max-flow</strong> scheduler\n  (<code>simulator/scheduler/global_maxflow/</code>): it formulates request routing over\n  the heterogeneous pipeline as a max-flow problem and assigns each request a\n  route with a per-edge bandwidth from the precomputed flow (Mei et al., ASPLOS\n  2025, arXiv:2406.01566).</li>\n<li><code>swarm</code> -- a <strong>SWARM</strong>-style stochastic wiring heuristic\n  (<code>simulator/scheduler/swarm/</code>): interleaved weighted round-robin over\n  outbound links whose weights track observed per-link service time (Ryabinin et\n  al., <em>SWARM Parallelism</em>, ICML 2023).</li>\n<li><code>shortest_queue</code> -- route to the outbound link whose next node has the\n  shortest inbound queue (<code>simulator/scheduler/shortest_queue/</code>).</li>\n<li><code>random</code> -- state-blind random routing over valid outbound links\n  (<code>simulator/scheduler/naive_scheduler.py</code>); the declared null.</li>\n</ul>\n<h2>Metric</h2>\n<p>Sustained <strong>decode throughput</strong> (tokens/s) over the analysis window, HIGHER is\nbetter -- Helix's headline serving metric. It is computed host-side by a scorer\nthat runs after the simulator process exits and reads the per-request record it\nwrote. The leaderboard also reports mean prompt and decode latency for reading.\nThe task score is the geometric mean of decode throughput across the evaluation\nsettings (which vary the request-length workload and the offered load). Your\nrouting rule's own decision cost is on the simulator's critical path, so keep it\ncheap.</p>",
+   "baselines": [
+    "maxflow",
+    "swarm",
+    "shortest_queue",
+    "random"
+   ],
+   "environments": [
+    "azure",
+    "azure_light",
+    "sharegpt"
+   ],
+   "packages": [
+    "Helix"
+   ],
+   "files": [
+    {
+     "filename": "Helix/simulator/scheduler/custom/custom_scheduler.py",
+     "edit_ranges": [
+      {
+       "start": 58,
+       "end": 131
+      }
+     ],
+     "content": "\"\"\"Request scheduler for Helix's distributed-serving discrete-event simulator.\n\nA cluster of HETEROGENEOUS GPUs serves one large model (LLaMA-2 70B) split across\nmachines as a set of pipelines: the model's layers are placed on the machines (a\nFIXED placement, loaded from disk), and every request must travel a path\nsource -> ... compute nodes holding consecutive layers ... -> sink, being\ntransmitted over network links and executed layer-by-layer along the way.\n\nYour contribution is the ROUTING rule: given a node that is ready to transmit and\nthe set of requests queued to leave it, decide which outbound link (i.e. which\nnext node in the pipeline) each request takes.  This is ``schedule_transmission``.\nBatching/execution (``schedule_execution``) is held FIXED (FIFO continuous\nbatching) and is identical for every method, so the comparison isolates routing.\n\nWhat ``schedule_transmission(node)`` gets and must return\n--------------------------------------------------------\n``node`` is a ComputeNode or SourceNode ready to send.  Useful state:\n  node.outbound_links      : {link_uid -> NetworkLink}; link.node_out is the next\n                             node; link.get_available_bandwidth(); link.bandwidth,\n                             link.available_bandwidth; link.node_out.inbound_request_queue\n  node.outbound_nic_speed  : the node's total outbound NIC speed\n  node.outbound_request_dict : {request_uid -> InferenceRequest} waiting to leave\n  node.in_vram_model_layers  : {layer_id -> ...} layers this node holds\n  request.phase            : RequestPhase.Initialization (prompt) or .Increment (decode)\n  request.get_next_pipeline_stage() / .get_current_pipeline_stage()\n  request.add_pipeline_stage(stage) / .march_pipeline_stage() / .pipeline_set / .mark_pipeline_set()\n  self.cluster             : the ClusterSimulator (set in reset_topology); has\n                             .compute_nodes, .source_node, .sink_node, .current_time\nReturn ``(schedules, retransmission_node_uids)`` where ``schedules`` is a list of\n``TransmissionSchedule(link_uid, bandwidth_usage, requests=[req], transmission_type)``\n-- at most one request per free link -- and ``retransmission_node_uids`` is a list\nof node uids that should be re-scheduled now (usually ``[]``).\n\nFor an Initialization-phase request you must RECORD the path it takes: call\n``request.add_pipeline_stage(PipelineStage(link_uid, bandwidth_usage=-1,\nnode_uid=<next node uid>, layers_to_infer=<sorted layer ids or None for the sink>))``,\n``request.mark_pipeline_set()`` once, then ``request.march_pipeline_stage()``.\nAn Increment-phase request already carries its route: read ``get_next_pipeline_stage()``\nand only ``march_pipeline_stage()``.  ``layers_to_infer`` is the layers to run on the\nnext node: all of the next node's layers when leaving the source, ``None`` when the\nnext node is the sink, else the next node's layers whose id exceeds this node's last\nlayer (must be non-empty for a valid hop).\n\nRules: keep decisions cheap (this runs on the DES hot path); do not import\n``simulator.scheduler.*`` other than through the given views; you may keep per-node\nstate (build it in ``reset_topology`` and/or ``__init__``).  Deterministic policies\nare preferred.\n\"\"\"\nfrom simulator.scheduler.custom.custom_base import CustomSchedulerBase\nfrom simulator.event_simulator.request import InferenceRequest, RequestPhase, PipelineStage\nfrom simulator.event_simulator.compute_node import ComputeNode\nfrom simulator.event_simulator.coordinator_node import SourceNode, SinkNode\nfrom simulator.event_simulator.utils import TOKEN_SLOW_LINK\nfrom simulator.scheduler.base_scheduler import TransmissionSchedule, TransmissionType\n\n\n# ----- BEGIN EDITABLE REGION -----\nclass CustomScheduler(CustomSchedulerBase):\n    \"\"\"STARTER policy: deterministic round-robin over free outbound links.\n\n    It ignores queue lengths, KV-cache occupancy and machine heterogeneity -- it\n    just spreads Initialization-phase requests across links in rotation.  Replace\n    it with a better routing rule.\n    \"\"\"\n\n    def __init__(self):\n        super().__init__()\n        self._rr = 0\n\n    def _free_links(self, node):\n        free = {}\n        for link_uid, link in node.outbound_links.items():\n            flow_control = (node.outbound_nic_speed / len(node.outbound_links)\n                            - (link.bandwidth - link.available_bandwidth))\n            avail = min(flow_control, link.get_available_bandwidth())\n            if avail > TOKEN_SLOW_LINK:\n                free[link_uid] = avail\n        return free\n\n    @staticmethod\n    def _layers_to_infer(node, next_node):\n        if isinstance(node, SourceNode):\n            return sorted(next_node.in_vram_model_layers.keys())\n        if isinstance(next_node, SinkNode):\n            return None\n        cur = sorted(node.in_vram_model_layers.keys())\n        nxt = sorted(next_node.in_vram_model_layers.keys())\n        layers = sorted([x for x in nxt if x > max(cur)])\n        return layers if layers else None\n\n    def schedule_transmission(self, node):\n        free = self._free_links(node)\n        assigned = {luid: None for luid in free}\n        ordered = sorted(free.keys())\n\n        for request in node.outbound_request_dict.values():\n            if request.phase == RequestPhase.Initialization:\n                if not ordered:\n                    continue\n                for _ in range(len(ordered)):\n                    luid = ordered[self._rr % len(ordered)]\n                    self._rr += 1\n                    if assigned[luid] is not None:\n                        continue\n                    next_node = node.outbound_links[luid].node_out\n                    layers = self._layers_to_infer(node, next_node)\n                    if layers is None and not isinstance(next_node, SinkNode):\n                        continue  # this hop cannot continue the pipeline\n                    request.add_pipeline_stage(PipelineStage(\n                        link_uid=luid, bandwidth_usage=-1,\n                        node_uid=next_node.node_uid, layers_to_infer=layers))\n                    if not request.pipeline_set:\n                        request.mark_pipeline_set()\n                    request.march_pipeline_stage()\n                    assigned[luid] = request\n                    break\n            elif request.phase == RequestPhase.Increment:\n                stage = request.get_next_pipeline_stage()\n                luid = stage.link_uid\n                if luid in free and assigned[luid] is None:\n                    request.march_pipeline_stage()\n                    assigned[luid] = request\n\n        schedules = []\n        for luid, avail in free.items():\n            req = assigned[luid]\n            if req is not None:\n                schedules.append(TransmissionSchedule(\n                    link_uid=luid, bandwidth_usage=avail, requests=[req],\n                    transmission_type=TransmissionType.NormalExecution))\n        return schedules, []\n# ----- END EDITABLE REGION -----\n"
+    },
+    {
+     "filename": "Helix/simulator/scheduler/custom/custom_base.py",
+     "edit_ranges": []
+    }
+   ],
+   "baselines_code": {},
+   "rigorous_codebase": false,
+   "allow_create": false,
+   "has_agent_logs": false
+  },
+  {
    "id": "mlsys-kvcache-budget-allocation",
    "name": "Allocating a fixed KV budget across layers",
    "summary": "A decoder-only LLM under KV-cache eviction keeps only a fixed budget of prompt-token KV",
@@ -130033,6 +130077,149 @@
      "sdpa_latency_ms_hdim128_seq8k": 1.7927,
      "speedup_vs_sdpa_hdim256_seq16k": 0.0,
      "sdpa_latency_ms_hdim256_seq16k": 0.0
+    }
+   ]
+  },
+  "mlsys-kvcache-budget-allocation": {
+   "task_id": "mlsys-kvcache-budget-allocation",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "longbench_acc_budget128",
+    "elapsed_budget128",
+    "longbench_acc_budget512",
+    "elapsed_budget512",
+    "longbench_acc_budget256",
+    "elapsed_budget256"
+   ],
+   "metric_columns": [
+    "longbench_acc_budget128",
+    "longbench_acc_budget512",
+    "longbench_acc_budget256"
+   ],
+   "metric_directions": {
+    "longbench_acc_budget128": "higher",
+    "longbench_acc_budget512": "higher",
+    "longbench_acc_budget256": "higher"
+   },
+   "metric_groups": [
+    {
+     "setting": "budget128",
+     "metrics": [
+      "longbench_acc_budget128"
+     ]
+    },
+    {
+     "setting": "budget512",
+     "metrics": [
+      "longbench_acc_budget512"
+     ]
+    },
+    {
+     "setting": "budget256",
+     "metrics": [
+      "longbench_acc_budget256"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-04T07:48:06.857225+00:00",
+     "model": "baseline:null_alternating",
+     "is_final": true,
+     "seed": "42",
+     "longbench_acc_budget128": 1.4825,
+     "elapsed_budget128": 715.1765532493591,
+     "longbench_acc_budget512": 1.7488,
+     "elapsed_budget512": 739.6727769374847,
+     "longbench_acc_budget256": 2.0188,
+     "elapsed_budget256": 730.1728110313416
+    },
+    {
+     "timestamp": "2026-09-04T07:48:06.857615+00:00",
+     "model": "baseline:null_alternating",
+     "is_final": true,
+     "seed": "mean",
+     "longbench_acc_budget128": 1.4825,
+     "elapsed_budget128": 715.1765532493591,
+     "longbench_acc_budget512": 1.7488,
+     "elapsed_budget512": 739.6727769374847,
+     "longbench_acc_budget256": 2.0188,
+     "elapsed_budget256": 730.1728110313416
+    },
+    {
+     "timestamp": "2026-09-04T07:48:06.858699+00:00",
+     "model": "baseline:pyramidal",
+     "is_final": true,
+     "seed": "42",
+     "longbench_acc_budget128": 19.325,
+     "elapsed_budget128": 411.59752011299133,
+     "longbench_acc_budget512": 20.465,
+     "elapsed_budget512": 395.59094047546387,
+     "longbench_acc_budget256": 19.5025,
+     "elapsed_budget256": 406.6032145023346
+    },
+    {
+     "timestamp": "2026-09-04T07:48:06.862544+00:00",
+     "model": "baseline:pyramidal",
+     "is_final": true,
+     "seed": "mean",
+     "longbench_acc_budget128": 19.325,
+     "elapsed_budget128": 411.59752011299133,
+     "longbench_acc_budget512": 20.465,
+     "elapsed_budget512": 395.59094047546387,
+     "longbench_acc_budget256": 19.5025,
+     "elapsed_budget256": 406.6032145023346
+    },
+    {
+     "timestamp": "2026-09-04T07:48:06.863153+00:00",
+     "model": "baseline:reverse_pyramid",
+     "is_final": true,
+     "seed": "42",
+     "longbench_acc_budget128": 7.6425,
+     "elapsed_budget128": 507.6411588191986,
+     "longbench_acc_budget512": 21.1487,
+     "elapsed_budget512": 420.118275642395,
+     "longbench_acc_budget256": 18.18,
+     "elapsed_budget256": 460.6036067008972
+    },
+    {
+     "timestamp": "2026-09-04T07:48:06.863628+00:00",
+     "model": "baseline:reverse_pyramid",
+     "is_final": true,
+     "seed": "mean",
+     "longbench_acc_budget128": 7.6425,
+     "elapsed_budget128": 507.6411588191986,
+     "longbench_acc_budget512": 21.1487,
+     "elapsed_budget512": 420.118275642395,
+     "longbench_acc_budget256": 18.18,
+     "elapsed_budget256": 460.6036067008972
+    },
+    {
+     "timestamp": "2026-09-04T07:48:06.864019+00:00",
+     "model": "baseline:uniform",
+     "is_final": true,
+     "seed": "42",
+     "longbench_acc_budget128": 19.4438,
+     "elapsed_budget128": 439.11826395988464,
+     "longbench_acc_budget512": 20.6388,
+     "elapsed_budget512": 412.11230516433716,
+     "longbench_acc_budget256": 19.9288,
+     "elapsed_budget256": 467.6177456378937
+    },
+    {
+     "timestamp": "2026-09-04T07:48:06.864721+00:00",
+     "model": "baseline:uniform",
+     "is_final": true,
+     "seed": "mean",
+     "longbench_acc_budget128": 19.4438,
+     "elapsed_budget128": 439.11826395988464,
+     "longbench_acc_budget512": 20.6388,
+     "elapsed_budget512": 412.11230516433716,
+     "longbench_acc_budget256": 19.9288,
+     "elapsed_budget256": 467.6177456378937
     }
    ]
   },
