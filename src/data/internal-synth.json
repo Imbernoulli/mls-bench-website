@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-03",
+ "generated": "2026-09-04",
  "tasks": [
   {
    "id": "agent-tool-reasoning",
@@ -17979,7 +17979,8 @@
     "transformer",
     "transformer_deep",
     "looped_transformer",
-    "diag_ssm"
+    "diag_ssm",
+    "token_mlp"
    ],
    "environments": [
     "dfa-q24",
@@ -18032,6 +18033,14 @@
       "start_line": 373,
       "end_line": 426,
       "content": "class _GatedDiagScanBlock(nn.Module):\n    \"\"\"h_t = a_t * h_{t-1} + (1 - a_t) * v_t via a log-depth parallel scan.\"\"\"\n\n    def __init__(self, d_model: int):\n        super().__init__()\n        self.norm = nn.LayerNorm(d_model)\n        self.a_proj = nn.Linear(d_model, d_model)\n        self.v_proj = nn.Linear(d_model, d_model, bias=False)\n        self.out_proj = nn.Linear(d_model, d_model, bias=False)\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        u = self.norm(x)\n        a = torch.sigmoid(self.a_proj(u))       # decay gate in (0, 1)\n        h = (1.0 - a) * self.v_proj(u)          # input contribution\n        # Inclusive Hillis-Steele scan: ceil(log2 T) combine rounds, each a\n        # constant number of parallel ops, so serial depth is O(log T).\n        T = x.shape[1]\n        offset = 1\n        while offset < T:\n            a_prev = F.pad(a, (0, 0, offset, 0), value=1.0)[:, :T]\n            h_prev = F.pad(h, (0, 0, offset, 0), value=0.0)[:, :T]\n            h = h + a * h_prev\n            a = a * a_prev\n            offset *= 2\n        return x + self.out_proj(h)\n\n\nclass CustomSequenceModel(nn.Module):\n    \"\"\"4-block gated diagonal linear-scan SSM with an MLP head.\"\"\"\n\n    def __init__(self, vocab_size: int, num_states: int, max_len: int,\n                 d_model: int = 512, n_layers: int = 4):\n        super().__init__()\n        self.token_emb = nn.Embedding(vocab_size, d_model)\n        self.blocks = nn.ModuleList(\n            [_GatedDiagScanBlock(d_model) for _ in range(n_layers)]\n        )\n        self.mlp = nn.Sequential(\n            nn.LayerNorm(d_model),\n            nn.Linear(d_model, 2 * d_model),\n            nn.GELU(),\n            nn.Linear(2 * d_model, d_model),\n        )\n        self.head = nn.Linear(d_model, num_states)\n\n    def forward(self, input_ids: torch.Tensor) -> torch.Tensor:\n        x = self.token_emb(input_ids)\n        for block in self.blocks:\n            x = block(x)\n        x = x + self.mlp(x)\n        return self.head(x)\n\n\ndef build_model(env_spec: EnvSpec, config: TaskConfig) -> nn.Module:\n    \"\"\"Gated diagonal scan SSM: 4 blocks, d_model=512.\"\"\"\n    return CustomSequenceModel(\n        vocab_size=env_spec.alphabet_size,\n        num_states=env_spec.num_states,\n        max_len=env_spec.max_len,\n        d_model=512,\n        n_layers=4,\n    )\n\n\ndef get_optimizer_config(config: TaskConfig) -> dict[str, float]:\n    \"\"\"AdamW (Liu et al. 2023 App. B.3 grid: lr 3e-4, wd 1e-4).\"\"\"\n    return {\"lr\": 3e-4, \"wd\": 1e-4, \"beta1\": 0.9, \"beta2\": 0.999}\n\n\ndef forward_logits(model: nn.Module, input_ids: torch.Tensor,\n                   env_spec: EnvSpec) -> torch.Tensor:\n    return model(input_ids)\n"
+     }
+    ],
+    "token_mlp": [
+     {
+      "file": "pytorch-examples/theory_semiautomata/custom_strategy.py",
+      "start_line": 373,
+      "end_line": 426,
+      "content": "class CustomSequenceModel(nn.Module):\n    \"\"\"NULL: position-wise MLP -- the logits at t depend only on x_t.\n\n    No attention, no convolution, no scan, no recurrence: there is no path\n    in this graph from position t' != t to the output at position t, so the\n    model cannot track the automaton's state at all.  Width matches the\n    reference Transformer (d_model = 512, MLP width 512) so the floor is\n    architectural rather than a capacity handicap.\n    \"\"\"\n\n    def __init__(self, vocab_size: int, num_states: int, max_len: int,\n                 d_model: int = 512, hidden: int = 512):\n        super().__init__()\n        self.token_emb = nn.Embedding(vocab_size, d_model)\n        self.mlp = nn.Sequential(\n            nn.LayerNorm(d_model),\n            nn.Linear(d_model, hidden),\n            nn.GELU(),\n            nn.Linear(hidden, d_model),\n            nn.LayerNorm(d_model),\n        )\n        self.head = nn.Linear(d_model, num_states)\n\n    def forward(self, input_ids: torch.Tensor) -> torch.Tensor:\n        # [B, T] -> [B, T, d_model]; every position is processed on its own.\n        x = self.token_emb(input_ids)\n        x = x + self.mlp(x)\n        return self.head(x)\n\n\ndef build_model(env_spec: EnvSpec, config: TaskConfig) -> nn.Module:\n    \"\"\"Construct the sequence model. Output: [B, T, num_states] logits.\"\"\"\n    return CustomSequenceModel(\n        vocab_size=env_spec.alphabet_size,\n        num_states=env_spec.num_states,\n        max_len=env_spec.max_len,\n        d_model=512,\n        hidden=512,\n    )\n\n\ndef get_optimizer_config(config: TaskConfig) -> dict[str, float]:\n    \"\"\"Same AdamW recipe as the reference baselines (Liu et al. 2023 App. B.3).\"\"\"\n    return {\"lr\": 3e-4, \"wd\": 1e-4, \"beta1\": 0.9, \"beta2\": 0.999}\n\n\ndef forward_logits(model: nn.Module, input_ids: torch.Tensor,\n                   env_spec: EnvSpec) -> torch.Tensor:\n    \"\"\"Run the model on `input_ids` and return logits [B, T, num_states].\"\"\"\n    return model(input_ids)\n"
      }
     ]
    },
@@ -18125,7 +18134,8 @@
     "mean_field_sgd",
     "ntk",
     "curriculum_layerwise",
-    "reuse_sgd"
+    "reuse_sgd",
+    "linear_probe"
    ],
    "environments": [
     "h1",
@@ -18178,6 +18188,14 @@
       "start_line": 296,
       "end_line": 362,
       "content": "def build_model(config: TaskConfig) -> nn.Module:\n    \"\"\"Two-layer mean-field network (Abbe et al. Fig. 1 architecture).\"\"\"\n\n    class TwoLayerMeanField(nn.Module):\n        def __init__(self, d: int, M: int) -> None:\n            super().__init__()\n            self.fc1 = nn.Linear(d, M, bias=False)\n            self.fc2 = nn.Linear(M, 1, bias=False)\n            nn.init.normal_(self.fc1.weight, mean=0.0, std=1.0)\n            with torch.no_grad():\n                signs = torch.randint(0, 2, (M, 1), dtype=torch.float32) * 2.0 - 1.0\n                self.fc2.weight.copy_(signs.t())\n            self.M = M\n\n        @staticmethod\n        def _shifted_sigmoid(u: torch.Tensor) -> torch.Tensor:\n            return torch.sigmoid(u - 0.5)\n\n        def forward(self, x: torch.Tensor) -> torch.Tensor:\n            h = self._shifted_sigmoid(self.fc1(x))\n            return self.fc2(h).view(-1) / self.M\n\n    return TwoLayerMeanField(d=config.d, M=config.width)\n\n\ndef get_optimizer(model: nn.Module, config: TaskConfig) -> torch.optim.Optimizer:\n    \"\"\"Width-corrected mean-field step sizes (see mean_field_sgd).\"\"\"\n    groups = [\n        {\"params\": model.fc1.parameters(), \"lr\": 0.5 * config.width},\n        {\"params\": model.fc2.parameters(), \"lr\": 0.5},\n    ]\n    return torch.optim.SGD(groups, momentum=0.0)\n\n\n_REUSE_T = 2  # gradient steps per batch (Dandi et al. 2024 use T = 2)\n\n\ndef train_step(\n    model: nn.Module,\n    optimizer: torch.optim.Optimizer,\n    x: torch.Tensor,\n    y: torch.Tensor,\n) -> float:\n    \"\"\"REUSE_T consecutive SGD updates on the SAME fresh batch (x, y).\n\n    Reusing a batch implements the non-correlational queries that one-pass\n    SGD lacks (Dandi et al. 2024): the second update correlates functions\n    of the CURRENT weights with the SAME data, breaking the information-\n    exponent barrier of pure online SGD.\n    \"\"\"\n    first_loss = None\n    for _ in range(_REUSE_T):\n        optimizer.zero_grad(set_to_none=True)\n        pred = model(x).view(-1)\n        loss = ((pred - y) ** 2).mean()\n        if first_loss is None:\n            first_loss = float(loss.item())\n        loss.backward()\n        optimizer.step()\n    return first_loss\n"
+     }
+    ],
+    "linear_probe": [
+     {
+      "file": "pytorch-examples/theory_staircase/custom_strategy.py",
+      "start_line": 296,
+      "end_line": 362,
+      "content": "def build_model(config: TaskConfig) -> nn.Module:\n    \"\"\"NULL: a plain linear model -- no hidden layer, no feature learning.\n\n    Spans the degree-<=1 Fourier subspace of {+1,-1}^d and nothing more, so\n    it cannot represent a single one of the interaction monomials the\n    staircase is made of.\n    \"\"\"\n\n    class LinearProbe(nn.Module):\n        def __init__(self, d: int) -> None:\n            super().__init__()\n            self.fc = nn.Linear(d, 1, bias=True)\n            nn.init.zeros_(self.fc.weight)\n            nn.init.zeros_(self.fc.bias)\n\n        def forward(self, x: torch.Tensor) -> torch.Tensor:\n            return self.fc(x).view(-1)\n\n    return LinearProbe(d=config.d)\n\n\ndef get_optimizer(model: nn.Module, config: TaskConfig) -> torch.optim.Optimizer:\n    \"\"\"Plain SGD on the linear weights.\n\n    The problem is convex with population Hessian 2I (x uniform on the\n    hypercube), so lr = 0.05 converges to the least-squares optimum long\n    before the first evaluation checkpoint at step 200.\n    \"\"\"\n    return torch.optim.SGD(model.parameters(), lr=0.05, momentum=0.0)\n\n\ndef train_step(\n    model: nn.Module,\n    optimizer: torch.optim.Optimizer,\n    x: torch.Tensor,\n    y: torch.Tensor,\n) -> float:\n    optimizer.zero_grad(set_to_none=True)\n    pred = model(x).view(-1)\n    loss = ((pred - y) ** 2).mean()\n    loss.backward()\n    optimizer.step()\n    return float(loss.item())\n"
      }
     ]
    },
