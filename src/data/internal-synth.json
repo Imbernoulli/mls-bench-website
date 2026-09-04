@@ -4138,8 +4138,8 @@
    "category": "deep-learning",
    "category_label": "Deep Learning",
    "category_abbr": "",
-   "description_md": "# Coordinate stability across width and depth\n\n## Research question\nWhich algorithmic parameterization keeps activation coordinates at a stable scale when both network width and depth grow?\n\n## Background\nThe μP paper (Yang & Hu, “Tensor Programs V,” ICML 2022) proposes a coordinate check: the mean absolute coordinate of each activation should remain order one across widths after a few updates.  This task measures that falsifiable implementation prediction rather than final accuracy.  It uses the released `mup` shape bookkeeping and optimizers, with standard and NTK controls.\n\n## What you may modify\nImplement only `Parametrization` in `mup/mlsb_mup_coord.py`.  The fixed MLP, CIFAR-10 minibatch, update count, and width ladder are not editable.  Return a model and optimizer; do not special-case the public widths.\n\n## Metric and baselines\nThe harness reports the absolute slope of log mean-absolute activation coordinate versus log width (lower is better, zero is perfectly width-stable), for depth 2, 4, and a hidden depth 8 setting.  Baselines are standard fan-in SGD (`sp`), maximal-update μP (`mup`), and the NTK control (`ntk`).\n",
-   "description_html": "<h1>Coordinate stability across width and depth</h1>\n<h2>Research question</h2>\n<p>Which algorithmic parameterization keeps activation coordinates at a stable scale when both network width and depth grow?</p>\n<h2>Background</h2>\n<p>The μP paper (Yang &amp; Hu, “Tensor Programs V,” ICML 2022) proposes a coordinate check: the mean absolute coordinate of each activation should remain order one across widths after a few updates.  This task measures that falsifiable implementation prediction rather than final accuracy.  It uses the released <code>mup</code> shape bookkeeping and optimizers, with standard and NTK controls.</p>\n<h2>What you may modify</h2>\n<p>Implement only <code>Parametrization</code> in <code>mup/mlsb_mup_coord.py</code>.  The fixed MLP, CIFAR-10 minibatch, update count, and width ladder are not editable.  Return a model and optimizer; do not special-case the public widths.</p>\n<h2>Metric and baselines</h2>\n<p>The harness reports the absolute slope of log mean-absolute activation coordinate versus log width (lower is better, zero is perfectly width-stable), for depth 2, 4, and a hidden depth 8 setting.  Baselines are standard fan-in SGD (<code>sp</code>), maximal-update μP (<code>mup</code>), and the NTK control (<code>ntk</code>).</p>",
+   "description_md": "# Coordinate stability across width and depth\n\n## Research question\nWhich algorithmic parameterization keeps activation coordinates at a stable scale when both network width and depth grow?\n\n## Background\nThe μP paper (Yang & Hu, “Tensor Programs V,” ICML 2022) proposes a coordinate check: the mean absolute coordinate of each activation should remain order one across widths after a few updates.  This task measures that falsifiable implementation prediction rather than final accuracy.  It uses the released `mup` shape bookkeeping and optimizers, with standard and NTK controls.\n\n## What you may modify\nImplement only `Parametrization` in `mup/mlsb_mup_coord.py`.  The fixed MLP, real-data minibatch, update count, and scale ladder are not editable.  Return a model and optimizer; do not special-case the public scales.\n\n## Metric and baselines\nThe harness reports the absolute slope of log mean-absolute activation coordinate versus log width (lower is better, zero is perfectly width-stable), across several fixed depth regimes.  Baselines are standard fan-in SGD (`sp`), maximal-update μP (`mup`), and the NTK control (`ntk`).\n",
+   "description_html": "<h1>Coordinate stability across width and depth</h1>\n<h2>Research question</h2>\n<p>Which algorithmic parameterization keeps activation coordinates at a stable scale when both network width and depth grow?</p>\n<h2>Background</h2>\n<p>The μP paper (Yang &amp; Hu, “Tensor Programs V,” ICML 2022) proposes a coordinate check: the mean absolute coordinate of each activation should remain order one across widths after a few updates.  This task measures that falsifiable implementation prediction rather than final accuracy.  It uses the released <code>mup</code> shape bookkeeping and optimizers, with standard and NTK controls.</p>\n<h2>What you may modify</h2>\n<p>Implement only <code>Parametrization</code> in <code>mup/mlsb_mup_coord.py</code>.  The fixed MLP, real-data minibatch, update count, and scale ladder are not editable.  Return a model and optimizer; do not special-case the public scales.</p>\n<h2>Metric and baselines</h2>\n<p>The harness reports the absolute slope of log mean-absolute activation coordinate versus log width (lower is better, zero is perfectly width-stable), across several fixed depth regimes.  Baselines are standard fan-in SGD (<code>sp</code>), maximal-update μP (<code>mup</code>), and the NTK control (<code>ntk</code>).</p>",
    "baselines": [
     "sp",
     "mup",
@@ -4162,7 +4162,7 @@
        "end": 41
       }
      ],
-     "content": "\"\"\"Coordinate-stability probe for maximal-update parametrization.\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path: sys.path.insert(0, str(PKG_DIR))\nimport mup\n\nclass _MLP(nn.Module):\n    def __init__(self, width: int, depth: int, mu_readout: bool = False):\n        super().__init__()\n        layers = [nn.Linear(3072, width, bias=False)]\n        layers += [nn.Linear(width, width, bias=False) for _ in range(max(1, depth - 1))]\n        self.hidden = nn.ModuleList(layers)\n        self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True) if mu_readout else nn.Linear(width, 10, bias=False)\n        self.coord_l1 = []\n    def forward(self, x):\n        self.coord_l1 = []\n        for layer in self.hidden:\n            x = torch.relu(layer(x)); self.coord_l1.append(float(x.detach().abs().mean()))\n        return self.readout(x)\n\n# ============================================================================\n# FIXED — only the parametrization rule below is editable.\n# ----- BEGIN EDITABLE REGION (lines 30..41) -----\nclass Parametrization:\n    \"\"\"Return a model and optimizer implementing a width-scaling algorithm.\"\"\"\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width); self.depth = int(depth); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, self.depth, mu_readout=True)\n        base = _MLP(self.base_width, self.depth); delta = _MLP(self.base_width + 1, self.depth)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in model.parameters(): mup.init.kaiming_normal_(p)\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n# ----- END EDITABLE REGION -----\n\ndef main():\n    depth = {\"depth-2\": 2, \"depth-4\": 4, \"depth-8\": 8}[os.environ.get(\"ENV\", \"depth-2\")]\n    smoke = bool(os.environ.get(\"MLSB_SMOKE\")); seed = int(os.environ.get(\"SEED\", \"42\")); torch.manual_seed(seed)\n    from torchvision import datasets, transforms\n    root = os.environ.get(\"DATA_ROOT\", \"/opt/mlsb-data\")\n    tfm = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,) * 3, (0.5,) * 3)])\n    ds = datasets.CIFAR10(root=root, train=True, download=False, transform=tfm)\n    ds = torch.utils.data.Subset(ds, range(min(64 if smoke else 256, len(ds))))\n    xb, yb = next(iter(torch.utils.data.DataLoader(ds, batch_size=len(ds), shuffle=False, num_workers=0)))\n    device = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\"); xb, yb = xb.to(device), yb.to(device)\n    vals = []\n    widths = [64, 256] if smoke else [64, 256, 1024]\n    for width in widths:\n        rule = Parametrization(width, depth); model = rule.build().to(device); opt = rule.optimizer(model, 0.1)\n        opt.zero_grad(set_to_none=True); loss = torch.nn.functional.cross_entropy(model(xb.flatten(1)), yb); loss.backward(); opt.step()\n        # Probe coordinates at the post-update point, matching the coordinate\n        # check in the source paper rather than only measuring initialization.\n        with torch.no_grad(): model(xb.flatten(1))\n        vals.append((math.log(width), math.log(max(1e-12, sum(model.coord_l1) / len(model.coord_l1)))))\n    x0, y0 = vals[0]; x1, y1 = vals[-1]; slope = (y1 - y0) / max(1e-12, x1 - x0)\n    print(f\"TRAIN_METRICS: depth={depth} coord_l1={math.exp(y1):.6g} log_width_slope={slope:.6f}\", flush=True)\n    # Include the fixed post-update loss in the score so a constant/zero model\n    # cannot win by collapsing every activation to zero while reporting a flat\n    # coordinate curve.\n    print(f\"TEST_METRICS: coord_slope={abs(slope):.6f} train_loss={float(loss):.6f} depth={depth}\", flush=True)\n\nif __name__ == \"__main__\": main()\n"
+     "content": "\"\"\"Coordinate-stability probe for maximal-update parametrization.\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path: sys.path.insert(0, str(PKG_DIR))\nimport mup\n\nclass _MLP(nn.Module):\n    def __init__(self, width: int, depth: int, mu_readout: bool = False):\n        super().__init__()\n        layers = [nn.Linear(3072, width, bias=False)]\n        layers += [nn.Linear(width, width, bias=False) for _ in range(max(1, depth - 1))]\n        self.hidden = nn.ModuleList(layers)\n        self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True) if mu_readout else nn.Linear(width, 10, bias=False)\n        self.coord_l1 = []\n    def forward(self, x):\n        self.coord_l1 = []\n        for layer in self.hidden:\n            x = torch.relu(layer(x)); self.coord_l1.append(float(x.detach().abs().mean()))\n        return self.readout(x)\n\n# ============================================================================\n# FIXED — only the parametrization rule below is editable.\n# ----- BEGIN EDITABLE REGION (lines 30..41) -----\nclass Parametrization:\n    \"\"\"Return a model and optimizer implementing a width-scaling algorithm.\"\"\"\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width); self.depth = int(depth); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, self.depth, mu_readout=True)\n        base = _MLP(self.base_width, self.depth); delta = _MLP(self.base_width + 1, self.depth)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in list(model.hidden.parameters()): mup.init.kaiming_normal_(p, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n# ----- END EDITABLE REGION -----\n\ndef main():\n    depth = {\"depth-2\": 2, \"depth-4\": 4, \"depth-8\": 8}[os.environ.get(\"ENV\", \"depth-2\")]\n    smoke = bool(os.environ.get(\"MLSB_SMOKE\")); seed = int(os.environ.get(\"SEED\", \"42\")); torch.manual_seed(seed)\n    from torchvision import datasets, transforms\n    root = os.environ.get(\"DATA_ROOT\", \"/opt/mlsb-data\")\n    tfm = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,) * 3, (0.5,) * 3)])\n    ds = datasets.CIFAR10(root=root, train=True, download=False, transform=tfm)\n    ds = torch.utils.data.Subset(ds, range(min(64 if smoke else 256, len(ds))))\n    xb, yb = next(iter(torch.utils.data.DataLoader(ds, batch_size=len(ds), shuffle=False, num_workers=0)))\n    device = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\"); xb, yb = xb.to(device), yb.to(device)\n    vals = []\n    widths = [64, 256] if smoke else [64, 256, 1024]\n    for width in widths:\n        rule = Parametrization(width, depth); model = rule.build().to(device); opt = rule.optimizer(model, 0.1)\n        opt.zero_grad(set_to_none=True); loss = torch.nn.functional.cross_entropy(model(xb.flatten(1)), yb); loss.backward(); opt.step()\n        # Probe coordinates at the post-update point, matching the coordinate\n        # check in the source paper rather than only measuring initialization.\n        with torch.no_grad(): model(xb.flatten(1))\n        vals.append((math.log(width), math.log(max(1e-12, sum(model.coord_l1) / len(model.coord_l1)))))\n    x0, y0 = vals[0]; x1, y1 = vals[-1]; slope = (y1 - y0) / max(1e-12, x1 - x0)\n    print(f\"TRAIN_METRICS: depth={depth} coord_l1={math.exp(y1):.6g} log_width_slope={slope:.6f}\", flush=True)\n    # Include the fixed post-update loss in the score so a constant/zero model\n    # cannot win by collapsing every activation to zero while reporting a flat\n    # coordinate curve.\n    print(f\"TEST_METRICS: coord_slope={abs(slope):.6f} train_loss={float(loss):.6f} depth={depth}\", flush=True)\n\nif __name__ == \"__main__\": main()\n"
     }
    ],
    "baselines_code": {
@@ -4179,7 +4179,7 @@
       "file": "mup/mlsb_mup_coord.py",
       "start_line": 30,
       "end_line": 41,
-      "content": "class Parametrization:\n    \"\"\"Maximal-update parametrization, including μReadout and μSGD.\"\"\"\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width); self.depth = int(depth); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, self.depth, mu_readout=True); base = _MLP(self.base_width, self.depth, mu_readout=True); delta = _MLP(self.base_width + 1, self.depth, mu_readout=True)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in model.parameters(): mup.init.kaiming_normal_(p)\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
+      "content": "class Parametrization:\n    \"\"\"Maximal-update parametrization, including μReadout and μSGD.\"\"\"\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width); self.depth = int(depth); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, self.depth, mu_readout=True); base = _MLP(self.base_width, self.depth, mu_readout=True); delta = _MLP(self.base_width + 1, self.depth, mu_readout=True)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in list(model.hidden.parameters()): mup.init.kaiming_normal_(p, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
      }
     ],
     "ntk": [
@@ -4202,8 +4202,8 @@
    "category": "deep-learning",
    "category_label": "Deep Learning",
    "category_abbr": "",
-   "description_md": "# Maximal-update parametrization and width transfer\n\n## Research question\nCan one algorithmic parametrization make a learning rate selected on a narrow neural network transfer to wider networks without retuning?\n\n## Background\nYang and Hu, “Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer” (ICML 2022, [PMLR](https://proceedings.mlr.press/v162/yang22h.html)), predicts that maximal-update parametrization (μP) keeps feature updates at order one as width grows.  The released `mup` package implements the paper's base-shape bookkeeping, μP initializers, and μSGD optimizer.  Standard (SP), NTK, and inverse-width-learning-rate controls test the competing explanations.\n\n## What you may modify\nImplement `Parametrization` in `mup/mlsb_mup_rule.py`.  `build()` must create the fixed 3-layer MLP at the requested width and `optimizer()` must use the supplied learning rate; do not change the data, model depth, training steps, or evaluation.  Widths include one held-out value, so hard-coded per-width constants are not valid scientific contributions.\n\n## Fixed protocol and metric\nThe harness trains on real CIFAR-10 images with a fixed SGD momentum, batch size, seed, and learning rate chosen at the proxy width.  It reports test top-1 accuracy (higher is better) at three widths.  The agent's code is run independently for each width.\n\n## Reference baselines\n`sp` (standard fan-in initialization and global SGD), `mup` (Yang & Hu maximal-update scaling), `ntk` (NTK scaling), and `sp_lr_over_width` (the commonly suggested inverse-width learning-rate control).\n",
-   "description_html": "<h1>Maximal-update parametrization and width transfer</h1>\n<h2>Research question</h2>\n<p>Can one algorithmic parametrization make a learning rate selected on a narrow neural network transfer to wider networks without retuning?</p>\n<h2>Background</h2>\n<p>Yang and Hu, “Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer” (ICML 2022, <a href=\"https://proceedings.mlr.press/v162/yang22h.html\">PMLR</a>), predicts that maximal-update parametrization (μP) keeps feature updates at order one as width grows.  The released <code>mup</code> package implements the paper's base-shape bookkeeping, μP initializers, and μSGD optimizer.  Standard (SP), NTK, and inverse-width-learning-rate controls test the competing explanations.</p>\n<h2>What you may modify</h2>\n<p>Implement <code>Parametrization</code> in <code>mup/mlsb_mup_rule.py</code>.  <code>build()</code> must create the fixed 3-layer MLP at the requested width and <code>optimizer()</code> must use the supplied learning rate; do not change the data, model depth, training steps, or evaluation.  Widths include one held-out value, so hard-coded per-width constants are not valid scientific contributions.</p>\n<h2>Fixed protocol and metric</h2>\n<p>The harness trains on real CIFAR-10 images with a fixed SGD momentum, batch size, seed, and learning rate chosen at the proxy width.  It reports test top-1 accuracy (higher is better) at three widths.  The agent's code is run independently for each width.</p>\n<h2>Reference baselines</h2>\n<p><code>sp</code> (standard fan-in initialization and global SGD), <code>mup</code> (Yang &amp; Hu maximal-update scaling), <code>ntk</code> (NTK scaling), and <code>sp_lr_over_width</code> (the commonly suggested inverse-width learning-rate control).</p>",
+   "description_md": "# Maximal-update parametrization and width transfer\n\n## Research question\nCan one algorithmic parametrization make a learning rate selected on a narrow neural network transfer to wider networks without retuning?\n\n## Background\nYang and Hu, “Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer” (ICML 2022, [PMLR](https://proceedings.mlr.press/v162/yang22h.html)), predicts that maximal-update parametrization (μP) keeps feature updates at order one as width grows.  The released `mup` package implements the paper's base-shape bookkeeping, μP initializers, and μSGD optimizer.  Standard (SP), NTK, and inverse-width-learning-rate controls test the competing explanations.\n\n## What you may modify\nImplement `Parametrization` in `mup/mlsb_mup_rule.py`.  `build()` must create the fixed MLP at the requested width and `optimizer()` must use the supplied learning rate; do not change the data, architecture, training steps, or evaluation.  The protocol includes a held-out scale, so hard-coded per-width constants are not valid scientific contributions.\n\n## Fixed protocol and metric\nThe harness trains on a fixed real image-classification dataset with fixed SGD momentum, batch size, seed, and learning rate chosen at a proxy scale.  It reports test top-1 accuracy (higher is better) at multiple scales.  The agent's code is run independently for each scale.\n\n## Reference baselines\n`sp` (standard fan-in initialization and global SGD), `mup` (Yang & Hu maximal-update scaling), `ntk` (NTK scaling), and `sp_lr_over_width` (the commonly suggested inverse-width learning-rate control).\n",
+   "description_html": "<h1>Maximal-update parametrization and width transfer</h1>\n<h2>Research question</h2>\n<p>Can one algorithmic parametrization make a learning rate selected on a narrow neural network transfer to wider networks without retuning?</p>\n<h2>Background</h2>\n<p>Yang and Hu, “Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer” (ICML 2022, <a href=\"https://proceedings.mlr.press/v162/yang22h.html\">PMLR</a>), predicts that maximal-update parametrization (μP) keeps feature updates at order one as width grows.  The released <code>mup</code> package implements the paper's base-shape bookkeeping, μP initializers, and μSGD optimizer.  Standard (SP), NTK, and inverse-width-learning-rate controls test the competing explanations.</p>\n<h2>What you may modify</h2>\n<p>Implement <code>Parametrization</code> in <code>mup/mlsb_mup_rule.py</code>.  <code>build()</code> must create the fixed MLP at the requested width and <code>optimizer()</code> must use the supplied learning rate; do not change the data, architecture, training steps, or evaluation.  The protocol includes a held-out scale, so hard-coded per-width constants are not valid scientific contributions.</p>\n<h2>Fixed protocol and metric</h2>\n<p>The harness trains on a fixed real image-classification dataset with fixed SGD momentum, batch size, seed, and learning rate chosen at a proxy scale.  It reports test top-1 accuracy (higher is better) at multiple scales.  The agent's code is run independently for each scale.</p>\n<h2>Reference baselines</h2>\n<p><code>sp</code> (standard fan-in initialization and global SGD), <code>mup</code> (Yang &amp; Hu maximal-update scaling), <code>ntk</code> (NTK scaling), and <code>sp_lr_over_width</code> (the commonly suggested inverse-width learning-rate control).</p>",
    "baselines": [
     "sp",
     "mup",
@@ -4227,7 +4227,7 @@
        "end": 56
       }
      ],
-     "content": "\"\"\"Editable μP parametrization rule for a fixed CIFAR-10 MLP experiment.\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\n\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path:\n    sys.path.insert(0, str(PKG_DIR))\nimport mup\n\n\nclass _MLP(nn.Module):\n    \"\"\"Fixed architecture: 3072 -> width -> width -> 10.\"\"\"\n    def __init__(self, width: int, mu_readout: bool = False):\n        super().__init__()\n        self.fc1 = nn.Linear(3072, width, bias=False)\n        self.fc2 = nn.Linear(width, width, bias=False)\n        self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True) if mu_readout else nn.Linear(width, 10, bias=False)\n\n    def forward(self, x):\n        x = torch.relu(self.fc1(x))\n        x = torch.relu(self.fc2(x))\n        return self.readout(x)\n\n\n# ============================================================================\n# FIXED — the data, architecture, and optimizer interface are below/around this\n# marker.  Only Parametrization is editable by the agent.\n# ============================================================================\n\n# ----- BEGIN EDITABLE REGION (lines 36..56) -----\nclass Parametrization:\n    \"\"\"Algorithmic width-scaling rule.\n\n    ``build`` must return the fixed MLP at the requested width and ``optimizer``\n    must return an optimizer for it.  The learning rate is fixed by the harness;\n    an implementation may only apply the scaling prescribed by its paper.\n    \"\"\"\n\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width)\n        self.base_width = int(base_width)\n\n    def build(self) -> nn.Module:\n        # Standard parametrization (the runnable null).\n        model = _MLP(self.width, mu_readout=False)\n        for p in model.parameters():\n            nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        return model\n\n    def optimizer(self, model: nn.Module, lr: float):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n# ----- END EDITABLE REGION -----\n\n\ndef _setting_width(setting: str) -> int:\n    return {\"width-64\": 64, \"width-256\": 256, \"width-1024\": 1024}[setting]\n\n\ndef _load_data(root: str, smoke: bool):\n    from torchvision import datasets, transforms\n    tfm = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,) * 3, (0.5,) * 3)])\n    train = datasets.CIFAR10(root=root, train=True, download=False, transform=tfm)\n    test = datasets.CIFAR10(root=root, train=False, download=False, transform=tfm)\n    if smoke:\n        train = torch.utils.data.Subset(train, range(min(256, len(train))))\n        test = torch.utils.data.Subset(test, range(min(256, len(test))))\n    return train, test\n\n\ndef main():\n    setting = os.environ.get(\"ENV\", \"width-64\")\n    width = _setting_width(setting)\n    smoke = bool(os.environ.get(\"MLSB_SMOKE\"))\n    seed = int(os.environ.get(\"SEED\", \"42\"))\n    torch.manual_seed(seed)\n    train, test = _load_data(os.environ.get(\"DATA_ROOT\", \"/opt/mlsb-data\"), smoke)\n    model = Parametrization(width).build()\n    model.train()\n    opt = Parametrization(width).optimizer(model, lr=0.1)\n    epochs = 1 if smoke else 20\n    batch = 64\n    loader = torch.utils.data.DataLoader(train, batch_size=batch, shuffle=True, num_workers=0)\n    device = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\")\n    model.to(device)\n    for ep in range(epochs):\n        running = 0.0\n        for xb, yb in loader:\n            xb, yb = xb.to(device), yb.to(device)\n            opt.zero_grad(set_to_none=True)\n            loss = torch.nn.functional.cross_entropy(model(xb.flatten(1)), yb)\n            loss.backward(); opt.step(); running += float(loss)\n        print(f\"TRAIN_METRICS: epoch={ep + 1} loss={running / max(1, len(loader)):.5f}\", flush=True)\n    model.eval(); correct = total = 0\n    with torch.no_grad():\n        for xb, yb in torch.utils.data.DataLoader(test, batch_size=256, shuffle=False, num_workers=0):\n            out = model(xb.to(device).flatten(1)); pred = out.argmax(1).cpu()\n            correct += int((pred == yb).sum()); total += len(yb)\n    acc = 100.0 * correct / max(1, total)\n    print(f\"TEST_METRICS: test_acc={acc:.6f} width={width}\", flush=True)\n\n\nif __name__ == \"__main__\":\n    main()\n"
+     "content": "\"\"\"Editable μP parametrization rule for a fixed image-classification MLP.\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\n\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path:\n    sys.path.insert(0, str(PKG_DIR))\nimport mup\n\n\nclass _MLP(nn.Module):\n    \"\"\"Fixed architecture: 3072 -> width -> width -> 10.\"\"\"\n    def __init__(self, width: int, mu_readout: bool = False):\n        super().__init__()\n        self.fc1 = nn.Linear(3072, width, bias=False)\n        self.fc2 = nn.Linear(width, width, bias=False)\n        self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True) if mu_readout else nn.Linear(width, 10, bias=False)\n\n    def forward(self, x):\n        x = torch.relu(self.fc1(x))\n        x = torch.relu(self.fc2(x))\n        return self.readout(x)\n\n\n# ============================================================================\n# FIXED — the data, architecture, and optimizer interface are below/around this\n# marker.  Only Parametrization is editable by the agent.\n# ============================================================================\n\n# ----- BEGIN EDITABLE REGION (lines 36..56) -----\nclass Parametrization:\n    \"\"\"Algorithmic width-scaling rule.\n\n    ``build`` must return the fixed MLP at the requested width and ``optimizer``\n    must return an optimizer for it.  The learning rate is fixed by the harness;\n    an implementation may only apply the scaling prescribed by its paper.\n    \"\"\"\n\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width)\n        self.base_width = int(base_width)\n\n    def build(self) -> nn.Module:\n        # Standard parametrization (the runnable null).\n        model = _MLP(self.width, mu_readout=False)\n        for p in model.parameters():\n            nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        return model\n\n    def optimizer(self, model: nn.Module, lr: float):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n# ----- END EDITABLE REGION -----\n\n\ndef _setting_width(setting: str) -> int:\n    return {\"width-64\": 64, \"width-256\": 256, \"width-1024\": 1024}[setting]\n\n\ndef _load_data(root: str, smoke: bool):\n    from torchvision import datasets, transforms\n    tfm = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,) * 3, (0.5,) * 3)])\n    train = datasets.CIFAR10(root=root, train=True, download=False, transform=tfm)\n    test = datasets.CIFAR10(root=root, train=False, download=False, transform=tfm)\n    if smoke:\n        train = torch.utils.data.Subset(train, range(min(256, len(train))))\n        test = torch.utils.data.Subset(test, range(min(256, len(test))))\n    return train, test\n\n\ndef main():\n    setting = os.environ.get(\"ENV\", \"width-64\")\n    width = _setting_width(setting)\n    smoke = bool(os.environ.get(\"MLSB_SMOKE\"))\n    seed = int(os.environ.get(\"SEED\", \"42\"))\n    torch.manual_seed(seed)\n    train, test = _load_data(os.environ.get(\"DATA_ROOT\", \"/opt/mlsb-data\"), smoke)\n    model = Parametrization(width).build()\n    model.train()\n    opt = Parametrization(width).optimizer(model, lr=0.1)\n    epochs = 1 if smoke else 20\n    batch = 64\n    loader = torch.utils.data.DataLoader(train, batch_size=batch, shuffle=True, num_workers=0)\n    device = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\")\n    model.to(device)\n    for ep in range(epochs):\n        running = 0.0\n        for xb, yb in loader:\n            xb, yb = xb.to(device), yb.to(device)\n            opt.zero_grad(set_to_none=True)\n            loss = torch.nn.functional.cross_entropy(model(xb.flatten(1)), yb)\n            loss.backward(); opt.step(); running += float(loss)\n        print(f\"TRAIN_METRICS: epoch={ep + 1} loss={running / max(1, len(loader)):.5f}\", flush=True)\n    model.eval(); correct = total = 0\n    with torch.no_grad():\n        for xb, yb in torch.utils.data.DataLoader(test, batch_size=256, shuffle=False, num_workers=0):\n            out = model(xb.to(device).flatten(1)); pred = out.argmax(1).cpu()\n            correct += int((pred == yb).sum()); total += len(yb)\n    acc = 100.0 * correct / max(1, total)\n    print(f\"TEST_METRICS: test_acc={acc:.6f} width={width}\", flush=True)\n\n\nif __name__ == \"__main__\":\n    main()\n"
     }
    ],
    "baselines_code": {
@@ -4244,7 +4244,7 @@
       "file": "mup/mlsb_mup_rule.py",
       "start_line": 36,
       "end_line": 56,
-      "content": "class Parametrization:\n    \"\"\"Maximal-update parametrization from Yang & Hu (2022).\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=True)\n        base = _MLP(self.base_width, mu_readout=True)\n        delta = _MLP(self.base_width + 1, mu_readout=True)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in model.parameters():\n            if p.infshape.ninf() <= 1: mup.init.kaiming_normal_(p)\n            else: mup.init.kaiming_normal_(p, mode=\"fan_in\")\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
+      "content": "class Parametrization:\n    \"\"\"Maximal-update parametrization from Yang & Hu (2022).\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=True)\n        base = _MLP(self.base_width, mu_readout=True)\n        delta = _MLP(self.base_width + 1, mu_readout=True)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in list(model.fc1.parameters()) + list(model.fc2.parameters()):\n            mup.init.kaiming_normal_(p, mode=\"fan_in\")\n        # The reference MLP starts the finite readout at zero; MuReadout's\n        # forward still applies the 1/width multiplier after training begins.\n        nn.init.zeros_(model.readout.weight)\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
      }
     ],
     "ntk": [
@@ -4275,8 +4275,8 @@
    "category": "deep-learning",
    "category_label": "Deep Learning",
    "category_abbr": "",
-   "description_md": "# μReadout scaling under width transfer\n\n## Research question\nDoes the output-layer scaling and initialization prescribed by μP preserve useful logits as hidden width grows, independently of the hidden-layer update rule?\n\n## Background\nYang and Hu, “Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer” (ICML 2022), distinguishes finite readout dimensions from width dimensions.  The released `mup.MuReadout` applies the corresponding constant-variance initialization and inverse-width output multiplier.  This task isolates that readout mechanism while keeping the two hidden layers fixed.\n\n## What you may modify\nImplement `ReadoutRule` in `mup/mlsb_mup_readout.py`.  Only the output-layer construction, its paper-prescribed scaling, and its optimizer parameter groups may change; the CIFAR-10 pipeline, hidden architecture, learning rate, and epochs are fixed.  The width-1024 setting is held out.\n\n## Metric and baselines\nThe metric is CIFAR-10 test top-1 accuracy (higher is better) at widths 64, 256, and hidden 1024.  Baselines are the standard readout (`standard`), the μP `MuReadout` (`mu_readout`), and an NTK-style inverse-width readout control (`ntk_readout`).\n",
-   "description_html": "<h1>μReadout scaling under width transfer</h1>\n<h2>Research question</h2>\n<p>Does the output-layer scaling and initialization prescribed by μP preserve useful logits as hidden width grows, independently of the hidden-layer update rule?</p>\n<h2>Background</h2>\n<p>Yang and Hu, “Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer” (ICML 2022), distinguishes finite readout dimensions from width dimensions.  The released <code>mup.MuReadout</code> applies the corresponding constant-variance initialization and inverse-width output multiplier.  This task isolates that readout mechanism while keeping the two hidden layers fixed.</p>\n<h2>What you may modify</h2>\n<p>Implement <code>ReadoutRule</code> in <code>mup/mlsb_mup_readout.py</code>.  Only the output-layer construction, its paper-prescribed scaling, and its optimizer parameter groups may change; the CIFAR-10 pipeline, hidden architecture, learning rate, and epochs are fixed.  The width-1024 setting is held out.</p>\n<h2>Metric and baselines</h2>\n<p>The metric is CIFAR-10 test top-1 accuracy (higher is better) at widths 64, 256, and hidden 1024.  Baselines are the standard readout (<code>standard</code>), the μP <code>MuReadout</code> (<code>mu_readout</code>), and an NTK-style inverse-width readout control (<code>ntk_readout</code>).</p>",
+   "description_md": "# μReadout scaling under width transfer\n\n## Research question\nDoes the output-layer scaling and initialization prescribed by μP preserve useful logits as hidden width grows, independently of the hidden-layer update rule?\n\n## Background\nYang and Hu, “Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer” (ICML 2022), distinguishes finite readout dimensions from width dimensions.  The released `mup.MuReadout` applies the corresponding constant-variance initialization and inverse-width output multiplier.  This task isolates that readout mechanism while keeping the hidden layers fixed.\n\n## What you may modify\nImplement `ReadoutRule` in `mup/mlsb_mup_readout.py`.  Only the output-layer construction, its paper-prescribed scaling, and its optimizer parameter groups may change; the data pipeline, hidden architecture, learning rate, and training budget are fixed.  One scale regime is held out.\n\n## Metric and baselines\nThe metric is test top-1 accuracy (higher is better) across several width regimes.  Baselines are the standard readout (`standard`), the μP `MuReadout` (`mu_readout`), and an NTK-style inverse-width readout control (`ntk_readout`).\n",
+   "description_html": "<h1>μReadout scaling under width transfer</h1>\n<h2>Research question</h2>\n<p>Does the output-layer scaling and initialization prescribed by μP preserve useful logits as hidden width grows, independently of the hidden-layer update rule?</p>\n<h2>Background</h2>\n<p>Yang and Hu, “Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer” (ICML 2022), distinguishes finite readout dimensions from width dimensions.  The released <code>mup.MuReadout</code> applies the corresponding constant-variance initialization and inverse-width output multiplier.  This task isolates that readout mechanism while keeping the hidden layers fixed.</p>\n<h2>What you may modify</h2>\n<p>Implement <code>ReadoutRule</code> in <code>mup/mlsb_mup_readout.py</code>.  Only the output-layer construction, its paper-prescribed scaling, and its optimizer parameter groups may change; the data pipeline, hidden architecture, learning rate, and training budget are fixed.  One scale regime is held out.</p>\n<h2>Metric and baselines</h2>\n<p>The metric is test top-1 accuracy (higher is better) across several width regimes.  Baselines are the standard readout (<code>standard</code>), the μP <code>MuReadout</code> (<code>mu_readout</code>), and an NTK-style inverse-width readout control (<code>ntk_readout</code>).</p>",
    "baselines": [
     "standard",
     "mu_readout",
@@ -4299,7 +4299,7 @@
        "end": 33
       }
      ],
-     "content": "\"\"\"Readout scaling experiment for width transfer on CIFAR-10.\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path: sys.path.insert(0, str(PKG_DIR))\nimport mup\n\nclass _MLP(nn.Module):\n    def __init__(self, width: int, mu_readout: bool = False):\n        super().__init__()\n        self.fc1 = nn.Linear(3072, width, bias=False)\n        self.fc2 = nn.Linear(width, width, bias=False)\n        self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True) if mu_readout else nn.Linear(width, 10, bias=False)\n    def forward(self, x): return self.readout(torch.relu(self.fc2(torch.relu(self.fc1(x)))))\n\n# ============================================================================\n# FIXED — dataset, architecture, and training loop are immutable.\n# ----- BEGIN EDITABLE REGION (lines 24..33) -----\nclass ReadoutRule:\n    \"\"\"Algorithmic output-layer scaling rule; hidden layers remain fixed.\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=False)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        return model\n    def optimizer(self, model, lr):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n# ----- END EDITABLE REGION -----\n\ndef main():\n    setting = os.environ.get(\"ENV\", \"width-64\"); width = {\"width-64\": 64, \"width-256\": 256, \"width-1024\": 1024}[setting]\n    smoke = bool(os.environ.get(\"MLSB_SMOKE\")); seed = int(os.environ.get(\"SEED\", \"42\")); torch.manual_seed(seed)\n    from torchvision import datasets, transforms\n    tfm = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,) * 3, (0.5,) * 3)])\n    root = os.environ.get(\"DATA_ROOT\", \"/opt/mlsb-data\"); train = datasets.CIFAR10(root=root, train=True, download=False, transform=tfm); test = datasets.CIFAR10(root=root, train=False, download=False, transform=tfm)\n    if smoke: train = torch.utils.data.Subset(train, range(min(256, len(train)))); test = torch.utils.data.Subset(test, range(min(256, len(test))))\n    model = ReadoutRule(width).build(); device = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\"); model.to(device); opt = ReadoutRule(width).optimizer(model, 0.1)\n    loader = torch.utils.data.DataLoader(train, batch_size=64, shuffle=True, num_workers=0); epochs = 1 if smoke else 20\n    for ep in range(epochs):\n        total = 0.0\n        for xb, yb in loader:\n            opt.zero_grad(set_to_none=True); loss = torch.nn.functional.cross_entropy(model(xb.to(device).flatten(1)), yb.to(device)); loss.backward(); opt.step(); total += float(loss)\n        print(f\"TRAIN_METRICS: epoch={ep + 1} loss={total / max(1, len(loader)):.5f}\", flush=True)\n    model.eval(); correct = total = 0\n    with torch.no_grad():\n        for xb, yb in torch.utils.data.DataLoader(test, batch_size=256, shuffle=False, num_workers=0):\n            pred = model(xb.to(device).flatten(1)).argmax(1).cpu(); correct += int((pred == yb).sum()); total += len(yb)\n    print(f\"TEST_METRICS: test_acc={100.0 * correct / max(1, total):.6f} width={width}\", flush=True)\n\nif __name__ == \"__main__\": main()\n"
+     "content": "\"\"\"Readout scaling experiment for width transfer on a fixed image task.\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path: sys.path.insert(0, str(PKG_DIR))\nimport mup\n\nclass _MLP(nn.Module):\n    def __init__(self, width: int, mu_readout: bool = False):\n        super().__init__()\n        self.fc1 = nn.Linear(3072, width, bias=False)\n        self.fc2 = nn.Linear(width, width, bias=False)\n        self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True) if mu_readout else nn.Linear(width, 10, bias=False)\n    def forward(self, x): return self.readout(torch.relu(self.fc2(torch.relu(self.fc1(x)))))\n\n# ============================================================================\n# FIXED — dataset, architecture, and training loop are immutable.\n# ----- BEGIN EDITABLE REGION (lines 24..33) -----\nclass ReadoutRule:\n    \"\"\"Algorithmic output-layer scaling rule; hidden layers remain fixed.\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=False)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        return model\n    def optimizer(self, model, lr):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n# ----- END EDITABLE REGION -----\n\ndef main():\n    setting = os.environ.get(\"ENV\", \"width-64\"); width = {\"width-64\": 64, \"width-256\": 256, \"width-1024\": 1024}[setting]\n    smoke = bool(os.environ.get(\"MLSB_SMOKE\")); seed = int(os.environ.get(\"SEED\", \"42\")); torch.manual_seed(seed)\n    from torchvision import datasets, transforms\n    tfm = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,) * 3, (0.5,) * 3)])\n    root = os.environ.get(\"DATA_ROOT\", \"/opt/mlsb-data\"); train = datasets.CIFAR10(root=root, train=True, download=False, transform=tfm); test = datasets.CIFAR10(root=root, train=False, download=False, transform=tfm)\n    if smoke: train = torch.utils.data.Subset(train, range(min(256, len(train)))); test = torch.utils.data.Subset(test, range(min(256, len(test))))\n    model = ReadoutRule(width).build(); device = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\"); model.to(device); opt = ReadoutRule(width).optimizer(model, 0.1)\n    loader = torch.utils.data.DataLoader(train, batch_size=64, shuffle=True, num_workers=0); epochs = 1 if smoke else 20\n    for ep in range(epochs):\n        total = 0.0\n        for xb, yb in loader:\n            opt.zero_grad(set_to_none=True); loss = torch.nn.functional.cross_entropy(model(xb.to(device).flatten(1)), yb.to(device)); loss.backward(); opt.step(); total += float(loss)\n        print(f\"TRAIN_METRICS: epoch={ep + 1} loss={total / max(1, len(loader)):.5f}\", flush=True)\n    model.eval(); correct = total = 0\n    with torch.no_grad():\n        for xb, yb in torch.utils.data.DataLoader(test, batch_size=256, shuffle=False, num_workers=0):\n            pred = model(xb.to(device).flatten(1)).argmax(1).cpu(); correct += int((pred == yb).sum()); total += len(yb)\n    print(f\"TEST_METRICS: test_acc={100.0 * correct / max(1, total):.6f} width={width}\", flush=True)\n\nif __name__ == \"__main__\": main()\n"
     }
    ],
    "baselines_code": {
@@ -4316,7 +4316,7 @@
       "file": "mup/mlsb_mup_readout.py",
       "start_line": 24,
       "end_line": 33,
-      "content": "class ReadoutRule:\n    \"\"\"μReadout: constant-variance output weights with 1/width logits.\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=True); base = _MLP(self.base_width, mu_readout=True); delta = _MLP(self.base_width + 1, mu_readout=True)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in model.parameters(): mup.init.kaiming_normal_(p)\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
+      "content": "class ReadoutRule:\n    \"\"\"μReadout: constant-variance output weights with 1/width logits.\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=True); base = _MLP(self.base_width, mu_readout=True); delta = _MLP(self.base_width + 1, mu_readout=True)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in list(model.fc1.parameters()) + list(model.fc2.parameters()): mup.init.kaiming_normal_(p, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
      }
     ],
     "ntk_readout": [
@@ -12600,6 +12600,75 @@
    "has_agent_logs": true
   },
   {
+   "id": "mlsys-abr-bitrate-selection",
+   "name": "Adaptive bitrate selection for video streaming",
+   "summary": "A client streaming video over HTTP (DASH) downloads the video one chunk at a",
+   "category": "ml-systems-and-efficient-ml",
+   "category_label": "ML Systems & Efficient ML",
+   "category_abbr": "",
+   "description_md": "# Adaptive bitrate selection for video streaming\n\n## Research question\n\nA client streaming video over HTTP (DASH) downloads the video one chunk at a\ntime. Every chunk is available at several bitrate levels, and after each chunk\nfinishes the client must choose the bitrate of the *next* chunk. It wants the\nhighest sustainable quality, but the network throughput varies and is unknown in\nadvance: request too high a bitrate and the playback buffer drains and the video\nstalls (rebuffers); request too low and quality is wasted; switch too often and\nthe picture is visibly unstable. **From only what it can observe — how full the\nbuffer is, how fast recent chunks arrived, and the known byte sizes of every\nchunk at every level — how should the client pick each chunk's bitrate to\nmaximise quality of experience across changing network conditions?**\n\nThis is the adaptive-bitrate (ABR) problem that Pensieve (Mao, Netravali &\nAlizadeh, \"Neural Adaptive Video Streaming with Pensieve\", SIGCOMM 2017) studies\nand that a line of control-theoretic and buffer-based controllers address. Your\ncontribution is the bitrate-selection rule.\n\n## What you can modify\n\nOnly the `AbrPolicy` class in `pensieve/abr/policy.py` (the marked editable\nregion). Implement:\n\n```\nselect(self, state) -> int      # bitrate LEVEL (index into state.video_bit_rate) for the next chunk\nreset(self)                      # clear any per-video state; called at the start of each video\n```\n\n`state` (a read-only `State`, fully documented in `pensieve/abr/views.py`) gives\nyou, at the moment before the next chunk is fetched: the bitrate ladder\n(`video_bit_rate`, kbps), the current `buffer_size` (seconds), the `last_bit_rate`\nlevel and `last_rebuffer`, the throughput of every chunk downloaded so far\n(`throughput_history`, MB/s) and its download time, the index of the next chunk,\nhow many chunks remain, and the full static manifest of chunk byte sizes\n(`chunk_sizes[level][index]`). You never see future throughput. Keep `select`\nreasonably cheap: its per-call wall time is measured and a policy that averages\nan impractically long time per chunk (order of 100 ms) is rejected as unusable\nfor a real player -- ordinary control logic, including a short brute-force\nlookahead, is well within budget. Use only the `State` fields; do not read the\nnetwork trace, the simulator, or any file.\n\n## Fixed setup\n\nA deterministic, trace-driven playback simulator — a faithful port of Pensieve's\n`sim/` environment (48 chunks, a 6-level bitrate ladder, a 60-second buffer cap,\nan 80 ms link RTT) — replays real network throughput traces and applies your\nbitrate choices: downloading a chunk drains the buffer by its download time,\nplayback drains it in real time, and the buffer emptying causes a rebuffer. The\nsimulator, the QoE definition, and the trace pools are all fixed. Each evaluation\ndraws a fresh random subset of the setting's traces and averages several such\ndraws; the QoE is recomputed off the recorded bitrate sequence in a separate\nprocess after your policy has run.\n\n## Evaluation\n\nYour policy is run on three network regimes, each a pool of real throughput\ntraces:\n\n- `fcc` — FCC broadband (fixed-line) access.\n- `norway_road` — Norway HSDPA 3G cellular, road mobility (bus / car / tram).\n- `norway_transit` — Norway HSDPA 3G cellular, rail/water transit (held out).\n\n## Metric\n\nPer chunk, quality of experience is\n\n```\nQoE = bitrate(Mbps)  -  4.3 * rebuffer_seconds  -  | bitrate(Mbps) - previous_bitrate(Mbps) |\n```\n\n(the \"linear\" QoE of Yin et al., SIGCOMM 2015). A video's QoE is the sum over its\nchunks; a run's score is the mean over the drawn videos. Higher is better. The\ntask metric is the geometric mean of mean-QoE across the three regimes.\n\n## Reference baselines\n\n- `bba` — buffer-based selection (Huang et al., \"A Buffer-Based Approach to Rate\n  Adaptation\", SIGCOMM 2014): bitrate is a function of buffer occupancy alone\n  (Pensieve's `test/bb.py`). This is the starter policy.\n- `fastmpc` — model-predictive control that maximises predicted QoE over a\n  short lookahead using the harmonic mean of recent throughput as the bandwidth\n  estimate (Yin et al., SIGCOMM 2015).\n- `robustmpc` — the same lookahead with the bandwidth estimate discounted by\n  recent prediction error (Yin et al., SIGCOMM 2015; Pensieve's `test/mpc.py`).\n- `null_low` — a null that always requests the lowest bitrate.\n\nAn offline dynamic-programming controller that plans with full knowledge of the\nfuture throughput (Pensieve's `test/dp.py`) gives an approximate upper bound on\nachievable QoE for a trace; it is a ceiling reference, not an online policy and\nnot a baseline you are compared against.\n",
+   "description_html": "<h1>Adaptive bitrate selection for video streaming</h1>\n<h2>Research question</h2>\n<p>A client streaming video over HTTP (DASH) downloads the video one chunk at a\ntime. Every chunk is available at several bitrate levels, and after each chunk\nfinishes the client must choose the bitrate of the <em>next</em> chunk. It wants the\nhighest sustainable quality, but the network throughput varies and is unknown in\nadvance: request too high a bitrate and the playback buffer drains and the video\nstalls (rebuffers); request too low and quality is wasted; switch too often and\nthe picture is visibly unstable. <strong>From only what it can observe — how full the\nbuffer is, how fast recent chunks arrived, and the known byte sizes of every\nchunk at every level — how should the client pick each chunk's bitrate to\nmaximise quality of experience across changing network conditions?</strong></p>\n<p>This is the adaptive-bitrate (ABR) problem that Pensieve (Mao, Netravali &amp;\nAlizadeh, \"Neural Adaptive Video Streaming with Pensieve\", SIGCOMM 2017) studies\nand that a line of control-theoretic and buffer-based controllers address. Your\ncontribution is the bitrate-selection rule.</p>\n<h2>What you can modify</h2>\n<p>Only the <code>AbrPolicy</code> class in <code>pensieve/abr/policy.py</code> (the marked editable\nregion). Implement:</p>\n<pre class=\"codehilite\"><code>select(self, state) -&gt; int      # bitrate LEVEL (index into state.video_bit_rate) for the next chunk\nreset(self)                      # clear any per-video state; called at the start of each video\n</code></pre>\n\n<p><code>state</code> (a read-only <code>State</code>, fully documented in <code>pensieve/abr/views.py</code>) gives\nyou, at the moment before the next chunk is fetched: the bitrate ladder\n(<code>video_bit_rate</code>, kbps), the current <code>buffer_size</code> (seconds), the <code>last_bit_rate</code>\nlevel and <code>last_rebuffer</code>, the throughput of every chunk downloaded so far\n(<code>throughput_history</code>, MB/s) and its download time, the index of the next chunk,\nhow many chunks remain, and the full static manifest of chunk byte sizes\n(<code>chunk_sizes[level][index]</code>). You never see future throughput. Keep <code>select</code>\nreasonably cheap: its per-call wall time is measured and a policy that averages\nan impractically long time per chunk (order of 100 ms) is rejected as unusable\nfor a real player -- ordinary control logic, including a short brute-force\nlookahead, is well within budget. Use only the <code>State</code> fields; do not read the\nnetwork trace, the simulator, or any file.</p>\n<h2>Fixed setup</h2>\n<p>A deterministic, trace-driven playback simulator — a faithful port of Pensieve's\n<code>sim/</code> environment (48 chunks, a 6-level bitrate ladder, a 60-second buffer cap,\nan 80 ms link RTT) — replays real network throughput traces and applies your\nbitrate choices: downloading a chunk drains the buffer by its download time,\nplayback drains it in real time, and the buffer emptying causes a rebuffer. The\nsimulator, the QoE definition, and the trace pools are all fixed. Each evaluation\ndraws a fresh random subset of the setting's traces and averages several such\ndraws; the QoE is recomputed off the recorded bitrate sequence in a separate\nprocess after your policy has run.</p>\n<h2>Evaluation</h2>\n<p>Your policy is run on three network regimes, each a pool of real throughput\ntraces:</p>\n<ul>\n<li><code>fcc</code> — FCC broadband (fixed-line) access.</li>\n<li><code>norway_road</code> — Norway HSDPA 3G cellular, road mobility (bus / car / tram).</li>\n<li><code>norway_transit</code> — Norway HSDPA 3G cellular, rail/water transit (held out).</li>\n</ul>\n<h2>Metric</h2>\n<p>Per chunk, quality of experience is</p>\n<pre class=\"codehilite\"><code>QoE = bitrate(Mbps)  -  4.3 * rebuffer_seconds  -  | bitrate(Mbps) - previous_bitrate(Mbps) |\n</code></pre>\n\n<p>(the \"linear\" QoE of Yin et al., SIGCOMM 2015). A video's QoE is the sum over its\nchunks; a run's score is the mean over the drawn videos. Higher is better. The\ntask metric is the geometric mean of mean-QoE across the three regimes.</p>\n<h2>Reference baselines</h2>\n<ul>\n<li><code>bba</code> — buffer-based selection (Huang et al., \"A Buffer-Based Approach to Rate\n  Adaptation\", SIGCOMM 2014): bitrate is a function of buffer occupancy alone\n  (Pensieve's <code>test/bb.py</code>). This is the starter policy.</li>\n<li><code>fastmpc</code> — model-predictive control that maximises predicted QoE over a\n  short lookahead using the harmonic mean of recent throughput as the bandwidth\n  estimate (Yin et al., SIGCOMM 2015).</li>\n<li><code>robustmpc</code> — the same lookahead with the bandwidth estimate discounted by\n  recent prediction error (Yin et al., SIGCOMM 2015; Pensieve's <code>test/mpc.py</code>).</li>\n<li><code>null_low</code> — a null that always requests the lowest bitrate.</li>\n</ul>\n<p>An offline dynamic-programming controller that plans with full knowledge of the\nfuture throughput (Pensieve's <code>test/dp.py</code>) gives an approximate upper bound on\nachievable QoE for a trace; it is a ceiling reference, not an online policy and\nnot a baseline you are compared against.</p>",
+   "baselines": [
+    "bba",
+    "null_low",
+    "fastmpc",
+    "robustmpc"
+   ],
+   "environments": [
+    "fcc",
+    "norway_road",
+    "norway_transit"
+   ],
+   "packages": [
+    "pensieve"
+   ],
+   "files": [
+    {
+     "filename": "pensieve/abr/policy.py",
+     "edit_ranges": [
+      {
+       "start": 17,
+       "end": 38
+      }
+     ],
+     "content": "\"\"\"Adaptive-bitrate (ABR) selection policy -- the editable surface.\n\nAfter every video chunk finishes downloading, ``select`` is called with a\n``State`` (see abr/views.py) and must return the bitrate LEVEL of the next\nchunk: an int index into ``state.video_bit_rate`` (0 = lowest quality). The\nchosen levels drive a fixed, deterministic playback simulator; the run is scored\non mean per-video QoE = bitrate - 4.3*rebuffer - |bitrate change| (higher is\nbetter). You never see future throughput -- only the buffer, the byte sizes of\nevery chunk at every level, and the throughput of chunks already downloaded.\n\nOnly the region between the BEGIN/END EDITABLE markers is yours. Everything\noutside it (the imports, the base class, the contract) is fixed.\n\"\"\"\nfrom abr.views import AbrPolicyBase, State\n\n# ----- BEGIN EDITABLE REGION -----\nclass AbrPolicy(AbrPolicyBase):\n    \"\"\"Buffer-based (BBA) starter: pick bitrate purely from how full the buffer\n    is. Below a reservoir the lowest level; above reservoir+cushion the highest;\n    linearly interpolated in between. Buffer-based approach, Huang et al.,\n    SIGCOMM 2014 (Pensieve's test/bb.py: RESERVOIR=5 s, CUSHION=10 s).\"\"\"\n\n    RESERVOIR = 5.0   # seconds\n    CUSHION = 10.0    # seconds\n\n    def reset(self):\n        pass\n\n    def select(self, state):\n        n_levels = len(state.video_bit_rate)\n        buffer = state.buffer_size\n        if buffer < self.RESERVOIR:\n            level = 0\n        elif buffer >= self.RESERVOIR + self.CUSHION:\n            level = n_levels - 1\n        else:\n            level = (n_levels - 1) * (buffer - self.RESERVOIR) / self.CUSHION\n        return int(level)\n# ----- END EDITABLE REGION -----\n"
+    },
+    {
+     "filename": "pensieve/abr/views.py",
+     "edit_ranges": []
+    }
+   ],
+   "baselines_code": {
+    "null_low": [
+     {
+      "file": "pensieve/abr/policy.py",
+      "start_line": 17,
+      "end_line": 38,
+      "content": "class AbrPolicy(AbrPolicyBase):\n    \"\"\"Null: always request the lowest bitrate level.\"\"\"\n\n    def reset(self):\n        pass\n\n    def select(self, state):\n        return 0\n"
+     }
+    ],
+    "fastmpc": [
+     {
+      "file": "pensieve/abr/policy.py",
+      "start_line": 17,
+      "end_line": 38,
+      "content": "class AbrPolicy(AbrPolicyBase):\n    \"\"\"FastMPC (Yin et al., SIGCOMM 2015; Pensieve test/mpc.py without the robust term).\"\"\"\n\n    MPC_FUTURE_CHUNK_COUNT = 5\n    REBUF_PENALTY = 4.3\n    ROBUST = False\n\n    def reset(self):\n        self.past_errors = []\n        self.past_bandwidth_ests = []\n        self._combos = None\n\n    def select(self, state):\n        import itertools\n        vb = state.video_bit_rate\n        n_levels = len(vb)\n        if self._combos is None:\n            self._combos = list(itertools.product(range(n_levels),\n                                                   repeat=self.MPC_FUTURE_CHUNK_COUNT))\n        curr_tput = state.throughput_history[-1]\n        curr_error = 0.0\n        if self.past_bandwidth_ests:\n            curr_error = (abs(self.past_bandwidth_ests[-1] - curr_tput) / float(curr_tput)\n                          if curr_tput else 0.0)\n        self.past_errors.append(curr_error)\n\n        past_bw = [b for b in state.throughput_history[-5:] if b > 0]\n        if not past_bw:\n            return state.last_bit_rate\n        harmonic_bw = 1.0 / (sum(1.0 / b for b in past_bw) / len(past_bw))\n        if self.ROBUST:\n            pos = -5 if len(self.past_errors) >= 5 else -len(self.past_errors)\n            max_err = max(self.past_errors[pos:])\n            future_bw = harmonic_bw / (1.0 + max_err)\n        else:\n            future_bw = harmonic_bw\n        self.past_bandwidth_ests.append(harmonic_bw)\n\n        chunk_sizes = state.chunk_sizes\n        total_chunks = state.total_chunks\n        last_index = total_chunks - state.chunks_remaining\n        future_len = min(self.MPC_FUTURE_CHUNK_COUNT, total_chunks - last_index)\n        start_buffer = state.buffer_size\n        last_q = state.last_bit_rate\n\n        best_first = 0\n        max_reward = -1e18\n        for full_combo in self._combos:\n            combo = full_combo[:future_len]\n            curr_rebuf = 0.0\n            curr_buffer = start_buffer\n            bitrate_sum = 0.0\n            smooth = 0.0\n            lq = last_q\n            for position, q in enumerate(combo):\n                index = last_index + position + 1\n                size = chunk_sizes[q][index] if 0 <= index < len(chunk_sizes[q]) else 0\n                dl = (size / 1000000.0) / future_bw\n                if curr_buffer < dl:\n                    curr_rebuf += (dl - curr_buffer)\n                    curr_buffer = 0.0\n                else:\n                    curr_buffer -= dl\n                curr_buffer += 4\n                bitrate_sum += vb[q]\n                smooth += abs(vb[q] - vb[lq])\n                lq = q\n            reward = (bitrate_sum / 1000.0) - (self.REBUF_PENALTY * curr_rebuf) - (smooth / 1000.0)\n            if reward >= max_reward:\n                max_reward = reward\n                best_first = combo[0]\n        return best_first\n"
+     }
+    ],
+    "robustmpc": [
+     {
+      "file": "pensieve/abr/policy.py",
+      "start_line": 17,
+      "end_line": 38,
+      "content": "class AbrPolicy(AbrPolicyBase):\n    \"\"\"robustMPC (Yin et al., SIGCOMM 2015; Pensieve test/mpc.py).\"\"\"\n\n    MPC_FUTURE_CHUNK_COUNT = 5\n    REBUF_PENALTY = 4.3\n    ROBUST = True\n\n    def reset(self):\n        self.past_errors = []\n        self.past_bandwidth_ests = []\n        self._combos = None\n\n    def select(self, state):\n        import itertools\n        vb = state.video_bit_rate\n        n_levels = len(vb)\n        if self._combos is None:\n            self._combos = list(itertools.product(range(n_levels),\n                                                   repeat=self.MPC_FUTURE_CHUNK_COUNT))\n        # prediction error bookkeeping (mpc.py: bandwidth in MB/s == throughput_history)\n        curr_tput = state.throughput_history[-1]\n        curr_error = 0.0\n        if self.past_bandwidth_ests:\n            curr_error = (abs(self.past_bandwidth_ests[-1] - curr_tput) / float(curr_tput)\n                          if curr_tput else 0.0)\n        self.past_errors.append(curr_error)\n\n        past_bw = [b for b in state.throughput_history[-5:] if b > 0]\n        if not past_bw:\n            return state.last_bit_rate\n        harmonic_bw = 1.0 / (sum(1.0 / b for b in past_bw) / len(past_bw))\n        if self.ROBUST:\n            pos = -5 if len(self.past_errors) >= 5 else -len(self.past_errors)\n            max_err = max(self.past_errors[pos:])\n            future_bw = harmonic_bw / (1.0 + max_err)\n        else:\n            future_bw = harmonic_bw\n        self.past_bandwidth_ests.append(harmonic_bw)\n\n        chunk_sizes = state.chunk_sizes\n        total_chunks = state.total_chunks\n        last_index = total_chunks - state.chunks_remaining\n        future_len = min(self.MPC_FUTURE_CHUNK_COUNT, total_chunks - last_index)\n        start_buffer = state.buffer_size\n        last_q = state.last_bit_rate\n\n        best_first = 0\n        max_reward = -1e18\n        for full_combo in self._combos:\n            combo = full_combo[:future_len]\n            curr_rebuf = 0.0\n            curr_buffer = start_buffer\n            bitrate_sum = 0.0\n            smooth = 0.0\n            lq = last_q\n            for position, q in enumerate(combo):\n                index = last_index + position + 1\n                size = chunk_sizes[q][index] if 0 <= index < len(chunk_sizes[q]) else 0\n                dl = (size / 1000000.0) / future_bw\n                if curr_buffer < dl:\n                    curr_rebuf += (dl - curr_buffer)\n                    curr_buffer = 0.0\n                else:\n                    curr_buffer -= dl\n                curr_buffer += 4\n                bitrate_sum += vb[q]\n                smooth += abs(vb[q] - vb[lq])\n                lq = q\n            reward = (bitrate_sum / 1000.0) - (self.REBUF_PENALTY * curr_rebuf) - (smooth / 1000.0)\n            if reward >= max_reward:\n                max_reward = reward\n                best_first = combo[0]\n        return best_first\n"
+     }
+    ]
+   },
+   "rigorous_codebase": true,
+   "allow_create": false,
+   "has_agent_logs": false
+  },
+  {
    "id": "mlsys-fused-attention",
    "name": "Fused Causal Attention Kernel",
    "summary": "Studies how fused self-attention kernels improve throughput and latency while preserving numerical agreement.",
@@ -12662,6 +12731,136 @@
    "rigorous_codebase": true,
    "allow_create": false,
    "has_agent_logs": true
+  },
+  {
+   "id": "mlsys-gavel-allocation-policy",
+   "name": "Heterogeneity-aware allocation for a DL training cluster",
+   "summary": "A shared cluster trains many deep-learning jobs on a mix of GPU generations",
+   "category": "ml-systems-and-efficient-ml",
+   "category_label": "ML Systems & Efficient ML",
+   "category_abbr": "",
+   "description_md": "# Heterogeneity-aware allocation for a DL training cluster\n\n## Research question\n\nA shared cluster trains many deep-learning jobs on a mix of GPU generations\n(here v100, p100, k80). The same job runs at very different speeds on different\nGPU types, and the speed-up is job-dependent: an image model may gain far more\nfrom a v100 over a k80 than a language model does. A cluster scheduler must\ndecide, continuously, **what fraction of time each job should spend on each GPU\ntype** so that jobs finish quickly on average.\n\nGavel (Narayanan et al., \"Heterogeneity-Aware Cluster Scheduling Policies for\nDeep Learning Workloads\", OSDI 2020, arXiv:2008.09213) formalises this as a\npolicy that takes a per-job x per-GPU-type **throughput matrix** and returns a\nfractional time-share **allocation** matrix, computed by solving an optimization\nproblem, which a round-based mechanism then realises on the physical GPUs. The\nresearch question, as the paper poses it: **which allocation objective, computed\nover the heterogeneity throughput matrix, minimises average job completion\ntime (JCT)?**\n\nYour contribution is the allocation policy itself: `CustomPolicy.get_allocation`\nin `scheduler/policies/custom_allocation.py`.\n\n## Environment\n\nGavel's deterministic, trace-driven cluster simulator\n(`scheduler/scheduler.py`, `simulate=True`). Jobs are drawn from the paper's\njob table (image classification, language modelling, translation, recommendation\nand others) with Poisson arrivals; per-job per-GPU-type throughputs come from\nthe paper's measured oracle table (`simulation_throughputs.json`). The simulator\nis deterministic given the workload draw, and each evaluation averages several\nindependent draws (fresh entropy per run), so a policy has to generalise across\nworkloads rather than fit one trace. All optimization problems are solved with\nthe free ECOS solver; no GPUs are used.\n\n## What you can modify\n\nOnly `CustomPolicy` in `scheduler/policies/custom_allocation.py`. Each scheduling\nround the simulator calls\n\n```\nget_allocation(unflattened_throughputs, scale_factors,\n               unflattened_priority_weights, times_since_start,\n               num_steps_remaining, cluster_spec) -> {job_id: {worker_type: fraction}}\n```\n\n* `unflattened_throughputs[job_id][worker_type]` — steps/second of each active\n  job on each GPU type (the heterogeneity matrix); `self.flatten(...)` /\n  `self.unflatten(...)` convert between the dict form and a\n  (num_jobs x num_worker_types) array.\n* `scale_factors[job_id]` — GPUs the job requests (1 here).\n* `unflattened_priority_weights[job_id]` — per-job priority (1.0 here).\n* `times_since_start[job_id]`, `num_steps_remaining[job_id]` — the job's\n  accumulated wall time and remaining steps.\n* `cluster_spec[worker_type]` — count of each GPU type.\n\n`self.get_base_constraints(x, scale_factors_array)` returns the feasibility\nconstraints (non-negativity, no GPU type over-subscribed, each job's fractions\nsum to at most 1); an allocation that violates them is not schedulable. Solve any\nconvex objective over the allocation variable with cvxpy + ECOS and return the\nallocation via `self.unflatten(...)`. Keep the class named `CustomPolicy`, keep\n`self._name` starting with `'Custom'`, and keep the `get_allocation` signature.\nThe per-round solve must be cheap enough to run every round.\n\nThe starter is Gavel's own Least-Attained-Service (LAS) objective in\nheterogeneity-aware mode: it maximises the minimum, over jobs, of the normalised\neffective throughput each job is allocated. It is a real, strong policy.\n\n## Fixed pipeline\n\nThe cluster composition, workload distribution, arrival process, round-based\nscheduling mechanism, throughput oracle and evaluation protocol are fixed by the\nharness. The allocation policy is the only thing you change. Average JCT is\ncomputed by a host-side scorer from the simulator's per-job completion times\nafter the simulator process exits.\n\n## Reference baselines\n\n`max_min_fairness_perf` — the starter: Gavel's heterogeneity-aware LAS\nallocation (`scheduler/policies/max_min_fairness.py`).\n\n`allox` — AlloX (Le et al., \"AlloX: Compute Allocation in Hybrid Clusters\",\nEuroSys 2020): each round solves a min-cost bipartite assignment (Hungarian\nmethod) of jobs to interchangeable GPU slots to minimise average JCT directly\n(`scheduler/policies/allox.py`).\n\n`gandiva` — Gandiva (Xiao et al., \"Gandiva: Introspective Cluster Scheduling for\nDeep Learning\", OSDI 2018): keeps each job on the GPU type where it runs best and\ntime-slices/packs under contention (`scheduler/policies/gandiva.py`).\n\n`max_min_fairness` — the heterogeneity-blind LAS null: the same max-min-fairness\nallocation computed as if every GPU type were identical (all throughputs set to\n1). It is the paper's own heterogeneity ablation\n(`scheduler/policies/max_min_fairness.py`, `MaxMinFairnessPolicy`).\n\n## Metric\n\nAverage job completion time (JCT) over the measurement window, in simulated\nseconds, **lower is better**, aggregated across the evaluation settings.\n",
+   "description_html": "<h1>Heterogeneity-aware allocation for a DL training cluster</h1>\n<h2>Research question</h2>\n<p>A shared cluster trains many deep-learning jobs on a mix of GPU generations\n(here v100, p100, k80). The same job runs at very different speeds on different\nGPU types, and the speed-up is job-dependent: an image model may gain far more\nfrom a v100 over a k80 than a language model does. A cluster scheduler must\ndecide, continuously, <strong>what fraction of time each job should spend on each GPU\ntype</strong> so that jobs finish quickly on average.</p>\n<p>Gavel (Narayanan et al., \"Heterogeneity-Aware Cluster Scheduling Policies for\nDeep Learning Workloads\", OSDI 2020, arXiv:2008.09213) formalises this as a\npolicy that takes a per-job x per-GPU-type <strong>throughput matrix</strong> and returns a\nfractional time-share <strong>allocation</strong> matrix, computed by solving an optimization\nproblem, which a round-based mechanism then realises on the physical GPUs. The\nresearch question, as the paper poses it: <strong>which allocation objective, computed\nover the heterogeneity throughput matrix, minimises average job completion\ntime (JCT)?</strong></p>\n<p>Your contribution is the allocation policy itself: <code>CustomPolicy.get_allocation</code>\nin <code>scheduler/policies/custom_allocation.py</code>.</p>\n<h2>Environment</h2>\n<p>Gavel's deterministic, trace-driven cluster simulator\n(<code>scheduler/scheduler.py</code>, <code>simulate=True</code>). Jobs are drawn from the paper's\njob table (image classification, language modelling, translation, recommendation\nand others) with Poisson arrivals; per-job per-GPU-type throughputs come from\nthe paper's measured oracle table (<code>simulation_throughputs.json</code>). The simulator\nis deterministic given the workload draw, and each evaluation averages several\nindependent draws (fresh entropy per run), so a policy has to generalise across\nworkloads rather than fit one trace. All optimization problems are solved with\nthe free ECOS solver; no GPUs are used.</p>\n<h2>What you can modify</h2>\n<p>Only <code>CustomPolicy</code> in <code>scheduler/policies/custom_allocation.py</code>. Each scheduling\nround the simulator calls</p>\n<pre class=\"codehilite\"><code>get_allocation(unflattened_throughputs, scale_factors,\n               unflattened_priority_weights, times_since_start,\n               num_steps_remaining, cluster_spec) -&gt; {job_id: {worker_type: fraction}}\n</code></pre>\n\n<ul>\n<li><code>unflattened_throughputs[job_id][worker_type]</code> — steps/second of each active\n  job on each GPU type (the heterogeneity matrix); <code>self.flatten(...)</code> /\n  <code>self.unflatten(...)</code> convert between the dict form and a\n  (num_jobs x num_worker_types) array.</li>\n<li><code>scale_factors[job_id]</code> — GPUs the job requests (1 here).</li>\n<li><code>unflattened_priority_weights[job_id]</code> — per-job priority (1.0 here).</li>\n<li><code>times_since_start[job_id]</code>, <code>num_steps_remaining[job_id]</code> — the job's\n  accumulated wall time and remaining steps.</li>\n<li><code>cluster_spec[worker_type]</code> — count of each GPU type.</li>\n</ul>\n<p><code>self.get_base_constraints(x, scale_factors_array)</code> returns the feasibility\nconstraints (non-negativity, no GPU type over-subscribed, each job's fractions\nsum to at most 1); an allocation that violates them is not schedulable. Solve any\nconvex objective over the allocation variable with cvxpy + ECOS and return the\nallocation via <code>self.unflatten(...)</code>. Keep the class named <code>CustomPolicy</code>, keep\n<code>self._name</code> starting with <code>'Custom'</code>, and keep the <code>get_allocation</code> signature.\nThe per-round solve must be cheap enough to run every round.</p>\n<p>The starter is Gavel's own Least-Attained-Service (LAS) objective in\nheterogeneity-aware mode: it maximises the minimum, over jobs, of the normalised\neffective throughput each job is allocated. It is a real, strong policy.</p>\n<h2>Fixed pipeline</h2>\n<p>The cluster composition, workload distribution, arrival process, round-based\nscheduling mechanism, throughput oracle and evaluation protocol are fixed by the\nharness. The allocation policy is the only thing you change. Average JCT is\ncomputed by a host-side scorer from the simulator's per-job completion times\nafter the simulator process exits.</p>\n<h2>Reference baselines</h2>\n<p><code>max_min_fairness_perf</code> — the starter: Gavel's heterogeneity-aware LAS\nallocation (<code>scheduler/policies/max_min_fairness.py</code>).</p>\n<p><code>allox</code> — AlloX (Le et al., \"AlloX: Compute Allocation in Hybrid Clusters\",\nEuroSys 2020): each round solves a min-cost bipartite assignment (Hungarian\nmethod) of jobs to interchangeable GPU slots to minimise average JCT directly\n(<code>scheduler/policies/allox.py</code>).</p>\n<p><code>gandiva</code> — Gandiva (Xiao et al., \"Gandiva: Introspective Cluster Scheduling for\nDeep Learning\", OSDI 2018): keeps each job on the GPU type where it runs best and\ntime-slices/packs under contention (<code>scheduler/policies/gandiva.py</code>).</p>\n<p><code>max_min_fairness</code> — the heterogeneity-blind LAS null: the same max-min-fairness\nallocation computed as if every GPU type were identical (all throughputs set to\n1). It is the paper's own heterogeneity ablation\n(<code>scheduler/policies/max_min_fairness.py</code>, <code>MaxMinFairnessPolicy</code>).</p>\n<h2>Metric</h2>\n<p>Average job completion time (JCT) over the measurement window, in simulated\nseconds, <strong>lower is better</strong>, aggregated across the evaluation settings.</p>",
+   "baselines": [
+    "max_min_fairness_perf",
+    "allox",
+    "gandiva",
+    "max_min_fairness"
+   ],
+   "environments": [
+    "balanced",
+    "v100_rich",
+    "k80_rich"
+   ],
+   "packages": [
+    "gavel"
+   ],
+   "files": [
+    {
+     "filename": "gavel/scheduler/policies/custom_allocation.py",
+     "edit_ranges": [
+      {
+       "start": 58,
+       "end": 97
+      }
+     ],
+     "content": "\"\"\"Heterogeneity-aware allocation policy for the gavel cluster scheduler.\n\nA cluster holds several GPU types (v100, p100, k80) that differ, per job, in\nthroughput.  Every scheduling round the scheduler asks the policy for an\nALLOCATION: a fraction of time each active job should spend on each GPU type.\nThat fractional allocation is a matrix ``x`` with one row per job and one column\nper GPU type; the scheduler's round-based mechanism then realises those\nfractions on the physical GPUs and runs the jobs.  How the allocation is\ncomputed is the whole scheduling policy, and it is what you design here.\n\nYour job: implement ``CustomPolicy.get_allocation``.\n\nWhat it receives (all read-only; see gavel scheduler/policies/policy.py):\n\n  unflattened_throughputs : {job_id: {worker_type: throughput}}\n      steps/second each active job achieves on each GPU type -- the\n      heterogeneity throughput matrix.  ``self.flatten(...)`` turns it into a\n      (num_jobs x num_worker_types) numpy array plus an index for unflatten.\n  scale_factors : {job_id: int}    number of GPUs the job requests (1 here).\n  unflattened_priority_weights : {job_id: float}   per-job priority (1.0 here).\n  times_since_start : {job_id: float}   wall time the job has already run.\n  num_steps_remaining : {job_id: float} steps the job still has to run.\n  cluster_spec : {worker_type: count}   GPUs of each type in the cluster.\n\nReturn the allocation as ``self.unflatten(x_value, index)`` -- a\n{job_id: {worker_type: fraction}} dict.  ``self.get_base_constraints(x,\nscale_factors_array)`` gives the feasibility constraints (x >= 0, each GPU type\nnot over-subscribed, each job's fractions sum to <= 1); an allocation that\nviolates them is not schedulable.  Solve any convex objective over ``x`` with\ncvxpy and the free ECOS solver.\n\nContract you must keep:\n  * the class stays named ``CustomPolicy`` and ``self._name`` keeps the\n    ``'Custom'`` prefix (that is what routes it to the allocation-state\n    signature above and marks it heterogeneity-aware);\n  * ``get_allocation`` keeps this exact signature;\n  * decisions must be cheap enough to run every round.\n\nThe starter below is Gavel's own Least-Attained-Service (LAS) objective run in\nheterogeneity-aware mode -- it maximises the minimum normalised effective\nthroughput across jobs.  It is a real, strong policy; the research question is\nwhether a better allocation objective lowers average job completion time.\n\"\"\"\nimport os, sys\nsys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))\n\nimport cvxpy as cp\nimport numpy as np\n\nfrom policy import Policy\nfrom proportional import ProportionalPolicy\n\n# ================================================================\n# FIXED -- do not modify above this line\n# ================================================================\n\n# ----- BEGIN EDITABLE REGION -----\nclass CustomPolicy(Policy):\n    \"\"\"Heterogeneity-aware allocation (starter = Gavel's LAS objective).\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        Policy.__init__(self, solver)\n        self._name = 'Custom_Perf'\n        self._proportional_policy = ProportionalPolicy()\n\n    def get_allocation(self, unflattened_throughputs, scale_factors,\n                       unflattened_priority_weights, times_since_start,\n                       num_steps_remaining, cluster_spec):\n        throughputs, index = self.flatten(unflattened_throughputs, cluster_spec)\n        if throughputs is None:\n            return None\n        (m, n) = throughputs.shape\n        (job_ids, worker_types) = index\n\n        scale_factors_array = self.scale_factors_array(\n            scale_factors, job_ids, m, n)\n        priority_weights = np.array(\n            [1. / unflattened_priority_weights[job_id] for job_id in job_ids])\n        proportional_throughputs = self._proportional_policy.get_throughputs(\n            throughputs, index, cluster_spec)\n        priority_weights = np.multiply(\n            priority_weights.reshape((m, 1)),\n            1.0 / proportional_throughputs.reshape((m, 1)))\n\n        x = cp.Variable(throughputs.shape)\n        # Objective: maximise the minimum, over jobs, of the normalised\n        # effective throughput each job is allocated (heterogeneity-aware LAS).\n        objective = cp.Maximize(cp.min(cp.sum(cp.multiply(\n            np.multiply(throughputs * priority_weights.reshape((m, 1)),\n                        scale_factors_array), x), axis=1)))\n        constraints = self.get_base_constraints(x, scale_factors_array)\n        cvxprob = cp.Problem(objective, constraints)\n        cvxprob.solve(solver=self._solver)\n        if cvxprob.status != \"optimal\":\n            print('WARNING: Allocation returned by policy not optimal!')\n\n        return self.unflatten(x.value.clip(min=0.0).clip(max=1.0), index)\n# ----- END EDITABLE REGION -----\n"
+    }
+   ],
+   "baselines_code": {
+    "allox": [
+     {
+      "file": "gavel/scheduler/policies/custom_allocation.py",
+      "start_line": 58,
+      "end_line": 97,
+      "content": "class CustomPolicy(Policy):\n    \"\"\"AlloX: JCT-minimising Hungarian assignment (shipped AlloXPolicy, alpha=1.0).\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        from allox import AlloXPolicy\n        self._impl = AlloXPolicy(alpha=1.0)\n        self._name = self._impl.name  # 'AlloX_Perf' -> scheduler's AlloX dispatch\n\n    def get_allocation(self, unflattened_throughputs, scale_factors,\n                       times_since_start, num_steps_remaining, cluster_spec):\n        return self._impl.get_allocation(\n            unflattened_throughputs, scale_factors,\n            times_since_start, num_steps_remaining, cluster_spec)\n"
+     }
+    ],
+    "gandiva": [
+     {
+      "file": "gavel/scheduler/policies/custom_allocation.py",
+      "start_line": 58,
+      "end_line": 97,
+      "content": "class CustomPolicy(Policy):\n    \"\"\"Gandiva: introspective heterogeneity-aware packing (shipped GandivaPolicy).\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        from gandiva import GandivaPolicy\n        self._impl = GandivaPolicy(seed=seed)\n        self._name = self._impl.name  # 'Gandiva_Packing' -> scheduler's default dispatch\n\n    def get_allocation(self, unflattened_throughputs, scale_factors, cluster_spec):\n        return self._impl.get_allocation(\n            unflattened_throughputs, scale_factors, cluster_spec)\n"
+     }
+    ],
+    "max_min_fairness": [
+     {
+      "file": "gavel/scheduler/policies/custom_allocation.py",
+      "start_line": 58,
+      "end_line": 97,
+      "content": "class CustomPolicy(Policy):\n    \"\"\"Heterogeneity-blind LAS (shipped MaxMinFairnessPolicy): the declared null.\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        from max_min_fairness import MaxMinFairnessPolicy\n        self._impl = MaxMinFairnessPolicy(solver=solver)\n        self._name = self._impl.name  # 'MaxMinFairness' -> scheduler's MaxMinFairness dispatch\n\n    def get_allocation(self, unflattened_throughputs, scale_factors,\n                       unflattened_priority_weights, cluster_spec):\n        return self._impl.get_allocation(\n            unflattened_throughputs, scale_factors,\n            unflattened_priority_weights, cluster_spec)\n"
+     }
+    ]
+   },
+   "rigorous_codebase": true,
+   "allow_create": true,
+   "has_agent_logs": false
+  },
+  {
+   "id": "mlsys-gavel-makespan-policy",
+   "name": "Heterogeneity-aware makespan scheduling for a DL job batch",
+   "summary": "A fixed batch of deep-learning training jobs has to be run to completion on a",
+   "category": "ml-systems-and-efficient-ml",
+   "category_label": "ML Systems & Efficient ML",
+   "category_abbr": "",
+   "description_md": "# Heterogeneity-aware makespan scheduling for a DL job batch\n\n## Research question\n\nA fixed batch of deep-learning training jobs has to be run to completion on a\nshared cluster of mixed GPU generations (here v100, p100, k80). Each job runs at\na different speed on each GPU type, and the speed-up is job-dependent. The\nscheduler decides, continuously, **what fraction of time each job spends on each\nGPU type**, and a round-based mechanism realises those fractions on the physical\nGPUs. The objective here is throughput of the whole batch: minimise the\n**makespan**, the time at which the last job finishes.\n\nGavel (Narayanan et al., \"Heterogeneity-Aware Cluster Scheduling Policies for\nDeep Learning Workloads\", OSDI 2020, arXiv:2008.09213) formalises makespan\nminimisation as a policy that takes the per-job x per-GPU-type **throughput\nmatrix** and the remaining work of each job and returns a fractional allocation,\ncomputed by solving an optimization problem. The research question: **which\nallocation objective clears a heterogeneous batch of jobs in the least wall-clock\ntime?**\n\nYour contribution is the allocation policy itself: `CustomPolicy.get_allocation`\nin `scheduler/policies/custom_allocation.py`.\n\n## Environment\n\nGavel's deterministic, trace-driven cluster simulator\n(`scheduler/scheduler.py`, `simulate=True`), run on a static batch (all jobs\npresent at the start). Jobs are drawn from the paper's job table; per-job\nper-GPU-type throughputs come from the paper's measured oracle table\n(`simulation_throughputs.json`). The simulator is deterministic given the batch\ndraw, and each evaluation averages several independent draws (fresh entropy per\nrun). All optimization problems are solved with the free ECOS solver; no GPUs are\nused.\n\n## What you can modify\n\nOnly `CustomPolicy` in `scheduler/policies/custom_allocation.py`. Each scheduling\nround the simulator calls\n\n```\nget_allocation(unflattened_throughputs, scale_factors,\n               unflattened_priority_weights, times_since_start,\n               num_steps_remaining, cluster_spec) -> {job_id: {worker_type: fraction}}\n```\n\n* `unflattened_throughputs[job_id][worker_type]` — steps/second of each active\n  job on each GPU type (the heterogeneity matrix); `self.flatten` /\n  `self.unflatten` convert between the dict form and a\n  (num_jobs x num_worker_types) array.\n* `scale_factors[job_id]` — GPUs the job requests (1 here).\n* `num_steps_remaining[job_id]` — the steps the job still has to run (the\n  remaining work that must be scheduled before the batch is done).\n* `times_since_start[job_id]`, `unflattened_priority_weights[job_id]`,\n  `cluster_spec[worker_type]` — accumulated wall time, per-job priority (1.0),\n  and the count of each GPU type.\n\n`self.get_base_constraints(x, scale_factors_array)` returns the feasibility\nconstraints (non-negativity, no GPU type over-subscribed, each job's fractions\nsum to at most 1). Solve any convex program over the allocation variable with\ncvxpy + ECOS and return the allocation via `self.unflatten(...)`. Keep the class\nnamed `CustomPolicy`, keep `self._name` starting with `'Custom'`, and keep the\n`get_allocation` signature. The per-round solve must be cheap enough to run every\nround.\n\nThe starter is Gavel's own min-total-duration objective in heterogeneity-aware\nmode: it binary-searches the smallest horizon in which every job can finish its\nremaining work. It is a real, strong policy.\n\n## Fixed pipeline\n\nThe cluster composition, batch distribution, round-based scheduling mechanism,\nthroughput oracle and evaluation protocol are fixed by the harness. The\nallocation policy is the only thing you change. Makespan is read by a host-side\nscorer from the simulator's clock after the simulator process exits.\n\n## Reference baselines\n\n`min_total_duration_perf` — the starter: Gavel's heterogeneity-aware\nmin-total-duration (makespan) allocation\n(`scheduler/policies/min_total_duration.py`).\n\n`gandiva` — Gandiva (Xiao et al., \"Gandiva: Introspective Cluster Scheduling for\nDeep Learning\", OSDI 2018): keeps each job on the GPU type where it runs best and\ntime-slices/packs under contention (`scheduler/policies/gandiva.py`).\n\n`min_total_duration` — the heterogeneity-blind makespan null: the same\nmin-total-duration allocation computed as if every GPU type ran each job at its\nfastest (v100) rate (`scheduler/policies/min_total_duration.py`,\n`MinTotalDurationPolicy`).\n\n`fifo` — first-in-first-out placement in arrival order, blind to heterogeneity\nand to batch completion time (`scheduler/policies/fifo.py`).\n\n## Metric\n\nMakespan — the time at which the last job in the batch finishes, in simulated\nseconds, **lower is better**, aggregated across the evaluation settings.\n",
+   "description_html": "<h1>Heterogeneity-aware makespan scheduling for a DL job batch</h1>\n<h2>Research question</h2>\n<p>A fixed batch of deep-learning training jobs has to be run to completion on a\nshared cluster of mixed GPU generations (here v100, p100, k80). Each job runs at\na different speed on each GPU type, and the speed-up is job-dependent. The\nscheduler decides, continuously, <strong>what fraction of time each job spends on each\nGPU type</strong>, and a round-based mechanism realises those fractions on the physical\nGPUs. The objective here is throughput of the whole batch: minimise the\n<strong>makespan</strong>, the time at which the last job finishes.</p>\n<p>Gavel (Narayanan et al., \"Heterogeneity-Aware Cluster Scheduling Policies for\nDeep Learning Workloads\", OSDI 2020, arXiv:2008.09213) formalises makespan\nminimisation as a policy that takes the per-job x per-GPU-type <strong>throughput\nmatrix</strong> and the remaining work of each job and returns a fractional allocation,\ncomputed by solving an optimization problem. The research question: <strong>which\nallocation objective clears a heterogeneous batch of jobs in the least wall-clock\ntime?</strong></p>\n<p>Your contribution is the allocation policy itself: <code>CustomPolicy.get_allocation</code>\nin <code>scheduler/policies/custom_allocation.py</code>.</p>\n<h2>Environment</h2>\n<p>Gavel's deterministic, trace-driven cluster simulator\n(<code>scheduler/scheduler.py</code>, <code>simulate=True</code>), run on a static batch (all jobs\npresent at the start). Jobs are drawn from the paper's job table; per-job\nper-GPU-type throughputs come from the paper's measured oracle table\n(<code>simulation_throughputs.json</code>). The simulator is deterministic given the batch\ndraw, and each evaluation averages several independent draws (fresh entropy per\nrun). All optimization problems are solved with the free ECOS solver; no GPUs are\nused.</p>\n<h2>What you can modify</h2>\n<p>Only <code>CustomPolicy</code> in <code>scheduler/policies/custom_allocation.py</code>. Each scheduling\nround the simulator calls</p>\n<pre class=\"codehilite\"><code>get_allocation(unflattened_throughputs, scale_factors,\n               unflattened_priority_weights, times_since_start,\n               num_steps_remaining, cluster_spec) -&gt; {job_id: {worker_type: fraction}}\n</code></pre>\n\n<ul>\n<li><code>unflattened_throughputs[job_id][worker_type]</code> — steps/second of each active\n  job on each GPU type (the heterogeneity matrix); <code>self.flatten</code> /\n  <code>self.unflatten</code> convert between the dict form and a\n  (num_jobs x num_worker_types) array.</li>\n<li><code>scale_factors[job_id]</code> — GPUs the job requests (1 here).</li>\n<li><code>num_steps_remaining[job_id]</code> — the steps the job still has to run (the\n  remaining work that must be scheduled before the batch is done).</li>\n<li><code>times_since_start[job_id]</code>, <code>unflattened_priority_weights[job_id]</code>,\n  <code>cluster_spec[worker_type]</code> — accumulated wall time, per-job priority (1.0),\n  and the count of each GPU type.</li>\n</ul>\n<p><code>self.get_base_constraints(x, scale_factors_array)</code> returns the feasibility\nconstraints (non-negativity, no GPU type over-subscribed, each job's fractions\nsum to at most 1). Solve any convex program over the allocation variable with\ncvxpy + ECOS and return the allocation via <code>self.unflatten(...)</code>. Keep the class\nnamed <code>CustomPolicy</code>, keep <code>self._name</code> starting with <code>'Custom'</code>, and keep the\n<code>get_allocation</code> signature. The per-round solve must be cheap enough to run every\nround.</p>\n<p>The starter is Gavel's own min-total-duration objective in heterogeneity-aware\nmode: it binary-searches the smallest horizon in which every job can finish its\nremaining work. It is a real, strong policy.</p>\n<h2>Fixed pipeline</h2>\n<p>The cluster composition, batch distribution, round-based scheduling mechanism,\nthroughput oracle and evaluation protocol are fixed by the harness. The\nallocation policy is the only thing you change. Makespan is read by a host-side\nscorer from the simulator's clock after the simulator process exits.</p>\n<h2>Reference baselines</h2>\n<p><code>min_total_duration_perf</code> — the starter: Gavel's heterogeneity-aware\nmin-total-duration (makespan) allocation\n(<code>scheduler/policies/min_total_duration.py</code>).</p>\n<p><code>gandiva</code> — Gandiva (Xiao et al., \"Gandiva: Introspective Cluster Scheduling for\nDeep Learning\", OSDI 2018): keeps each job on the GPU type where it runs best and\ntime-slices/packs under contention (<code>scheduler/policies/gandiva.py</code>).</p>\n<p><code>min_total_duration</code> — the heterogeneity-blind makespan null: the same\nmin-total-duration allocation computed as if every GPU type ran each job at its\nfastest (v100) rate (<code>scheduler/policies/min_total_duration.py</code>,\n<code>MinTotalDurationPolicy</code>).</p>\n<p><code>fifo</code> — first-in-first-out placement in arrival order, blind to heterogeneity\nand to batch completion time (<code>scheduler/policies/fifo.py</code>).</p>\n<h2>Metric</h2>\n<p>Makespan — the time at which the last job in the batch finishes, in simulated\nseconds, <strong>lower is better</strong>, aggregated across the evaluation settings.</p>",
+   "baselines": [
+    "min_total_duration_perf",
+    "gandiva",
+    "min_total_duration",
+    "fifo"
+   ],
+   "environments": [
+    "balanced",
+    "v100_rich",
+    "k80_rich"
+   ],
+   "packages": [
+    "gavel"
+   ],
+   "files": [
+    {
+     "filename": "gavel/scheduler/policies/custom_allocation.py",
+     "edit_ranges": [
+      {
+       "start": 52,
+       "end": 101
+      }
+     ],
+     "content": "\"\"\"Heterogeneity-aware makespan allocation for the gavel cluster scheduler.\n\nA fixed batch of deep-learning jobs has to be run to completion on a cluster of\nmixed GPU types (v100, p100, k80) that run each job at different speeds. The\nscheduler decides, each round, what fraction of time each job spends on each GPU\ntype -- a matrix ``x`` with one row per job and one column per GPU type -- and a\nround-based mechanism realises those fractions on the physical GPUs. The goal\nhere is to clear the whole batch as fast as possible: minimise the **makespan**,\nthe time at which the last job finishes.\n\nYour job: implement ``CustomPolicy.get_allocation``.\n\nWhat it receives (all read-only; see gavel scheduler/policies/policy.py):\n\n  unflattened_throughputs : {job_id: {worker_type: throughput}}\n      steps/second each active job achieves on each GPU type; ``self.flatten``\n      turns it into a (num_jobs x num_worker_types) array + an index.\n  scale_factors : {job_id: int}    GPUs the job requests (1 here).\n  unflattened_priority_weights : {job_id: float}   per-job priority (1.0 here).\n  times_since_start : {job_id: float}   wall time the job has already run.\n  num_steps_remaining : {job_id: float} steps the job still has to run -- the\n      remaining work that has to be scheduled before the batch is done.\n  cluster_spec : {worker_type: count}   GPUs of each type in the cluster.\n\nReturn ``self.unflatten(x_value, index)``.  ``self.get_base_constraints(x,\nscale_factors_array)`` gives the feasibility constraints (x >= 0, no GPU type\nover-subscribed, each job's fractions sum to <= 1). Solve any convex program over\n``x`` with cvxpy + ECOS.\n\nContract: keep the class named ``CustomPolicy``, keep ``self._name`` starting\nwith ``'Custom'``, keep the ``get_allocation`` signature, and keep the per-round\nsolve cheap.\n\nThe starter is Gavel's own min-total-duration objective in heterogeneity-aware\nmode: it binary-searches the smallest horizon T in which every job can finish its\nremaining work, i.e. it directly minimises the makespan. The research question is\nwhether a better allocation objective clears the batch sooner.\n\"\"\"\nimport os, sys\nsys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))\n\nimport cvxpy as cp\nimport numpy as np\n\nfrom policy import Policy\n\n# ================================================================\n# FIXED -- do not modify above this line\n# ================================================================\n\n# ----- BEGIN EDITABLE REGION -----\nclass CustomPolicy(Policy):\n    \"\"\"Heterogeneity-aware makespan allocation (starter = Gavel's min-total-duration).\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        Policy.__init__(self, solver)\n        self._name = 'Custom_Perf'\n\n    def _feasible(self, throughputs, scale_factors_array, steps, T):\n        x = cp.Variable(throughputs.shape)\n        constraints = self.get_base_constraints(x, scale_factors_array)\n        # Every job must be able to finish its remaining work within horizon T.\n        constraints.append(\n            cp.sum(cp.multiply(throughputs, x), axis=1) >= (steps / T))\n        prob = cp.Problem(cp.Maximize(1), constraints)\n        prob.solve(solver=self._solver)\n        return prob.status, x\n\n    def get_allocation(self, unflattened_throughputs, scale_factors,\n                       unflattened_priority_weights, times_since_start,\n                       num_steps_remaining, cluster_spec):\n        throughputs, index = self.flatten(unflattened_throughputs, cluster_spec)\n        if index is None or throughputs is None:\n            return None\n        (m, n) = throughputs.shape\n        (job_ids, worker_types) = index\n        steps = np.array([num_steps_remaining[job_id] for job_id in job_ids])\n        scale_factors_array = self.scale_factors_array(\n            scale_factors, job_ids, m, n)\n\n        # Objective: minimise the makespan by binary-searching the smallest\n        # horizon T for which a feasible allocation exists.\n        max_T, min_T = 1000000., 100.\n        last_max_T = max_T\n        last_feasible_x = None\n        while last_feasible_x is None:\n            while (1.05 * min_T) < max_T:\n                T = (min_T + max_T) / 2.\n                status, x = self._feasible(\n                    throughputs, scale_factors_array, steps, T)\n                if status == \"optimal\":\n                    last_feasible_x = x\n                    max_T = T\n                else:\n                    min_T = T\n            max_T = last_max_T * 10.\n            min_T = last_max_T\n            last_max_T *= 10\n\n        return self.unflatten(\n            last_feasible_x.value.clip(min=0.0).clip(max=1.0), index)\n# ----- END EDITABLE REGION -----\n"
+    }
+   ],
+   "baselines_code": {
+    "gandiva": [
+     {
+      "file": "gavel/scheduler/policies/custom_allocation.py",
+      "start_line": 52,
+      "end_line": 101,
+      "content": "class CustomPolicy(Policy):\n    \"\"\"Gandiva: introspective heterogeneity-aware packing (shipped GandivaPolicy).\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        from gandiva import GandivaPolicy\n        self._impl = GandivaPolicy(seed=seed)\n        self._name = self._impl.name  # 'Gandiva_Packing' -> scheduler's default dispatch\n\n    def get_allocation(self, unflattened_throughputs, scale_factors, cluster_spec):\n        return self._impl.get_allocation(\n            unflattened_throughputs, scale_factors, cluster_spec)\n"
+     }
+    ],
+    "min_total_duration": [
+     {
+      "file": "gavel/scheduler/policies/custom_allocation.py",
+      "start_line": 52,
+      "end_line": 101,
+      "content": "class CustomPolicy(Policy):\n    \"\"\"Heterogeneity-blind min-total-duration (shipped MinTotalDurationPolicy).\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        from min_total_duration import MinTotalDurationPolicy\n        self._impl = MinTotalDurationPolicy(solver=solver)\n        self._name = self._impl.name  # 'MinTotalDuration' -> scheduler's MinTotalDuration dispatch\n\n    def get_allocation(self, unflattened_throughputs, scale_factors,\n                       num_steps_remaining, cluster_spec):\n        return self._impl.get_allocation(\n            unflattened_throughputs, scale_factors,\n            num_steps_remaining, cluster_spec)\n"
+     }
+    ],
+    "fifo": [
+     {
+      "file": "gavel/scheduler/policies/custom_allocation.py",
+      "start_line": 52,
+      "end_line": 101,
+      "content": "class CustomPolicy(Policy):\n    \"\"\"FIFO: arrival-order placement, heterogeneity-blind (shipped FIFOPolicy).\"\"\"\n\n    def __init__(self, solver='ECOS', seed=None):\n        from fifo import FIFOPolicy\n        self._impl = FIFOPolicy(seed=seed)\n        self._name = self._impl.name  # 'FIFO' -> scheduler's default (FIFO) dispatch\n\n    def get_allocation(self, unflattened_throughputs, scale_factors, cluster_spec):\n        return self._impl.get_allocation(\n            unflattened_throughputs, scale_factors, cluster_spec)\n"
+     }
+    ]
+   },
+   "rigorous_codebase": true,
+   "allow_create": true,
+   "has_agent_logs": false
   },
   {
    "id": "mlsys-helix-request-scheduling",
@@ -13335,6 +13534,70 @@
       "start_line": 25,
       "end_line": 30,
       "content": "def build_ensemble(seed=42, n_features=30, n_classes=2):\n    base = preprocessing.StandardScaler() | linear_model.LogisticRegression()\n    return OnlineEnsemble([base, naive_bayes.GaussianNB(), tree.HoeffdingTreeClassifier()])\n"
+     }
+    ]
+   },
+   "rigorous_codebase": true,
+   "allow_create": false,
+   "has_agent_logs": false
+  },
+  {
+   "id": "online-river-drift-detector",
+   "name": "Online concept-drift detection with River",
+   "summary": "Design a streaming concept-drift detector for a univariate stream. The detector receives one observation at a time and must raise an alarm when the data-generating distribution changes, while avoiding false alarms before a change. This is an atomic algorithmic question from the online-learning literature: can a sequential test adapt its sensitivity to both abrupt and gradual distribution shifts?",
+   "category": "other",
+   "category_label": "Other",
+   "category_abbr": "",
+   "description_md": "# Online concept-drift detection with River\n\n## Objective\n\nDesign a streaming concept-drift detector for a univariate stream. The detector receives one observation at a time and must raise an alarm when the data-generating distribution changes, while avoiding false alarms before a change. This is an atomic algorithmic question from the online-learning literature: can a sequential test adapt its sensitivity to both abrupt and gradual distribution shifts?\n\n## Interface\n\nImplement `DriftDetector` in `river_lab/drift_detector.py`. The harness constructs a fresh detector by calling `reset()` (or `reset(delta)` when supported), then repeatedly calls `update(x)` with a finite floating-point observation. `update` must return a boolean indicating whether drift is detected at that observation. Keep memory bounded by the `space` argument (default 256); do not retain the complete stream or inspect the evaluator.\n\nOnly the editable detector file may be changed. Use Python standard library and NumPy/River APIs available in the package environment. The driver and metric computation are read-only.\n\n## Metric\n\nThe evaluator reports `f1` (harmonic mean of event-level precision and recall, matching alarms to the nearest true change within a tolerance window; higher is better), together with detection delay and false-alarm rate for diagnostics. A useful detector should react quickly after a genuine shift and remain quiet on stationary prefixes. Each run uses a fresh hidden stream instance; the exposed seed is bookkeeping only. The hidden stream tests transfer to a shift pattern not shown during development.\n\n## Research context\n\n- Page, E. S. (1954), “Continuous inspection schemes,” Biometrika 41(1/2): the cumulative-sum sequential change detector.\n- Bifet & Gavaldà (2007), “Learning from Time-Changing Data with Adaptive Windowing,” SDM: ADWIN's statistically principled adaptive window test.\n- Raab et al. (2020), “Reactive Soft Prototype Computing for Concept Drift,” Neurocomputing: KSWIN's non-parametric two-window detector.\n\nReference implementations of these methods are supplied as baselines through edit operations. Your contribution should be a detector algorithm (for example, a robust sequential statistic or adaptive threshold), not a search over a few constants.\n",
+   "description_html": "<h1>Online concept-drift detection with River</h1>\n<h2>Objective</h2>\n<p>Design a streaming concept-drift detector for a univariate stream. The detector receives one observation at a time and must raise an alarm when the data-generating distribution changes, while avoiding false alarms before a change. This is an atomic algorithmic question from the online-learning literature: can a sequential test adapt its sensitivity to both abrupt and gradual distribution shifts?</p>\n<h2>Interface</h2>\n<p>Implement <code>DriftDetector</code> in <code>river_lab/drift_detector.py</code>. The harness constructs a fresh detector by calling <code>reset()</code> (or <code>reset(delta)</code> when supported), then repeatedly calls <code>update(x)</code> with a finite floating-point observation. <code>update</code> must return a boolean indicating whether drift is detected at that observation. Keep memory bounded by the <code>space</code> argument (default 256); do not retain the complete stream or inspect the evaluator.</p>\n<p>Only the editable detector file may be changed. Use Python standard library and NumPy/River APIs available in the package environment. The driver and metric computation are read-only.</p>\n<h2>Metric</h2>\n<p>The evaluator reports <code>f1</code> (harmonic mean of event-level precision and recall, matching alarms to the nearest true change within a tolerance window; higher is better), together with detection delay and false-alarm rate for diagnostics. A useful detector should react quickly after a genuine shift and remain quiet on stationary prefixes. Each run uses a fresh hidden stream instance; the exposed seed is bookkeeping only. The hidden stream tests transfer to a shift pattern not shown during development.</p>\n<h2>Research context</h2>\n<ul>\n<li>Page, E. S. (1954), “Continuous inspection schemes,” Biometrika 41(1/2): the cumulative-sum sequential change detector.</li>\n<li>Bifet &amp; Gavaldà (2007), “Learning from Time-Changing Data with Adaptive Windowing,” SDM: ADWIN's statistically principled adaptive window test.</li>\n<li>Raab et al. (2020), “Reactive Soft Prototype Computing for Concept Drift,” Neurocomputing: KSWIN's non-parametric two-window detector.</li>\n</ul>\n<p>Reference implementations of these methods are supplied as baselines through edit operations. Your contribution should be a detector algorithm (for example, a robust sequential statistic or adaptive threshold), not a search over a few constants.</p>",
+   "baselines": [
+    "adwin",
+    "page_hinkley",
+    "kswin"
+   ],
+   "environments": [
+    "abrupt",
+    "gradual",
+    "recurrent"
+   ],
+   "packages": [
+    "river-lab"
+   ],
+   "files": [
+    {
+     "filename": "river-lab/river_lab/drift_detector.py",
+     "edit_ranges": [
+      {
+       "start": 1,
+       "end": 80
+      }
+     ],
+     "content": "\"\"\"Editable online drift detector.\"\"\"\nclass DriftDetector:\n    def __init__(self):\n        self.reset()\n    def reset(self, space=256):\n        self.space = int(space)\n        self.n = 0\n        self._state = 0.0\n    def update(self, x):\n        \"\"\"Consume one value and return True iff a drift alarm is raised.\"\"\"\n        self.n += 1\n        self._state = float(x)\n        return False\n"
+    }
+   ],
+   "baselines_code": {
+    "adwin": [
+     {
+      "file": "river-lab/river_lab/drift_detector.py",
+      "start_line": 1,
+      "end_line": 80,
+      "content": "\"\"\"ADWIN-style adaptive-window mean detector (Bifet & Gavaldà, 2007).\"\"\"\nimport math\nclass DriftDetector:\n    def __init__(self): self.reset()\n    def reset(self, space=256):\n        self.space=max(32,int(space)); self.values=[]; self.width=0; self.total=0.0\n    def update(self, x):\n        self.values.append(float(x)); self.width += 1; self.total += float(x)\n        if self.width > self.space: self.total -= self.values.pop(0); self.width -= 1\n        if self.width < 16: return False\n        cut=self.width//2; a=self.values[:cut]; b=self.values[cut:]\n        ma=sum(a)/len(a); mb=sum(b)/len(b); eps=math.sqrt(2*math.log(2.0/max(1e-12,0.002))*((1/len(a))+(1/len(b))))\n        if abs(ma-mb)>eps:\n            self.values=b[-max(8,self.space//4):]; self.width=len(self.values); self.total=sum(self.values); return True\n        return False"
+     }
+    ],
+    "page_hinkley": [
+     {
+      "file": "river-lab/river_lab/drift_detector.py",
+      "start_line": 1,
+      "end_line": 80,
+      "content": "\"\"\"Page-Hinkley cumulative-sum test (Page, 1954).\"\"\"\nclass DriftDetector:\n    def __init__(self): self.reset()\n    def reset(self, space=256):\n        self.space=max(32,int(space)); self.n=0; self.mean=0.; self.min_sum=0.; self.sum=0.; self.threshold=8.0\n    def update(self, x):\n        x=float(x); self.n+=1; self.mean += (x-self.mean)/self.n\n        self.sum += x-self.mean-0.01; self.min_sum=min(self.min_sum,self.sum)\n        if self.sum-self.min_sum > self.threshold:\n            self.n=0; self.mean=0.; self.sum=0.; self.min_sum=0.; return True\n        return False"
+     }
+    ],
+    "kswin": [
+     {
+      "file": "river-lab/river_lab/drift_detector.py",
+      "start_line": 1,
+      "end_line": 80,
+      "content": "\"\"\"KSWIN non-parametric two-window detector (Raab et al., 2020).\"\"\"\nimport math, random\nclass DriftDetector:\n    def __init__(self): self.reset()\n    def reset(self, space=256):\n        self.space=max(32,int(space)); self.w=[]; self.rng=random.Random(2020)\n    def update(self, x):\n        self.w.append(float(x))\n        if len(self.w)>self.space: self.w.pop(0)\n        if len(self.w)<32: return False\n        n=max(8,len(self.w)//4); old=self.w[:-n]; new=self.w[-n:]\n        # deterministic KS statistic on two samples\n        vals=sorted(set(old+new)); d=max(abs(sum(v<=z for v in old)/len(old)-sum(v<=z for v in new)/len(new)) for z in vals)\n        crit=math.sqrt(-math.log(0.01/2)*(1+len(old)/len(new))/(2*len(old)))\n        if d>crit:\n            self.w=self.w[-n:]; return True\n        return False"
      }
     ]
    },
@@ -129022,6 +129285,230 @@
     }
    ]
   },
+  "mlsys-abr-bitrate-selection": {
+   "task_id": "mlsys-abr-bitrate-selection",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "mean_qoe_fcc",
+    "avg_bitrate_mbps_fcc",
+    "rebuffer_s_fcc",
+    "switch_mbps_fcc",
+    "ms_per_call_fcc",
+    "mean_qoe_norway_road",
+    "avg_bitrate_mbps_norway_road",
+    "rebuffer_s_norway_road",
+    "switch_mbps_norway_road",
+    "ms_per_call_norway_road",
+    "mean_qoe_norway_transit",
+    "avg_bitrate_mbps_norway_transit",
+    "rebuffer_s_norway_transit",
+    "switch_mbps_norway_transit",
+    "ms_per_call_norway_transit"
+   ],
+   "metric_columns": [
+    "mean_qoe_fcc",
+    "mean_qoe_norway_road",
+    "mean_qoe_norway_transit"
+   ],
+   "metric_directions": {
+    "mean_qoe_fcc": "higher",
+    "mean_qoe_norway_road": "higher",
+    "mean_qoe_norway_transit": "higher"
+   },
+   "metric_groups": [
+    {
+     "setting": "fcc",
+     "metrics": [
+      "mean_qoe_fcc"
+     ]
+    },
+    {
+     "setting": "norway_road",
+     "metrics": [
+      "mean_qoe_norway_road"
+     ]
+    },
+    {
+     "setting": "norway_transit",
+     "metrics": [
+      "mean_qoe_norway_transit"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-04T08:09:22.138628+00:00",
+     "model": "baseline:bba",
+     "is_final": true,
+     "seed": "42",
+     "mean_qoe_fcc": -32.155806,
+     "avg_bitrate_mbps_fcc": 1.094282,
+     "rebuffer_s_fcc": 16.062203,
+     "switch_mbps_fcc": 15.613889,
+     "ms_per_call_fcc": 0.000352,
+     "mean_qoe_norway_road": 29.308938,
+     "avg_bitrate_mbps_norway_road": 1.301493,
+     "rebuffer_s_norway_road": 3.697663,
+     "switch_mbps_norway_road": 17.262778,
+     "ms_per_call_norway_road": 0.00042,
+     "mean_qoe_norway_transit": -18.350337,
+     "avg_bitrate_mbps_norway_transit": 1.397454,
+     "rebuffer_s_norway_transit": 15.455892,
+     "switch_mbps_norway_transit": 18.967778,
+     "ms_per_call_norway_transit": 0.000416
+    },
+    {
+     "timestamp": "2026-09-04T08:09:22.138649+00:00",
+     "model": "baseline:bba",
+     "is_final": true,
+     "seed": "mean",
+     "mean_qoe_fcc": -32.155806,
+     "avg_bitrate_mbps_fcc": 1.094282,
+     "rebuffer_s_fcc": 16.062203,
+     "switch_mbps_fcc": 15.613889,
+     "ms_per_call_fcc": 0.000352,
+     "mean_qoe_norway_road": 29.308938,
+     "avg_bitrate_mbps_norway_road": 1.301493,
+     "rebuffer_s_norway_road": 3.697663,
+     "switch_mbps_norway_road": 17.262778,
+     "ms_per_call_norway_road": 0.00042,
+     "mean_qoe_norway_transit": -18.350337,
+     "avg_bitrate_mbps_norway_transit": 1.397454,
+     "rebuffer_s_norway_transit": 15.455892,
+     "switch_mbps_norway_transit": 18.967778,
+     "ms_per_call_norway_transit": 0.000416
+    },
+    {
+     "timestamp": "2026-09-04T08:09:22.138664+00:00",
+     "model": "baseline:fastmpc",
+     "is_final": true,
+     "seed": "42",
+     "mean_qoe_fcc": -26.7307,
+     "avg_bitrate_mbps_fcc": 1.161192,
+     "rebuffer_s_fcc": 18.097191,
+     "switch_mbps_fcc": 4.65,
+     "ms_per_call_fcc": 12.836119,
+     "mean_qoe_norway_road": -3.167429,
+     "avg_bitrate_mbps_norway_road": 1.387685,
+     "rebuffer_s_norway_road": 14.450952,
+     "switch_mbps_norway_road": 7.637222,
+     "ms_per_call_norway_road": 12.421431,
+     "mean_qoe_norway_transit": -44.387805,
+     "avg_bitrate_mbps_norway_transit": 1.48934,
+     "rebuffer_s_norway_transit": 25.22042,
+     "switch_mbps_norway_transit": 7.428333,
+     "ms_per_call_norway_transit": 11.666941
+    },
+    {
+     "timestamp": "2026-09-04T08:09:22.138666+00:00",
+     "model": "baseline:fastmpc",
+     "is_final": true,
+     "seed": "mean",
+     "mean_qoe_fcc": -26.7307,
+     "avg_bitrate_mbps_fcc": 1.161192,
+     "rebuffer_s_fcc": 18.097191,
+     "switch_mbps_fcc": 4.65,
+     "ms_per_call_fcc": 12.836119,
+     "mean_qoe_norway_road": -3.167429,
+     "avg_bitrate_mbps_norway_road": 1.387685,
+     "rebuffer_s_norway_road": 14.450952,
+     "switch_mbps_norway_road": 7.637222,
+     "ms_per_call_norway_road": 12.421431,
+     "mean_qoe_norway_transit": -44.387805,
+     "avg_bitrate_mbps_norway_transit": 1.48934,
+     "rebuffer_s_norway_transit": 25.22042,
+     "switch_mbps_norway_transit": 7.428333,
+     "ms_per_call_norway_transit": 11.666941
+    },
+    {
+     "timestamp": "2026-09-04T08:09:22.138656+00:00",
+     "model": "baseline:null_low",
+     "is_final": true,
+     "seed": "42",
+     "mean_qoe_fcc": -49.277975,
+     "avg_bitrate_mbps_fcc": 0.309375,
+     "rebuffer_s_fcc": 14.808831,
+     "switch_mbps_fcc": 0.45,
+     "ms_per_call_fcc": 0.000108,
+     "mean_qoe_norway_road": 3.162313,
+     "avg_bitrate_mbps_norway_road": 0.309375,
+     "rebuffer_s_norway_road": 2.613415,
+     "switch_mbps_norway_road": 0.45,
+     "ms_per_call_norway_road": 0.000121,
+     "mean_qoe_norway_transit": -44.589899,
+     "avg_bitrate_mbps_norway_transit": 0.309375,
+     "rebuffer_s_norway_transit": 13.718581,
+     "switch_mbps_norway_transit": 0.45,
+     "ms_per_call_norway_transit": 0.000131
+    },
+    {
+     "timestamp": "2026-09-04T08:09:22.138659+00:00",
+     "model": "baseline:null_low",
+     "is_final": true,
+     "seed": "mean",
+     "mean_qoe_fcc": -49.277975,
+     "avg_bitrate_mbps_fcc": 0.309375,
+     "rebuffer_s_fcc": 14.808831,
+     "switch_mbps_fcc": 0.45,
+     "ms_per_call_fcc": 0.000108,
+     "mean_qoe_norway_road": 3.162313,
+     "avg_bitrate_mbps_norway_road": 0.309375,
+     "rebuffer_s_norway_road": 2.613415,
+     "switch_mbps_norway_road": 0.45,
+     "ms_per_call_norway_road": 0.000121,
+     "mean_qoe_norway_transit": -44.589899,
+     "avg_bitrate_mbps_norway_transit": 0.309375,
+     "rebuffer_s_norway_transit": 13.718581,
+     "switch_mbps_norway_transit": 0.45,
+     "ms_per_call_norway_transit": 0.000131
+    },
+    {
+     "timestamp": "2026-09-04T08:09:22.138671+00:00",
+     "model": "baseline:robustmpc",
+     "is_final": true,
+     "seed": "42",
+     "mean_qoe_fcc": -18.271935,
+     "avg_bitrate_mbps_fcc": 1.116632,
+     "rebuffer_s_fcc": 15.598124,
+     "switch_mbps_fcc": 4.798333,
+     "ms_per_call_fcc": 12.215479,
+     "mean_qoe_norway_road": 31.399976,
+     "avg_bitrate_mbps_norway_road": 1.320856,
+     "rebuffer_s_norway_road": 5.66538,
+     "switch_mbps_norway_road": 7.64,
+     "ms_per_call_norway_road": 12.387734,
+     "mean_qoe_norway_transit": -11.401053,
+     "avg_bitrate_mbps_norway_transit": 1.425764,
+     "rebuffer_s_norway_transit": 16.729961,
+     "switch_mbps_norway_transit": 7.898889,
+     "ms_per_call_norway_transit": 12.433945
+    },
+    {
+     "timestamp": "2026-09-04T08:09:22.138673+00:00",
+     "model": "baseline:robustmpc",
+     "is_final": true,
+     "seed": "mean",
+     "mean_qoe_fcc": -18.271935,
+     "avg_bitrate_mbps_fcc": 1.116632,
+     "rebuffer_s_fcc": 15.598124,
+     "switch_mbps_fcc": 4.798333,
+     "ms_per_call_fcc": 12.215479,
+     "mean_qoe_norway_road": 31.399976,
+     "avg_bitrate_mbps_norway_road": 1.320856,
+     "rebuffer_s_norway_road": 5.66538,
+     "switch_mbps_norway_road": 7.64,
+     "ms_per_call_norway_road": 12.387734,
+     "mean_qoe_norway_transit": -11.401053,
+     "avg_bitrate_mbps_norway_transit": 1.425764,
+     "rebuffer_s_norway_transit": 16.729961,
+     "switch_mbps_norway_transit": 7.898889,
+     "ms_per_call_norway_transit": 12.433945
+    }
+   ]
+  },
   "mlsys-fused-attention": {
    "task_id": "mlsys-fused-attention",
    "columns": [
@@ -130278,6 +130765,203 @@
      "sdpa_latency_ms_hdim128_seq8k": 1.7927,
      "speedup_vs_sdpa_hdim256_seq16k": 0.0,
      "sdpa_latency_ms_hdim256_seq16k": 0.0
+    }
+   ]
+  },
+  "mlsys-gavel-makespan-policy": {
+   "task_id": "mlsys-gavel-makespan-policy",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "avg_jct_balanced",
+    "p99_jct_balanced",
+    "makespan_balanced",
+    "num_jobs_balanced",
+    "avg_jct_v100_rich",
+    "p99_jct_v100_rich",
+    "makespan_v100_rich",
+    "num_jobs_v100_rich",
+    "avg_jct_k80_rich",
+    "p99_jct_k80_rich",
+    "makespan_k80_rich",
+    "num_jobs_k80_rich"
+   ],
+   "metric_columns": [
+    "makespan_balanced",
+    "makespan_v100_rich",
+    "makespan_k80_rich"
+   ],
+   "metric_directions": {
+    "makespan_balanced": "lower",
+    "makespan_v100_rich": "lower",
+    "makespan_k80_rich": "lower"
+   },
+   "metric_groups": [
+    {
+     "setting": "balanced",
+     "metrics": [
+      "makespan_balanced"
+     ]
+    },
+    {
+     "setting": "v100_rich",
+     "metrics": [
+      "makespan_v100_rich"
+     ]
+    },
+    {
+     "setting": "k80_rich",
+     "metrics": [
+      "makespan_k80_rich"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-04T08:08:46.168151+00:00",
+     "model": "baseline:fifo",
+     "is_final": true,
+     "seed": "42",
+     "avg_jct_balanced": 122202.665316,
+     "p99_jct_balanced": 606499.634276,
+     "makespan_balanced": 655574.098253,
+     "num_jobs_balanced": 40.0,
+     "avg_jct_v100_rich": 95595.632674,
+     "p99_jct_v100_rich": 802812.494084,
+     "makespan_v100_rich": 1017818.916714,
+     "num_jobs_v100_rich": 40.0,
+     "avg_jct_k80_rich": 168532.587294,
+     "p99_jct_k80_rich": 773991.241144,
+     "makespan_k80_rich": 826424.69266,
+     "num_jobs_k80_rich": 40.0
+    },
+    {
+     "timestamp": "2026-09-04T08:08:46.168427+00:00",
+     "model": "baseline:fifo",
+     "is_final": true,
+     "seed": "mean",
+     "avg_jct_balanced": 122202.665316,
+     "p99_jct_balanced": 606499.634276,
+     "makespan_balanced": 655574.098253,
+     "num_jobs_balanced": 40.0,
+     "avg_jct_v100_rich": 95595.632674,
+     "p99_jct_v100_rich": 802812.494084,
+     "makespan_v100_rich": 1017818.916714,
+     "num_jobs_v100_rich": 40.0,
+     "avg_jct_k80_rich": 168532.587294,
+     "p99_jct_k80_rich": 773991.241144,
+     "makespan_k80_rich": 826424.69266,
+     "num_jobs_k80_rich": 40.0
+    },
+    {
+     "timestamp": "2026-09-04T08:08:46.167061+00:00",
+     "model": "baseline:gandiva",
+     "is_final": true,
+     "seed": "42",
+     "avg_jct_balanced": 75246.11003,
+     "p99_jct_balanced": 456224.525874,
+     "makespan_balanced": 489540.681728,
+     "num_jobs_balanced": 40.0,
+     "avg_jct_v100_rich": 66386.337182,
+     "p99_jct_v100_rich": 436545.383295,
+     "makespan_v100_rich": 470410.930456,
+     "num_jobs_v100_rich": 40.0,
+     "avg_jct_k80_rich": 85770.743684,
+     "p99_jct_k80_rich": 481863.489023,
+     "makespan_k80_rich": 513829.287621,
+     "num_jobs_k80_rich": 40.0
+    },
+    {
+     "timestamp": "2026-09-04T08:08:46.167342+00:00",
+     "model": "baseline:gandiva",
+     "is_final": true,
+     "seed": "mean",
+     "avg_jct_balanced": 75246.11003,
+     "p99_jct_balanced": 456224.525874,
+     "makespan_balanced": 489540.681728,
+     "num_jobs_balanced": 40.0,
+     "avg_jct_v100_rich": 66386.337182,
+     "p99_jct_v100_rich": 436545.383295,
+     "makespan_v100_rich": 470410.930456,
+     "num_jobs_v100_rich": 40.0,
+     "avg_jct_k80_rich": 85770.743684,
+     "p99_jct_k80_rich": 481863.489023,
+     "makespan_k80_rich": 513829.287621,
+     "num_jobs_k80_rich": 40.0
+    },
+    {
+     "timestamp": "2026-09-04T08:08:46.167600+00:00",
+     "model": "baseline:min_total_duration",
+     "is_final": true,
+     "seed": "42",
+     "avg_jct_balanced": 96735.252751,
+     "p99_jct_balanced": 631395.478714,
+     "makespan_balanced": 670545.336038,
+     "num_jobs_balanced": 40.0,
+     "avg_jct_v100_rich": 84479.574483,
+     "p99_jct_v100_rich": 621959.78531,
+     "makespan_v100_rich": 662737.280661,
+     "num_jobs_v100_rich": 40.0,
+     "avg_jct_k80_rich": 112531.314133,
+     "p99_jct_k80_rich": 662932.989545,
+     "makespan_k80_rich": 696466.692207,
+     "num_jobs_k80_rich": 40.0
+    },
+    {
+     "timestamp": "2026-09-04T08:08:46.167866+00:00",
+     "model": "baseline:min_total_duration",
+     "is_final": true,
+     "seed": "mean",
+     "avg_jct_balanced": 96735.252751,
+     "p99_jct_balanced": 631395.478714,
+     "makespan_balanced": 670545.336038,
+     "num_jobs_balanced": 40.0,
+     "avg_jct_v100_rich": 84479.574483,
+     "p99_jct_v100_rich": 621959.78531,
+     "makespan_v100_rich": 662737.280661,
+     "num_jobs_v100_rich": 40.0,
+     "avg_jct_k80_rich": 112531.314133,
+     "p99_jct_k80_rich": 662932.989545,
+     "makespan_k80_rich": 696466.692207,
+     "num_jobs_k80_rich": 40.0
+    },
+    {
+     "timestamp": "2026-09-04T08:08:46.166157+00:00",
+     "model": "baseline:min_total_duration_perf",
+     "is_final": true,
+     "seed": "42",
+     "avg_jct_balanced": 84023.563994,
+     "p99_jct_balanced": 428390.917017,
+     "makespan_balanced": 459253.135211,
+     "num_jobs_balanced": 40.0,
+     "avg_jct_v100_rich": 69148.981867,
+     "p99_jct_v100_rich": 425979.494458,
+     "makespan_v100_rich": 459475.671172,
+     "num_jobs_v100_rich": 40.0,
+     "avg_jct_k80_rich": 101775.962842,
+     "p99_jct_k80_rich": 432077.265091,
+     "makespan_k80_rich": 459632.257586,
+     "num_jobs_k80_rich": 40.0
+    },
+    {
+     "timestamp": "2026-09-04T08:08:46.166557+00:00",
+     "model": "baseline:min_total_duration_perf",
+     "is_final": true,
+     "seed": "mean",
+     "avg_jct_balanced": 84023.563994,
+     "p99_jct_balanced": 428390.917017,
+     "makespan_balanced": 459253.135211,
+     "num_jobs_balanced": 40.0,
+     "avg_jct_v100_rich": 69148.981867,
+     "p99_jct_v100_rich": 425979.494458,
+     "makespan_v100_rich": 459475.671172,
+     "num_jobs_v100_rich": 40.0,
+     "avg_jct_k80_rich": 101775.962842,
+     "p99_jct_k80_rich": 432077.265091,
+     "makespan_k80_rich": 459632.257586,
+     "num_jobs_k80_rich": 40.0
     }
    ]
   },
@@ -134894,6 +135578,275 @@
      "accuracy_drift": 0.71083333,
      "log_loss_drift": 0.62179076,
      "elapsed_drift": 1.6
+    }
+   ]
+  },
+  "online-river-drift-detector": {
+   "task_id": "online-river-drift-detector",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "f1_abrupt",
+    "detection_delay_abrupt",
+    "false_alarm_rate_abrupt",
+    "elapsed_abrupt",
+    "f1_gradual",
+    "detection_delay_gradual",
+    "false_alarm_rate_gradual",
+    "elapsed_gradual",
+    "f1_recurrent",
+    "detection_delay_recurrent",
+    "false_alarm_rate_recurrent",
+    "elapsed_recurrent"
+   ],
+   "metric_columns": [
+    "f1_abrupt",
+    "f1_gradual",
+    "f1_recurrent"
+   ],
+   "metric_directions": {
+    "f1_abrupt": "higher",
+    "f1_gradual": "higher",
+    "f1_recurrent": "higher"
+   },
+   "metric_groups": [
+    {
+     "setting": "abrupt",
+     "metrics": [
+      "f1_abrupt"
+     ]
+    },
+    {
+     "setting": "gradual",
+     "metrics": [
+      "f1_gradual"
+     ]
+    },
+    {
+     "setting": "recurrent",
+     "metrics": [
+      "f1_recurrent"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-04T06:35:49.182595+00:00",
+     "model": "baseline:adwin",
+     "is_final": true,
+     "seed": "123",
+     "f1_abrupt": 1.0,
+     "detection_delay_abrupt": 69.5,
+     "false_alarm_rate_abrupt": 0.0,
+     "elapsed_abrupt": 0.6,
+     "f1_gradual": 0.0,
+     "detection_delay_gradual": 0.0,
+     "false_alarm_rate_gradual": 0.0,
+     "elapsed_gradual": 0.6,
+     "f1_recurrent": 1.0,
+     "detection_delay_recurrent": 73.666667,
+     "false_alarm_rate_recurrent": 0.0,
+     "elapsed_recurrent": 0.6
+    },
+    {
+     "timestamp": "2026-09-04T06:35:49.182145+00:00",
+     "model": "baseline:adwin",
+     "is_final": true,
+     "seed": "42",
+     "f1_abrupt": 1.0,
+     "detection_delay_abrupt": 74.5,
+     "false_alarm_rate_abrupt": 0.0,
+     "elapsed_abrupt": 0.6,
+     "f1_gradual": 0.0,
+     "detection_delay_gradual": 0.0,
+     "false_alarm_rate_gradual": 0.0,
+     "elapsed_gradual": 0.6,
+     "f1_recurrent": 0.833333,
+     "detection_delay_recurrent": 67.6,
+     "false_alarm_rate_recurrent": 0.000556,
+     "elapsed_recurrent": 0.6
+    },
+    {
+     "timestamp": "2026-09-04T06:35:49.183199+00:00",
+     "model": "baseline:adwin",
+     "is_final": true,
+     "seed": "456",
+     "f1_abrupt": 0.5,
+     "detection_delay_abrupt": 74.0,
+     "false_alarm_rate_abrupt": 0.000556,
+     "elapsed_abrupt": 0.5,
+     "f1_gradual": 0.0,
+     "detection_delay_gradual": 0.0,
+     "false_alarm_rate_gradual": 0.0,
+     "elapsed_gradual": 0.5,
+     "f1_recurrent": 0.833333,
+     "detection_delay_recurrent": 66.2,
+     "false_alarm_rate_recurrent": 0.000556,
+     "elapsed_recurrent": 0.5
+    },
+    {
+     "timestamp": "2026-09-04T06:35:49.183562+00:00",
+     "model": "baseline:adwin",
+     "is_final": true,
+     "seed": "mean",
+     "f1_abrupt": 0.8333333333333334,
+     "detection_delay_abrupt": 72.66666666666667,
+     "false_alarm_rate_abrupt": 0.00018533333333333333,
+     "elapsed_abrupt": 0.5666666666666667,
+     "f1_gradual": 0.0,
+     "detection_delay_gradual": 0.0,
+     "false_alarm_rate_gradual": 0.0,
+     "elapsed_gradual": 0.5666666666666667,
+     "f1_recurrent": 0.8888886666666668,
+     "detection_delay_recurrent": 69.15555566666667,
+     "false_alarm_rate_recurrent": 0.00037066666666666666,
+     "elapsed_recurrent": 0.5666666666666667
+    },
+    {
+     "timestamp": "2026-09-04T06:35:54.980659+00:00",
+     "model": "baseline:kswin",
+     "is_final": true,
+     "seed": "123",
+     "f1_abrupt": 0.666667,
+     "detection_delay_abrupt": 18.5,
+     "false_alarm_rate_abrupt": 0.001111,
+     "elapsed_abrupt": 0.4,
+     "f1_gradual": 0.0,
+     "detection_delay_gradual": 0.0,
+     "false_alarm_rate_gradual": 0.002778,
+     "elapsed_gradual": 0.6,
+     "f1_recurrent": 0.666667,
+     "detection_delay_recurrent": 16.666667,
+     "false_alarm_rate_recurrent": 0.003333,
+     "elapsed_recurrent": 0.4
+    },
+    {
+     "timestamp": "2026-09-04T06:35:54.980026+00:00",
+     "model": "baseline:kswin",
+     "is_final": true,
+     "seed": "42",
+     "f1_abrupt": 0.666667,
+     "detection_delay_abrupt": 16.5,
+     "false_alarm_rate_abrupt": 0.001111,
+     "elapsed_abrupt": 1.1,
+     "f1_gradual": 0.25,
+     "detection_delay_gradual": 0.0,
+     "false_alarm_rate_gradual": 0.001667,
+     "elapsed_gradual": 1.1,
+     "f1_recurrent": 0.666667,
+     "detection_delay_recurrent": 17.5,
+     "false_alarm_rate_recurrent": 0.003333,
+     "elapsed_recurrent": 1.1
+    },
+    {
+     "timestamp": "2026-09-04T06:35:54.981036+00:00",
+     "model": "baseline:kswin",
+     "is_final": true,
+     "seed": "456",
+     "f1_abrupt": 0.666667,
+     "detection_delay_abrupt": 16.0,
+     "false_alarm_rate_abrupt": 0.001111,
+     "elapsed_abrupt": 0.4,
+     "f1_gradual": 0.5,
+     "detection_delay_gradual": 38.5,
+     "false_alarm_rate_gradual": 0.001111,
+     "elapsed_gradual": 0.4,
+     "f1_recurrent": 0.666667,
+     "detection_delay_recurrent": 16.166667,
+     "false_alarm_rate_recurrent": 0.003333,
+     "elapsed_recurrent": 0.4
+    },
+    {
+     "timestamp": "2026-09-04T06:35:54.981432+00:00",
+     "model": "baseline:kswin",
+     "is_final": true,
+     "seed": "mean",
+     "f1_abrupt": 0.666667,
+     "detection_delay_abrupt": 17.0,
+     "false_alarm_rate_abrupt": 0.001111,
+     "elapsed_abrupt": 0.6333333333333334,
+     "f1_gradual": 0.25,
+     "detection_delay_gradual": 12.833333333333334,
+     "false_alarm_rate_gradual": 0.0018520000000000001,
+     "elapsed_gradual": 0.7000000000000001,
+     "f1_recurrent": 0.666667,
+     "detection_delay_recurrent": 16.777778,
+     "false_alarm_rate_recurrent": 0.0033330000000000005,
+     "elapsed_recurrent": 0.6333333333333334
+    },
+    {
+     "timestamp": "2026-09-04T06:35:53.145769+00:00",
+     "model": "baseline:page_hinkley",
+     "is_final": true,
+     "seed": "123",
+     "f1_abrupt": 0.5,
+     "detection_delay_abrupt": 6.0,
+     "false_alarm_rate_abrupt": 0.000556,
+     "elapsed_abrupt": 0.7,
+     "f1_gradual": 0.4,
+     "detection_delay_gradual": 0.0,
+     "false_alarm_rate_gradual": 0.002222,
+     "elapsed_gradual": 0.7,
+     "f1_recurrent": 0.6,
+     "detection_delay_recurrent": 14.666667,
+     "false_alarm_rate_recurrent": 0.000556,
+     "elapsed_recurrent": 0.7
+    },
+    {
+     "timestamp": "2026-09-04T06:35:53.145196+00:00",
+     "model": "baseline:page_hinkley",
+     "is_final": true,
+     "seed": "42",
+     "f1_abrupt": 0.666667,
+     "detection_delay_abrupt": 6.0,
+     "false_alarm_rate_abrupt": 0.0,
+     "elapsed_abrupt": 0.4,
+     "f1_gradual": 0.5,
+     "detection_delay_gradual": 4.0,
+     "false_alarm_rate_gradual": 0.001111,
+     "elapsed_gradual": 0.4,
+     "f1_recurrent": 0.8,
+     "detection_delay_recurrent": 14.5,
+     "false_alarm_rate_recurrent": 0.0,
+     "elapsed_recurrent": 0.4
+    },
+    {
+     "timestamp": "2026-09-04T06:35:53.146104+00:00",
+     "model": "baseline:page_hinkley",
+     "is_final": true,
+     "seed": "456",
+     "f1_abrupt": 0.5,
+     "detection_delay_abrupt": 8.0,
+     "false_alarm_rate_abrupt": 0.000556,
+     "elapsed_abrupt": 0.8,
+     "f1_gradual": 0.571429,
+     "detection_delay_gradual": 44.0,
+     "false_alarm_rate_gradual": 0.000556,
+     "elapsed_gradual": 0.8,
+     "f1_recurrent": 0.666667,
+     "detection_delay_recurrent": 23.333333,
+     "false_alarm_rate_recurrent": 0.0,
+     "elapsed_recurrent": 0.8
+    },
+    {
+     "timestamp": "2026-09-04T06:35:53.146435+00:00",
+     "model": "baseline:page_hinkley",
+     "is_final": true,
+     "seed": "mean",
+     "f1_abrupt": 0.5555556666666667,
+     "detection_delay_abrupt": 6.666666666666667,
+     "false_alarm_rate_abrupt": 0.00037066666666666666,
+     "elapsed_abrupt": 0.6333333333333333,
+     "f1_gradual": 0.49047633333333335,
+     "detection_delay_gradual": 16.0,
+     "false_alarm_rate_gradual": 0.0012963333333333334,
+     "elapsed_gradual": 0.6333333333333333,
+     "f1_recurrent": 0.688889,
+     "detection_delay_recurrent": 17.5,
+     "false_alarm_rate_recurrent": 0.00018533333333333333,
+     "elapsed_recurrent": 0.6333333333333333
     }
    ]
   },
