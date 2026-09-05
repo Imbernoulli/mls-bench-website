@@ -14859,53 +14859,62 @@
    "description_md": "# Online concept-drift detection with River\n\n## Objective\n\nDesign a streaming concept-drift detector for a univariate stream. The detector receives one observation at a time and must raise an alarm when the data-generating distribution changes, while avoiding false alarms before a change. This is an atomic algorithmic question from the online-learning literature: can a sequential test adapt its sensitivity to both abrupt and gradual distribution shifts?\n\n## Interface\n\nImplement `DriftDetector` in `river_lab/drift_detector.py`. The harness constructs a fresh detector by calling `reset()` (or `reset(delta)` when supported), then repeatedly calls `update(x)` with a finite floating-point observation. `update` must return a boolean indicating whether drift is detected at that observation. Keep memory bounded by the `space` argument (default 256); do not retain the complete stream or inspect the evaluator.\n\nOnly the editable detector file may be changed. Use Python standard library and NumPy/River APIs available in the package environment. The driver and metric computation are read-only.\n\n## Metric\n\nThe evaluator reports `f1` (harmonic mean of event-level precision and recall, matching alarms to the nearest true change within a tolerance window; higher is better), together with detection delay and false-alarm rate for diagnostics. A useful detector should react quickly after a genuine shift and remain quiet on stationary prefixes. Each run uses a fresh hidden stream instance; the exposed seed is bookkeeping only. The hidden stream tests transfer to a shift pattern not shown during development.\n\n## Research context\n\n- Page, E. S. (1954), “Continuous inspection schemes,” Biometrika 41(1/2): the cumulative-sum sequential change detector.\n- Bifet & Gavaldà (2007), “Learning from Time-Changing Data with Adaptive Windowing,” SDM: ADWIN's statistically principled adaptive window test.\n- Raab et al. (2020), “Reactive Soft Prototype Computing for Concept Drift,” Neurocomputing: KSWIN's non-parametric two-window detector.\n\nReference implementations of these methods are supplied as baselines through edit operations. Your contribution should be a detector algorithm (for example, a robust sequential statistic or adaptive threshold), not a search over a few constants.\n",
    "description_html": "<h1>Online concept-drift detection with River</h1>\n<h2>Objective</h2>\n<p>Design a streaming concept-drift detector for a univariate stream. The detector receives one observation at a time and must raise an alarm when the data-generating distribution changes, while avoiding false alarms before a change. This is an atomic algorithmic question from the online-learning literature: can a sequential test adapt its sensitivity to both abrupt and gradual distribution shifts?</p>\n<h2>Interface</h2>\n<p>Implement <code>DriftDetector</code> in <code>river_lab/drift_detector.py</code>. The harness constructs a fresh detector by calling <code>reset()</code> (or <code>reset(delta)</code> when supported), then repeatedly calls <code>update(x)</code> with a finite floating-point observation. <code>update</code> must return a boolean indicating whether drift is detected at that observation. Keep memory bounded by the <code>space</code> argument (default 256); do not retain the complete stream or inspect the evaluator.</p>\n<p>Only the editable detector file may be changed. Use Python standard library and NumPy/River APIs available in the package environment. The driver and metric computation are read-only.</p>\n<h2>Metric</h2>\n<p>The evaluator reports <code>f1</code> (harmonic mean of event-level precision and recall, matching alarms to the nearest true change within a tolerance window; higher is better), together with detection delay and false-alarm rate for diagnostics. A useful detector should react quickly after a genuine shift and remain quiet on stationary prefixes. Each run uses a fresh hidden stream instance; the exposed seed is bookkeeping only. The hidden stream tests transfer to a shift pattern not shown during development.</p>\n<h2>Research context</h2>\n<ul>\n<li>Page, E. S. (1954), “Continuous inspection schemes,” Biometrika 41(1/2): the cumulative-sum sequential change detector.</li>\n<li>Bifet &amp; Gavaldà (2007), “Learning from Time-Changing Data with Adaptive Windowing,” SDM: ADWIN's statistically principled adaptive window test.</li>\n<li>Raab et al. (2020), “Reactive Soft Prototype Computing for Concept Drift,” Neurocomputing: KSWIN's non-parametric two-window detector.</li>\n</ul>\n<p>Reference implementations of these methods are supplied as baselines through edit operations. Your contribution should be a detector algorithm (for example, a robust sequential statistic or adaptive threshold), not a search over a few constants.</p>",
    "baselines": [
-    "adwin",
-    "page_hinkley",
-    "kswin"
+    "ddm",
+    "eddm",
+    "adwin_error",
+    "no_adaptation_null"
    ],
    "environments": [
-    "abrupt",
-    "gradual",
-    "recurrent"
+    "stream_a",
+    "stream_b",
+    "stream_c"
    ],
    "packages": [
     "river-lab"
    ],
    "files": [
     {
-     "filename": "river-lab/river_lab/drift_detector.py",
+     "filename": "river-lab/custom_detector.py",
      "edit_ranges": [
       {
-       "start": 1,
-       "end": 80
+       "start": -1,
+       "end": -1
       }
      ],
-     "content": "\"\"\"Editable online drift detector.\"\"\"\nclass DriftDetector:\n    def __init__(self):\n        self.reset()\n    def reset(self, space=256):\n        self.space = int(space)\n        self.n = 0\n        self._state = 0.0\n    def update(self, x):\n        \"\"\"Consume one value and return True iff a drift alarm is raised.\"\"\"\n        self.n += 1\n        self._state = float(x)\n        return False\n"
+     "content": "\"\"\"Concept-drift detector for a streaming classifier -- the editable module.\n\n``build_detector(seed, meta)`` must return an object with a single method\n\n    update(error: int) -> str      one of \"none\", \"warn\", \"drift\"\n\n``error`` is 1 when the classifier's prediction for the example just seen was wrong\nand 0 when it was right; it arrives one example at a time, in stream order, and the\ndetector never sees the features or the labels. The fixed harness owns everything\nelse: the base learner is one River Hoeffding tree, ``\"warn\"`` starts a background\ntree that learns the same examples, ``\"drift\"`` promotes that background tree (or a\nfresh one) in place of the active tree, and a ``\"none\"`` after a warning drops the\nbackground tree again.\n\nEverything in this file is editable: the statistic you track, the window or the\nrecursive estimate you keep it in, the two thresholds, and the state machine that\nturns them into warnings and drift signals. Keep memory bounded. ``meta`` carries\n``n_features``, ``n_examples`` and ``n_classes``.\n\"\"\"\n\n\nclass ErrorRateDetector:\n    \"\"\"Starter: a fixed-length sliding window on the error rate.\n\n    It warns when the recent error rate exceeds the long-run rate by one absolute\n    point of margin and signals drift at twice that margin. Nothing about the\n    margin is principled -- there is no statistical test, no adaptive window and\n    no notion of how much evidence a window of this length actually carries. That\n    is the thing to replace.\n    \"\"\"\n\n    def __init__(self, window=200, warn_margin=0.05, drift_margin=0.10):\n        self.window = int(window)\n        self.warn_margin = float(warn_margin)\n        self.drift_margin = float(drift_margin)\n        self.recent = []\n        self.total = 0\n        self.n = 0\n\n    def update(self, error):\n        self.n += 1\n        self.total += int(error)\n        self.recent.append(int(error))\n        if len(self.recent) > self.window:\n            self.recent.pop(0)\n        if self.n < 2 * self.window:\n            return \"none\"\n        long_run = self.total / self.n\n        recent = sum(self.recent) / len(self.recent)\n        if recent > long_run + self.drift_margin:\n            self.recent.clear()\n            self.total = 0\n            self.n = 0\n            return \"drift\"\n        if recent > long_run + self.warn_margin:\n            return \"warn\"\n        return \"none\"\n\n\ndef build_detector(seed, meta):\n    \"\"\"Return the detector the fixed harness will drive.\"\"\"\n    return ErrorRateDetector()\n"
     }
    ],
    "baselines_code": {
-    "adwin": [
+    "ddm": [
      {
-      "file": "river-lab/river_lab/drift_detector.py",
+      "file": "river-lab/custom_detector.py",
       "start_line": 1,
-      "end_line": 80,
-      "content": "\"\"\"ADWIN-style adaptive-window mean detector (Bifet & Gavaldà, 2007).\"\"\"\nimport math\nclass DriftDetector:\n    def __init__(self): self.reset()\n    def reset(self, space=256):\n        self.space=max(32,int(space)); self.values=[]; self.width=0; self.total=0.0\n    def update(self, x):\n        self.values.append(float(x)); self.width += 1; self.total += float(x)\n        if self.width > self.space: self.total -= self.values.pop(0); self.width -= 1\n        if self.width < 16: return False\n        cut=self.width//2; a=self.values[:cut]; b=self.values[cut:]\n        ma=sum(a)/len(a); mb=sum(b)/len(b); eps=math.sqrt(2*math.log(2.0/max(1e-12,0.002))*((1/len(a))+(1/len(b))))\n        if abs(ma-mb)>eps:\n            self.values=b[-max(8,self.space//4):]; self.width=len(self.values); self.total=sum(self.values); return True\n        return False"
+      "end_line": 62,
+      "content": "\"\"\"Drift Detection Method (Gama, Medas, Castillo & Rodrigues, SBIA 2004): track the\nbinomial error rate p and its standard deviation s, remember the minimum of p+s, and\nwarn at p+s >= p_min + 2 s_min, signal drift at p+s >= p_min + 3 s_min. River 0.26.1\ndrift/binary/ddm.py defaults (warm_start=30, warning_threshold=2.0, drift_threshold=3.0).\"\"\"\nfrom river import drift\n\n\nclass Detector:\n    def __init__(self):\n        self.d = drift.binary.DDM()\n\n    def update(self, error):\n        self.d.update(int(error))\n        if self.d.drift_detected:\n            self.d = drift.binary.DDM()\n            return \"drift\"\n        return \"warn\" if self.d.warning_detected else \"none\"\n\n\ndef build_detector(seed, meta):\n    return Detector()\n"
      }
     ],
-    "page_hinkley": [
+    "eddm": [
      {
-      "file": "river-lab/river_lab/drift_detector.py",
+      "file": "river-lab/custom_detector.py",
       "start_line": 1,
-      "end_line": 80,
-      "content": "\"\"\"Page-Hinkley cumulative-sum test (Page, 1954).\"\"\"\nclass DriftDetector:\n    def __init__(self): self.reset()\n    def reset(self, space=256):\n        self.space=max(32,int(space)); self.n=0; self.mean=0.; self.min_sum=0.; self.sum=0.; self.threshold=8.0\n    def update(self, x):\n        x=float(x); self.n+=1; self.mean += (x-self.mean)/self.n\n        self.sum += x-self.mean-0.01; self.min_sum=min(self.min_sum,self.sum)\n        if self.sum-self.min_sum > self.threshold:\n            self.n=0; self.mean=0.; self.sum=0.; self.min_sum=0.; return True\n        return False"
+      "end_line": 62,
+      "content": "\"\"\"Early Drift Detection Method (Baena-Garcia, del Campo-Avila, Fidalgo, Bifet,\nGavalda & Morales-Bueno, ECML-PKDD workshop 2006): track the mean DISTANCE between\nconsecutive errors and its standard deviation, and compare (p + 2s) / (p_max +\n2 s_max) against beta (drift) and alpha (warning). River 0.26.1 drift/binary/eddm.py\ndefaults (warm_start=30, alpha=0.95, beta=0.9).\"\"\"\nfrom river import drift\n\n\nclass Detector:\n    def __init__(self):\n        self.d = drift.binary.EDDM()\n\n    def update(self, error):\n        self.d.update(int(error))\n        if self.d.drift_detected:\n            self.d = drift.binary.EDDM()\n            return \"drift\"\n        return \"warn\" if self.d.warning_detected else \"none\"\n\n\ndef build_detector(seed, meta):\n    return Detector()\n"
      }
     ],
-    "kswin": [
+    "adwin_error": [
      {
-      "file": "river-lab/river_lab/drift_detector.py",
+      "file": "river-lab/custom_detector.py",
       "start_line": 1,
-      "end_line": 80,
-      "content": "\"\"\"KSWIN non-parametric two-window detector (Raab et al., 2020).\"\"\"\nimport math, random\nclass DriftDetector:\n    def __init__(self): self.reset()\n    def reset(self, space=256):\n        self.space=max(32,int(space)); self.w=[]; self.rng=random.Random(2020)\n    def update(self, x):\n        self.w.append(float(x))\n        if len(self.w)>self.space: self.w.pop(0)\n        if len(self.w)<32: return False\n        n=max(8,len(self.w)//4); old=self.w[:-n]; new=self.w[-n:]\n        # deterministic KS statistic on two samples\n        vals=sorted(set(old+new)); d=max(abs(sum(v<=z for v in old)/len(old)-sum(v<=z for v in new)/len(new)) for z in vals)\n        crit=math.sqrt(-math.log(0.01/2)*(1+len(old)/len(new))/(2*len(old)))\n        if d>crit:\n            self.w=self.w[-n:]; return True\n        return False"
+      "end_line": 62,
+      "content": "\"\"\"ADWIN on the error stream (Bifet & Gavalda, SDM 2007): an adaptive window that is\ncut whenever two large-enough sub-windows have significantly different means. ADWIN\nhas no warning level, so this detector only ever returns \"drift\" -- which is exactly\nhow River wires it into DriftRetrainingClassifier and how the kNN-ADWIN and\nLeveraging-Bagging papers use it. River 0.26.1 drift/adwin.py defaults (delta=0.002).\"\"\"\nfrom river import drift\n\n\nclass Detector:\n    def __init__(self):\n        self.d = drift.ADWIN()\n\n    def update(self, error):\n        self.d.update(int(error))\n        return \"drift\" if self.d.drift_detected else \"none\"\n\n\ndef build_detector(seed, meta):\n    return Detector()\n"
+     }
+    ],
+    "no_adaptation_null": [
+     {
+      "file": "river-lab/custom_detector.py",
+      "start_line": 1,
+      "end_line": 62,
+      "content": "\"\"\"NULL baseline (declared): a detector that never fires. The fixed harness then\nnever resets and never starts a background learner, so this measures the plain\nHoeffding tree -- what the stream gives you with no drift handling at all.\"\"\"\n\n\nclass Detector:\n    def update(self, error):\n        return \"none\"\n\n\ndef build_detector(seed, meta):\n    return Detector()\n"
      }
     ]
    },
@@ -15189,22 +15198,23 @@
   },
   {
    "id": "online-river-regression",
-   "name": "Online regression with River",
-   "summary": "Design one generalisable algorithmic update for a streaming regressor in",
+   "name": "Online regression on data streams",
+   "summary": "A streaming regressor sees one example at a time, must predict before the target is",
    "category": "other",
    "category_label": "Other",
    "category_abbr": "",
-   "description_md": "# Online regression with River\n\nDesign one generalisable algorithmic update for a streaming regressor in\n`river-lab/custom_regression.py`.  The evaluator presents one feature\ndictionary and target at a time through `predict_one(x)` and `learn_one(x, y)`;\nthe label is revealed only after the prediction.  Keep state bounded and use\ndeterministic private state when randomness is needed.\n\nPerformance is prequential root mean squared error (RMSE, lower is better)\nacross multiple stream regimes, with one regime held out to test transfer.\nImplementations should follow River's\nincremental-estimator conventions rather than batch fitting or hyperparameter\nsearch.  Reference methods are constant-step stochastic gradient descent,\nfeature-standardized SGD, and a passive-aggressive normalized update.\n",
-   "description_html": "<h1>Online regression with River</h1>\n<p>Design one generalisable algorithmic update for a streaming regressor in\n<code>river-lab/custom_regression.py</code>.  The evaluator presents one feature\ndictionary and target at a time through <code>predict_one(x)</code> and <code>learn_one(x, y)</code>;\nthe label is revealed only after the prediction.  Keep state bounded and use\ndeterministic private state when randomness is needed.</p>\n<p>Performance is prequential root mean squared error (RMSE, lower is better)\nacross multiple stream regimes, with one regime held out to test transfer.\nImplementations should follow River's\nincremental-estimator conventions rather than batch fitting or hyperparameter\nsearch.  Reference methods are constant-step stochastic gradient descent,\nfeature-standardized SGD, and a passive-aggressive normalized update.</p>",
+   "description_md": "# Online regression on data streams\n\n## Research question\n\nA streaming regressor sees one example at a time, must predict before the target is\nrevealed, and must keep bounded state while the target's own level and scale move\nunder it. Three families answer this differently: a linear model updated by\nstochastic gradient descent (the LMS update of Widrow & Hoff 1960, which River wraps\nin running feature and target standardisers because a raw online least-squares step\nis scale-bound), a lazy sliding-window nearest-neighbour predictor, and an online\nMondrian forest that aggregates over all prunings of its trees with exponential\nweights (Mourtada, Gaïffas & Scornet, *AMF: Aggregated Mondrian forests for online\nlearning*, JRSS-B 2021 / NeurIPS 2019). They fail in different places: the linear\nmodel on non-linear count series, the lazy predictor when the concept moves faster\nthan its window, the forest whenever a smooth global trend would have been enough.\nPropose and implement one algorithmic improvement — the feature transform, the model\nclass, the update rule, or the way the target's scale and drift are tracked — that\ntransfers across streams instead of fitting one.\n\n## Interface (the editable module)\n\n`river-lab/custom_regression.py` is the only editable file. It must define\n\n```python\ndef build_model(seed: int, meta: dict):\n    ...  # returns an object with predict_one(x) -> float and learn_one(x, y)\n```\n\nThe fixed evaluator is prequential (test-then-train): for every example it calls\n`predict_one(x)` first, records the prediction, and only then calls `learn_one(x, y)`\nexactly once. `x` is a `dict[str, float]`, `y` a float target, `meta` carries\n`n_features` and `n_examples`. A non-finite prediction is not a crash — it is scored\nas a prediction of zero and counted in `n_nonfinite`. Use `seed` for any randomness\nand keep memory bounded. River's public estimators and the standard library are\navailable; process / file-system / introspection modules are rejected by a static\nscreen before the run.\n\n## Metric\n\nPrequential mean absolute error (lower is better) on several real regression streams\nthat differ in length and structure, aggregated by a geometric mean; one stream is\nheld out to test transfer. RMSE is parsed and reported for diagnostics only. Each\nsetting has a fixed time limit.\n\n## Reference baselines (supplied as edit operations on the same file)\n\n- `linear_sgd` — online least squares by SGD behind running feature/target standardisers.\n- `knn_regressor` — sliding-window k-nearest-neighbour regression.\n- `amf` — the Aggregated Mondrian Forest of Mourtada et al.\n- `mean_null` — declared null: the running mean of the target, ignoring `x`.\n\nA hyperparameter-only change (learning rate, `k`, number of trees) is not a contribution.\n",
+   "description_html": "<h1>Online regression on data streams</h1>\n<h2>Research question</h2>\n<p>A streaming regressor sees one example at a time, must predict before the target is\nrevealed, and must keep bounded state while the target's own level and scale move\nunder it. Three families answer this differently: a linear model updated by\nstochastic gradient descent (the LMS update of Widrow &amp; Hoff 1960, which River wraps\nin running feature and target standardisers because a raw online least-squares step\nis scale-bound), a lazy sliding-window nearest-neighbour predictor, and an online\nMondrian forest that aggregates over all prunings of its trees with exponential\nweights (Mourtada, Gaïffas &amp; Scornet, <em>AMF: Aggregated Mondrian forests for online\nlearning</em>, JRSS-B 2021 / NeurIPS 2019). They fail in different places: the linear\nmodel on non-linear count series, the lazy predictor when the concept moves faster\nthan its window, the forest whenever a smooth global trend would have been enough.\nPropose and implement one algorithmic improvement — the feature transform, the model\nclass, the update rule, or the way the target's scale and drift are tracked — that\ntransfers across streams instead of fitting one.</p>\n<h2>Interface (the editable module)</h2>\n<p><code>river-lab/custom_regression.py</code> is the only editable file. It must define</p>\n<pre class=\"codehilite\"><code class=\"language-python\">def build_model(seed: int, meta: dict):\n    ...  # returns an object with predict_one(x) -&gt; float and learn_one(x, y)\n</code></pre>\n\n<p>The fixed evaluator is prequential (test-then-train): for every example it calls\n<code>predict_one(x)</code> first, records the prediction, and only then calls <code>learn_one(x, y)</code>\nexactly once. <code>x</code> is a <code>dict[str, float]</code>, <code>y</code> a float target, <code>meta</code> carries\n<code>n_features</code> and <code>n_examples</code>. A non-finite prediction is not a crash — it is scored\nas a prediction of zero and counted in <code>n_nonfinite</code>. Use <code>seed</code> for any randomness\nand keep memory bounded. River's public estimators and the standard library are\navailable; process / file-system / introspection modules are rejected by a static\nscreen before the run.</p>\n<h2>Metric</h2>\n<p>Prequential mean absolute error (lower is better) on several real regression streams\nthat differ in length and structure, aggregated by a geometric mean; one stream is\nheld out to test transfer. RMSE is parsed and reported for diagnostics only. Each\nsetting has a fixed time limit.</p>\n<h2>Reference baselines (supplied as edit operations on the same file)</h2>\n<ul>\n<li><code>linear_sgd</code> — online least squares by SGD behind running feature/target standardisers.</li>\n<li><code>knn_regressor</code> — sliding-window k-nearest-neighbour regression.</li>\n<li><code>amf</code> — the Aggregated Mondrian Forest of Mourtada et al.</li>\n<li><code>mean_null</code> — declared null: the running mean of the target, ignoring <code>x</code>.</li>\n</ul>\n<p>A hyperparameter-only change (learning rate, <code>k</code>, number of trees) is not a contribution.</p>",
    "baselines": [
-    "sgd",
-    "standardized_sgd",
-    "passive_aggressive"
+    "linear_sgd",
+    "amf",
+    "knn_regressor",
+    "mean_null"
    ],
    "environments": [
-    "stationary",
-    "drift",
-    "seasonal"
+    "stream_a",
+    "stream_b",
+    "stream_c"
    ],
    "packages": [
     "river-lab"
@@ -15214,36 +15224,44 @@
      "filename": "river-lab/custom_regression.py",
      "edit_ranges": [
       {
-       "start": 5,
-       "end": 29
+       "start": -1,
+       "end": -1
       }
      ],
-     "content": "\"\"\"Editable online regressor using River's predict_one/learn_one contract.\"\"\"\nimport math\n\n\nclass Regressor:\n    \"\"\"Streaming predictor; labels are observed only after each prediction.\"\"\"\n    def __init__(self, n_features=10, seed=42):\n        self.n_features, self.seed = int(n_features), int(seed)\n        self.reset()\n\n    def reset(self):\n        self.w = [0.0] * self.n_features\n        self.b = 0.0\n        self.t = 0\n\n    def predict_one(self, x):\n        return self.b + sum(self.w[j] * float(x.get(f\"x{j}\", 0.0)) for j in range(self.n_features))\n\n    def learn_one(self, x, y):\n        \"\"\"Update state after observing one (feature dictionary, target) pair.\"\"\"\n        pred = self.predict_one(x)\n        err = float(y) - pred\n        # Replace this bounded update with a generalisable online algorithm.\n        lr = 0.03 / math.sqrt(1.0 + self.t / 500.0)\n        self.b += lr * err\n        for j in range(self.n_features):\n            self.w[j] += lr * err * float(x.get(f\"x{j}\", 0.0))\n        self.t += 1\n        return self\n"
+     "content": "\"\"\"Online regressor for data streams -- the editable module.\n\n``build_model(seed, meta)`` must return an object with River's one-example API:\n\n    predict_one(x) -> float     called BEFORE the target is revealed\n    learn_one(x, y)             called exactly once per example, after\n\n``x`` is a dict ``{feature_name: float}``, ``y`` a float target, ``meta`` carries\n``n_features`` and ``n_examples``. The evaluator is prequential (test-then-train)\nand never reveals a future target. Everything in this file is editable: the\nfeature transform, the model class, the way its parameters are updated and how\nthe target's own scale and drift are handled. Keep memory bounded.\n\"\"\"\nfrom river import base, stats\n\n\nclass RunningMeanRegressor(base.Regressor):\n    \"\"\"Starter: predict the running mean of the target and ignore ``x``.\n\n    A scaffold, not a method: it has no model of the features at all.\n    \"\"\"\n\n    def __init__(self):\n        self.mean = stats.Mean()\n\n    def learn_one(self, x, y):\n        self.mean.update(float(y))\n\n    def predict_one(self, x):\n        return self.mean.get()\n\n\ndef build_model(seed, meta):\n    \"\"\"Return the regressor the evaluator will drive.\"\"\"\n    return RunningMeanRegressor()\n"
     }
    ],
    "baselines_code": {
-    "sgd": [
+    "linear_sgd": [
      {
       "file": "river-lab/custom_regression.py",
-      "start_line": 5,
-      "end_line": 29,
-      "content": "class Regressor:\n    def __init__(self, n_features=10, seed=42): self.n_features = int(n_features); self.reset()\n    def reset(self): self.w = [0.0] * self.n_features; self.b = 0.0; self.t = 0\n    def predict_one(self, x): return self.b + sum(self.w[j] * float(x.get(f\"x{j}\", 0.0)) for j in range(self.n_features))\n    def learn_one(self, x, y):\n        e = float(y) - self.predict_one(x); lr = 0.03\n        self.b += lr * e\n        for j in range(self.n_features): self.w[j] += lr * e * float(x.get(f\"x{j}\", 0.0))\n        self.t += 1; return self\n"
+      "start_line": 1,
+      "end_line": 35,
+      "content": "\"\"\"Online least squares by stochastic gradient descent -- the classical LMS update\n(Widrow & Hoff 1960) as River implements it: linear_model.LinearRegression with\noptim.SGD(0.01) and the squared loss, behind the running feature standardiser and\nthe running target standardiser River documents for streaming regression.\"\"\"\nfrom river import linear_model, optim, preprocessing\n\n\ndef build_model(seed, meta):\n    return preprocessing.TargetStandardScaler(\n        regressor=preprocessing.StandardScaler() | linear_model.LinearRegression(optimizer=optim.SGD(0.01))\n    )\n"
      }
     ],
-    "standardized_sgd": [
+    "amf": [
      {
       "file": "river-lab/custom_regression.py",
-      "start_line": 5,
-      "end_line": 29,
-      "content": "class Regressor:\n    def __init__(self, n_features=10, seed=42): self.n_features = int(n_features); self.reset()\n    def reset(self): self.w = [0.0] * self.n_features; self.b = 0.0; self.mean = [0.0] * self.n_features; self.var = [1.0] * self.n_features; self.t = 0\n    def predict_one(self, x):\n        return self.b + sum(self.w[j] * ((float(x.get(f\"x{j}\", 0.0)) - self.mean[j]) / (self.var[j] ** 0.5 + 1e-8)) for j in range(self.n_features))\n    def learn_one(self, x, y):\n        z = [float(x.get(f\"x{j}\", 0.0)) for j in range(self.n_features)]\n        self.t += 1\n        for j, v in enumerate(z):\n            d = v - self.mean[j]; self.mean[j] += d / self.t; self.var[j] = 0.99 * self.var[j] + 0.01 * d * d\n        e = float(y) - self.predict_one(x); lr = 0.04 / (self.t ** 0.25)\n        self.b += lr * e\n        for j, v in enumerate(z): self.w[j] += lr * e * ((v - self.mean[j]) / (self.var[j] ** 0.5 + 1e-8))\n        return self\n"
+      "start_line": 1,
+      "end_line": 35,
+      "content": "\"\"\"Aggregated Mondrian Forest (Mourtada, Gaiffas & Scornet, \"AMF: Aggregated Mondrian\nforests for online learning\", JRSS-B 2021 / NeurIPS 2019): River 0.26.1\nforest.AMFRegressor defaults (10 Mondrian trees, exponentially weighted aggregation\nover all prunings, step=1.0).\"\"\"\nfrom river import forest\n\n\ndef build_model(seed, meta):\n    return forest.AMFRegressor(seed=seed)\n"
      }
     ],
-    "passive_aggressive": [
+    "knn_regressor": [
      {
       "file": "river-lab/custom_regression.py",
-      "start_line": 5,
-      "end_line": 29,
-      "content": "class Regressor:\n    def __init__(self, n_features=10, seed=42): self.n_features = int(n_features); self.reset()\n    def reset(self): self.w = [0.0] * self.n_features; self.b = 0.0; self.t = 0\n    def predict_one(self, x): return self.b + sum(self.w[j] * float(x.get(f\"x{j}\", 0.0)) for j in range(self.n_features))\n    def learn_one(self, x, y):\n        z = [float(x.get(f\"x{j}\", 0.0)) for j in range(self.n_features)]; e = float(y) - self.predict_one(x)\n        norm = 1.0 + sum(v * v for v in z); tau = e / norm\n        self.b += tau\n        for j, v in enumerate(z): self.w[j] += tau * v\n        self.t += 1; return self\n"
+      "start_line": 1,
+      "end_line": 35,
+      "content": "\"\"\"Sliding-window k-nearest-neighbour regression (the streaming form of Cover & Hart\n1967 / Fix & Hodges 1951): River 0.26.1 neighbors.KNNRegressor defaults (k=5, uniform\naggregation over an exact 1000-example window) behind a running standardiser.\"\"\"\nfrom river import neighbors, preprocessing\n\n\ndef build_model(seed, meta):\n    return preprocessing.StandardScaler() | neighbors.KNNRegressor(n_neighbors=5)\n"
+     }
+    ],
+    "mean_null": [
+     {
+      "file": "river-lab/custom_regression.py",
+      "start_line": 1,
+      "end_line": 35,
+      "content": "\"\"\"NULL baseline (declared): predict the running mean of the target and ignore x.\nRiver 0.26.1 dummy.StatisticRegressor(stats.Mean()).\"\"\"\nfrom river import dummy, stats\n\n\ndef build_model(seed, meta):\n    return dummy.StatisticRegressor(stats.Mean())\n"
      }
     ]
    },
@@ -15253,61 +15271,70 @@
   },
   {
    "id": "online-river-regression-robust",
-   "name": "Robust online regression (River-style)",
-   "summary": "Implement a generalizable online regression update in `streaming-lab/custom_regression.py`.",
+   "name": "A robust objective for online regression",
+   "summary": "An online linear model updates its weights by descending the gradient of a loss at a",
    "category": "other",
    "category_label": "Other",
    "category_abbr": "",
-   "description_md": "# Robust online regression (River-style)\n\nImplement a generalizable online regression update in `streaming-lab/custom_regression.py`.\nThe evaluator feeds one feature dictionary and target at a time through the River-compatible\n`predict_one(x)` and `learn_one(x, y)` methods. Labels arrive only after each prediction;\ndo not use future observations or batch training. Keep state bounded and deterministic.\n\nYour method is evaluated by prequential root mean squared error (RMSE, lower is better)\non multiple streams, with one held-out regime reserved to check transfer beyond\nthe visible settings. A robust update should adapt after distribution changes and\navoid being dominated by large residuals.\n\nReference baselines are plain constant-step SGD, a running-mean predictor, and Huber-clipped\nSGD. You may use only the standard library in the editable file; do not change the fixed\ndriver or harness.\n",
-   "description_html": "<h1>Robust online regression (River-style)</h1>\n<p>Implement a generalizable online regression update in <code>streaming-lab/custom_regression.py</code>.\nThe evaluator feeds one feature dictionary and target at a time through the River-compatible\n<code>predict_one(x)</code> and <code>learn_one(x, y)</code> methods. Labels arrive only after each prediction;\ndo not use future observations or batch training. Keep state bounded and deterministic.</p>\n<p>Your method is evaluated by prequential root mean squared error (RMSE, lower is better)\non multiple streams, with one held-out regime reserved to check transfer beyond\nthe visible settings. A robust update should adapt after distribution changes and\navoid being dominated by large residuals.</p>\n<p>Reference baselines are plain constant-step SGD, a running-mean predictor, and Huber-clipped\nSGD. You may use only the standard library in the editable file; do not change the fixed\ndriver or harness.</p>",
+   "description_md": "# A robust objective for online regression\n\n## Research question\n\nAn online linear model updates its weights by descending the gradient of a loss at a\nsingle example. With the squared loss that gradient is proportional to the residual,\nso one example with a wildly atypical target — and real count and duration streams\nare full of them — can move the weights arbitrarily far, and the model spends the\nnext thousand examples recovering. Robust statistics answers this by bounding the\ninfluence of a single observation: least absolute deviations makes every example move\nthe weights by the same amount regardless of its residual (Boscovich 1757; the\nmodern L1 regression of Bassett & Koenker, *Asymptotic theory of least absolute error\nregression*, JASA 1978), and Huber's loss is quadratic near zero and linear outside a\nband, so it keeps the efficiency of least squares on ordinary examples while capping\nthe damage an outlier can do (Huber, *Robust estimation of a location parameter*,\nAnn. Math. Statist. 1964). Neither is the end of the story online, where the\ninfluence bound interacts with a fixed step size and with a target whose own scale is\nstill being estimated. Propose and implement a better objective for this setting.\n\n## Interface (the editable module)\n\n`river-lab/custom_loss.py` is the only editable file. It must define\n\n```python\ndef build_loss(seed: int, meta: dict):\n    ...  # returns an object with __call__(y_true, y_pred) and gradient(y_true, y_pred)\n```\n\n**Only the loss is yours.** The model is one River linear regression, its optimiser is\nplain SGD at River's default step, and both the features and the target pass through\nrunning standardisers before the model sees them — all fixed by the harness, which\nrejects anything that is not a loss. `y_true` and `y_pred` are floats in the\n*standardised* target space and `gradient` must return `d loss / d y_pred`; it must be\nfinite for every finite residual. `meta` carries `n_features` and `n_examples`. You may\nkeep bounded online state inside the loss (a running scale estimate, for instance).\nProcess / file-system / introspection modules are rejected by a static screen before\nthe run.\n\n## Metric\n\nPrequential mean absolute error of the resulting predictions (lower is better) on\nseveral real regression streams whose targets have right tails of very different\nweight, aggregated by a geometric mean; one stream is held out to test transfer. The\nvalue of the loss itself is never scored — only the predictions it produces. RMSE is\nparsed and reported for diagnostics only.\n\n## Reference baselines (supplied as edit operations on the same file)\n\n- `squared` — least squares, the unbounded-influence reference.\n- `absolute` — least absolute deviations.\n- `huber` — Huber's loss at River's default band.\n- `zero_gradient_null` — declared null: an identically zero gradient, so the weights\n  never move and the model predicts the running mean of the target.\n\nChanging a single constant (the Huber band, say) is not a contribution.\n",
+   "description_html": "<h1>A robust objective for online regression</h1>\n<h2>Research question</h2>\n<p>An online linear model updates its weights by descending the gradient of a loss at a\nsingle example. With the squared loss that gradient is proportional to the residual,\nso one example with a wildly atypical target — and real count and duration streams\nare full of them — can move the weights arbitrarily far, and the model spends the\nnext thousand examples recovering. Robust statistics answers this by bounding the\ninfluence of a single observation: least absolute deviations makes every example move\nthe weights by the same amount regardless of its residual (Boscovich 1757; the\nmodern L1 regression of Bassett &amp; Koenker, <em>Asymptotic theory of least absolute error\nregression</em>, JASA 1978), and Huber's loss is quadratic near zero and linear outside a\nband, so it keeps the efficiency of least squares on ordinary examples while capping\nthe damage an outlier can do (Huber, <em>Robust estimation of a location parameter</em>,\nAnn. Math. Statist. 1964). Neither is the end of the story online, where the\ninfluence bound interacts with a fixed step size and with a target whose own scale is\nstill being estimated. Propose and implement a better objective for this setting.</p>\n<h2>Interface (the editable module)</h2>\n<p><code>river-lab/custom_loss.py</code> is the only editable file. It must define</p>\n<pre class=\"codehilite\"><code class=\"language-python\">def build_loss(seed: int, meta: dict):\n    ...  # returns an object with __call__(y_true, y_pred) and gradient(y_true, y_pred)\n</code></pre>\n\n<p><strong>Only the loss is yours.</strong> The model is one River linear regression, its optimiser is\nplain SGD at River's default step, and both the features and the target pass through\nrunning standardisers before the model sees them — all fixed by the harness, which\nrejects anything that is not a loss. <code>y_true</code> and <code>y_pred</code> are floats in the\n<em>standardised</em> target space and <code>gradient</code> must return <code>d loss / d y_pred</code>; it must be\nfinite for every finite residual. <code>meta</code> carries <code>n_features</code> and <code>n_examples</code>. You may\nkeep bounded online state inside the loss (a running scale estimate, for instance).\nProcess / file-system / introspection modules are rejected by a static screen before\nthe run.</p>\n<h2>Metric</h2>\n<p>Prequential mean absolute error of the resulting predictions (lower is better) on\nseveral real regression streams whose targets have right tails of very different\nweight, aggregated by a geometric mean; one stream is held out to test transfer. The\nvalue of the loss itself is never scored — only the predictions it produces. RMSE is\nparsed and reported for diagnostics only.</p>\n<h2>Reference baselines (supplied as edit operations on the same file)</h2>\n<ul>\n<li><code>squared</code> — least squares, the unbounded-influence reference.</li>\n<li><code>absolute</code> — least absolute deviations.</li>\n<li><code>huber</code> — Huber's loss at River's default band.</li>\n<li><code>zero_gradient_null</code> — declared null: an identically zero gradient, so the weights\n  never move and the model predicts the running mean of the target.</li>\n</ul>\n<p>Changing a single constant (the Huber band, say) is not a contribution.</p>",
    "baselines": [
-    "sgd",
-    "running_mean",
-    "huber_sgd"
+    "squared",
+    "absolute",
+    "huber",
+    "zero_gradient_null"
    ],
    "environments": [
-    "stationary",
-    "drift",
-    "heteroskedastic"
+    "stream_a",
+    "stream_b",
+    "stream_c"
    ],
    "packages": [
-    "streaming-lab"
+    "river-lab"
    ],
    "files": [
     {
-     "filename": "streaming-lab/custom_regression.py",
+     "filename": "river-lab/custom_loss.py",
      "edit_ranges": [
       {
-       "start": 8,
-       "end": 42
+       "start": -1,
+       "end": -1
       }
      ],
-     "content": "\"\"\"Editable River-style online regressor.\"\"\"\nimport math\n\n\n# =====================================================================\n# EDITABLE: Regressor (River-compatible predict_one / learn_one API)\n# =====================================================================\nclass Regressor:\n    \"\"\"Predict one target at a time; no horizon or future labels are available.\"\"\"\n\n    def __init__(self, n_features=8, seed=42):\n        self.n_features = n_features\n        self.seed = seed\n        self.reset()\n\n    def reset(self):\n        self.w = [0.0] * self.n_features\n        self.b = 0.0\n        self.t = 0\n\n    def predict_one(self, x):\n        return self.b + sum(self.w[i] * float(x.get(f\"x{i}\", 0.0)) for i in range(self.n_features))\n\n    def learn_one(self, x, y):\n        # Replace with an online algorithm.  Keep updates bounded for stability.\n        pred = self.predict_one(x)\n        err = float(y) - pred\n        lr = 0.02 / math.sqrt(1.0 + self.t / 100.0)\n        self.b += lr * err\n        for i in range(self.n_features):\n            self.w[i] += lr * err * float(x.get(f\"x{i}\", 0.0))\n        self.t += 1\n        return self\n\n"
+     "content": "\"\"\"The loss an online linear regressor descends -- the editable module.\n\n``build_loss(seed, meta)`` must return an object with River's loss API:\n\n    __call__(y_true, y_pred) -> float     the loss itself (reported, never scored)\n    gradient(y_true, y_pred) -> float     d loss / d y_pred, the only thing the update uses\n\nEverything else is fixed by the harness and is NOT editable: the model is one River\nlinear regression, its optimiser is plain SGD at River's default step, and the\nfeatures and the target are both put through running standardisers before the model\nsees them. So the only lever here is the shape of the objective -- how much a single\nexample is allowed to move the weights, and how that depends on the size and sign of\nits residual.\n\n``y_true`` and ``y_pred`` are floats in the *standardised* target space; ``meta``\ncarries ``n_features`` and ``n_examples``. The gradient must be finite for every\nfinite residual. Keep any state you add bounded and online.\n\"\"\"\n\n\nclass SquaredLoss:\n    \"\"\"Starter: the squared loss, whose gradient grows without bound in the residual.\n\n    One badly mis-scaled example therefore moves the weights arbitrarily far. That\n    is the failure mode to fix.\n    \"\"\"\n\n    def __call__(self, y_true, y_pred):\n        return (y_pred - y_true) ** 2\n\n    def gradient(self, y_true, y_pred):\n        return 2.0 * (y_pred - y_true)\n\n\ndef build_loss(seed, meta):\n    \"\"\"Return the loss the fixed regressor will descend.\"\"\"\n    return SquaredLoss()\n"
     }
    ],
    "baselines_code": {
-    "sgd": [
+    "squared": [
      {
-      "file": "streaming-lab/custom_regression.py",
-      "start_line": 8,
-      "end_line": 33,
-      "content": "class Regressor:\n    def __init__(self, n_features=8, seed=42):\n        self.n_features = n_features; self.reset()\n    def reset(self):\n        self.w = [0.0] * self.n_features; self.b = 0.0; self.t = 0\n    def predict_one(self, x):\n        return self.b + sum(self.w[i] * float(x.get(f\"x{i}\", 0.0)) for i in range(self.n_features))\n    def learn_one(self, x, y):\n        p = self.predict_one(x); e = float(y) - p; lr = 0.02\n        self.b += lr * e\n        for i in range(self.n_features): self.w[i] += lr * e * float(x.get(f\"x{i}\", 0.0))\n        self.t += 1; return self\n"
+      "file": "river-lab/custom_loss.py",
+      "start_line": 1,
+      "end_line": 37,
+      "content": "\"\"\"Least squares (Legendre 1805 / Gauss; the online form is the LMS update of Widrow\n& Hoff 1960): River 0.26.1 optim/losses.py Squared -- loss (p - y)^2, gradient\n2 (p - y), unbounded in the residual.\"\"\"\nfrom river import optim\n\n\ndef build_loss(seed, meta):\n    return optim.losses.Squared()\n"
      }
     ],
-    "running_mean": [
+    "absolute": [
      {
-      "file": "streaming-lab/custom_regression.py",
-      "start_line": 8,
-      "end_line": 33,
-      "content": "class Regressor:\n    def __init__(self, n_features=8, seed=42): self.n_features = n_features; self.reset()\n    def reset(self): self.w = [0.0] * self.n_features; self.b = 0.0; self.t = 0\n    def predict_one(self, x): return self.b\n    def learn_one(self, x, y):\n        self.t += 1; self.b += (float(y) - self.b) / self.t; return self\n"
+      "file": "river-lab/custom_loss.py",
+      "start_line": 1,
+      "end_line": 37,
+      "content": "\"\"\"Least absolute deviations (Boscovich 1757 / Laplace; the L1 regression of Bassett\n& Koenker 1978): River 0.26.1 optim/losses.py Absolute -- loss |p - y|, gradient\nsign(p - y), so every example moves the weights by the same amount whatever its\nresidual.\"\"\"\nfrom river import optim\n\n\ndef build_loss(seed, meta):\n    return optim.losses.Absolute()\n"
      }
     ],
-    "huber_sgd": [
+    "huber": [
      {
-      "file": "streaming-lab/custom_regression.py",
-      "start_line": 8,
-      "end_line": 33,
-      "content": "class Regressor:\n    def __init__(self, n_features=8, seed=42): self.n_features = n_features; self.reset()\n    def reset(self): self.w = [0.0] * self.n_features; self.b = 0.0; self.t = 0\n    def predict_one(self, x): return self.b + sum(self.w[i] * float(x.get(f\"x{i}\", 0.0)) for i in range(self.n_features))\n    def learn_one(self, x, y):\n        p = self.predict_one(x); e = float(y) - p; e = max(-1.0, min(1.0, e)); lr = 0.015\n        self.b += lr * e\n        for i in range(self.n_features): self.w[i] += lr * e * float(x.get(f\"x{i}\", 0.0))\n        self.t += 1; return self\n"
+      "file": "river-lab/custom_loss.py",
+      "start_line": 1,
+      "end_line": 37,
+      "content": "\"\"\"Huber loss (Huber, \"Robust estimation of a location parameter\", Ann. Math. Statist.\n1964): squared inside a band of width delta around zero residual and linear outside it,\nso the gradient is bounded by delta. River 0.26.1 optim/losses.py Huber default\n(delta=1).\"\"\"\nfrom river import optim\n\n\ndef build_loss(seed, meta):\n    return optim.losses.Huber()\n"
+     }
+    ],
+    "zero_gradient_null": [
+     {
+      "file": "river-lab/custom_loss.py",
+      "start_line": 1,
+      "end_line": 37,
+      "content": "\"\"\"NULL baseline (declared): a loss with an identically zero gradient. The weights\nnever move, so the fixed regressor predicts the running mean of the target that its\ntarget standardiser maintains -- i.e. what the stream gives you with no fitting at\nall.\"\"\"\n\n\nclass ZeroGradient:\n    def __call__(self, y_true, y_pred):\n        return 0.0\n\n    def gradient(self, y_true, y_pred):\n        return 0.0\n\n\ndef build_loss(seed, meta):\n    return ZeroGradient()\n"
      }
     ]
    },
@@ -140582,265 +140609,193 @@
     "model",
     "is_final",
     "seed",
-    "f1_abrupt",
-    "detection_delay_abrupt",
-    "false_alarm_rate_abrupt",
-    "elapsed_abrupt",
-    "f1_gradual",
-    "detection_delay_gradual",
-    "false_alarm_rate_gradual",
-    "elapsed_gradual",
-    "f1_recurrent",
-    "detection_delay_recurrent",
-    "false_alarm_rate_recurrent",
-    "elapsed_recurrent"
+    "accuracy_stream_a",
+    "accuracy_stream_b",
+    "accuracy_stream_c",
+    "elapsed_stream_a",
+    "elapsed_stream_b",
+    "elapsed_stream_c",
+    "log_loss_stream_a",
+    "log_loss_stream_b",
+    "log_loss_stream_c",
+    "n_empty_stream_a",
+    "n_empty_stream_b",
+    "n_empty_stream_c"
    ],
    "metric_columns": [
-    "f1_abrupt",
-    "f1_gradual",
-    "f1_recurrent"
+    "accuracy_stream_a",
+    "accuracy_stream_b",
+    "accuracy_stream_c"
    ],
    "metric_directions": {
-    "f1_abrupt": "higher",
-    "f1_gradual": "higher",
-    "f1_recurrent": "higher"
+    "accuracy_stream_a": "higher",
+    "accuracy_stream_b": "higher",
+    "accuracy_stream_c": "higher"
    },
    "metric_groups": [
     {
-     "setting": "abrupt",
+     "setting": "stream_a",
      "metrics": [
-      "f1_abrupt"
+      "accuracy_stream_a"
      ]
     },
     {
-     "setting": "gradual",
+     "setting": "stream_b",
      "metrics": [
-      "f1_gradual"
+      "accuracy_stream_b"
      ]
     },
     {
-     "setting": "recurrent",
+     "setting": "stream_c",
      "metrics": [
-      "f1_recurrent"
+      "accuracy_stream_c"
      ]
     }
    ],
    "rows": [
     {
-     "timestamp": "2026-09-04T06:35:49.182595+00:00",
-     "model": "baseline:adwin",
-     "is_final": true,
-     "seed": "123",
-     "f1_abrupt": 1.0,
-     "detection_delay_abrupt": 69.5,
-     "false_alarm_rate_abrupt": 0.0,
-     "elapsed_abrupt": 0.6,
-     "f1_gradual": 0.0,
-     "detection_delay_gradual": 0.0,
-     "false_alarm_rate_gradual": 0.0,
-     "elapsed_gradual": 0.6,
-     "f1_recurrent": 1.0,
-     "detection_delay_recurrent": 73.666667,
-     "false_alarm_rate_recurrent": 0.0,
-     "elapsed_recurrent": 0.6
-    },
-    {
-     "timestamp": "2026-09-04T06:35:49.182145+00:00",
-     "model": "baseline:adwin",
+     "timestamp": "2026-09-05T16:23:29.985668+00:00",
+     "model": "baseline:adwin_error",
      "is_final": true,
      "seed": "42",
-     "f1_abrupt": 1.0,
-     "detection_delay_abrupt": 74.5,
-     "false_alarm_rate_abrupt": 0.0,
-     "elapsed_abrupt": 0.6,
-     "f1_gradual": 0.0,
-     "detection_delay_gradual": 0.0,
-     "false_alarm_rate_gradual": 0.0,
-     "elapsed_gradual": 0.6,
-     "f1_recurrent": 0.833333,
-     "detection_delay_recurrent": 67.6,
-     "false_alarm_rate_recurrent": 0.000556,
-     "elapsed_recurrent": 0.6
+     "accuracy_stream_a": 0.561419201,
+     "accuracy_stream_b": 0.661840822,
+     "accuracy_stream_c": 0.829713983,
+     "elapsed_stream_a": 24.3,
+     "elapsed_stream_b": 26.8,
+     "elapsed_stream_c": 7.8,
+     "log_loss_stream_a": 4.0407339,
+     "log_loss_stream_b": 2.93179132,
+     "log_loss_stream_c": 1.06355079,
+     "n_empty_stream_a": 7.0,
+     "n_empty_stream_b": 40.0,
+     "n_empty_stream_c": 57.0
     },
     {
-     "timestamp": "2026-09-04T06:35:49.183199+00:00",
-     "model": "baseline:adwin",
-     "is_final": true,
-     "seed": "456",
-     "f1_abrupt": 0.5,
-     "detection_delay_abrupt": 74.0,
-     "false_alarm_rate_abrupt": 0.000556,
-     "elapsed_abrupt": 0.5,
-     "f1_gradual": 0.0,
-     "detection_delay_gradual": 0.0,
-     "false_alarm_rate_gradual": 0.0,
-     "elapsed_gradual": 0.5,
-     "f1_recurrent": 0.833333,
-     "detection_delay_recurrent": 66.2,
-     "false_alarm_rate_recurrent": 0.000556,
-     "elapsed_recurrent": 0.5
-    },
-    {
-     "timestamp": "2026-09-04T06:35:49.183562+00:00",
-     "model": "baseline:adwin",
+     "timestamp": "2026-09-05T16:23:29.986630+00:00",
+     "model": "baseline:adwin_error",
      "is_final": true,
      "seed": "mean",
-     "f1_abrupt": 0.8333333333333334,
-     "detection_delay_abrupt": 72.66666666666667,
-     "false_alarm_rate_abrupt": 0.00018533333333333333,
-     "elapsed_abrupt": 0.5666666666666667,
-     "f1_gradual": 0.0,
-     "detection_delay_gradual": 0.0,
-     "false_alarm_rate_gradual": 0.0,
-     "elapsed_gradual": 0.5666666666666667,
-     "f1_recurrent": 0.8888886666666668,
-     "detection_delay_recurrent": 69.15555566666667,
-     "false_alarm_rate_recurrent": 0.00037066666666666666,
-     "elapsed_recurrent": 0.5666666666666667
+     "accuracy_stream_a": 0.561419201,
+     "accuracy_stream_b": 0.661840822,
+     "accuracy_stream_c": 0.829713983,
+     "elapsed_stream_a": 24.3,
+     "elapsed_stream_b": 26.8,
+     "elapsed_stream_c": 7.8,
+     "log_loss_stream_a": 4.0407339,
+     "log_loss_stream_b": 2.93179132,
+     "log_loss_stream_c": 1.06355079,
+     "n_empty_stream_a": 7.0,
+     "n_empty_stream_b": 40.0,
+     "n_empty_stream_c": 57.0
     },
     {
-     "timestamp": "2026-09-04T06:35:54.980659+00:00",
-     "model": "baseline:kswin",
-     "is_final": true,
-     "seed": "123",
-     "f1_abrupt": 0.666667,
-     "detection_delay_abrupt": 18.5,
-     "false_alarm_rate_abrupt": 0.001111,
-     "elapsed_abrupt": 0.4,
-     "f1_gradual": 0.0,
-     "detection_delay_gradual": 0.0,
-     "false_alarm_rate_gradual": 0.002778,
-     "elapsed_gradual": 0.6,
-     "f1_recurrent": 0.666667,
-     "detection_delay_recurrent": 16.666667,
-     "false_alarm_rate_recurrent": 0.003333,
-     "elapsed_recurrent": 0.4
-    },
-    {
-     "timestamp": "2026-09-04T06:35:54.980026+00:00",
-     "model": "baseline:kswin",
+     "timestamp": "2026-09-05T16:23:29.987146+00:00",
+     "model": "baseline:ddm",
      "is_final": true,
      "seed": "42",
-     "f1_abrupt": 0.666667,
-     "detection_delay_abrupt": 16.5,
-     "false_alarm_rate_abrupt": 0.001111,
-     "elapsed_abrupt": 1.1,
-     "f1_gradual": 0.25,
-     "detection_delay_gradual": 0.0,
-     "false_alarm_rate_gradual": 0.001667,
-     "elapsed_gradual": 1.1,
-     "f1_recurrent": 0.666667,
-     "detection_delay_recurrent": 17.5,
-     "false_alarm_rate_recurrent": 0.003333,
-     "elapsed_recurrent": 1.1
+     "accuracy_stream_a": 0.532095128,
+     "accuracy_stream_b": 0.602155377,
+     "accuracy_stream_c": 0.849377648,
+     "elapsed_stream_a": 23.3,
+     "elapsed_stream_b": 30.2,
+     "elapsed_stream_c": 8.0,
+     "log_loss_stream_a": 3.8482956,
+     "log_loss_stream_b": 4.3182322,
+     "log_loss_stream_c": 1.03254752,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 9.0
     },
     {
-     "timestamp": "2026-09-04T06:35:54.981036+00:00",
-     "model": "baseline:kswin",
-     "is_final": true,
-     "seed": "456",
-     "f1_abrupt": 0.666667,
-     "detection_delay_abrupt": 16.0,
-     "false_alarm_rate_abrupt": 0.001111,
-     "elapsed_abrupt": 0.4,
-     "f1_gradual": 0.5,
-     "detection_delay_gradual": 38.5,
-     "false_alarm_rate_gradual": 0.001111,
-     "elapsed_gradual": 0.4,
-     "f1_recurrent": 0.666667,
-     "detection_delay_recurrent": 16.166667,
-     "false_alarm_rate_recurrent": 0.003333,
-     "elapsed_recurrent": 0.4
-    },
-    {
-     "timestamp": "2026-09-04T06:35:54.981432+00:00",
-     "model": "baseline:kswin",
+     "timestamp": "2026-09-05T16:23:29.987616+00:00",
+     "model": "baseline:ddm",
      "is_final": true,
      "seed": "mean",
-     "f1_abrupt": 0.666667,
-     "detection_delay_abrupt": 17.0,
-     "false_alarm_rate_abrupt": 0.001111,
-     "elapsed_abrupt": 0.6333333333333334,
-     "f1_gradual": 0.25,
-     "detection_delay_gradual": 12.833333333333334,
-     "false_alarm_rate_gradual": 0.0018520000000000001,
-     "elapsed_gradual": 0.7000000000000001,
-     "f1_recurrent": 0.666667,
-     "detection_delay_recurrent": 16.777778,
-     "false_alarm_rate_recurrent": 0.0033330000000000005,
-     "elapsed_recurrent": 0.6333333333333334
+     "accuracy_stream_a": 0.532095128,
+     "accuracy_stream_b": 0.602155377,
+     "accuracy_stream_c": 0.849377648,
+     "elapsed_stream_a": 23.3,
+     "elapsed_stream_b": 30.2,
+     "elapsed_stream_c": 8.0,
+     "log_loss_stream_a": 3.8482956,
+     "log_loss_stream_b": 4.3182322,
+     "log_loss_stream_c": 1.03254752,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 9.0
     },
     {
-     "timestamp": "2026-09-04T06:35:53.145769+00:00",
-     "model": "baseline:page_hinkley",
-     "is_final": true,
-     "seed": "123",
-     "f1_abrupt": 0.5,
-     "detection_delay_abrupt": 6.0,
-     "false_alarm_rate_abrupt": 0.000556,
-     "elapsed_abrupt": 0.7,
-     "f1_gradual": 0.4,
-     "detection_delay_gradual": 0.0,
-     "false_alarm_rate_gradual": 0.002222,
-     "elapsed_gradual": 0.7,
-     "f1_recurrent": 0.6,
-     "detection_delay_recurrent": 14.666667,
-     "false_alarm_rate_recurrent": 0.000556,
-     "elapsed_recurrent": 0.7
-    },
-    {
-     "timestamp": "2026-09-04T06:35:53.145196+00:00",
-     "model": "baseline:page_hinkley",
+     "timestamp": "2026-09-05T16:23:29.988099+00:00",
+     "model": "baseline:eddm",
      "is_final": true,
      "seed": "42",
-     "f1_abrupt": 0.666667,
-     "detection_delay_abrupt": 6.0,
-     "false_alarm_rate_abrupt": 0.0,
-     "elapsed_abrupt": 0.4,
-     "f1_gradual": 0.5,
-     "detection_delay_gradual": 4.0,
-     "false_alarm_rate_gradual": 0.001111,
-     "elapsed_gradual": 0.4,
-     "f1_recurrent": 0.8,
-     "detection_delay_recurrent": 14.5,
-     "false_alarm_rate_recurrent": 0.0,
-     "elapsed_recurrent": 0.4
+     "accuracy_stream_a": 0.53113052,
+     "accuracy_stream_b": null,
+     "accuracy_stream_c": 0.846442444,
+     "elapsed_stream_a": 29.4,
+     "elapsed_stream_b": 27.0,
+     "elapsed_stream_c": 7.9,
+     "log_loss_stream_a": 4.16280994,
+     "log_loss_stream_b": null,
+     "log_loss_stream_c": 1.29603795,
+     "n_empty_stream_a": 2.0,
+     "n_empty_stream_b": null,
+     "n_empty_stream_c": 151.0
     },
     {
-     "timestamp": "2026-09-04T06:35:53.146104+00:00",
-     "model": "baseline:page_hinkley",
-     "is_final": true,
-     "seed": "456",
-     "f1_abrupt": 0.5,
-     "detection_delay_abrupt": 8.0,
-     "false_alarm_rate_abrupt": 0.000556,
-     "elapsed_abrupt": 0.8,
-     "f1_gradual": 0.571429,
-     "detection_delay_gradual": 44.0,
-     "false_alarm_rate_gradual": 0.000556,
-     "elapsed_gradual": 0.8,
-     "f1_recurrent": 0.666667,
-     "detection_delay_recurrent": 23.333333,
-     "false_alarm_rate_recurrent": 0.0,
-     "elapsed_recurrent": 0.8
-    },
-    {
-     "timestamp": "2026-09-04T06:35:53.146435+00:00",
-     "model": "baseline:page_hinkley",
+     "timestamp": "2026-09-05T16:23:29.988623+00:00",
+     "model": "baseline:eddm",
      "is_final": true,
      "seed": "mean",
-     "f1_abrupt": 0.5555556666666667,
-     "detection_delay_abrupt": 6.666666666666667,
-     "false_alarm_rate_abrupt": 0.00037066666666666666,
-     "elapsed_abrupt": 0.6333333333333333,
-     "f1_gradual": 0.49047633333333335,
-     "detection_delay_gradual": 16.0,
-     "false_alarm_rate_gradual": 0.0012963333333333334,
-     "elapsed_gradual": 0.6333333333333333,
-     "f1_recurrent": 0.688889,
-     "detection_delay_recurrent": 17.5,
-     "false_alarm_rate_recurrent": 0.00018533333333333333,
-     "elapsed_recurrent": 0.6333333333333333
+     "accuracy_stream_a": 0.53113052,
+     "accuracy_stream_b": null,
+     "accuracy_stream_c": 0.846442444,
+     "elapsed_stream_a": 29.4,
+     "elapsed_stream_b": 27.0,
+     "elapsed_stream_c": 7.9,
+     "log_loss_stream_a": 4.16280994,
+     "log_loss_stream_b": null,
+     "log_loss_stream_c": 1.29603795,
+     "n_empty_stream_a": 2.0,
+     "n_empty_stream_b": null,
+     "n_empty_stream_c": 151.0
+    },
+    {
+     "timestamp": "2026-09-05T16:23:29.989171+00:00",
+     "model": "baseline:no_adaptation_null",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_stream_a": 0.508786699,
+     "accuracy_stream_b": 0.515465206,
+     "accuracy_stream_c": 0.798486052,
+     "elapsed_stream_a": 22.2,
+     "elapsed_stream_b": 27.6,
+     "elapsed_stream_c": 7.1,
+     "log_loss_stream_a": 3.65035905,
+     "log_loss_stream_b": 4.68851235,
+     "log_loss_stream_c": 0.735858189,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 1.0
+    },
+    {
+     "timestamp": "2026-09-05T16:23:29.989700+00:00",
+     "model": "baseline:no_adaptation_null",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_stream_a": 0.508786699,
+     "accuracy_stream_b": 0.515465206,
+     "accuracy_stream_c": 0.798486052,
+     "elapsed_stream_a": 22.2,
+     "elapsed_stream_b": 27.6,
+     "elapsed_stream_c": 7.1,
+     "log_loss_stream_a": 3.65035905,
+     "log_loss_stream_b": 4.68851235,
+     "log_loss_stream_c": 0.735858189,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 1.0
     }
    ]
   },
@@ -141577,36 +141532,9 @@
     "rmse_seasonal",
     "elapsed_seasonal"
    ],
-   "metric_columns": [
-    "rmse_stationary",
-    "rmse_drift",
-    "rmse_seasonal"
-   ],
-   "metric_directions": {
-    "rmse_stationary": "lower",
-    "rmse_drift": "lower",
-    "rmse_seasonal": "lower"
-   },
-   "metric_groups": [
-    {
-     "setting": "stationary",
-     "metrics": [
-      "rmse_stationary"
-     ]
-    },
-    {
-     "setting": "drift",
-     "metrics": [
-      "rmse_drift"
-     ]
-    },
-    {
-     "setting": "seasonal",
-     "metrics": [
-      "rmse_seasonal"
-     ]
-    }
-   ],
+   "metric_columns": [],
+   "metric_directions": {},
+   "metric_groups": [],
    "rows": [
     {
      "timestamp": "2026-09-04T06:37:22.596950+00:00",
@@ -141696,36 +141624,9 @@
     "rmse_heteroskedastic",
     "elapsed_heteroskedastic"
    ],
-   "metric_columns": [
-    "rmse_stationary",
-    "rmse_drift",
-    "rmse_heteroskedastic"
-   ],
-   "metric_directions": {
-    "rmse_stationary": "lower",
-    "rmse_drift": "lower",
-    "rmse_heteroskedastic": "lower"
-   },
-   "metric_groups": [
-    {
-     "setting": "stationary",
-     "metrics": [
-      "rmse_stationary"
-     ]
-    },
-    {
-     "setting": "drift",
-     "metrics": [
-      "rmse_drift"
-     ]
-    },
-    {
-     "setting": "heteroskedastic",
-     "metrics": [
-      "rmse_heteroskedastic"
-     ]
-    }
-   ],
+   "metric_columns": [],
+   "metric_directions": {},
+   "metric_groups": [],
    "rows": [
     {
      "timestamp": "2026-09-04T06:52:38.349663+00:00",
@@ -194588,473 +194489,6 @@
      "elapsed_VGG11BN-C100": null,
      "elapsed_MobileNetV2-C100": 29.0,
      "elapsed_ResNet20-C10": 40.0
-    }
-   ]
-  },
-  "security-adversarial-attack-sparse-l0": {
-   "task_id": "security-adversarial-attack-sparse-l0",
-   "columns": [
-    "timestamp",
-    "model",
-    "is_final",
-    "seed",
-    "asr_Rebuffi_R18_L2",
-    "asr_Augustin_L2",
-    "asr_Engstrom_L2",
-    "elapsed_Rebuffi-R18-L2",
-    "elapsed_Augustin-L2",
-    "elapsed_Engstrom-L2"
-   ],
-   "metric_columns": [
-    "asr_Rebuffi_R18_L2",
-    "asr_Augustin_L2",
-    "asr_Engstrom_L2"
-   ],
-   "metric_directions": {
-    "asr_Rebuffi_R18_L2": "higher",
-    "asr_Augustin_L2": "higher",
-    "asr_Engstrom_L2": "higher"
-   },
-   "metric_groups": [
-    {
-     "setting": "Rebuffi-R18 (l2-AT) / CIFAR-10",
-     "metrics": [
-      "asr_Rebuffi_R18_L2"
-     ]
-    },
-    {
-     "setting": "Augustin (l2-robust) / CIFAR-10",
-     "metrics": [
-      "asr_Augustin_L2"
-     ]
-    },
-    {
-     "setting": "Engstrom (l2-robust) / CIFAR-10",
-     "metrics": [
-      "asr_Engstrom_L2"
-     ]
-    }
-   ],
-   "rows": [
-    {
-     "timestamp": "2026-05-18T04:29:14.522850+00:00",
-     "model": "baseline:JSMA",
-     "is_final": true,
-     "seed": "42",
-     "asr_Rebuffi_R18_L2": 0.026667,
-     "asr_Augustin_L2": 0.046667,
-     "asr_Engstrom_L2": 0.066667,
-     "elapsed_Rebuffi-R18-L2": 156.7,
-     "elapsed_Augustin-L2": 192.3,
-     "elapsed_Engstrom-L2": 210.6
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.856000+00:00",
-     "model": "baseline:JSMA",
-     "is_final": true,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": 0.026667,
-     "asr_Augustin_L2": 0.046667,
-     "asr_Engstrom_L2": 0.066667,
-     "elapsed_Rebuffi-R18-L2": 156.7,
-     "elapsed_Augustin-L2": 192.3,
-     "elapsed_Engstrom-L2": 210.6
-    },
-    {
-     "timestamp": "2026-05-18T04:38:11.828176+00:00",
-     "model": "baseline:OnePixel",
-     "is_final": true,
-     "seed": "42",
-     "asr_Rebuffi_R18_L2": 0.1,
-     "asr_Augustin_L2": 0.18,
-     "asr_Engstrom_L2": 0.18,
-     "elapsed_Rebuffi-R18-L2": 170.5,
-     "elapsed_Augustin-L2": 532.1,
-     "elapsed_Engstrom-L2": 559.8
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.855409+00:00",
-     "model": "baseline:OnePixel",
-     "is_final": true,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": 0.1,
-     "asr_Augustin_L2": 0.18,
-     "asr_Engstrom_L2": 0.18,
-     "elapsed_Rebuffi-R18-L2": 170.5,
-     "elapsed_Augustin-L2": 532.1,
-     "elapsed_Engstrom-L2": 559.8
-    },
-    {
-     "timestamp": "2026-05-18T04:27:00.635847+00:00",
-     "model": "baseline:Pixle",
-     "is_final": true,
-     "seed": "42",
-     "asr_Rebuffi_R18_L2": 0.006667,
-     "asr_Augustin_L2": 0.02,
-     "asr_Engstrom_L2": 0.006667,
-     "elapsed_Rebuffi-R18-L2": 17.9,
-     "elapsed_Augustin-L2": 24.0,
-     "elapsed_Engstrom-L2": 29.9
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.856253+00:00",
-     "model": "baseline:Pixle",
-     "is_final": true,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": 0.006667,
-     "asr_Augustin_L2": 0.02,
-     "asr_Engstrom_L2": 0.006667,
-     "elapsed_Rebuffi-R18-L2": 17.9,
-     "elapsed_Augustin-L2": 24.0,
-     "elapsed_Engstrom-L2": 29.9
-    },
-    {
-     "timestamp": "2026-05-18T04:31:45.729765+00:00",
-     "model": "baseline:Sparse-RS",
-     "is_final": true,
-     "seed": "42",
-     "asr_Rebuffi_R18_L2": 0.853333,
-     "asr_Augustin_L2": 0.946667,
-     "asr_Engstrom_L2": 0.966667,
-     "elapsed_Rebuffi-R18-L2": 146.6,
-     "elapsed_Augustin-L2": 222.4,
-     "elapsed_Engstrom-L2": 182.5
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.856512+00:00",
-     "model": "baseline:Sparse-RS",
-     "is_final": true,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": 0.853333,
-     "asr_Augustin_L2": 0.946667,
-     "asr_Engstrom_L2": 0.966667,
-     "elapsed_Rebuffi-R18-L2": 146.6,
-     "elapsed_Augustin-L2": 222.4,
-     "elapsed_Engstrom-L2": 182.5
-    },
-    {
-     "timestamp": "2026-05-18T04:28:40.678695+00:00",
-     "model": "baseline:SparseFool",
-     "is_final": true,
-     "seed": "42",
-     "asr_Rebuffi_R18_L2": 0.166667,
-     "asr_Augustin_L2": 0.113333,
-     "asr_Engstrom_L2": 0.28,
-     "elapsed_Rebuffi-R18-L2": 218.2,
-     "elapsed_Augustin-L2": 599.5,
-     "elapsed_Engstrom-L2": 562.2
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.855737+00:00",
-     "model": "baseline:SparseFool",
-     "is_final": true,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": 0.166667,
-     "asr_Augustin_L2": 0.113333,
-     "asr_Engstrom_L2": 0.28,
-     "elapsed_Rebuffi-R18-L2": 218.2,
-     "elapsed_Augustin-L2": 599.5,
-     "elapsed_Engstrom-L2": 562.2
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.857039+00:00",
-     "model": "vanilla:claude-opus-4.6",
-     "is_final": true,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": 0.426667,
-     "asr_Augustin_L2": 0.533333,
-     "asr_Engstrom_L2": 0.646667,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.857617+00:00",
-     "model": "vanilla:deepseek-reasoner",
-     "is_final": true,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": 0.18,
-     "asr_Augustin_L2": 0.24,
-     "asr_Engstrom_L2": 0.266667,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.858198+00:00",
-     "model": "vanilla:gemini-3.1-pro-preview",
-     "is_final": true,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": 0.62,
-     "asr_Augustin_L2": 0.726667,
-     "asr_Engstrom_L2": 0.886667,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.858776+00:00",
-     "model": "vanilla:gpt-5.4",
-     "is_final": true,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": 0.0,
-     "asr_Augustin_L2": 0.0,
-     "asr_Engstrom_L2": 0.0,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.859379+00:00",
-     "model": "vanilla:qwen3.6-plus",
-     "is_final": true,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": null,
-     "asr_Augustin_L2": null,
-     "asr_Engstrom_L2": null,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-05-18T07:16:29.299635+00:00",
-     "model": "claude-opus-4.6",
-     "is_final": true,
-     "seed": "42",
-     "asr_Rebuffi_R18_L2": 0.426667,
-     "asr_Augustin_L2": 0.546667,
-     "asr_Engstrom_L2": 0.66,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.856773+00:00",
-     "model": "claude-opus-4.6",
-     "is_final": true,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": 0.426667,
-     "asr_Augustin_L2": 0.546667,
-     "asr_Engstrom_L2": 0.66,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-05-18T07:16:29.300562+00:00",
-     "model": "deepseek-reasoner",
-     "is_final": true,
-     "seed": "42",
-     "asr_Rebuffi_R18_L2": 0.313333,
-     "asr_Augustin_L2": 0.426667,
-     "asr_Engstrom_L2": 0.566667,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.857333+00:00",
-     "model": "deepseek-reasoner",
-     "is_final": true,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": 0.313333,
-     "asr_Augustin_L2": 0.426667,
-     "asr_Engstrom_L2": 0.566667,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-05-18T07:16:29.301077+00:00",
-     "model": "gemini-3.1-pro-preview",
-     "is_final": true,
-     "seed": "42",
-     "asr_Rebuffi_R18_L2": 0.62,
-     "asr_Augustin_L2": 0.766667,
-     "asr_Engstrom_L2": 0.873333,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.857915+00:00",
-     "model": "gemini-3.1-pro-preview",
-     "is_final": true,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": 0.62,
-     "asr_Augustin_L2": 0.766667,
-     "asr_Engstrom_L2": 0.873333,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-05-18T07:16:29.301612+00:00",
-     "model": "gpt-5.4",
-     "is_final": true,
-     "seed": "42",
-     "asr_Rebuffi_R18_L2": 0.473333,
-     "asr_Augustin_L2": 0.74,
-     "asr_Engstrom_L2": 0.893333,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.858485+00:00",
-     "model": "gpt-5.4",
-     "is_final": true,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": 0.473333,
-     "asr_Augustin_L2": 0.74,
-     "asr_Engstrom_L2": 0.893333,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-05-18T07:16:29.302170+00:00",
-     "model": "qwen3.6-plus",
-     "is_final": true,
-     "seed": "42",
-     "asr_Rebuffi_R18_L2": 0.133333,
-     "asr_Augustin_L2": 0.246667,
-     "asr_Engstrom_L2": 0.153333,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.859076+00:00",
-     "model": "qwen3.6-plus",
-     "is_final": true,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": 0.133333,
-     "asr_Augustin_L2": 0.246667,
-     "asr_Engstrom_L2": 0.153333,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-05-18T07:16:29.300264+00:00",
-     "model": "claude-opus-4.6",
-     "is_final": false,
-     "seed": "42",
-     "asr_Rebuffi_R18_L2": 0.426667,
-     "asr_Augustin_L2": 0.533333,
-     "asr_Engstrom_L2": 0.646667,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.857039+00:00",
-     "model": "claude-opus-4.6",
-     "is_final": false,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": 0.426667,
-     "asr_Augustin_L2": 0.533333,
-     "asr_Engstrom_L2": 0.646667,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-05-18T07:16:29.300825+00:00",
-     "model": "deepseek-reasoner",
-     "is_final": false,
-     "seed": "42",
-     "asr_Rebuffi_R18_L2": 0.18,
-     "asr_Augustin_L2": 0.24,
-     "asr_Engstrom_L2": 0.266667,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.857617+00:00",
-     "model": "deepseek-reasoner",
-     "is_final": false,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": 0.18,
-     "asr_Augustin_L2": 0.24,
-     "asr_Engstrom_L2": 0.266667,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-05-18T07:16:29.301330+00:00",
-     "model": "gemini-3.1-pro-preview",
-     "is_final": false,
-     "seed": "42",
-     "asr_Rebuffi_R18_L2": 0.62,
-     "asr_Augustin_L2": 0.726667,
-     "asr_Engstrom_L2": 0.886667,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.858198+00:00",
-     "model": "gemini-3.1-pro-preview",
-     "is_final": false,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": 0.62,
-     "asr_Augustin_L2": 0.726667,
-     "asr_Engstrom_L2": 0.886667,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-05-18T07:16:29.301879+00:00",
-     "model": "gpt-5.4",
-     "is_final": false,
-     "seed": "42",
-     "asr_Rebuffi_R18_L2": 0.0,
-     "asr_Augustin_L2": 0.0,
-     "asr_Engstrom_L2": 0.0,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.858776+00:00",
-     "model": "gpt-5.4",
-     "is_final": false,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": 0.0,
-     "asr_Augustin_L2": 0.0,
-     "asr_Engstrom_L2": 0.0,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-05-18T07:16:29.302444+00:00",
-     "model": "qwen3.6-plus",
-     "is_final": false,
-     "seed": "42",
-     "asr_Rebuffi_R18_L2": null,
-     "asr_Augustin_L2": null,
-     "asr_Engstrom_L2": null,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
-    },
-    {
-     "timestamp": "2026-09-01T03:56:47.859379+00:00",
-     "model": "qwen3.6-plus",
-     "is_final": false,
-     "seed": "mean",
-     "asr_Rebuffi_R18_L2": null,
-     "asr_Augustin_L2": null,
-     "asr_Engstrom_L2": null,
-     "elapsed_Rebuffi-R18-L2": null,
-     "elapsed_Augustin-L2": null,
-     "elapsed_Engstrom-L2": null
     }
    ]
   },
