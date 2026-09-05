@@ -15317,61 +15317,70 @@
   },
   {
    "id": "online-river-tree-split",
-   "name": "Online split criteria for streaming decision trees",
-   "summary": "Investigate how an online decision tree should decide when and where to split a",
+   "name": "How a streaming decision tree decides to split",
+   "summary": "An incremental decision tree must turn a leaf into a branch from a prefix of the",
    "category": "other",
    "category_label": "Other",
    "category_abbr": "",
-   "description_md": "# Online split criteria for streaming decision trees\n\nInvestigate how an online decision tree should decide when and where to split a\nleaf under a strict memory budget.  This task follows the Hoeffding-tree line\nof work (Domingos & Hulten, 2000) and the River implementation of incremental\ndecision trees.  You may rewrite the split statistic and candidate-selection\nlogic in `river_tree.py`; keep the public `predict_one`/`learn_one` interface.\n\nThe evaluator presents a sequence of two-dimensional feature vectors and binary labels.\nPredictions are scored prequentially (predict before observing each label).\nYour method must be bounded-memory and return\nan integer class prediction. Improve mean held-out accuracy across multiple\nstream regimes, one of which is held out for transfer evaluation. Do not change\nthe driver or stream generation or metric computation. The editable region is intentionally limited to the\n`OnlineTree` algorithm; hyperparameter-only changes are not a contribution.\n\nReference: P. Domingos and G. Hulten, “Mining high-speed data streams,” KDD\n2000; River documentation, https://riverml.xyz/latest/api/tree/HoeffdingTreeClassifier/.\n",
-   "description_html": "<h1>Online split criteria for streaming decision trees</h1>\n<p>Investigate how an online decision tree should decide when and where to split a\nleaf under a strict memory budget.  This task follows the Hoeffding-tree line\nof work (Domingos &amp; Hulten, 2000) and the River implementation of incremental\ndecision trees.  You may rewrite the split statistic and candidate-selection\nlogic in <code>river_tree.py</code>; keep the public <code>predict_one</code>/<code>learn_one</code> interface.</p>\n<p>The evaluator presents a sequence of two-dimensional feature vectors and binary labels.\nPredictions are scored prequentially (predict before observing each label).\nYour method must be bounded-memory and return\nan integer class prediction. Improve mean held-out accuracy across multiple\nstream regimes, one of which is held out for transfer evaluation. Do not change\nthe driver or stream generation or metric computation. The editable region is intentionally limited to the\n<code>OnlineTree</code> algorithm; hyperparameter-only changes are not a contribution.</p>\n<p>Reference: P. Domingos and G. Hulten, “Mining high-speed data streams,” KDD\n2000; River documentation, https://riverml.xyz/latest/api/tree/HoeffdingTreeClassifier/.</p>",
+   "description_md": "# How a streaming decision tree decides to split\n\n## Research question\n\nAn incremental decision tree must turn a leaf into a branch from a prefix of the\nstream, without ever seeing the rest of it. The Hoeffding tree / VFDT of Domingos &\nHulten (*Mining high-speed data streams*, KDD 2000) answers this with a\nhigh-confidence, one-shot rule: wait until the best candidate split beats the\nrunner-up by more than a Hoeffding bound, then split and never look back. Two later\nlines of work attack exactly that rule. The Extremely Fast Decision Tree / Hoeffding\nAnyTime Tree (Manapragada, Webb & Salehi, *Extremely fast decision tree*, KDD 2018)\nsplits as soon as a split looks better than no split at all and then keeps\nre-examining the decision, trading statistical caution for learning speed. The\nHoeffding Adaptive Tree (Bifet & Gavaldà, *Adaptive learning from evolving data\nstreams*, IDA 2009) keeps the cautious rule but grows alternate subtrees and swaps\nthem in when a branch's error drifts. Neither dominates: eager splitting pays on\nlarge streams with informative attributes and costs on small or noisy ones.\nPropose and implement one algorithmic improvement to the split decision — the merit\ncriterion, the confidence rule, the revision policy, what a leaf predicts while it\nwaits — that transfers across streams.\n\n## Interface (the editable module)\n\n`river-lab/custom_tree.py` is the only editable file. It must define\n\n```python\ndef build_model(seed: int, meta: dict):\n    ...  # returns a SINGLE River incremental decision tree\n```\n\nThe returned object must be an instance of a subclass of\n`river.tree.hoeffding_tree.HoeffdingTree`; the fixed adapter rejects anything else,\nso ensembles and non-tree learners are out of scope. It is driven prequentially\n(test-then-train): for every example the evaluator calls `predict_proba_one(x)`\nfirst, records the prediction, and only then calls `learn_one(x, y)` exactly once.\n`x` is a `dict[str, float]`, `y` an `int` class label, `meta` carries `n_features`\nand `n_examples`. The overrides that matter live inside the tree —\n`_attempt_to_split`, `_new_split_criterion`, `_new_leaf`, and any revision of a\nsplit that later examples contradict. Keep memory bounded. River's public modules\nand the standard library are available; process / file-system / introspection\nmodules are rejected by a static screen before the run.\n\n## Metric\n\nPrequential accuracy (higher is better) on several real classification streams that\ndiffer in size and in how much structure a split can find, aggregated by a geometric\nmean; one stream is held out to test transfer. Log loss is reported for diagnostics\nonly. Each setting has a fixed time limit.\n\n## Reference baselines (supplied as edit operations on the same file)\n\n- `vfdt` — the Hoeffding tree of Domingos & Hulten (2000) with the Naive-Bayes-adaptive\n  leaves of Gama, Rocha & Medas (2003).\n- `efdt` — the Extremely Fast Decision Tree of Manapragada et al. (2018).\n- `hoeffding_adaptive_tree` — Bifet & Gavaldà (2009): per-branch ADWIN with alternate\n  subtrees.\n- `stump_null` — declared null: the same tree with splitting switched off, i.e. the\n  running class prior.\n\nA hyperparameter-only change (`grace_period`, `delta`, `tau`, `max_depth`) is not a\ncontribution.\n",
+   "description_html": "<h1>How a streaming decision tree decides to split</h1>\n<h2>Research question</h2>\n<p>An incremental decision tree must turn a leaf into a branch from a prefix of the\nstream, without ever seeing the rest of it. The Hoeffding tree / VFDT of Domingos &amp;\nHulten (<em>Mining high-speed data streams</em>, KDD 2000) answers this with a\nhigh-confidence, one-shot rule: wait until the best candidate split beats the\nrunner-up by more than a Hoeffding bound, then split and never look back. Two later\nlines of work attack exactly that rule. The Extremely Fast Decision Tree / Hoeffding\nAnyTime Tree (Manapragada, Webb &amp; Salehi, <em>Extremely fast decision tree</em>, KDD 2018)\nsplits as soon as a split looks better than no split at all and then keeps\nre-examining the decision, trading statistical caution for learning speed. The\nHoeffding Adaptive Tree (Bifet &amp; Gavaldà, <em>Adaptive learning from evolving data\nstreams</em>, IDA 2009) keeps the cautious rule but grows alternate subtrees and swaps\nthem in when a branch's error drifts. Neither dominates: eager splitting pays on\nlarge streams with informative attributes and costs on small or noisy ones.\nPropose and implement one algorithmic improvement to the split decision — the merit\ncriterion, the confidence rule, the revision policy, what a leaf predicts while it\nwaits — that transfers across streams.</p>\n<h2>Interface (the editable module)</h2>\n<p><code>river-lab/custom_tree.py</code> is the only editable file. It must define</p>\n<pre class=\"codehilite\"><code class=\"language-python\">def build_model(seed: int, meta: dict):\n    ...  # returns a SINGLE River incremental decision tree\n</code></pre>\n\n<p>The returned object must be an instance of a subclass of\n<code>river.tree.hoeffding_tree.HoeffdingTree</code>; the fixed adapter rejects anything else,\nso ensembles and non-tree learners are out of scope. It is driven prequentially\n(test-then-train): for every example the evaluator calls <code>predict_proba_one(x)</code>\nfirst, records the prediction, and only then calls <code>learn_one(x, y)</code> exactly once.\n<code>x</code> is a <code>dict[str, float]</code>, <code>y</code> an <code>int</code> class label, <code>meta</code> carries <code>n_features</code>\nand <code>n_examples</code>. The overrides that matter live inside the tree —\n<code>_attempt_to_split</code>, <code>_new_split_criterion</code>, <code>_new_leaf</code>, and any revision of a\nsplit that later examples contradict. Keep memory bounded. River's public modules\nand the standard library are available; process / file-system / introspection\nmodules are rejected by a static screen before the run.</p>\n<h2>Metric</h2>\n<p>Prequential accuracy (higher is better) on several real classification streams that\ndiffer in size and in how much structure a split can find, aggregated by a geometric\nmean; one stream is held out to test transfer. Log loss is reported for diagnostics\nonly. Each setting has a fixed time limit.</p>\n<h2>Reference baselines (supplied as edit operations on the same file)</h2>\n<ul>\n<li><code>vfdt</code> — the Hoeffding tree of Domingos &amp; Hulten (2000) with the Naive-Bayes-adaptive\n  leaves of Gama, Rocha &amp; Medas (2003).</li>\n<li><code>efdt</code> — the Extremely Fast Decision Tree of Manapragada et al. (2018).</li>\n<li><code>hoeffding_adaptive_tree</code> — Bifet &amp; Gavaldà (2009): per-branch ADWIN with alternate\n  subtrees.</li>\n<li><code>stump_null</code> — declared null: the same tree with splitting switched off, i.e. the\n  running class prior.</li>\n</ul>\n<p>A hyperparameter-only change (<code>grace_period</code>, <code>delta</code>, <code>tau</code>, <code>max_depth</code>) is not a\ncontribution.</p>",
    "baselines": [
-    "gini",
-    "entropy",
-    "random_split"
+    "vfdt",
+    "efdt",
+    "hoeffding_adaptive_tree",
+    "stump_null"
    ],
    "environments": [
-    "stationary",
-    "drift",
-    "imbalanced"
+    "stream_a",
+    "stream_b",
+    "stream_c"
    ],
    "packages": [
     "river-lab"
    ],
    "files": [
     {
-     "filename": "river-lab/river_tree.py",
+     "filename": "river-lab/custom_tree.py",
      "edit_ranges": [
       {
-       "start": 10,
-       "end": 41
+       "start": -1,
+       "end": -1
       }
      ],
-     "content": "\"\"\"Editable online decision tree split rule with fixed prequential driver.\"\"\"\nimport math\ntry:\n    from river import metrics as _river_metrics  # River's streaming metric API\nexcept Exception:  # local source checkout may not have dependency installed\n    _river_metrics = None\n\n# ======================== EDITABLE SURFACE ===============================\nclass OnlineTree:\n    def __init__(self, seed=0): self.seed = int(seed); self.reset()\n    def reset(self):\n        self.n = 0; self.root = [0, 0]; self.left = [0, 0]; self.right = [0, 0]\n        self.split = None; self.threshold = 0.5; self.buf_x = []; self.buf_y = []\n    def _gini(self, c):\n        n = sum(c); return 1.0 - sum((v / n) ** 2 for v in c) if n else 0.0\n    def split_score(self, left, right):\n        n0, n1 = sum(left), sum(right); n = n0 + n1\n        if n0 == 0 or n1 == 0: return -1.0\n        return self._gini(self.root) - (n0*self._gini(left) + n1*self._gini(right))/n\n    def select_split(self, x, y):\n        best = (-1.0, 0.5, [0,0], [0,0])\n        for t in (0.2, 0.35, 0.5, 0.65, 0.8):\n            l, r = [0,0], [0,0]\n            for xi, yi in zip(x, y): (l if xi < t else r)[int(yi)] += 1\n            s = self.split_score(l, r)\n            if s > best[0]: best = (s, t, l, r)\n        return best\n    def predict_one(self, x):\n        c = self.root if self.split is None else (self.left if float(x[0]) < self.threshold else self.right)\n        return int(c[1] > c[0])\n    def learn_one(self, x, y):\n        y = int(y); self.n += 1; self.root[y] += 1\n        if self.split is not None:\n            (self.left if float(x[0]) < self.threshold else self.right)[y] += 1; return\n        if len(self.buf_x) < 256: self.buf_x.append(float(x[0])); self.buf_y.append(y)\n        elif self.n % 17 == 0:\n            j = (self.n * 1103515245 + self.seed) % 256; self.buf_x[j] = float(x[0]); self.buf_y[j] = y\n        if self.n >= 200 and self.n % 25 == 0:\n            s, t, l, r = self.select_split(self.buf_x, self.buf_y)\n            if s > 0.02: self.split, self.threshold, self.left, self.right = True, float(t), l, r\n"
+     "content": "\"\"\"Incremental decision tree for data streams -- the editable module.\n\n``build_model(seed, meta)`` must return a **single** River incremental decision\ntree: an instance of a subclass of ``river.tree.hoeffding_tree.HoeffdingTree``\n(the fixed adapter rejects anything else, so ensembles and non-tree learners are\nout of scope). It is driven through River's one-example API:\n\n    predict_proba_one(x) -> {class_label: probability}   called BEFORE the label is revealed\n    learn_one(x, y)                                        called exactly once per example, after\n\n``x`` is a dict ``{feature_name: float}``, ``y`` an int class label, ``meta`` has\n``n_features`` / ``n_examples``. Everything in this file is editable, and the\ninteresting overrides live inside the tree: ``_attempt_to_split`` (when a leaf is\nallowed to become a branch, and what confidence that decision needs),\n``_new_split_criterion`` (which candidate split is best), ``_new_leaf`` (what a\nleaf predicts), and any revision of a split once later examples contradict it.\nKeep memory bounded.\n\"\"\"\nfrom river import tree\n\n\nclass StreamingTree(tree.HoeffdingTreeClassifier):\n    \"\"\"Starter: River's Hoeffding tree (VFDT) with its published decision rule.\n\n    A leaf becomes a branch only once the best candidate split beats the runner-up\n    by more than the Hoeffding bound (or the bound falls below the tie threshold\n    ``tau``), and a split is never revisited. That one-shot, high-confidence rule\n    is the thing to question.\n    \"\"\"\n\n    def __init__(self, seed=None):\n        super().__init__()\n        self.seed = seed\n\n\ndef build_model(seed, meta):\n    \"\"\"Return the tree the evaluator will drive.\"\"\"\n    return StreamingTree(seed=seed)\n"
     }
    ],
    "baselines_code": {
-    "gini": [
+    "vfdt": [
      {
-      "file": "river-lab/river_tree.py",
-      "start_line": 16,
-      "end_line": 19,
-      "content": "    def split_score(self, left, right):\n        n0, n1 = sum(left), sum(right); n = n0 + n1\n        if n0 == 0 or n1 == 0: return -1.0\n        def g(c):\n            z = sum(c); return 1.0 - sum((v/z)**2 for v in c) if z else 0.0\n        return g(self.root) - (n0*g(left) + n1*g(right))/n"
+      "file": "river-lab/custom_tree.py",
+      "start_line": 1,
+      "end_line": 38,
+      "content": "\"\"\"VFDT / Hoeffding tree (Domingos & Hulten, KDD 2000), with the Naive-Bayes-adaptive\nleaves of Gama, Rocha & Medas (KDD 2003): River 0.26.1 tree.HoeffdingTreeClassifier\ndefaults (grace_period=200, delta=1e-7, tau=0.05, info-gain criterion).\"\"\"\nfrom river import tree\n\n\ndef build_model(seed, meta):\n    return tree.HoeffdingTreeClassifier()\n"
      }
     ],
-    "entropy": [
+    "efdt": [
      {
-      "file": "river-lab/river_tree.py",
-      "start_line": 16,
-      "end_line": 19,
-      "content": "    def split_score(self, left, right):\n        n0, n1 = sum(left), sum(right); n = n0 + n1\n        if n0 == 0 or n1 == 0: return -1.0\n        def h(c):\n            z = sum(c); return -sum((v/z)*math.log(v/z) for v in c if v) if z else 0.0\n        return h(self.root) - (n0*h(left) + n1*h(right))/n"
+      "file": "river-lab/custom_tree.py",
+      "start_line": 1,
+      "end_line": 38,
+      "content": "\"\"\"Extremely Fast Decision Tree / Hoeffding AnyTime Tree (Manapragada, Webb & Salehi,\nKDD 2018): split as soon as any candidate beats \"do not split\", then keep re-examining\nthe split and replace it when a better one becomes significant. River 0.26.1\ntree.ExtremelyFastDecisionTreeClassifier defaults (min_samples_reevaluate=20).\"\"\"\nfrom river import tree\n\n\ndef build_model(seed, meta):\n    return tree.ExtremelyFastDecisionTreeClassifier()\n"
      }
     ],
-    "random_split": [
+    "hoeffding_adaptive_tree": [
      {
-      "file": "river-lab/river_tree.py",
-      "start_line": 16,
-      "end_line": 19,
-      "content": "    def split_score(self, left, right):\n        # Extremely conservative null criterion: split only when balanced.\n        n0, n1 = sum(left), sum(right)\n        return 0.021 if n0 and n1 and abs(n0-n1) < 0.1*(n0+n1) else -1.0"
+      "file": "river-lab/custom_tree.py",
+      "start_line": 1,
+      "end_line": 38,
+      "content": "\"\"\"Hoeffding Adaptive Tree (Bifet & Gavalda, IDA 2009): every branch monitors its own\nerror with ADWIN and grows an alternate subtree that replaces it once the alternate\nis significantly better. River 0.26.1 tree.HoeffdingAdaptiveTreeClassifier defaults\n(ADWIN drift detector, bootstrap_sampling=True).\"\"\"\nfrom river import tree\n\n\ndef build_model(seed, meta):\n    return tree.HoeffdingAdaptiveTreeClassifier(seed=seed)\n"
+     }
+    ],
+    "stump_null": [
+     {
+      "file": "river-lab/custom_tree.py",
+      "start_line": 1,
+      "end_line": 38,
+      "content": "\"\"\"NULL baseline (declared): the same Hoeffding tree with splitting switched off\n(max_depth=0) and majority-class leaves -- i.e. the running class prior. It measures\nwhat the stream gives you for free, before any split decision is made.\"\"\"\nfrom river import tree\n\n\ndef build_model(seed, meta):\n    return tree.HoeffdingTreeClassifier(max_depth=0, leaf_prediction=\"mc\")\n"
      }
     ]
    },
@@ -141749,36 +141758,9 @@
     "accuracy_imbalanced",
     "elapsed_imbalanced"
    ],
-   "metric_columns": [
-    "accuracy_stationary",
-    "accuracy_drift",
-    "accuracy_imbalanced"
-   ],
-   "metric_directions": {
-    "accuracy_stationary": "higher",
-    "accuracy_drift": "higher",
-    "accuracy_imbalanced": "higher"
-   },
-   "metric_groups": [
-    {
-     "setting": "stationary",
-     "metrics": [
-      "accuracy_stationary"
-     ]
-    },
-    {
-     "setting": "drift",
-     "metrics": [
-      "accuracy_drift"
-     ]
-    },
-    {
-     "setting": "imbalanced",
-     "metrics": [
-      "accuracy_imbalanced"
-     ]
-    }
-   ],
+   "metric_columns": [],
+   "metric_directions": {},
+   "metric_groups": [],
    "rows": [
     {
      "timestamp": "2026-09-04T06:37:48.469395+00:00",
