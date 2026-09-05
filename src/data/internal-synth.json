@@ -4951,45 +4951,20 @@
      "content": "\"\"\"Coordinate-stability probe for maximal-update parametrization.\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path: sys.path.insert(0, str(PKG_DIR))\nimport mup\n\nclass _MLP(nn.Module):\n    def __init__(self, width: int, depth: int, mu_readout: bool = False):\n        super().__init__()\n        layers = [nn.Linear(3072, width, bias=False)]\n        layers += [nn.Linear(width, width, bias=False) for _ in range(max(1, depth - 1))]\n        self.hidden = nn.ModuleList(layers)\n        self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True) if mu_readout else nn.Linear(width, 10, bias=False)\n        self.coord_l1 = []\n    def forward(self, x):\n        self.coord_l1 = []\n        for layer in self.hidden:\n            x = torch.relu(layer(x)); self.coord_l1.append(float(x.detach().abs().mean()))\n        return self.readout(x)\n\n# ============================================================================\n# FIXED — only the parametrization rule below is editable.\n# ----- BEGIN EDITABLE REGION (lines 30..42) -----\nclass Parametrization:\n    \"\"\"Return a model and optimizer implementing a width-scaling algorithm.\"\"\"\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width); self.depth = int(depth); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, self.depth, mu_readout=True)\n        base = _MLP(self.base_width, self.depth); delta = _MLP(self.base_width + 1, self.depth)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in list(model.hidden.parameters()): mup.init.kaiming_normal_(p, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n# ----- END EDITABLE REGION -----\n\ndef main():\n    depth = {\"depth-2\": 2, \"depth-4\": 4, \"depth-8\": 8}[os.environ.get(\"ENV\", \"depth-2\")]\n    smoke = bool(os.environ.get(\"MLSB_SMOKE\")); seed = int(os.environ.get(\"SEED\", \"42\")); torch.manual_seed(seed)\n    from torchvision import datasets, transforms\n    root = os.environ.get(\"DATA_ROOT\", \"/opt/mlsb-data\")\n    tfm = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,) * 3, (0.5,) * 3)])\n    ds = datasets.CIFAR10(root=root, train=True, download=False, transform=tfm)\n    ds = torch.utils.data.Subset(ds, range(min(64 if smoke else 256, len(ds))))\n    xb, yb = next(iter(torch.utils.data.DataLoader(ds, batch_size=len(ds), shuffle=False, num_workers=0)))\n    device = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\"); xb, yb = xb.to(device), yb.to(device)\n    vals = []\n    widths = [64, 256] if smoke else [64, 256, 1024]\n    for width in widths:\n        rule = Parametrization(width, depth); model = rule.build().to(device); opt = rule.optimizer(model, 0.1)\n        opt.zero_grad(set_to_none=True); loss = torch.nn.functional.cross_entropy(model(xb.flatten(1)), yb); loss.backward(); opt.step()\n        # Probe coordinates at the post-update point, matching the coordinate\n        # check in the source paper rather than only measuring initialization.\n        with torch.no_grad(): model(xb.flatten(1))\n        vals.append((math.log(width), math.log(max(1e-12, sum(model.coord_l1) / len(model.coord_l1)))))\n    x0, y0 = vals[0]; x1, y1 = vals[-1]; slope = (y1 - y0) / max(1e-12, x1 - x0)\n    print(f\"TRAIN_METRICS: depth={depth} coord_l1={math.exp(y1):.6g} log_width_slope={slope:.6f}\", flush=True)\n    # Include the fixed post-update loss in the score so a constant/zero model\n    # cannot win by collapsing every activation to zero while reporting a flat\n    # coordinate curve.\n    print(f\"TEST_METRICS: coord_slope={abs(slope):.6f} train_loss={float(loss):.6f} depth={depth}\", flush=True)\n\nif __name__ == \"__main__\": main()\n"
     }
    ],
-   "baselines_code": {
-    "sp": [
-     {
-      "file": "mup/mlsb_mup_coord.py",
-      "start_line": 30,
-      "end_line": 42,
-      "content": "class Parametrization:\n    \"\"\"Standard fan-in parametrization used as the null control.\"\"\"\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width); self.depth = int(depth); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, self.depth)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        return model\n    def optimizer(self, model, lr):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
-     }
-    ],
-    "mup": [
-     {
-      "file": "mup/mlsb_mup_coord.py",
-      "start_line": 30,
-      "end_line": 42,
-      "content": "class Parametrization:\n    \"\"\"Maximal-update parametrization, including μReadout and μSGD.\"\"\"\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width); self.depth = int(depth); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, self.depth, mu_readout=True); base = _MLP(self.base_width, self.depth, mu_readout=True); delta = _MLP(self.base_width + 1, self.depth, mu_readout=True)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in list(model.hidden.parameters()): mup.init.kaiming_normal_(p, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
-     }
-    ],
-    "ntk": [
-     {
-      "file": "mup/mlsb_mup_coord.py",
-      "start_line": 30,
-      "end_line": 42,
-      "content": "class Parametrization:\n    \"\"\"NTK control: hidden parameters are initialized and updated at 1/width.\"\"\"\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width); self.depth = int(depth); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, self.depth)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        with torch.no_grad():\n            for layer in model.hidden[1:]: layer.weight.div_(math.sqrt(self.width / self.base_width))\n        return model\n    def optimizer(self, model, lr):\n        groups = [{\"params\": list(model.hidden.parameters()), \"lr\": lr / self.width}, {\"params\": list(model.readout.parameters()), \"lr\": lr}]\n        return torch.optim.SGD(groups, momentum=0.9, weight_decay=5e-4)\n"
-     }
-    ]
-   },
+   "baselines_code": {},
    "rigorous_codebase": true,
    "allow_create": false,
    "has_agent_logs": false
   },
   {
    "id": "dl-optim-mup-parametrization",
-   "name": "Maximal-update parametrization and width transfer",
-   "summary": "Can one algorithmic parametrization make a learning rate selected on a narrow neural network transfer to wider networks without retuning?",
+   "name": "Maximal-update parametrization and zero-shot learning-rate transfer across width",
+   "summary": "Can a single algorithmic **width-scaling rule** (an abc-parametrization: how initial weights, forward",
    "category": "deep-learning",
    "category_label": "Deep Learning",
    "category_abbr": "",
-   "description_md": "# Maximal-update parametrization and width transfer\n\n## Research question\nCan one algorithmic parametrization make a learning rate selected on a narrow neural network transfer to wider networks without retuning?\n\n## Background\nYang and Hu, “Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer” (ICML 2022, [PMLR](https://proceedings.mlr.press/v162/yang22h.html)), predicts that maximal-update parametrization (μP) keeps feature updates at order one as width grows.  The released `mup` package implements the paper's base-shape bookkeeping, μP initializers, and μSGD optimizer.  Standard (SP), NTK, and inverse-width-learning-rate controls test the competing explanations.\n\n## What you may modify\nImplement `Parametrization` in `mup/mlsb_mup_rule.py`.  `build()` must create the fixed MLP at the requested width and `optimizer()` must use the supplied learning rate; do not change the data, architecture, training steps, or evaluation.  The protocol includes a held-out scale, so hard-coded per-width constants are not valid scientific contributions.\n\n## Fixed protocol and metric\nThe harness trains on a fixed real image-classification dataset with fixed SGD momentum, batch size, seed, and learning rate chosen at a proxy scale.  It reports test top-1 accuracy (higher is better) at multiple scales.  The agent's code is run independently for each scale.\n\n## Reference baselines\n`sp` (standard fan-in initialization and global SGD), `mup` (Yang & Hu maximal-update scaling), `ntk` (NTK scaling), and `sp_lr_over_width` (the commonly suggested inverse-width learning-rate control).\n",
-   "description_html": "<h1>Maximal-update parametrization and width transfer</h1>\n<h2>Research question</h2>\n<p>Can one algorithmic parametrization make a learning rate selected on a narrow neural network transfer to wider networks without retuning?</p>\n<h2>Background</h2>\n<p>Yang and Hu, “Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer” (ICML 2022, <a href=\"https://proceedings.mlr.press/v162/yang22h.html\">PMLR</a>), predicts that maximal-update parametrization (μP) keeps feature updates at order one as width grows.  The released <code>mup</code> package implements the paper's base-shape bookkeeping, μP initializers, and μSGD optimizer.  Standard (SP), NTK, and inverse-width-learning-rate controls test the competing explanations.</p>\n<h2>What you may modify</h2>\n<p>Implement <code>Parametrization</code> in <code>mup/mlsb_mup_rule.py</code>.  <code>build()</code> must create the fixed MLP at the requested width and <code>optimizer()</code> must use the supplied learning rate; do not change the data, architecture, training steps, or evaluation.  The protocol includes a held-out scale, so hard-coded per-width constants are not valid scientific contributions.</p>\n<h2>Fixed protocol and metric</h2>\n<p>The harness trains on a fixed real image-classification dataset with fixed SGD momentum, batch size, seed, and learning rate chosen at a proxy scale.  It reports test top-1 accuracy (higher is better) at multiple scales.  The agent's code is run independently for each scale.</p>\n<h2>Reference baselines</h2>\n<p><code>sp</code> (standard fan-in initialization and global SGD), <code>mup</code> (Yang &amp; Hu maximal-update scaling), <code>ntk</code> (NTK scaling), and <code>sp_lr_over_width</code> (the commonly suggested inverse-width learning-rate control).</p>",
+   "description_md": "# Maximal-update parametrization and zero-shot learning-rate transfer across width\n\n## Research question\nCan a single algorithmic **width-scaling rule** (an abc-parametrization: how initial weights, forward\nmultipliers and per-layer learning rates scale with width) make the learning rate tuned on a *narrow* MLP\nthe right learning rate for *wider* MLPs -- with no retuning, and with wider always better?\n\n## Background\nYang & Hu et al., *Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer*\n(ICML 2022, arXiv:2203.03466) show that under the maximal-update parametrization (μP) the optimal learning\nrate is stable across width, whereas under standard parametrization (SP) it drifts and a wide network\ntrained at the narrow network's LR degrades or diverges. Their released `mup` package (in your workspace:\n`mup.MuReadout`, `mup.MuSGD`, `mup.set_base_shapes`, `mup.init`) implements the bookkeeping, and\n`examples/MLP` is the paper's CIFAR-10 MLP experiment. μP is derived from three desiderata (coordinates\nof every activation Θ(1), output O(1), every parameter updated as much as possible without divergence)\nand is, within the abc family, the unique parametrization satisfying them; whether a *different* rule can\nmatch or beat it on transfer is open.\n\n## What you may modify\nOnly the class `Parametrization` in `mup/mlsb_mup_rule.py`:\n\n* `Parametrization(width, base_width=64).build()` must return the fixed `_MLP` (3072 → width → width → 10,\n  ReLU, no biases) defined read-only above it. Its weight tensors are your initialisation; a\n  `mup.MuReadout` readout contributes its forward multiplier `output_mult / width_mult()`.\n* `.optimizer(model, lr)` must return a `torch.optim.SGD` (`mup.MuSGD` returns one) over exactly the\n  model's parameters with momentum 0.9 and no weight decay. Per-parameter-group learning rates are your\n  per-layer LR scaling and must scale linearly with the supplied `lr`.\n\nThe harness owns the data, the forward function, the training loop and the evaluation; it evaluates the\nfixed architecture directly from the weights you return, so the rule controls exactly what an\nabc-parametrization controls. Any rule should coincide with SP at `base_width`.\n\n## Fixed protocol and metrics\nFor each scored target width: a log₂-spaced learning-rate grid is swept at the proxy width\n(`base_width`) and the LR with the lowest final training loss is selected (the paper's criterion); the\ntarget width is then trained at that transferred LR. Reported per target width:\n\n* `test_acc` -- top-1 test accuracy at the transferred learning rate (higher is better; 70 %);\n* `train_loss_gap` -- final training loss at the transferred LR minus the best final training loss over the\n  same grid at the target width, i.e. what not retuning costs (lower is better, 0 is perfect; 30 %).\n\n`lr_shift` (|log₂| drift of the best LR from proxy to target) and `test_acc_best` are reported for\ndiagnosis. Widths include a held-out one, so per-width constants are not a scaling rule. Training is full\nCIFAR-10, cross-entropy, SGD momentum 0.9, batch 64, fixed epochs and seed, identical for every rule.\n\n## Reference baselines\n`sp` (standard parametrization; the null -- `set_base_shapes(model, None)` in the reference code), `mup`\n(the paper's μP: `MuReadout` + `set_base_shapes` + `MuSGD`), `ntk` (neural tangent parametrization written\nas an abc-parametrization, Yang & Hu 2021 Table 1), and `sp_lr_over_width` (SP with one global LR ∝\n1/width, the folk control).\n",
+   "description_html": "<h1>Maximal-update parametrization and zero-shot learning-rate transfer across width</h1>\n<h2>Research question</h2>\n<p>Can a single algorithmic <strong>width-scaling rule</strong> (an abc-parametrization: how initial weights, forward\nmultipliers and per-layer learning rates scale with width) make the learning rate tuned on a <em>narrow</em> MLP\nthe right learning rate for <em>wider</em> MLPs -- with no retuning, and with wider always better?</p>\n<h2>Background</h2>\n<p>Yang &amp; Hu et al., <em>Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer</em>\n(ICML 2022, arXiv:2203.03466) show that under the maximal-update parametrization (μP) the optimal learning\nrate is stable across width, whereas under standard parametrization (SP) it drifts and a wide network\ntrained at the narrow network's LR degrades or diverges. Their released <code>mup</code> package (in your workspace:\n<code>mup.MuReadout</code>, <code>mup.MuSGD</code>, <code>mup.set_base_shapes</code>, <code>mup.init</code>) implements the bookkeeping, and\n<code>examples/MLP</code> is the paper's CIFAR-10 MLP experiment. μP is derived from three desiderata (coordinates\nof every activation Θ(1), output O(1), every parameter updated as much as possible without divergence)\nand is, within the abc family, the unique parametrization satisfying them; whether a <em>different</em> rule can\nmatch or beat it on transfer is open.</p>\n<h2>What you may modify</h2>\n<p>Only the class <code>Parametrization</code> in <code>mup/mlsb_mup_rule.py</code>:</p>\n<ul>\n<li><code>Parametrization(width, base_width=64).build()</code> must return the fixed <code>_MLP</code> (3072 → width → width → 10,\n  ReLU, no biases) defined read-only above it. Its weight tensors are your initialisation; a\n  <code>mup.MuReadout</code> readout contributes its forward multiplier <code>output_mult / width_mult()</code>.</li>\n<li><code>.optimizer(model, lr)</code> must return a <code>torch.optim.SGD</code> (<code>mup.MuSGD</code> returns one) over exactly the\n  model's parameters with momentum 0.9 and no weight decay. Per-parameter-group learning rates are your\n  per-layer LR scaling and must scale linearly with the supplied <code>lr</code>.</li>\n</ul>\n<p>The harness owns the data, the forward function, the training loop and the evaluation; it evaluates the\nfixed architecture directly from the weights you return, so the rule controls exactly what an\nabc-parametrization controls. Any rule should coincide with SP at <code>base_width</code>.</p>\n<h2>Fixed protocol and metrics</h2>\n<p>For each scored target width: a log₂-spaced learning-rate grid is swept at the proxy width\n(<code>base_width</code>) and the LR with the lowest final training loss is selected (the paper's criterion); the\ntarget width is then trained at that transferred LR. Reported per target width:</p>\n<ul>\n<li><code>test_acc</code> -- top-1 test accuracy at the transferred learning rate (higher is better; 70 %);</li>\n<li><code>train_loss_gap</code> -- final training loss at the transferred LR minus the best final training loss over the\n  same grid at the target width, i.e. what not retuning costs (lower is better, 0 is perfect; 30 %).</li>\n</ul>\n<p><code>lr_shift</code> (|log₂| drift of the best LR from proxy to target) and <code>test_acc_best</code> are reported for\ndiagnosis. Widths include a held-out one, so per-width constants are not a scaling rule. Training is full\nCIFAR-10, cross-entropy, SGD momentum 0.9, batch 64, fixed epochs and seed, identical for every rule.</p>\n<h2>Reference baselines</h2>\n<p><code>sp</code> (standard parametrization; the null -- <code>set_base_shapes(model, None)</code> in the reference code), <code>mup</code>\n(the paper's μP: <code>MuReadout</code> + <code>set_base_shapes</code> + <code>MuSGD</code>), <code>ntk</code> (neural tangent parametrization written\nas an abc-parametrization, Yang &amp; Hu 2021 Table 1), and <code>sp_lr_over_width</code> (SP with one global LR ∝\n1/width, the folk control).</p>",
    "baselines": [
     "sp",
     "mup",
@@ -4997,9 +4972,9 @@
     "sp_lr_over_width"
    ],
    "environments": [
-    "width-64",
     "width-256",
-    "width-1024"
+    "width-1024",
+    "width-4096"
    ],
    "packages": [
     "mup"
@@ -5009,44 +4984,44 @@
      "filename": "mup/mlsb_mup_rule.py",
      "edit_ranges": [
       {
-       "start": 36,
-       "end": 56
+       "start": 59,
+       "end": 78
       }
      ],
-     "content": "\"\"\"Editable μP parametrization rule for a fixed image-classification MLP.\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\n\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path:\n    sys.path.insert(0, str(PKG_DIR))\nimport mup\n\n\nclass _MLP(nn.Module):\n    \"\"\"Fixed architecture: 3072 -> width -> width -> 10.\"\"\"\n    def __init__(self, width: int, mu_readout: bool = False):\n        super().__init__()\n        self.fc1 = nn.Linear(3072, width, bias=False)\n        self.fc2 = nn.Linear(width, width, bias=False)\n        self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True) if mu_readout else nn.Linear(width, 10, bias=False)\n\n    def forward(self, x):\n        x = torch.relu(self.fc1(x))\n        x = torch.relu(self.fc2(x))\n        return self.readout(x)\n\n\n# ============================================================================\n# FIXED — the data, architecture, and optimizer interface are below/around this\n# marker.  Only Parametrization is editable by the agent.\n# ============================================================================\n\n# ----- BEGIN EDITABLE REGION (lines 36..56) -----\nclass Parametrization:\n    \"\"\"Algorithmic width-scaling rule.\n\n    ``build`` must return the fixed MLP at the requested width and ``optimizer``\n    must return an optimizer for it.  The learning rate is fixed by the harness;\n    an implementation may only apply the scaling prescribed by its paper.\n    \"\"\"\n\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width)\n        self.base_width = int(base_width)\n\n    def build(self) -> nn.Module:\n        # Standard parametrization (the runnable null).\n        model = _MLP(self.width, mu_readout=False)\n        for p in model.parameters():\n            nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        return model\n\n    def optimizer(self, model: nn.Module, lr: float):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n# ----- END EDITABLE REGION -----\n\n\ndef _setting_width(setting: str) -> int:\n    return {\"width-64\": 64, \"width-256\": 256, \"width-1024\": 1024}[setting]\n\n\ndef _load_data(root: str, smoke: bool):\n    from torchvision import datasets, transforms\n    tfm = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,) * 3, (0.5,) * 3)])\n    train = datasets.CIFAR10(root=root, train=True, download=False, transform=tfm)\n    test = datasets.CIFAR10(root=root, train=False, download=False, transform=tfm)\n    if smoke:\n        train = torch.utils.data.Subset(train, range(min(256, len(train))))\n        test = torch.utils.data.Subset(test, range(min(256, len(test))))\n    return train, test\n\n\ndef main():\n    setting = os.environ.get(\"ENV\", \"width-64\")\n    width = _setting_width(setting)\n    smoke = bool(os.environ.get(\"MLSB_SMOKE\"))\n    seed = int(os.environ.get(\"SEED\", \"42\"))\n    torch.manual_seed(seed)\n    train, test = _load_data(os.environ.get(\"DATA_ROOT\", \"/opt/mlsb-data\"), smoke)\n    model = Parametrization(width).build()\n    model.train()\n    opt = Parametrization(width).optimizer(model, lr=0.1)\n    epochs = 1 if smoke else 20\n    batch = 64\n    loader = torch.utils.data.DataLoader(train, batch_size=batch, shuffle=True, num_workers=0)\n    device = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\")\n    model.to(device)\n    for ep in range(epochs):\n        running = 0.0\n        for xb, yb in loader:\n            xb, yb = xb.to(device), yb.to(device)\n            opt.zero_grad(set_to_none=True)\n            loss = torch.nn.functional.cross_entropy(model(xb.flatten(1)), yb)\n            loss.backward(); opt.step(); running += float(loss)\n        print(f\"TRAIN_METRICS: epoch={ep + 1} loss={running / max(1, len(loader)):.5f}\", flush=True)\n    model.eval(); correct = total = 0\n    with torch.no_grad():\n        for xb, yb in torch.utils.data.DataLoader(test, batch_size=256, shuffle=False, num_workers=0):\n            out = model(xb.to(device).flatten(1)); pred = out.argmax(1).cpu()\n            correct += int((pred == yb).sum()); total += len(yb)\n    acc = 100.0 * correct / max(1, total)\n    print(f\"TEST_METRICS: test_acc={acc:.6f} width={width}\", flush=True)\n\n\nif __name__ == \"__main__\":\n    main()\n"
+     "content": "\"\"\"Editable width-scaling rule (abc-parametrization) for a fixed CIFAR-10 MLP.\n\nContract -- read before editing ``Parametrization`` below:\n  * ``Parametrization(width, base_width=64).build()`` returns the fixed ``_MLP`` at ``width``.  Its\n    weight tensors ARE the parametrization's initialisation; a ``mup.MuReadout`` readout additionally\n    contributes its forward multiplier ``output_mult / width_mult()``.\n  * ``Parametrization(width, base_width=64).optimizer(model, lr)`` returns a ``torch.optim.SGD``\n    (``mup.MuSGD`` returns one) over exactly the model's parameters, momentum 0.9, no weight decay.\n    Per-parameter-group learning rates are the parametrization's per-layer LR scaling; each must\n    scale linearly with the supplied ``lr`` -- the rule may not fix its own learning rate.\nThe harness owns the data, the forward function, the training loop and the metric.  It evaluates the\nfixed architecture directly from the weight tensors (and the readout multiplier), so the rule controls\nexactly what an abc-parametrization controls: initial weights, readout multiplier, per-layer LR.\nThe learning rate handed to ``optimizer`` is selected on a narrow proxy network and transferred as-is\nto wider networks, including a held-out width -- per-width constants are not a scaling rule.\n\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\n\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path:\n    sys.path.insert(0, str(PKG_DIR))\nimport mup  # pinned microsoft/mup: MuReadout, MuSGD, set_base_shapes, mup.init\n\n\nclass _MLP(nn.Module):\n    \"\"\"Fixed architecture of Yang & Hu (2022), examples/MLP: 3072 -> width -> width -> 10, ReLU, no biases.\n\n    ``mu_readout=True`` makes the output layer a ``mup.MuReadout`` (multiplier output_mult / width_mult(),\n    zero-initialised); otherwise it is a plain ``nn.Linear``.  The harness re-derives this exact function\n    from ``hidden[i].weight``, ``readout.weight`` and the readout multiplier, so overriding ``forward``\n    or adding hooks changes nothing that is scored.\n    \"\"\"\n\n    def __init__(self, width: int, mu_readout: bool = False):\n        super().__init__()\n        self.hidden = nn.ModuleList([nn.Linear(3072, width, bias=False), nn.Linear(width, width, bias=False)])\n        if mu_readout:\n            self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True)\n        else:\n            self.readout = nn.Linear(width, 10, bias=False)\n\n    def forward(self, x):\n        for layer in self.hidden:\n            x = torch.relu(layer(x))\n        return self.readout(x)\n\n\n# ============================================================================\n# FIXED above.  Only the class below is editable.\n# ============================================================================\n\n# ----- BEGIN EDITABLE REGION (lines 59..78) -----\nclass Parametrization:\n    \"\"\"Width-scaling rule.  Starter = standard parametrization (the null: PyTorch-default scaling).\n\n    ``self.width`` is the network width being built; ``self.base_width`` is the proxy width the\n    learning rate was tuned at (every rule should coincide with SP at the base width).\n    \"\"\"\n\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width)\n        self.base_width = int(base_width)\n\n    def build(self) -> nn.Module:\n        model = _MLP(self.width, mu_readout=False)\n        for layer in model.hidden:                       # reference init: kaiming_normal_(a=1, fan_in)\n            nn.init.kaiming_normal_(layer.weight, a=1, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)             # the reference zero-initialises the readout\n        return model\n\n    def optimizer(self, model: nn.Module, lr: float):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)\n# ----- END EDITABLE REGION -----\n"
     }
    ],
    "baselines_code": {
     "sp": [
      {
       "file": "mup/mlsb_mup_rule.py",
-      "start_line": 36,
-      "end_line": 56,
-      "content": "class Parametrization:\n    \"\"\"Standard parametrization: fan-in init and one global SGD learning rate.\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=False)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        return model\n    def optimizer(self, model, lr):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
+      "start_line": 59,
+      "end_line": 78,
+      "content": "class Parametrization:\n    \"\"\"Standard parametrization (SP): PyTorch-default width scaling, one global learning rate.\"\"\"\n\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width)\n        self.base_width = int(base_width)\n\n    def build(self) -> nn.Module:\n        model = _MLP(self.width, mu_readout=False)\n        for layer in model.hidden:                       # examples/MLP/main.py reset_parameters\n            nn.init.kaiming_normal_(layer.weight, a=1, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)             # fc_3 zero-initialised for SP and muP alike\n        return model\n\n    def optimizer(self, model: nn.Module, lr: float):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)\n"
      }
     ],
     "mup": [
      {
       "file": "mup/mlsb_mup_rule.py",
-      "start_line": 36,
-      "end_line": 56,
-      "content": "class Parametrization:\n    \"\"\"Maximal-update parametrization from Yang & Hu (2022).\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=True)\n        base = _MLP(self.base_width, mu_readout=True)\n        delta = _MLP(self.base_width + 1, mu_readout=True)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in list(model.fc1.parameters()) + list(model.fc2.parameters()):\n            mup.init.kaiming_normal_(p, mode=\"fan_in\")\n        # The reference MLP starts the finite readout at zero; MuReadout's\n        # forward still applies the 1/width multiplier after training begins.\n        nn.init.zeros_(model.readout.weight)\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
+      "start_line": 59,
+      "end_line": 78,
+      "content": "class Parametrization:\n    \"\"\"Maximal-update parametrization (muP, Yang & Hu 2022) via the mup package.\"\"\"\n\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width)\n        self.base_width = int(base_width)\n\n    def build(self) -> nn.Module:\n        model = _MLP(self.width, mu_readout=True)\n        base = _MLP(self.base_width, mu_readout=True)          # make_base_shapes(base=64, delta=65)\n        delta = _MLP(self.base_width + 1, mu_readout=True)\n        mup.set_base_shapes(model, base, delta=delta)\n        for layer in model.hidden:                             # same fan_in init as SP (Table 3)\n            nn.init.kaiming_normal_(layer.weight, a=1, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)                   # fc_3 zero-initialised\n        return model\n\n    def optimizer(self, model: nn.Module, lr: float):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9)\n"
      }
     ],
     "ntk": [
      {
       "file": "mup/mlsb_mup_rule.py",
-      "start_line": 36,
-      "end_line": 56,
-      "content": "class Parametrization:\n    \"\"\"NTK parametrization: width-normalized hidden updates, fixed readout.\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=False)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        with torch.no_grad():\n            model.fc2.weight.div_(math.sqrt(self.width / self.base_width))\n        return model\n    def optimizer(self, model, lr):\n        groups = [{\"params\": list(model.fc1.parameters()), \"lr\": lr / self.width},\n                  {\"params\": list(model.fc2.parameters()), \"lr\": lr / self.width},\n                  {\"params\": list(model.readout.parameters()), \"lr\": lr}]\n        return torch.optim.SGD(groups, momentum=0.9, weight_decay=5e-4)\n"
+      "start_line": 59,
+      "end_line": 78,
+      "content": "class Parametrization:\n    \"\"\"Neural tangent parametrization (NTP), standard-weight form relative to the base width.\"\"\"\n\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width)\n        self.base_width = int(base_width)\n\n    def build(self) -> nn.Module:\n        model = _MLP(self.width, mu_readout=False)\n        for layer in model.hidden:                       # init var 1/fan_in, as in SP\n            nn.init.kaiming_normal_(layer.weight, a=1, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)\n        return model\n\n    def optimizer(self, model: nn.Module, lr: float):\n        m = self.width / self.base_width                 # width multiplier n / n_base\n        groups = [{\"params\": [model.hidden[0].weight], \"lr\": lr},          # input weights: eta\n                  {\"params\": [model.hidden[1].weight, model.readout.weight], \"lr\": lr / m}]  # eta / n\n        return torch.optim.SGD(groups, lr=lr, momentum=0.9)\n"
      }
     ],
     "sp_lr_over_width": [
      {
       "file": "mup/mlsb_mup_rule.py",
-      "start_line": 36,
-      "end_line": 56,
-      "content": "class Parametrization:\n    \"\"\"Folk control: SP with a learning rate inversely proportional to width.\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=False)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        return model\n    def optimizer(self, model, lr):\n        return torch.optim.SGD(model.parameters(), lr=lr * self.base_width / self.width,\n                               momentum=0.9, weight_decay=5e-4)\n"
+      "start_line": 59,
+      "end_line": 78,
+      "content": "class Parametrization:\n    \"\"\"Folk control: SP with a global learning rate proportional to base_width / width.\"\"\"\n\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width)\n        self.base_width = int(base_width)\n\n    def build(self) -> nn.Module:\n        model = _MLP(self.width, mu_readout=False)\n        for layer in model.hidden:\n            nn.init.kaiming_normal_(layer.weight, a=1, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)\n        return model\n\n    def optimizer(self, model: nn.Module, lr: float):\n        return torch.optim.SGD(model.parameters(), lr=lr * self.base_width / self.width, momentum=0.9)\n"
      }
     ]
    },
@@ -5056,22 +5031,22 @@
   },
   {
    "id": "dl-optim-mup-readout-scaling",
-   "name": "μReadout scaling under width transfer",
-   "summary": "Does the output-layer scaling and initialization prescribed by μP preserve useful logits as hidden width grows, independently of the hidden-layer update rule?",
+   "name": "Output-layer (readout) scaling under zero-shot learning-rate transfer",
+   "summary": "Holding the hidden and input layers at standard parametrization, which **output-layer scaling rule**",
    "category": "deep-learning",
    "category_label": "Deep Learning",
    "category_abbr": "",
-   "description_md": "# μReadout scaling under width transfer\n\n## Research question\nDoes the output-layer scaling and initialization prescribed by μP preserve useful logits as hidden width grows, independently of the hidden-layer update rule?\n\n## Background\nYang and Hu, “Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer” (ICML 2022), distinguishes finite readout dimensions from width dimensions.  The released `mup.MuReadout` applies the corresponding constant-variance initialization and inverse-width output multiplier.  This task isolates that readout mechanism while keeping the hidden layers fixed.\n\n## What you may modify\nImplement `ReadoutRule` in `mup/mlsb_mup_readout.py`.  Only the output-layer construction, its paper-prescribed scaling, and its optimizer parameter groups may change; the data pipeline, hidden architecture, learning rate, and training budget are fixed.  One scale regime is held out.\n\n## Metric and baselines\nThe metric is test top-1 accuracy (higher is better) across several width regimes.  Baselines are the standard readout (`standard`), the μP `MuReadout` (`mu_readout`), and an NTK-style inverse-width readout control (`ntk_readout`).\n",
-   "description_html": "<h1>μReadout scaling under width transfer</h1>\n<h2>Research question</h2>\n<p>Does the output-layer scaling and initialization prescribed by μP preserve useful logits as hidden width grows, independently of the hidden-layer update rule?</p>\n<h2>Background</h2>\n<p>Yang and Hu, “Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer” (ICML 2022), distinguishes finite readout dimensions from width dimensions.  The released <code>mup.MuReadout</code> applies the corresponding constant-variance initialization and inverse-width output multiplier.  This task isolates that readout mechanism while keeping the hidden layers fixed.</p>\n<h2>What you may modify</h2>\n<p>Implement <code>ReadoutRule</code> in <code>mup/mlsb_mup_readout.py</code>.  Only the output-layer construction, its paper-prescribed scaling, and its optimizer parameter groups may change; the data pipeline, hidden architecture, learning rate, and training budget are fixed.  One scale regime is held out.</p>\n<h2>Metric and baselines</h2>\n<p>The metric is test top-1 accuracy (higher is better) across several width regimes.  Baselines are the standard readout (<code>standard</code>), the μP <code>MuReadout</code> (<code>mu_readout</code>), and an NTK-style inverse-width readout control (<code>ntk_readout</code>).</p>",
+   "description_md": "# Output-layer (readout) scaling under zero-shot learning-rate transfer\n\n## Research question\nHolding the hidden and input layers at standard parametrization, which **output-layer scaling rule**\n(how the readout's initial weights, forward multiplier and learning rate scale with width) lets a\nlearning rate tuned on a narrow MLP transfer to wider MLPs -- and how much of μP's transfer is carried\nby the readout alone?\n\n## Background\nYang & Hu et al., *Tensor Programs V* (ICML 2022, arXiv:2203.03466) treat the output layer differently\nfrom every other layer: its fan-in is a width dimension while its fan-out is not, and their Table 3 gives\nit an init variance of 1/fan_in² and a learning rate of η/fan_in under SGD (against 1/fan_in and η in\nstandard parametrization). The released `mup.MuReadout` implements this as a 1/width multiplier with a\nconstant-variance (here zero) initialisation, and `mup.MuSGD` supplies the matching learning-rate scaling.\nBecause the readout's weight scale also sets the size of the error signal flowing back into the hidden\nlayers, the readout rule alone changes how hidden features move with width -- this task isolates that\nmechanism from the hidden/input-layer rules studied in `dl-optim-mup-parametrization`.\n\n## What you may modify\nOnly the class `ReadoutRule` in `mup/mlsb_mup_readout.py`:\n\n* `ReadoutRule(width, base_width=64).build()` must return the fixed `_MLP` (3072 → width → width → 10,\n  ReLU, no biases) defined read-only above it. Only the readout is yours: its initial weights and, for a\n  `mup.MuReadout`, its forward multiplier `output_mult / width_mult()`. The harness re-initialises the\n  hidden/input matrices with the standard fan-in init and trains them at the base learning rate.\n* `.optimizer(model, lr)` must return a `torch.optim.SGD` (`mup.MuSGD` returns one) over exactly the\n  model's parameters with momentum 0.9 and no weight decay. Only the learning rate of the group holding\n  `model.readout.weight` is used; it must scale linearly with the supplied `lr`.\n\n## Fixed protocol and metrics\nFor each scored target width: a log₂-spaced learning-rate grid is swept at the proxy width\n(`base_width`) and the LR with the lowest final training loss is selected; the target width is then\ntrained at that transferred LR. Reported per target width: `test_acc` (top-1 test accuracy at the\ntransferred LR, higher is better; 70 %) and `train_loss_gap` (final training loss at the transferred LR\nminus the best over the grid at the target width; lower is better, 0 is perfect; 30 %). `lr_shift` and\n`test_acc_best` are diagnostic. Widths include a held-out one. Training is full CIFAR-10, cross-entropy,\nSGD momentum 0.9, batch 64, fixed epochs and seed, identical for every rule.\n\n## Reference baselines\n`standard` (plain zero-initialised `nn.Linear` at the global LR; the null), `mu_readout` (the paper's\n`MuReadout` + `MuSGD` recipe), `ntk_readout` (the neural tangent parametrization's output row: N(0, 1/fan_in)\ninit, LR η/width).\n",
+   "description_html": "<h1>Output-layer (readout) scaling under zero-shot learning-rate transfer</h1>\n<h2>Research question</h2>\n<p>Holding the hidden and input layers at standard parametrization, which <strong>output-layer scaling rule</strong>\n(how the readout's initial weights, forward multiplier and learning rate scale with width) lets a\nlearning rate tuned on a narrow MLP transfer to wider MLPs -- and how much of μP's transfer is carried\nby the readout alone?</p>\n<h2>Background</h2>\n<p>Yang &amp; Hu et al., <em>Tensor Programs V</em> (ICML 2022, arXiv:2203.03466) treat the output layer differently\nfrom every other layer: its fan-in is a width dimension while its fan-out is not, and their Table 3 gives\nit an init variance of 1/fan_in² and a learning rate of η/fan_in under SGD (against 1/fan_in and η in\nstandard parametrization). The released <code>mup.MuReadout</code> implements this as a 1/width multiplier with a\nconstant-variance (here zero) initialisation, and <code>mup.MuSGD</code> supplies the matching learning-rate scaling.\nBecause the readout's weight scale also sets the size of the error signal flowing back into the hidden\nlayers, the readout rule alone changes how hidden features move with width -- this task isolates that\nmechanism from the hidden/input-layer rules studied in <code>dl-optim-mup-parametrization</code>.</p>\n<h2>What you may modify</h2>\n<p>Only the class <code>ReadoutRule</code> in <code>mup/mlsb_mup_readout.py</code>:</p>\n<ul>\n<li><code>ReadoutRule(width, base_width=64).build()</code> must return the fixed <code>_MLP</code> (3072 → width → width → 10,\n  ReLU, no biases) defined read-only above it. Only the readout is yours: its initial weights and, for a\n  <code>mup.MuReadout</code>, its forward multiplier <code>output_mult / width_mult()</code>. The harness re-initialises the\n  hidden/input matrices with the standard fan-in init and trains them at the base learning rate.</li>\n<li><code>.optimizer(model, lr)</code> must return a <code>torch.optim.SGD</code> (<code>mup.MuSGD</code> returns one) over exactly the\n  model's parameters with momentum 0.9 and no weight decay. Only the learning rate of the group holding\n  <code>model.readout.weight</code> is used; it must scale linearly with the supplied <code>lr</code>.</li>\n</ul>\n<h2>Fixed protocol and metrics</h2>\n<p>For each scored target width: a log₂-spaced learning-rate grid is swept at the proxy width\n(<code>base_width</code>) and the LR with the lowest final training loss is selected; the target width is then\ntrained at that transferred LR. Reported per target width: <code>test_acc</code> (top-1 test accuracy at the\ntransferred LR, higher is better; 70 %) and <code>train_loss_gap</code> (final training loss at the transferred LR\nminus the best over the grid at the target width; lower is better, 0 is perfect; 30 %). <code>lr_shift</code> and\n<code>test_acc_best</code> are diagnostic. Widths include a held-out one. Training is full CIFAR-10, cross-entropy,\nSGD momentum 0.9, batch 64, fixed epochs and seed, identical for every rule.</p>\n<h2>Reference baselines</h2>\n<p><code>standard</code> (plain zero-initialised <code>nn.Linear</code> at the global LR; the null), <code>mu_readout</code> (the paper's\n<code>MuReadout</code> + <code>MuSGD</code> recipe), <code>ntk_readout</code> (the neural tangent parametrization's output row: N(0, 1/fan_in)\ninit, LR η/width).</p>",
    "baselines": [
     "standard",
     "mu_readout",
     "ntk_readout"
    ],
    "environments": [
-    "width-64",
     "width-256",
-    "width-1024"
+    "width-1024",
+    "width-4096"
    ],
    "packages": [
     "mup"
@@ -5081,36 +5056,36 @@
      "filename": "mup/mlsb_mup_readout.py",
      "edit_ranges": [
       {
-       "start": 24,
-       "end": 33
+       "start": 59,
+       "end": 78
       }
      ],
-     "content": "\"\"\"Readout scaling experiment for width transfer on a fixed image task.\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path: sys.path.insert(0, str(PKG_DIR))\nimport mup\n\nclass _MLP(nn.Module):\n    def __init__(self, width: int, mu_readout: bool = False):\n        super().__init__()\n        self.fc1 = nn.Linear(3072, width, bias=False)\n        self.fc2 = nn.Linear(width, width, bias=False)\n        self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True) if mu_readout else nn.Linear(width, 10, bias=False)\n    def forward(self, x): return self.readout(torch.relu(self.fc2(torch.relu(self.fc1(x)))))\n\n# ============================================================================\n# FIXED — dataset, architecture, and training loop are immutable.\n# ----- BEGIN EDITABLE REGION (lines 24..33) -----\nclass ReadoutRule:\n    \"\"\"Algorithmic output-layer scaling rule; hidden layers remain fixed.\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=False)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        return model\n    def optimizer(self, model, lr):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n# ----- END EDITABLE REGION -----\n\ndef main():\n    setting = os.environ.get(\"ENV\", \"width-64\"); width = {\"width-64\": 64, \"width-256\": 256, \"width-1024\": 1024}[setting]\n    smoke = bool(os.environ.get(\"MLSB_SMOKE\")); seed = int(os.environ.get(\"SEED\", \"42\")); torch.manual_seed(seed)\n    from torchvision import datasets, transforms\n    tfm = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,) * 3, (0.5,) * 3)])\n    root = os.environ.get(\"DATA_ROOT\", \"/opt/mlsb-data\"); train = datasets.CIFAR10(root=root, train=True, download=False, transform=tfm); test = datasets.CIFAR10(root=root, train=False, download=False, transform=tfm)\n    if smoke: train = torch.utils.data.Subset(train, range(min(256, len(train)))); test = torch.utils.data.Subset(test, range(min(256, len(test))))\n    model = ReadoutRule(width).build(); device = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\"); model.to(device); opt = ReadoutRule(width).optimizer(model, 0.1)\n    loader = torch.utils.data.DataLoader(train, batch_size=64, shuffle=True, num_workers=0); epochs = 1 if smoke else 20\n    for ep in range(epochs):\n        total = 0.0\n        for xb, yb in loader:\n            opt.zero_grad(set_to_none=True); loss = torch.nn.functional.cross_entropy(model(xb.to(device).flatten(1)), yb.to(device)); loss.backward(); opt.step(); total += float(loss)\n        print(f\"TRAIN_METRICS: epoch={ep + 1} loss={total / max(1, len(loader)):.5f}\", flush=True)\n    model.eval(); correct = total = 0\n    with torch.no_grad():\n        for xb, yb in torch.utils.data.DataLoader(test, batch_size=256, shuffle=False, num_workers=0):\n            pred = model(xb.to(device).flatten(1)).argmax(1).cpu(); correct += int((pred == yb).sum()); total += len(yb)\n    print(f\"TEST_METRICS: test_acc={100.0 * correct / max(1, total):.6f} width={width}\", flush=True)\n\nif __name__ == \"__main__\": main()\n"
+     "content": "\"\"\"Editable OUTPUT-LAYER scaling rule for a fixed CIFAR-10 MLP whose hidden layers are pinned to SP.\n\nContract -- read before editing ``ReadoutRule`` below:\n  * ``ReadoutRule(width, base_width=64).build()`` returns the fixed ``_MLP`` at ``width``.  Only the\n    READOUT is yours: its initial weights and, for a ``mup.MuReadout``, its forward multiplier\n    ``output_mult / width_mult()``.  The harness RE-INITIALISES the two hidden/input matrices with the\n    standard fan-in init and trains them at the base learning rate whatever ``build`` did to them.\n  * ``.optimizer(model, lr)`` returns a ``torch.optim.SGD`` (``mup.MuSGD`` returns one) over exactly the\n    model's parameters, momentum 0.9, no weight decay.  Only the learning rate of the group holding\n    ``model.readout.weight`` is used (the hidden groups are reset to ``lr``); it must scale linearly\n    with the supplied ``lr``.\nThe harness owns the data, the forward function, the training loop and the metric; it evaluates the\nfixed architecture directly from the weight tensors and the readout multiplier.  The learning rate is\nselected on a narrow proxy network and transferred as-is to wider networks, including a held-out width.\n\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\n\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path:\n    sys.path.insert(0, str(PKG_DIR))\nimport mup  # pinned microsoft/mup: MuReadout, MuSGD, set_base_shapes, mup.init\n\n\nclass _MLP(nn.Module):\n    \"\"\"Fixed architecture of Yang & Hu (2022), examples/MLP: 3072 -> width -> width -> 10, ReLU, no biases.\n\n    ``mu_readout=True`` makes the output layer a ``mup.MuReadout`` (multiplier output_mult / width_mult(),\n    zero-initialised); otherwise it is a plain ``nn.Linear``.  The harness re-derives this exact function\n    from ``hidden[i].weight``, ``readout.weight`` and the readout multiplier, so overriding ``forward``\n    or adding hooks changes nothing that is scored.\n    \"\"\"\n\n    def __init__(self, width: int, mu_readout: bool = False):\n        super().__init__()\n        self.hidden = nn.ModuleList([nn.Linear(3072, width, bias=False), nn.Linear(width, width, bias=False)])\n        if mu_readout:\n            self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True)\n        else:\n            self.readout = nn.Linear(width, 10, bias=False)\n\n    def forward(self, x):\n        for layer in self.hidden:\n            x = torch.relu(layer(x))\n        return self.readout(x)\n\n\n# ============================================================================\n# FIXED above.  Only the class below is editable.\n# ============================================================================\n\n# ----- BEGIN EDITABLE REGION (lines 58..77) -----\nclass ReadoutRule:\n    \"\"\"Output-layer scaling rule.  Starter = standard readout (the null: PyTorch-default scaling).\n\n    ``self.width`` is the network width being built; ``self.base_width`` is the proxy width the\n    learning rate was tuned at (every rule should coincide with the standard readout at the base width).\n    \"\"\"\n\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width)\n        self.base_width = int(base_width)\n\n    def build(self) -> nn.Module:\n        model = _MLP(self.width, mu_readout=False)\n        for layer in model.hidden:                       # (re-initialised by the harness anyway)\n            nn.init.kaiming_normal_(layer.weight, a=1, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)             # the reference zero-initialises the readout\n        return model\n\n    def optimizer(self, model: nn.Module, lr: float):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)\n# ----- END EDITABLE REGION -----\n"
     }
    ],
    "baselines_code": {
     "standard": [
      {
       "file": "mup/mlsb_mup_readout.py",
-      "start_line": 24,
-      "end_line": 33,
-      "content": "class ReadoutRule:\n    \"\"\"Standard readout: fan-in initialization and a global learning rate.\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=False)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        return model\n    def optimizer(self, model, lr):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
+      "start_line": 59,
+      "end_line": 78,
+      "content": "class ReadoutRule:\n    \"\"\"Standard readout: plain nn.Linear, zero-initialised, trained at the global learning rate.\"\"\"\n\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width)\n        self.base_width = int(base_width)\n\n    def build(self) -> nn.Module:\n        model = _MLP(self.width, mu_readout=False)\n        for layer in model.hidden:\n            nn.init.kaiming_normal_(layer.weight, a=1, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)\n        return model\n\n    def optimizer(self, model: nn.Module, lr: float):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)\n"
      }
     ],
     "mu_readout": [
      {
       "file": "mup/mlsb_mup_readout.py",
-      "start_line": 24,
-      "end_line": 33,
-      "content": "class ReadoutRule:\n    \"\"\"μReadout: constant-variance output weights with 1/width logits.\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=True); base = _MLP(self.base_width, mu_readout=True); delta = _MLP(self.base_width + 1, mu_readout=True)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in list(model.fc1.parameters()) + list(model.fc2.parameters()): mup.init.kaiming_normal_(p, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n"
+      "start_line": 59,
+      "end_line": 78,
+      "content": "class ReadoutRule:\n    \"\"\"muP readout: mup.MuReadout (1/width_mult multiplier) trained by mup.MuSGD.\"\"\"\n\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width)\n        self.base_width = int(base_width)\n\n    def build(self) -> nn.Module:\n        model = _MLP(self.width, mu_readout=True)\n        base = _MLP(self.base_width, mu_readout=True)          # make_base_shapes(base=64, delta=65)\n        delta = _MLP(self.base_width + 1, mu_readout=True)\n        mup.set_base_shapes(model, base, delta=delta)\n        for layer in model.hidden:\n            nn.init.kaiming_normal_(layer.weight, a=1, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)\n        return model\n\n    def optimizer(self, model: nn.Module, lr: float):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9)\n"
      }
     ],
     "ntk_readout": [
      {
       "file": "mup/mlsb_mup_readout.py",
-      "start_line": 24,
-      "end_line": 33,
-      "content": "class ReadoutRule:\n    \"\"\"NTK readout control: standard features with output multiplier 1/sqrt(width).\"\"\"\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, mu_readout=False)\n        for p in model.parameters(): nn.init.kaiming_normal_(p, nonlinearity=\"relu\")\n        return model\n    def optimizer(self, model, lr):\n        groups = [{\"params\": list(model.fc1.parameters()) + list(model.fc2.parameters()), \"lr\": lr}, {\"params\": model.readout.parameters(), \"lr\": lr / math.sqrt(self.width / self.base_width)}]\n        return torch.optim.SGD(groups, momentum=0.9, weight_decay=5e-4)\n"
+      "start_line": 59,
+      "end_line": 78,
+      "content": "class ReadoutRule:\n    \"\"\"NTP readout: N(0, 1/fan_in) init, multiplier 1, learning rate eta / (width / base_width).\"\"\"\n\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width)\n        self.base_width = int(base_width)\n\n    def build(self) -> nn.Module:\n        model = _MLP(self.width, mu_readout=False)\n        for layer in model.hidden:\n            nn.init.kaiming_normal_(layer.weight, a=1, mode=\"fan_in\")\n        nn.init.kaiming_normal_(model.readout.weight, a=1, mode=\"fan_in\")   # var 1/fan_in, Theta(1) output\n        return model\n\n    def optimizer(self, model: nn.Module, lr: float):\n        m = self.width / self.base_width\n        groups = [{\"params\": [w for l in model.hidden for w in l.parameters()], \"lr\": lr},\n                  {\"params\": [model.readout.weight], \"lr\": lr / m}]\n        return torch.optim.SGD(groups, lr=lr, momentum=0.9)\n"
      }
     ]
    },
@@ -15329,17 +15304,17 @@
   },
   {
    "id": "ood-atc-density-ratio",
-   "name": "Density-ratio correction for ATC",
-   "summary": "Garg et al. (ICLR 2022), “Leveraging Unlabeled Data to Predict Out-of-",
+   "name": "Importance re-weighting of source error through a confidence-score density ratio",
+   "summary": "Garg, Balakrishnan, Lipton, Neyshabur & Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).",
    "category": "other",
    "category_label": "Other",
    "category_abbr": "",
-   "description_md": "# Density-ratio correction for ATC\n\nGarg et al. (ICLR 2022), “Leveraging Unlabeled Data to Predict Out-of-\nDistribution Performance”, estimates target accuracy from labelled source\nvalidation confidence and unlabelled target confidence.  This task isolates\nthe covariate-shift question: can a density ratio over confidence scores\ntransfer the source correctness risk to the target score distribution?\n\nImplement `estimate_accuracy(val_scores, val_correct, target_scores)` in\n`ATC-code/atc_estimator.py`.  Scores are one-dimensional arrays in `[0, 1]`;\n`val_correct` is a binary source-validation correctness vector.  Target labels\nare unavailable.  Return predicted target accuracy on a 0–100 scale.  The\nmetric is held-out absolute error (lower is better), and one method must\ntransfer across every setting.\n\nYour editable contribution should estimate and use a target/source score\ndensity ratio, with suitable smoothing, clipping, or regularization.  The\nreference baselines are balanced-error ATC, histogram importance weighting,\nand kernel density-ratio weighting.  Reference: Garg et al., ICLR 2022,\nhttps://openreview.net/forum?id=Z9wE9R6xG7.\n",
-   "description_html": "<h1>Density-ratio correction for ATC</h1>\n<p>Garg et al. (ICLR 2022), “Leveraging Unlabeled Data to Predict Out-of-\nDistribution Performance”, estimates target accuracy from labelled source\nvalidation confidence and unlabelled target confidence.  This task isolates\nthe covariate-shift question: can a density ratio over confidence scores\ntransfer the source correctness risk to the target score distribution?</p>\n<p>Implement <code>estimate_accuracy(val_scores, val_correct, target_scores)</code> in\n<code>ATC-code/atc_estimator.py</code>.  Scores are one-dimensional arrays in <code>[0, 1]</code>;\n<code>val_correct</code> is a binary source-validation correctness vector.  Target labels\nare unavailable.  Return predicted target accuracy on a 0–100 scale.  The\nmetric is held-out absolute error (lower is better), and one method must\ntransfer across every setting.</p>\n<p>Your editable contribution should estimate and use a target/source score\ndensity ratio, with suitable smoothing, clipping, or regularization.  The\nreference baselines are balanced-error ATC, histogram importance weighting,\nand kernel density-ratio weighting.  Reference: Garg et al., ICLR 2022,\nhttps://openreview.net/forum?id=Z9wE9R6xG7.</p>",
+   "description_md": "# Importance re-weighting of source error through a confidence-score density ratio\n\nGarg, Balakrishnan, Lipton, Neyshabur & Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).\n\n## Research question\n\nThe IM baseline of the ATC paper (Mandoline with one slice, Chen et al. 2021) estimates target accuracy by re-weighting each labelled source-validation example by the ratio of target to source density of its confidence score, so that the re-weighted source accuracy stands in for the target accuracy. Upstream estimates both densities with equal-width histograms of 10 bins (`predict_acc_helper.HistogramDensity`, `get_im_estimate`); the paper notes it also tried equal-mass binning and 5/50 bins. This task isolates the density-ratio estimator: how should the importance weights over source examples be estimated from the two unlabeled score samples?\n\n## What you implement\n\nEdit `ATC-code/atc_estimator.py` and implement\n\n```\nimportance_weights(val_scores, target_scores) -> np.ndarray of shape (n_val,)\n```\n\n`val_scores` (n_val,) and `target_scores` (n_target,) are max-confidence scores in [0, 1] of one temperature-scaled classifier on labelled source-validation examples and on unlabeled target examples. Return one non-negative weight per source example (shape (n_val,)). The fixed evaluator normalises the weights to mean one and reports `100 * mean(w * val_correct)` as the predicted target accuracy, exactly as upstream `get_im_estimate` does; the source correctness vector is deliberately not passed to your function. The function is called once per target set.\n\nThe upstream reference code is on the import path inside the workspace (`ATC-code/ATC_helper.py`,\n`ATC-code/predict_acc_helper.py`) and the fixed driver `ATC-code/bench/run_eval.py` shows exactly how your function is\ncalled. Only `atc_estimator.py` is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.\n\n## Reference baselines\n\n`im_hist10` -- the paper's IM: `HistogramDensity(num_bins=10)` equal-width histograms on [0, 1] fitted to source and target scores, weights = target density / source density at each source score. `im_equal_mass10` -- the same with `equal_mass=True` (10 equal-mass bins per sample), the alternative binning the paper reports trying. `uniform` -- all weights equal (null): the estimate collapses to the source validation accuracy.\n\n## Metric\n\nEach evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.\n",
+   "description_html": "<h1>Importance re-weighting of source error through a confidence-score density ratio</h1>\n<p>Garg, Balakrishnan, Lipton, Neyshabur &amp; Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).</p>\n<h2>Research question</h2>\n<p>The IM baseline of the ATC paper (Mandoline with one slice, Chen et al. 2021) estimates target accuracy by re-weighting each labelled source-validation example by the ratio of target to source density of its confidence score, so that the re-weighted source accuracy stands in for the target accuracy. Upstream estimates both densities with equal-width histograms of 10 bins (<code>predict_acc_helper.HistogramDensity</code>, <code>get_im_estimate</code>); the paper notes it also tried equal-mass binning and 5/50 bins. This task isolates the density-ratio estimator: how should the importance weights over source examples be estimated from the two unlabeled score samples?</p>\n<h2>What you implement</h2>\n<p>Edit <code>ATC-code/atc_estimator.py</code> and implement</p>\n<pre class=\"codehilite\"><code>importance_weights(val_scores, target_scores) -&gt; np.ndarray of shape (n_val,)\n</code></pre>\n\n<p><code>val_scores</code> (n_val,) and <code>target_scores</code> (n_target,) are max-confidence scores in [0, 1] of one temperature-scaled classifier on labelled source-validation examples and on unlabeled target examples. Return one non-negative weight per source example (shape (n_val,)). The fixed evaluator normalises the weights to mean one and reports <code>100 * mean(w * val_correct)</code> as the predicted target accuracy, exactly as upstream <code>get_im_estimate</code> does; the source correctness vector is deliberately not passed to your function. The function is called once per target set.</p>\n<p>The upstream reference code is on the import path inside the workspace (<code>ATC-code/ATC_helper.py</code>,\n<code>ATC-code/predict_acc_helper.py</code>) and the fixed driver <code>ATC-code/bench/run_eval.py</code> shows exactly how your function is\ncalled. Only <code>atc_estimator.py</code> is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.</p>\n<h2>Reference baselines</h2>\n<p><code>im_hist10</code> -- the paper's IM: <code>HistogramDensity(num_bins=10)</code> equal-width histograms on [0, 1] fitted to source and target scores, weights = target density / source density at each source score. <code>im_equal_mass10</code> -- the same with <code>equal_mass=True</code> (10 equal-mass bins per sample), the alternative binning the paper reports trying. <code>uniform</code> -- all weights equal (null): the estimate collapses to the source validation accuracy.</p>\n<h2>Metric</h2>\n<p>Each evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.</p>",
    "baselines": [
-    "atc",
-    "hist_ratio",
-    "kernel_ratio"
+    "im_hist10",
+    "im_equal_mass10",
+    "uniform"
    ],
    "environments": [
     "alpha",
@@ -15355,38 +15330,46 @@
      "edit_ranges": [
       {
        "start": 1,
-       "end": 80
+       "end": 11
       }
      ]
     },
     {
      "filename": "ATC-code/bench/run_eval.py",
      "edit_ranges": []
+    },
+    {
+     "filename": "ATC-code/ATC_helper.py",
+     "edit_ranges": []
+    },
+    {
+     "filename": "ATC-code/predict_acc_helper.py",
+     "edit_ranges": []
     }
    ],
    "baselines_code": {
-    "atc": [
+    "im_hist10": [
      {
       "file": "ATC-code/atc_estimator.py",
       "start_line": 1,
-      "end_line": 80,
-      "content": "import numpy as np\ndef estimate_accuracy(val_scores,val_correct,target_scores):\n    s=np.asarray(val_scores,float); c=np.asarray(val_correct,float); t=np.asarray(target_scores,float); order=np.argsort(s); s=s[order]; c=c[order]\n    fp=float(np.sum(c==0)); fn=0.; best=abs(fp-fn); th=float(s[0])\n    for score,ok in zip(s,c):\n        fp-=float(ok==0); fn+=float(ok!=0)\n        if abs(fp-fn)<best: best=abs(fp-fn); th=float(score)\n    return float(np.mean(t>=th)*100)\n"
+      "end_line": 11,
+      "content": "\"\"\"IM (the ATC paper's importance re-weighting baseline; App. E: equal-width binning, 10 bins).  Port of\npredict_acc_helper.get_im_estimate lines 63-69: HistogramDensity(num_bins=10, equal_mass=False) on source and target scores,\nweights = target density / source density at the source scores.  (The evaluator applies lines 72-74: normalise by the mean\nweight, then 100 * mean(weights * correctness).)\"\"\"\nimport numpy as np\nfrom predict_acc_helper import HistogramDensity\n\n\ndef importance_weights(val_scores, target_scores):\n    val_scores = np.asarray(val_scores, dtype=np.float64); target_scores = np.asarray(target_scores, dtype=np.float64)\n    source_binning = HistogramDensity(); source_binning.fit(val_scores)\n    target_binning = HistogramDensity(); target_binning.fit(target_scores)\n    return target_binning.density(val_scores) / source_binning.density(val_scores)\n"
      }
     ],
-    "hist_ratio": [
+    "im_equal_mass10": [
      {
       "file": "ATC-code/atc_estimator.py",
       "start_line": 1,
-      "end_line": 80,
-      "content": "import numpy as np\ndef estimate_accuracy(val_scores,val_correct,target_scores):\n    s=np.clip(np.asarray(val_scores,float),0,1); c=np.asarray(val_correct,float); t=np.clip(np.asarray(target_scores,float),0,1); edges=np.linspace(0,1,16); hs,_=np.histogram(s,edges); ht,_=np.histogram(t,edges); r=(ht+1)/(hs+1)*(len(s)+15)/(len(t)+15); idx=np.clip(np.digitize(s,edges)-1,0,14); w=np.clip(r[idx],.05,20); return float(100*np.sum(w*c)/np.sum(w))\n"
+      "end_line": 11,
+      "content": "\"\"\"IM with equal-mass (uniform-mass) binning, 10 bins -- the alternative binning the paper reports trying (App. E).\nPort of predict_acc_helper.get_im_estimate lines 63-69 with HistogramDensity(num_bins=10, equal_mass=True).\"\"\"\nimport numpy as np\nfrom predict_acc_helper import HistogramDensity\n\n\ndef importance_weights(val_scores, target_scores):\n    val_scores = np.asarray(val_scores, dtype=np.float64); target_scores = np.asarray(target_scores, dtype=np.float64)\n    source_binning = HistogramDensity(num_bins=10, equal_mass=True); source_binning.fit(val_scores)\n    target_binning = HistogramDensity(num_bins=10, equal_mass=True); target_binning.fit(target_scores)\n    return target_binning.density(val_scores) / source_binning.density(val_scores)\n"
      }
     ],
-    "kernel_ratio": [
+    "uniform": [
      {
       "file": "ATC-code/atc_estimator.py",
       "start_line": 1,
-      "end_line": 80,
-      "content": "import numpy as np\ndef estimate_accuracy(val_scores,val_correct,target_scores):\n    s=np.asarray(val_scores,float); c=np.asarray(val_correct,float); t=np.asarray(target_scores,float); h=max(.025,1.06*np.std(np.r_[s,t])*(len(s)+len(t))**-.2)\n    ps=np.mean(np.exp(-.5*((s[:,None]-s[None,:])/h)**2),axis=1)+1e-6; pt=np.mean(np.exp(-.5*((s[:,None]-t[None,:])/h)**2),axis=1)+1e-6; w=np.clip(pt/ps,.05,20); return float(100*np.sum(w*c)/np.sum(w))\n"
+      "end_line": 11,
+      "content": "\"\"\"Uniform weights (null): no re-weighting, the estimate is the source validation accuracy.\"\"\"\nimport numpy as np\n\n\ndef importance_weights(val_scores, target_scores):\n    return np.ones(np.asarray(val_scores).shape[0], dtype=np.float64)\n"
      }
     ]
    },
@@ -15396,17 +15379,17 @@
   },
   {
    "id": "ood-atc-disagreement",
-   "name": "Ensemble disagreement for ATC accuracy estimation",
-   "summary": "The ATC protocol predicts a shifted target model accuracy from source",
+   "name": "Disagreement between two independently trained models as an accuracy estimator",
+   "summary": "Garg, Balakrishnan, Lipton, Neyshabur & Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).",
    "category": "other",
    "category_label": "Other",
    "category_abbr": "",
-   "description_md": "# Ensemble disagreement for ATC accuracy estimation\n\nThe ATC protocol predicts a shifted target model accuracy from source\nvalidation correctness and unlabelled target predictions.  This variant asks\nwhether disagreement between independently trained prediction heads is a\nuseful, transferable signal of correctness under shift.\n\nImplement `estimate_accuracy(val_probs, val_correct, target_probs,\nval_ensemble=None, target_ensemble=None)` in `ATC-code/atc_estimator.py`.\nThe first and third arguments are `(n_examples, n_classes)` probability\nmatrices.  The optional ensemble arguments have shape `(n_heads, n_examples,\nn_classes)` and are provided by this evaluator.  `val_correct` is the only\nlabelled information; target labels are unavailable.  Return target accuracy\non a 0–100 scale and leave the evaluator unchanged.  Absolute error on three\nheld-out domain shifts is lower-is-better.\n\nMake one algorithmic contribution involving ensemble disagreement, such as\nhead-vote entropy, variance, or a calibrated combination with confidence.\nBaselines are mean head confidence, vote entropy, and confidence standard\ndeviation.  Reference: Garg et al. (ICLR 2022),\nhttps://openreview.net/forum?id=Z9wE9R6xG7.\n",
-   "description_html": "<h1>Ensemble disagreement for ATC accuracy estimation</h1>\n<p>The ATC protocol predicts a shifted target model accuracy from source\nvalidation correctness and unlabelled target predictions.  This variant asks\nwhether disagreement between independently trained prediction heads is a\nuseful, transferable signal of correctness under shift.</p>\n<p>Implement <code>estimate_accuracy(val_probs, val_correct, target_probs,\nval_ensemble=None, target_ensemble=None)</code> in <code>ATC-code/atc_estimator.py</code>.\nThe first and third arguments are <code>(n_examples, n_classes)</code> probability\nmatrices.  The optional ensemble arguments have shape <code>(n_heads, n_examples,\nn_classes)</code> and are provided by this evaluator.  <code>val_correct</code> is the only\nlabelled information; target labels are unavailable.  Return target accuracy\non a 0–100 scale and leave the evaluator unchanged.  Absolute error on three\nheld-out domain shifts is lower-is-better.</p>\n<p>Make one algorithmic contribution involving ensemble disagreement, such as\nhead-vote entropy, variance, or a calibrated combination with confidence.\nBaselines are mean head confidence, vote entropy, and confidence standard\ndeviation.  Reference: Garg et al. (ICLR 2022),\nhttps://openreview.net/forum?id=Z9wE9R6xG7.</p>",
+   "description_md": "# Disagreement between two independently trained models as an accuracy estimator\n\nGarg, Balakrishnan, Lipton, Neyshabur & Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).\n\n## Research question\n\nGeneralized Disagreement Equality (GDE, Jiang et al. 2022) predicts the accuracy of a model on unlabeled target data as its rate of agreement with a second model trained on the same data with a different seed; the ATC paper reports it as the strongest prior baseline on most shift families but well behind ATC, and far behind on others. This task asks how the two models' predictions -- together with labelled source-validation data for both -- should be combined into a target-accuracy estimate for the first model.\n\n## What you implement\n\nEdit `ATC-code/atc_estimator.py` and implement\n\n```\nestimate_accuracy(val_probs, val_correct, target_probs, val_probs_other, val_correct_other, target_probs_other) -> float\n```\n\n`val_probs` (n_val, K) and `target_probs` (n_target, K) are temperature-scaled class-probability vectors of the model whose accuracy is being estimated, on labelled source-validation examples and on unlabeled target examples; `val_correct` (n_val,) is its source correctness. `val_probs_other`, `val_correct_other`, `target_probs_other` are the same three quantities for a second model of the same architecture trained on the same source data with a different random seed, evaluated on the same examples (row i of every target array is the same target example). Return the predicted target accuracy of the FIRST model in percent (0-100). The function is called once per (model, target set) pair; each model of the pair takes the role of the first.\n\nThe upstream reference code is on the import path inside the workspace (`ATC-code/ATC_helper.py`,\n`ATC-code/predict_acc_helper.py`) and the fixed driver `ATC-code/bench/run_eval.py` shows exactly how your function is\ncalled. Only `atc_estimator.py` is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.\n\n## Reference baselines\n\n`gde` -- GDE: `100 * mean(argmax(target_probs) == argmax(target_probs_other))` (upstream `model_helper.evaluate_disagreement`). `atc_mc` -- single-model ATC-MC on the first model (`ATC_helper.find_ATC_threshold` / `get_ATC_acc` on max-confidence), ignoring the second model. `ac` -- Average Confidence of the first model (null).\n\n## Metric\n\nEach evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.\n",
+   "description_html": "<h1>Disagreement between two independently trained models as an accuracy estimator</h1>\n<p>Garg, Balakrishnan, Lipton, Neyshabur &amp; Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).</p>\n<h2>Research question</h2>\n<p>Generalized Disagreement Equality (GDE, Jiang et al. 2022) predicts the accuracy of a model on unlabeled target data as its rate of agreement with a second model trained on the same data with a different seed; the ATC paper reports it as the strongest prior baseline on most shift families but well behind ATC, and far behind on others. This task asks how the two models' predictions -- together with labelled source-validation data for both -- should be combined into a target-accuracy estimate for the first model.</p>\n<h2>What you implement</h2>\n<p>Edit <code>ATC-code/atc_estimator.py</code> and implement</p>\n<pre class=\"codehilite\"><code>estimate_accuracy(val_probs, val_correct, target_probs, val_probs_other, val_correct_other, target_probs_other) -&gt; float\n</code></pre>\n\n<p><code>val_probs</code> (n_val, K) and <code>target_probs</code> (n_target, K) are temperature-scaled class-probability vectors of the model whose accuracy is being estimated, on labelled source-validation examples and on unlabeled target examples; <code>val_correct</code> (n_val,) is its source correctness. <code>val_probs_other</code>, <code>val_correct_other</code>, <code>target_probs_other</code> are the same three quantities for a second model of the same architecture trained on the same source data with a different random seed, evaluated on the same examples (row i of every target array is the same target example). Return the predicted target accuracy of the FIRST model in percent (0-100). The function is called once per (model, target set) pair; each model of the pair takes the role of the first.</p>\n<p>The upstream reference code is on the import path inside the workspace (<code>ATC-code/ATC_helper.py</code>,\n<code>ATC-code/predict_acc_helper.py</code>) and the fixed driver <code>ATC-code/bench/run_eval.py</code> shows exactly how your function is\ncalled. Only <code>atc_estimator.py</code> is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.</p>\n<h2>Reference baselines</h2>\n<p><code>gde</code> -- GDE: <code>100 * mean(argmax(target_probs) == argmax(target_probs_other))</code> (upstream <code>model_helper.evaluate_disagreement</code>). <code>atc_mc</code> -- single-model ATC-MC on the first model (<code>ATC_helper.find_ATC_threshold</code> / <code>get_ATC_acc</code> on max-confidence), ignoring the second model. <code>ac</code> -- Average Confidence of the first model (null).</p>\n<h2>Metric</h2>\n<p>Each evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.</p>",
    "baselines": [
-    "mean_confidence",
-    "vote_entropy",
-    "std_confidence"
+    "gde",
+    "atc_mc",
+    "ac"
    ],
    "environments": [
     "alpha",
@@ -15422,38 +15405,46 @@
      "edit_ranges": [
       {
        "start": 1,
-       "end": 80
+       "end": 12
       }
      ]
     },
     {
      "filename": "ATC-code/bench/run_eval.py",
      "edit_ranges": []
+    },
+    {
+     "filename": "ATC-code/ATC_helper.py",
+     "edit_ranges": []
+    },
+    {
+     "filename": "ATC-code/predict_acc_helper.py",
+     "edit_ranges": []
     }
    ],
    "baselines_code": {
-    "mean_confidence": [
+    "gde": [
      {
       "file": "ATC-code/atc_estimator.py",
       "start_line": 1,
-      "end_line": 80,
-      "content": "import numpy as np\ndef estimate_accuracy(val_probs,val_correct,target_probs,val_ensemble=None,target_ensemble=None):\n    ve=np.asarray(val_ensemble if val_ensemble is not None else val_probs[None],float); te=np.asarray(target_ensemble if target_ensemble is not None else target_probs[None],float); c=np.asarray(val_correct,float)\n    vs=np.mean(np.max(ve,axis=2),axis=0); ts=np.mean(np.max(te,axis=2),axis=0); q=float(np.clip(np.mean(c),0,1)); th=float(np.quantile(vs,1-q)); return float(np.mean(ts>=th)*100)\n"
+      "end_line": 12,
+      "content": "\"\"\"GDE (Jiang et al. 2022) as run by the ATC paper: predicted accuracy = agreement rate of the two models' argmax\npredictions on the target set.  Port of model_helper.evaluate_disagreement lines 199-209 (correct += equal(pred1, pred2);\n100 * correct / total), reported at get_GDE_acc.py:92-96.\"\"\"\nimport numpy as np\n\n\ndef estimate_accuracy(val_probs, val_correct, target_probs, val_probs_other, val_correct_other, target_probs_other):\n    p1 = np.argmax(np.asarray(target_probs), axis=-1); p2 = np.argmax(np.asarray(target_probs_other), axis=-1)\n    return float(100.0 * np.equal(p1, p2).sum() / len(p1))\n"
      }
     ],
-    "vote_entropy": [
+    "atc_mc": [
      {
       "file": "ATC-code/atc_estimator.py",
       "start_line": 1,
-      "end_line": 80,
-      "content": "import numpy as np\ndef estimate_accuracy(val_probs,val_correct,target_probs,val_ensemble=None,target_ensemble=None):\n    ve=np.asarray(val_ensemble if val_ensemble is not None else val_probs[None],float); te=np.asarray(target_ensemble if target_ensemble is not None else target_probs[None],float); c=np.asarray(val_correct,float)\n    vv=np.argmax(ve,axis=2); tv=np.argmax(te,axis=2)\n    def score(v):\n        k=v.shape[0]; counts=np.stack([(v==j).mean(axis=0) for j in range(ve.shape[2])]); h=-np.sum(np.where(counts>0,counts*np.log(counts),0),axis=0)/np.log(k+1e-8); return 1-h\n    vs=score(vv); ts=score(tv); q=float(np.clip(np.mean(c),0,1)); th=float(np.quantile(vs,1-q)); return float(np.mean(ts>=th)*100)\n"
+      "end_line": 12,
+      "content": "\"\"\"ATC-MC (Garg et al. 2022) on the first model only; the second model is ignored.  Port of get_acc.py:89,98,109,124 with\nATC_helper.get_max_conf / find_ATC_threshold / get_ATC_acc (ATC_helper.py:6-34).\"\"\"\nimport numpy as np\nfrom ATC_helper import get_max_conf, find_ATC_threshold, get_ATC_acc\n\n\ndef estimate_accuracy(val_probs, val_correct, target_probs, val_probs_other, val_correct_other, target_probs_other):\n    val_probs = np.asarray(val_probs, dtype=np.float64); target_probs = np.asarray(target_probs, dtype=np.float64)\n    _, thres = find_ATC_threshold(get_max_conf(val_probs), np.asarray(val_correct) == 1)\n    return float(get_ATC_acc(thres, get_max_conf(target_probs)))\n"
      }
     ],
-    "std_confidence": [
+    "ac": [
      {
       "file": "ATC-code/atc_estimator.py",
       "start_line": 1,
-      "end_line": 80,
-      "content": "import numpy as np\ndef estimate_accuracy(val_probs,val_correct,target_probs,val_ensemble=None,target_ensemble=None):\n    ve=np.asarray(val_ensemble if val_ensemble is not None else val_probs[None],float); te=np.asarray(target_ensemble if target_ensemble is not None else target_probs[None],float); c=np.asarray(val_correct,float)\n    vs=np.mean(np.max(ve,axis=2),axis=0)-np.std(np.max(ve,axis=2),axis=0); ts=np.mean(np.max(te,axis=2),axis=0)-np.std(np.max(te,axis=2),axis=0); q=float(np.clip(np.mean(c),0,1)); th=float(np.quantile(vs,1-q)); return float(np.mean(ts>=th)*100)\n"
+      "end_line": 12,
+      "content": "\"\"\"Average Confidence of the first model (null).  Port of get_acc.py:109,131.\"\"\"\nimport numpy as np\n\n\ndef estimate_accuracy(val_probs, val_correct, target_probs, val_probs_other, val_correct_other, target_probs_other):\n    return float(np.mean(np.max(np.asarray(target_probs, dtype=np.float64), axis=1)) * 100.0)\n"
      }
     ]
    },
@@ -15463,17 +15454,17 @@
   },
   {
    "id": "ood-atc-score-function",
-   "name": "Choosing a confidence score for ATC",
-   "summary": "Garg et al. (ICLR 2022), “Leveraging Unlabeled Data to Predict Out-of-",
+   "name": "ATC: which scalar score of the probability vector should be thresholded?",
+   "summary": "Garg, Balakrishnan, Lipton, Neyshabur & Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).",
    "category": "other",
    "category_label": "Other",
    "category_abbr": "",
-   "description_md": "# Choosing a confidence score for ATC\n\nGarg et al. (ICLR 2022), “Leveraging Unlabeled Data to Predict Out-of-\nDistribution Performance”, estimates target accuracy from labelled source\nvalidation examples and unlabelled target predictions.  This task asks a\nmore basic scientific question: which scalar confidence score should an ATC\nestimator use when the model exposes a full class-probability vector?\n\nImplement `estimate_accuracy(val_probs, val_correct, target_probs)` in\n`ATC-code/atc_estimator.py`.  `val_probs` and `target_probs` are arrays of\nshape `(n_examples, n_classes)` with rows summing to one.  `val_correct` is a\nbinary source-validation correctness vector; target labels are unavailable.\nReturn the predicted target accuracy on a 0–100 scale.  The metric is\nabsolute error on held-out domain shifts (lower is better).  Make one\ntransferable algorithmic contribution, such as a data-driven score transform\nor calibration rule, and leave the evaluator unchanged.\n\nReference baselines use maximum softmax probability, top-two margin, and\nnormalized predictive entropy as their scalar scores.  Reference: Garg et al.,\nICLR 2022, https://openreview.net/forum?id=Z9wE9R6xG7.\n",
-   "description_html": "<h1>Choosing a confidence score for ATC</h1>\n<p>Garg et al. (ICLR 2022), “Leveraging Unlabeled Data to Predict Out-of-\nDistribution Performance”, estimates target accuracy from labelled source\nvalidation examples and unlabelled target predictions.  This task asks a\nmore basic scientific question: which scalar confidence score should an ATC\nestimator use when the model exposes a full class-probability vector?</p>\n<p>Implement <code>estimate_accuracy(val_probs, val_correct, target_probs)</code> in\n<code>ATC-code/atc_estimator.py</code>.  <code>val_probs</code> and <code>target_probs</code> are arrays of\nshape <code>(n_examples, n_classes)</code> with rows summing to one.  <code>val_correct</code> is a\nbinary source-validation correctness vector; target labels are unavailable.\nReturn the predicted target accuracy on a 0–100 scale.  The metric is\nabsolute error on held-out domain shifts (lower is better).  Make one\ntransferable algorithmic contribution, such as a data-driven score transform\nor calibration rule, and leave the evaluator unchanged.</p>\n<p>Reference baselines use maximum softmax probability, top-two margin, and\nnormalized predictive entropy as their scalar scores.  Reference: Garg et al.,\nICLR 2022, https://openreview.net/forum?id=Z9wE9R6xG7.</p>",
+   "description_md": "# ATC: which scalar score of the probability vector should be thresholded?\n\nGarg, Balakrishnan, Lipton, Neyshabur & Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).\n\n## Research question\n\nATC thresholds a scalar confidence score; the paper reports two choices, maximum confidence (ATC-MC) and negative entropy (ATC-NE, upstream `ATC_helper.get_entropy`), and finds that neither dominates across shift families. This task asks what function of the full class-probability vector should be thresholded -- and how the threshold should then be chosen -- to estimate target accuracy from unlabeled target predictions.\n\n## What you implement\n\nEdit `ATC-code/atc_estimator.py` and implement\n\n```\nestimate_accuracy(val_probs, val_correct, target_probs) -> float\n```\n\n`val_probs` (n_val, K) and `target_probs` (n_target, K) are temperature-scaled class-probability vectors (rows sum to one) of one classifier on labelled source-validation examples and on unlabeled target examples; `val_correct` (n_val,) is 1 where the source prediction was correct. Return the predicted target accuracy in percent (0-100). The function is called once per target set.\n\nThe upstream reference code is on the import path inside the workspace (`ATC-code/ATC_helper.py`,\n`ATC-code/predict_acc_helper.py`) and the fixed driver `ATC-code/bench/run_eval.py` shows exactly how your function is\ncalled. Only `atc_estimator.py` is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.\n\n## Reference baselines\n\n`atc_ne` -- ATC with the negative-entropy score `sum_k p_k log p_k` (`ATC_helper.get_entropy`) and the balanced-error threshold (`find_ATC_threshold`, `get_ATC_acc`). `atc_mc` -- the same threshold rule on the max-confidence score (`ATC_helper.get_max_conf`). `ac` -- Average Confidence (null): mean target max-confidence.\n\n## Metric\n\nEach evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.\n",
+   "description_html": "<h1>ATC: which scalar score of the probability vector should be thresholded?</h1>\n<p>Garg, Balakrishnan, Lipton, Neyshabur &amp; Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).</p>\n<h2>Research question</h2>\n<p>ATC thresholds a scalar confidence score; the paper reports two choices, maximum confidence (ATC-MC) and negative entropy (ATC-NE, upstream <code>ATC_helper.get_entropy</code>), and finds that neither dominates across shift families. This task asks what function of the full class-probability vector should be thresholded -- and how the threshold should then be chosen -- to estimate target accuracy from unlabeled target predictions.</p>\n<h2>What you implement</h2>\n<p>Edit <code>ATC-code/atc_estimator.py</code> and implement</p>\n<pre class=\"codehilite\"><code>estimate_accuracy(val_probs, val_correct, target_probs) -&gt; float\n</code></pre>\n\n<p><code>val_probs</code> (n_val, K) and <code>target_probs</code> (n_target, K) are temperature-scaled class-probability vectors (rows sum to one) of one classifier on labelled source-validation examples and on unlabeled target examples; <code>val_correct</code> (n_val,) is 1 where the source prediction was correct. Return the predicted target accuracy in percent (0-100). The function is called once per target set.</p>\n<p>The upstream reference code is on the import path inside the workspace (<code>ATC-code/ATC_helper.py</code>,\n<code>ATC-code/predict_acc_helper.py</code>) and the fixed driver <code>ATC-code/bench/run_eval.py</code> shows exactly how your function is\ncalled. Only <code>atc_estimator.py</code> is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.</p>\n<h2>Reference baselines</h2>\n<p><code>atc_ne</code> -- ATC with the negative-entropy score <code>sum_k p_k log p_k</code> (<code>ATC_helper.get_entropy</code>) and the balanced-error threshold (<code>find_ATC_threshold</code>, <code>get_ATC_acc</code>). <code>atc_mc</code> -- the same threshold rule on the max-confidence score (<code>ATC_helper.get_max_conf</code>). <code>ac</code> -- Average Confidence (null): mean target max-confidence.</p>\n<h2>Metric</h2>\n<p>Each evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.</p>",
    "baselines": [
-    "msp",
-    "margin",
-    "entropy"
+    "atc_ne",
+    "atc_mc",
+    "ac"
    ],
    "environments": [
     "alpha",
@@ -15489,38 +15480,46 @@
      "edit_ranges": [
       {
        "start": 1,
-       "end": 80
+       "end": 10
       }
      ]
     },
     {
      "filename": "ATC-code/bench/run_eval.py",
      "edit_ranges": []
+    },
+    {
+     "filename": "ATC-code/ATC_helper.py",
+     "edit_ranges": []
+    },
+    {
+     "filename": "ATC-code/predict_acc_helper.py",
+     "edit_ranges": []
     }
    ],
    "baselines_code": {
-    "msp": [
+    "atc_ne": [
      {
       "file": "ATC-code/atc_estimator.py",
       "start_line": 1,
-      "end_line": 80,
-      "content": "import numpy as np\ndef estimate_accuracy(val_probs, val_correct, target_probs):\n    vp=np.asarray(val_probs,float); c=np.asarray(val_correct,float); tp=np.asarray(target_probs,float)\n    vs=np.max(vp,axis=1); ts=np.max(tp,axis=1)\n    q=float(np.clip(np.mean(c),0,1)); th=float(np.quantile(vs,1-q))\n    return float(np.mean(ts>=th)*100)\n"
+      "end_line": 10,
+      "content": "\"\"\"ATC-NE (Garg et al. 2022): balanced-error threshold on the negative-entropy score.  Port of get_acc.py:93,96,113,118\nwith ATC_helper.get_entropy (ATC_helper.py:3-4) and find_ATC_threshold / get_ATC_acc (ATC_helper.py:9-34).\"\"\"\nimport numpy as np\nfrom ATC_helper import get_entropy, find_ATC_threshold, get_ATC_acc\n\n\ndef estimate_accuracy(val_probs, val_correct, target_probs):\n    val_probs = np.asarray(val_probs, dtype=np.float64); target_probs = np.asarray(target_probs, dtype=np.float64)\n    _, thres = find_ATC_threshold(get_entropy(val_probs), np.asarray(val_correct) == 1)\n    return float(get_ATC_acc(thres, get_entropy(target_probs)))\n"
      }
     ],
-    "margin": [
+    "atc_mc": [
      {
       "file": "ATC-code/atc_estimator.py",
       "start_line": 1,
-      "end_line": 80,
-      "content": "import numpy as np\ndef estimate_accuracy(val_probs, val_correct, target_probs):\n    vp=np.asarray(val_probs,float); c=np.asarray(val_correct,float); tp=np.asarray(target_probs,float)\n    vs=np.sort(vp,axis=1)[:,-1]-np.sort(vp,axis=1)[:,-2]; ts=np.sort(tp,axis=1)[:,-1]-np.sort(tp,axis=1)[:,-2]\n    q=float(np.clip(np.mean(c),0,1)); th=float(np.quantile(vs,1-q))\n    return float(np.mean(ts>=th)*100)\n"
+      "end_line": 10,
+      "content": "\"\"\"ATC-MC (Garg et al. 2022): balanced-error threshold on max-confidence.  Port of get_acc.py:89,98,109,124 with\nATC_helper.get_max_conf / find_ATC_threshold / get_ATC_acc (ATC_helper.py:6-34).\"\"\"\nimport numpy as np\nfrom ATC_helper import get_max_conf, find_ATC_threshold, get_ATC_acc\n\n\ndef estimate_accuracy(val_probs, val_correct, target_probs):\n    val_probs = np.asarray(val_probs, dtype=np.float64); target_probs = np.asarray(target_probs, dtype=np.float64)\n    _, thres = find_ATC_threshold(get_max_conf(val_probs), np.asarray(val_correct) == 1)\n    return float(get_ATC_acc(thres, get_max_conf(target_probs)))\n"
      }
     ],
-    "entropy": [
+    "ac": [
      {
       "file": "ATC-code/atc_estimator.py",
       "start_line": 1,
-      "end_line": 80,
-      "content": "import numpy as np\ndef estimate_accuracy(val_probs, val_correct, target_probs):\n    vp=np.asarray(val_probs,float); c=np.asarray(val_correct,float); tp=np.asarray(target_probs,float)\n    def s(p):\n        p=np.clip(p,1e-8,1); return 1-(-np.sum(p*np.log(p),axis=1)/np.log(p.shape[1]))\n    vs=s(vp); ts=s(tp); q=float(np.clip(np.mean(c),0,1)); th=float(np.quantile(vs,1-q))\n    return float(np.mean(ts>=th)*100)\n"
+      "end_line": 10,
+      "content": "\"\"\"Average Confidence (null): mean target max-confidence.  Port of get_acc.py:109,131.\"\"\"\nimport numpy as np\n\n\ndef estimate_accuracy(val_probs, val_correct, target_probs):\n    return float(np.mean(np.max(np.asarray(target_probs, dtype=np.float64), axis=1)) * 100.0)\n"
      }
     ]
    },
@@ -15530,17 +15529,17 @@
   },
   {
    "id": "ood-atc-threshold",
-   "name": "OOD accuracy estimation from unlabeled scores",
-   "summary": "The upstream ATC paper (Garg et al., ICLR 2022, “Leveraging Unlabeled Data to",
+   "name": "ATC: the threshold-selection rule for accuracy estimation from confidence scores",
+   "summary": "Garg, Balakrishnan, Lipton, Neyshabur & Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).",
    "category": "other",
    "category_label": "Other",
    "category_abbr": "",
-   "description_md": "# OOD accuracy estimation from unlabeled scores\n\nThe upstream ATC paper (Garg et al., ICLR 2022, “Leveraging Unlabeled Data to\nPredict Out-of-Distribution Performance”) estimates target accuracy using only\na labelled validation set from the source domain and unlabelled target scores.\nYour contribution is one algorithmic change to the threshold estimator below.\n\nImplement `estimate_accuracy(val_scores, val_correct, target_scores)` in\n`ATC-code/atc_estimator.py`. `val_scores` and `target_scores` are one-dimensional\nconfidence scores in `[0, 1]`; `val_correct` is a binary correctness vector for\nthe source validation examples. Return the predicted target accuracy on a\n0–100 scale. The target labels are deliberately unavailable to your code.\n\nThe evaluation uses three held-out real-data domain shifts. The metric is the\nabsolute error of your predicted target accuracy (lower is better). Keep the\nmethod data-driven: hard-coded answers or changing the evaluation driver are\noutside the editable surface.\n\nReference methods are the ATC balanced-error threshold from the paper, a source\nquantile estimator, and a histogram density-ratio estimator. The same estimator\nmust transfer across all settings.\n\nReference: https://openreview.net/forum?id=Z9wE9R6xG7 (Garg et al., ICLR 2022).\n",
-   "description_html": "<h1>OOD accuracy estimation from unlabeled scores</h1>\n<p>The upstream ATC paper (Garg et al., ICLR 2022, “Leveraging Unlabeled Data to\nPredict Out-of-Distribution Performance”) estimates target accuracy using only\na labelled validation set from the source domain and unlabelled target scores.\nYour contribution is one algorithmic change to the threshold estimator below.</p>\n<p>Implement <code>estimate_accuracy(val_scores, val_correct, target_scores)</code> in\n<code>ATC-code/atc_estimator.py</code>. <code>val_scores</code> and <code>target_scores</code> are one-dimensional\nconfidence scores in <code>[0, 1]</code>; <code>val_correct</code> is a binary correctness vector for\nthe source validation examples. Return the predicted target accuracy on a\n0–100 scale. The target labels are deliberately unavailable to your code.</p>\n<p>The evaluation uses three held-out real-data domain shifts. The metric is the\nabsolute error of your predicted target accuracy (lower is better). Keep the\nmethod data-driven: hard-coded answers or changing the evaluation driver are\noutside the editable surface.</p>\n<p>Reference methods are the ATC balanced-error threshold from the paper, a source\nquantile estimator, and a histogram density-ratio estimator. The same estimator\nmust transfer across all settings.</p>\n<p>Reference: https://openreview.net/forum?id=Z9wE9R6xG7 (Garg et al., ICLR 2022).</p>",
+   "description_md": "# ATC: the threshold-selection rule for accuracy estimation from confidence scores\n\nGarg, Balakrishnan, Lipton, Neyshabur & Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).\n\n## Research question\n\nATC (Average Thresholded Confidence) predicts a classifier's accuracy on an unlabeled, shifted target set as the fraction of target examples whose confidence score exceeds a threshold learned on labelled source-validation data. The paper picks the threshold that balances false positives and false negatives on the source validation set (upstream `ATC_helper.find_ATC_threshold`). This task isolates that choice: given one-dimensional confidence scores, design the rule that turns labelled source scores and unlabeled target scores into a target-accuracy estimate.\n\n## What you implement\n\nEdit `ATC-code/atc_estimator.py` and implement\n\n```\nestimate_accuracy(val_scores, val_correct, target_scores) -> float\n```\n\n`val_scores` (n_val,) and `target_scores` (n_target,) are maximum-softmax-confidence scores in [0, 1] of one temperature-scaled classifier on labelled source-validation examples and on unlabeled target examples; `val_correct` (n_val,) is 1 where the classifier's source prediction was correct. Return the predicted target accuracy in percent (0-100). The function is called once per target set; target sets are independent shifted versions of the source distribution.\n\nThe upstream reference code is on the import path inside the workspace (`ATC-code/ATC_helper.py`,\n`ATC-code/predict_acc_helper.py`) and the fixed driver `ATC-code/bench/run_eval.py` shows exactly how your function is\ncalled. Only `atc_estimator.py` is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.\n\n## Reference baselines\n\n`atc_mc` -- ATC with the max-confidence score: `ATC_helper.find_ATC_threshold` (balance FP and FN on source validation) then `get_ATC_acc` (fraction of target scores above the threshold). `doc` -- Difference of Confidences (Guillory et al., 2021; `predict_acc_helper.get_doc`): source validation accuracy plus the change in mean confidence from source to target. `ac` -- Average Confidence (null): the mean target confidence.\n\n## Metric\n\nEach evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.\n",
+   "description_html": "<h1>ATC: the threshold-selection rule for accuracy estimation from confidence scores</h1>\n<p>Garg, Balakrishnan, Lipton, Neyshabur &amp; Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).</p>\n<h2>Research question</h2>\n<p>ATC (Average Thresholded Confidence) predicts a classifier's accuracy on an unlabeled, shifted target set as the fraction of target examples whose confidence score exceeds a threshold learned on labelled source-validation data. The paper picks the threshold that balances false positives and false negatives on the source validation set (upstream <code>ATC_helper.find_ATC_threshold</code>). This task isolates that choice: given one-dimensional confidence scores, design the rule that turns labelled source scores and unlabeled target scores into a target-accuracy estimate.</p>\n<h2>What you implement</h2>\n<p>Edit <code>ATC-code/atc_estimator.py</code> and implement</p>\n<pre class=\"codehilite\"><code>estimate_accuracy(val_scores, val_correct, target_scores) -&gt; float\n</code></pre>\n\n<p><code>val_scores</code> (n_val,) and <code>target_scores</code> (n_target,) are maximum-softmax-confidence scores in [0, 1] of one temperature-scaled classifier on labelled source-validation examples and on unlabeled target examples; <code>val_correct</code> (n_val,) is 1 where the classifier's source prediction was correct. Return the predicted target accuracy in percent (0-100). The function is called once per target set; target sets are independent shifted versions of the source distribution.</p>\n<p>The upstream reference code is on the import path inside the workspace (<code>ATC-code/ATC_helper.py</code>,\n<code>ATC-code/predict_acc_helper.py</code>) and the fixed driver <code>ATC-code/bench/run_eval.py</code> shows exactly how your function is\ncalled. Only <code>atc_estimator.py</code> is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.</p>\n<h2>Reference baselines</h2>\n<p><code>atc_mc</code> -- ATC with the max-confidence score: <code>ATC_helper.find_ATC_threshold</code> (balance FP and FN on source validation) then <code>get_ATC_acc</code> (fraction of target scores above the threshold). <code>doc</code> -- Difference of Confidences (Guillory et al., 2021; <code>predict_acc_helper.get_doc</code>): source validation accuracy plus the change in mean confidence from source to target. <code>ac</code> -- Average Confidence (null): the mean target confidence.</p>\n<h2>Metric</h2>\n<p>Each evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.</p>",
    "baselines": [
-    "atc",
-    "quantile",
-    "histogram"
+    "atc_mc",
+    "doc",
+    "ac"
    ],
    "environments": [
     "alpha",
@@ -15556,38 +15555,46 @@
      "edit_ranges": [
       {
        "start": 1,
-       "end": 18
+       "end": 10
       }
      ]
     },
     {
      "filename": "ATC-code/bench/run_eval.py",
      "edit_ranges": []
+    },
+    {
+     "filename": "ATC-code/ATC_helper.py",
+     "edit_ranges": []
+    },
+    {
+     "filename": "ATC-code/predict_acc_helper.py",
+     "edit_ranges": []
     }
    ],
    "baselines_code": {
-    "atc": [
+    "atc_mc": [
      {
       "file": "ATC-code/atc_estimator.py",
       "start_line": 1,
-      "end_line": 18,
-      "content": "import numpy as np\n\ndef estimate_accuracy(val_scores, val_correct, target_scores):\n    val_scores = np.asarray(val_scores, dtype=float); val_correct = np.asarray(val_correct, dtype=float)\n    target_scores = np.asarray(target_scores, dtype=float)\n    order = np.argsort(val_scores); s, c = val_scores[order], val_correct[order]\n    fp = float(np.sum(c == 0)); fn = 0.0; best = abs(fp - fn); threshold = float(s[0])\n    for score, ok in zip(s, c):\n        if ok == 0: fp -= 1\n        else: fn += 1\n        if abs(fp - fn) < best: best, threshold = abs(fp - fn), float(score)\n    return float(np.mean(target_scores >= threshold) * 100.0)\n"
+      "end_line": 10,
+      "content": "\"\"\"ATC-MC (Garg et al. 2022): balanced-error threshold on max-confidence.  Port = the upstream functions themselves\n(ATC_helper.py:9-34), called exactly as get_acc.py:98/124 does.\"\"\"\nimport numpy as np\nfrom ATC_helper import find_ATC_threshold, get_ATC_acc\n\n\ndef estimate_accuracy(val_scores, val_correct, target_scores):\n    val_scores = np.asarray(val_scores, dtype=np.float64); target_scores = np.asarray(target_scores, dtype=np.float64)\n    _, thres = find_ATC_threshold(val_scores, np.asarray(val_correct) == 1)\n    return float(get_ATC_acc(thres, target_scores))\n"
      }
     ],
-    "quantile": [
+    "doc": [
      {
       "file": "ATC-code/atc_estimator.py",
       "start_line": 1,
-      "end_line": 18,
-      "content": "import numpy as np\n\ndef estimate_accuracy(val_scores, val_correct, target_scores):\n    val_scores = np.asarray(val_scores, dtype=float); val_correct = np.asarray(val_correct, dtype=float)\n    target_scores = np.asarray(target_scores, dtype=float)\n    # Match the source fraction of correct predictions at the target score quantile.\n    q = float(np.clip(np.mean(val_correct), 0.0, 1.0))\n    threshold = float(np.quantile(val_scores, 1.0 - q))\n    return float(np.mean(target_scores >= threshold) * 100.0)\n"
+      "end_line": 10,
+      "content": "\"\"\"DOC-Feat (Guillory et al. 2021) as run by the ATC paper: source validation accuracy + 100 * (mean target confidence -\nmean source confidence).  Port of get_acc.py:75,134 with predict_acc_helper.get_doc (predict_acc_helper.py:28-29).\"\"\"\nimport numpy as np\nfrom predict_acc_helper import get_doc\n\n\ndef estimate_accuracy(val_scores, val_correct, target_scores):\n    val_scores = np.asarray(val_scores, dtype=np.float64); target_scores = np.asarray(target_scores, dtype=np.float64)\n    v1acc = np.mean(np.asarray(val_correct) == 1) * 100.0\n    return float(v1acc + get_doc(val_scores, target_scores) * 100.0)\n"
      }
     ],
-    "histogram": [
+    "ac": [
      {
       "file": "ATC-code/atc_estimator.py",
       "start_line": 1,
-      "end_line": 18,
-      "content": "import numpy as np\n\ndef estimate_accuracy(val_scores, val_correct, target_scores):\n    val_scores = np.asarray(val_scores, dtype=float); val_correct = np.asarray(val_correct, dtype=float)\n    target_scores = np.asarray(target_scores, dtype=float)\n    bins = np.linspace(0.0, 1.0, 21)\n    ids = np.clip(np.digitize(val_scores, bins) - 1, 0, len(bins) - 2)\n    rates = np.array([np.mean(val_correct[ids == j]) if np.any(ids == j) else np.mean(val_correct) for j in range(len(bins)-1)])\n    tid = np.clip(np.digitize(target_scores, bins) - 1, 0, len(bins) - 2)\n    return float(np.mean(rates[tid]) * 100.0)\n"
+      "end_line": 10,
+      "content": "\"\"\"Average Confidence (null): mean target max-confidence.  Port of get_acc.py:131 (np.mean(calib_pred_probs_new)*100).\"\"\"\nimport numpy as np\n\n\ndef estimate_accuracy(val_scores, val_correct, target_scores):\n    return float(np.mean(np.asarray(target_scores, dtype=np.float64)) * 100.0)\n"
      }
     ]
    },
@@ -141812,6 +141819,119 @@
      "elapsed_drift": 1.5,
      "accuracy_imbalanced": 0.75,
      "elapsed_imbalanced": 1.5
+    }
+   ]
+  },
+  "ood-atc-threshold": {
+   "task_id": "ood-atc-threshold",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "abs_error_alpha",
+    "estimate_alpha",
+    "elapsed_alpha",
+    "abs_error_beta",
+    "estimate_beta",
+    "elapsed_beta",
+    "abs_error_gamma",
+    "estimate_gamma",
+    "elapsed_gamma"
+   ],
+   "metric_columns": [],
+   "metric_directions": {},
+   "metric_groups": [],
+   "rows": [
+    {
+     "timestamp": "2026-09-04T07:23:22.917950+00:00",
+     "model": "baseline:atc",
+     "is_final": true,
+     "seed": "42",
+     "abs_error_alpha": 89.84375,
+     "estimate_alpha": 100.0,
+     "elapsed_alpha": 3.0,
+     "abs_error_beta": 10.9375,
+     "estimate_beta": 100.0,
+     "elapsed_beta": 3.0,
+     "abs_error_gamma": 13.28125,
+     "estimate_gamma": 96.484375,
+     "elapsed_gamma": 3.0
+    },
+    {
+     "timestamp": "2026-09-04T07:23:22.918528+00:00",
+     "model": "baseline:atc",
+     "is_final": true,
+     "seed": "mean",
+     "abs_error_alpha": 89.84375,
+     "estimate_alpha": 100.0,
+     "elapsed_alpha": 3.0,
+     "abs_error_beta": 10.9375,
+     "estimate_beta": 100.0,
+     "elapsed_beta": 3.0,
+     "abs_error_gamma": 13.28125,
+     "estimate_gamma": 96.484375,
+     "elapsed_gamma": 3.0
+    },
+    {
+     "timestamp": "2026-09-04T07:29:39.027499+00:00",
+     "model": "baseline:histogram",
+     "is_final": true,
+     "seed": "42",
+     "abs_error_alpha": 89.341237,
+     "estimate_alpha": 99.497487,
+     "elapsed_alpha": 3.0,
+     "abs_error_beta": 8.120728,
+     "estimate_beta": 97.183228,
+     "elapsed_beta": 2.0,
+     "abs_error_gamma": 15.783691000000005,
+     "estimate_gamma": 98.986816,
+     "elapsed_gamma": 2.0
+    },
+    {
+     "timestamp": "2026-09-04T07:29:39.029697+00:00",
+     "model": "baseline:histogram",
+     "is_final": true,
+     "seed": "mean",
+     "abs_error_alpha": 89.341237,
+     "estimate_alpha": 99.497487,
+     "elapsed_alpha": 3.0,
+     "abs_error_beta": 8.120728,
+     "estimate_beta": 97.183228,
+     "elapsed_beta": 2.0,
+     "abs_error_gamma": 15.783691000000005,
+     "estimate_gamma": 98.986816,
+     "elapsed_gamma": 2.0
+    },
+    {
+     "timestamp": "2026-09-04T07:27:27.849448+00:00",
+     "model": "baseline:quantile",
+     "is_final": true,
+     "seed": "42",
+     "abs_error_alpha": 89.84375,
+     "estimate_alpha": 100.0,
+     "elapsed_alpha": 3.0,
+     "abs_error_beta": 10.9375,
+     "estimate_beta": 100.0,
+     "elapsed_beta": 4.0,
+     "abs_error_gamma": 13.28125,
+     "estimate_gamma": 96.484375,
+     "elapsed_gamma": 4.0
+    },
+    {
+     "timestamp": "2026-09-04T07:27:27.850327+00:00",
+     "model": "baseline:quantile",
+     "is_final": true,
+     "seed": "mean",
+     "abs_error_alpha": 89.84375,
+     "estimate_alpha": 100.0,
+     "elapsed_alpha": 3.0,
+     "abs_error_beta": 10.9375,
+     "estimate_beta": 100.0,
+     "elapsed_beta": 4.0,
+     "abs_error_gamma": 13.28125,
+     "estimate_gamma": 96.484375,
+     "elapsed_gamma": 4.0
     }
    ]
   },
