@@ -1502,22 +1502,27 @@
   },
   {
    "id": "bandit-phe",
-   "name": "Perturbed-history exploration for stochastic bandits",
-   "summary": "Can pseudo-rewards generated from a perturbed history provide robust",
+   "name": "Randomised exploration without a parametric posterior",
+   "summary": "Bayesian exploration rules — Thompson sampling and Bayes-UCB — explore by",
    "category": "other",
    "category_label": "Other",
    "category_abbr": "",
-   "description_md": "# Perturbed-history exploration for stochastic bandits\n\n## Research question\n\nCan pseudo-rewards generated from a perturbed history provide robust\nexploration without assuming a parametric posterior? Implement the policy\ncomponent of Perturbed-History Exploration (PHE), while the fixed harness owns\nthe environment, reward draws and regret calculation.\n\nThis is the question studied by Kveton et al., “Perturbed-History Exploration\nin Stochastic Multi-Armed Bandits,” arXiv:1902.10089\n([paper](https://arxiv.org/abs/1902.10089)). PHE adds synthetic observations to\nthe observed history and uses the resulting empirical values for action\nselection. The perturbation rule is the scientific surface; do not tune the\nevaluation loop or read environment internals.\n\n## Implementation contract\n\nEdit only `SMPyBandits/custom_bandit.py` in the marked `BanditPolicy` region.\nImplement `select_arm(t, context)`, `update(arm, reward, context)`, and\n`reset()`. The fixed driver replays observable pre-decision histories through\n`update`, then requests one next-arm choice. Return an integer arm index in\n`[0, K)` and maintain state using only past rewards. Do not read files, inspect\nhidden settings, or print a self-scored metric.\n\n## Metrics and references\n\nThe harness reports held-out expected one-step regret (lower is better),\naveraged geometrically across independent settings and seeds. Reference implementations\nare UCB1 (Auer, Cesa-Bianchi & Fischer, 2002), Thompson Sampling (Thompson,\n1933), and PHE (Kveton et al., 2019). These are comparators; your editable\npolicy should be a genuine algorithmic variant.\n",
-   "description_html": "<h1>Perturbed-history exploration for stochastic bandits</h1>\n<h2>Research question</h2>\n<p>Can pseudo-rewards generated from a perturbed history provide robust\nexploration without assuming a parametric posterior? Implement the policy\ncomponent of Perturbed-History Exploration (PHE), while the fixed harness owns\nthe environment, reward draws and regret calculation.</p>\n<p>This is the question studied by Kveton et al., “Perturbed-History Exploration\nin Stochastic Multi-Armed Bandits,” arXiv:1902.10089\n(<a href=\"https://arxiv.org/abs/1902.10089\">paper</a>). PHE adds synthetic observations to\nthe observed history and uses the resulting empirical values for action\nselection. The perturbation rule is the scientific surface; do not tune the\nevaluation loop or read environment internals.</p>\n<h2>Implementation contract</h2>\n<p>Edit only <code>SMPyBandits/custom_bandit.py</code> in the marked <code>BanditPolicy</code> region.\nImplement <code>select_arm(t, context)</code>, <code>update(arm, reward, context)</code>, and\n<code>reset()</code>. The fixed driver replays observable pre-decision histories through\n<code>update</code>, then requests one next-arm choice. Return an integer arm index in\n<code>[0, K)</code> and maintain state using only past rewards. Do not read files, inspect\nhidden settings, or print a self-scored metric.</p>\n<h2>Metrics and references</h2>\n<p>The harness reports held-out expected one-step regret (lower is better),\naveraged geometrically across independent settings and seeds. Reference implementations\nare UCB1 (Auer, Cesa-Bianchi &amp; Fischer, 2002), Thompson Sampling (Thompson,\n1933), and PHE (Kveton et al., 2019). These are comparators; your editable\npolicy should be a genuine algorithmic variant.</p>",
+   "description_md": "# Randomised exploration without a parametric posterior\n\n## Research question\n\nBayesian exploration rules — Thompson sampling and Bayes-UCB — explore by\ndrawing from, or taking a quantile of, a *posterior*. That posterior is a\nmodel of the reward distribution: for rewards in `[0, 1]` the standard choice\nis a Beta posterior fed by a random `{0, 1}` binarisation of every\nobservation (Agrawal & Goyal, COLT 2012, Algorithm 2), which throws away\neverything about a continuous reward except its mean.\n\nTwo lines of work explore *without* such a model, by randomising the observed\nhistory itself: Perturbed-History Exploration adds pseudo-rewards to each\narm's record before comparing empirical means, and BESA sub-samples two\nhistories down to equal length and lets the sub-sampled averages decide.\nNeither assumes anything about the law of the rewards.\n\n**Can an arm-selection rule that randomises the history rather than a\nposterior match posterior-based exploration on Bernoulli rewards and beat it\nwhen the rewards are continuous?** Write the rule.\n\n## What you implement\n\n`BanditPolicy` in `SMPyBandits/custom_bandit.py` — `select_arm(t)` returns an\narm, `update(arm, reward)` records what came back, `reset()` starts a new\ninstance. A fixed harness (`mlsb_bandit_harness.py`, read-only) plays your\npolicy against a sequence of independent instances and reports the expected\ncumulative regret\n\n    R(T) = sum over rounds of ( best expected reward - expected reward played )\n\naveraged over the instances. Lower is better.\n\nYour policy runs in its own interpreter and is told only the round index and\nthe previous round's (arm, reward). The arm means of each instance are drawn\nfrom fresh operating-system entropy inside the harness at the start of every\nrun: they are not a function of the seed and cannot be recovered. The family\nthey are drawn from is stated in `mlsb_regimes.py`, which is the problem\nspecification and is read-only.\n\n## Reference baselines\n\nReference implementations of every named policy live in the vendored\n`SMPyBandits/Policies/` directory and are importable.\n\n- **UCB1** — Auer, Cesa-Bianchi & Fischer, *Machine Learning* 47, 2002.\n  Index `mean_k + sqrt(2 log t / N_k)`.\n- **kl-UCB** — Garivier & Cappé, COLT 2011 (arXiv:1102.2490). Index is the\n  largest `q` with `N_k * kl(mean_k, q) <= c log t`, with the paper default\n  `c = 1` and a Bernoulli divergence.\n- **Thompson sampling** — Thompson, *Biometrika*, 1933; Agrawal & Goyal,\n  COLT 2012. Flat `Beta(1, 1)` prior per arm, rewards binarised at random.\n- **Bayes-UCB** — Kaufmann, Cappé & Garivier, AISTATS 2012. The\n  `1 - 1/(1+t)` quantile of the same Beta posterior.\n- **PHE** — Kveton, Szepesvári, Ghavamzadeh & Boutilier,\n  *Perturbed-History Exploration in Stochastic Multi-Armed Bandits*,\n  arXiv:1902.10089, 2019. With `s` observations of an arm, add\n  `ceil(a*s)` pseudo-rewards of mean `1/2`; package default `a = 1`.\n- **BESA** — Baransi, Maillard & Mannor, *Sub-sampling for Multi-armed\n  Bandits*, ECML-PKDD 2014 (hal-01025651). A randomised binary tournament of\n  pairwise duels on equal-length uniform sub-samples of the two histories.\n\n## Rules\n\nEdit only the marked `BanditPolicy` region. Keep all state inside the policy,\nreturn an integer in `[0, K)`, and use only what the harness hands you.\nRaising, or naming an arm outside the action set, is charged as the worst arm\nof that round.\n",
+   "description_html": "<h1>Randomised exploration without a parametric posterior</h1>\n<h2>Research question</h2>\n<p>Bayesian exploration rules — Thompson sampling and Bayes-UCB — explore by\ndrawing from, or taking a quantile of, a <em>posterior</em>. That posterior is a\nmodel of the reward distribution: for rewards in <code>[0, 1]</code> the standard choice\nis a Beta posterior fed by a random <code>{0, 1}</code> binarisation of every\nobservation (Agrawal &amp; Goyal, COLT 2012, Algorithm 2), which throws away\neverything about a continuous reward except its mean.</p>\n<p>Two lines of work explore <em>without</em> such a model, by randomising the observed\nhistory itself: Perturbed-History Exploration adds pseudo-rewards to each\narm's record before comparing empirical means, and BESA sub-samples two\nhistories down to equal length and lets the sub-sampled averages decide.\nNeither assumes anything about the law of the rewards.</p>\n<p><strong>Can an arm-selection rule that randomises the history rather than a\nposterior match posterior-based exploration on Bernoulli rewards and beat it\nwhen the rewards are continuous?</strong> Write the rule.</p>\n<h2>What you implement</h2>\n<p><code>BanditPolicy</code> in <code>SMPyBandits/custom_bandit.py</code> — <code>select_arm(t)</code> returns an\narm, <code>update(arm, reward)</code> records what came back, <code>reset()</code> starts a new\ninstance. A fixed harness (<code>mlsb_bandit_harness.py</code>, read-only) plays your\npolicy against a sequence of independent instances and reports the expected\ncumulative regret</p>\n<pre class=\"codehilite\"><code>R(T) = sum over rounds of ( best expected reward - expected reward played )\n</code></pre>\n\n<p>averaged over the instances. Lower is better.</p>\n<p>Your policy runs in its own interpreter and is told only the round index and\nthe previous round's (arm, reward). The arm means of each instance are drawn\nfrom fresh operating-system entropy inside the harness at the start of every\nrun: they are not a function of the seed and cannot be recovered. The family\nthey are drawn from is stated in <code>mlsb_regimes.py</code>, which is the problem\nspecification and is read-only.</p>\n<h2>Reference baselines</h2>\n<p>Reference implementations of every named policy live in the vendored\n<code>SMPyBandits/Policies/</code> directory and are importable.</p>\n<ul>\n<li><strong>UCB1</strong> — Auer, Cesa-Bianchi &amp; Fischer, <em>Machine Learning</em> 47, 2002.\n  Index <code>mean_k + sqrt(2 log t / N_k)</code>.</li>\n<li><strong>kl-UCB</strong> — Garivier &amp; Cappé, COLT 2011 (arXiv:1102.2490). Index is the\n  largest <code>q</code> with <code>N_k * kl(mean_k, q) &lt;= c log t</code>, with the paper default\n  <code>c = 1</code> and a Bernoulli divergence.</li>\n<li><strong>Thompson sampling</strong> — Thompson, <em>Biometrika</em>, 1933; Agrawal &amp; Goyal,\n  COLT 2012. Flat <code>Beta(1, 1)</code> prior per arm, rewards binarised at random.</li>\n<li><strong>Bayes-UCB</strong> — Kaufmann, Cappé &amp; Garivier, AISTATS 2012. The\n  <code>1 - 1/(1+t)</code> quantile of the same Beta posterior.</li>\n<li><strong>PHE</strong> — Kveton, Szepesvári, Ghavamzadeh &amp; Boutilier,\n  <em>Perturbed-History Exploration in Stochastic Multi-Armed Bandits</em>,\n  arXiv:1902.10089, 2019. With <code>s</code> observations of an arm, add\n  <code>ceil(a*s)</code> pseudo-rewards of mean <code>1/2</code>; package default <code>a = 1</code>.</li>\n<li><strong>BESA</strong> — Baransi, Maillard &amp; Mannor, <em>Sub-sampling for Multi-armed\n  Bandits</em>, ECML-PKDD 2014 (hal-01025651). A randomised binary tournament of\n  pairwise duels on equal-length uniform sub-samples of the two histories.</li>\n</ul>\n<h2>Rules</h2>\n<p>Edit only the marked <code>BanditPolicy</code> region. Keep all state inside the policy,\nreturn an integer in <code>[0, K)</code>, and use only what the harness hands you.\nRaising, or naming an arm outside the action set, is charged as the worst arm\nof that round.</p>",
    "baselines": [
+    "uniform",
     "ucb1",
-    "thompson_sampling",
-    "phe"
+    "klucb",
+    "thompson",
+    "bayes_ucb",
+    "phe",
+    "phe_a21",
+    "besa"
    ],
    "environments": [
-    "stochastic_mab",
-    "heteroscedastic",
-    "nonstationary"
+    "bernoulli",
+    "beta",
+    "truncnorm"
    ],
    "packages": [
     "SMPyBandits"
@@ -1527,13 +1532,89 @@
      "filename": "SMPyBandits/custom_bandit.py",
      "edit_ranges": [
       {
-       "start": 34,
-       "end": 55
+       "start": 56,
+       "end": 83
       }
-     ]
+     ],
+     "content": "\"\"\"The arm-selection rule for an online multi-armed bandit.\n\nYou implement ``BanditPolicy`` below.  A fixed harness\n(``mlsb_bandit_harness.py``) plays your policy against a sequence of\nindependent bandit instances for T rounds each and reports the expected\ncumulative regret\n\n    R(T) = sum_{t=1..T} ( best expected reward at t - expected reward of A_t )\n\naveraged over the instances.  Lower is better.\n\nWhat you see, and what you do not\n---------------------------------\n* ``mlsb_regimes.py`` (read-only) states the *family* each instance is drawn\n  from -- the number of arms, the reward distribution, how the means are\n  generated.  That is the problem specification, exactly as a bandit paper\n  states it.\n* The realised instance -- the arm means themselves -- is drawn from fresh\n  operating-system entropy inside the harness process at the start of every\n  run.  It is not a function of ``SEED`` and cannot be recovered.\n* Your policy runs in its own interpreter.  Each round it is told the previous\n  round's (arm, reward) and the round index, and answers with an arm index.\n  Nothing else crosses that boundary.\n* ``SEED`` seeds your policy's own random generator, so a randomised policy is\n  reproducible in the part you control.\n\nThe methods you must implement are called exactly like this:\n\n    policy = BanditPolicy(K, horizon, rng)\n    policy.reset()\n    for t in range(horizon):\n        arm = policy.select_arm(t)              # in {0, ..., K-1}\n        reward = <the environment's response>\n        policy.update(arm, reward)              # delivered before round t+1\n\n``rng`` is a ``numpy.random.Generator``.  Rewards are floats; unless the\nregime file says otherwise they lie in [0, 1].  Raising an exception or\nreturning an arm outside {0, ..., K-1} is charged as the worst arm of that\nround, so a broken policy scores badly rather than crashing the run.\n\nThe vendored SMPyBandits package is importable (``from SMPyBandits.Policies\nimport ...``) and its ``Policies/`` directory holds reference implementations\nof the published algorithms this task compares against.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport sys\n\nimport numpy as np\n\n\n# =====================================================================\n# EDITABLE: BanditPolicy -- the arm-selection rule\n# =====================================================================\nclass BanditPolicy:\n    \"\"\"The exploration/exploitation rule under test.\n\n    The starter below picks an arm uniformly at random: it satisfies the\n    contract and does none of the science.  Replace it.\n    \"\"\"\n\n    def __init__(self, K: int, horizon: int, rng: np.random.Generator):\n        self.K = int(K)\n        self.horizon = int(horizon)\n        self.rng = rng\n        self.pulls = np.zeros(self.K, dtype=np.float64)\n        self.rewards = np.zeros(self.K, dtype=np.float64)\n\n    def reset(self) -> None:\n        \"\"\"Start a fresh instance: forget everything learned so far.\"\"\"\n        self.pulls[:] = 0.0\n        self.rewards[:] = 0.0\n\n    def select_arm(self, t: int) -> int:\n        \"\"\"Return the arm to play at round ``t`` (0-indexed).\"\"\"\n        return int(self.rng.integers(self.K))\n\n    def update(self, arm: int, reward: float) -> None:\n        \"\"\"Record the reward observed after playing ``arm``.\"\"\"\n        self.pulls[arm] += 1.0\n        self.rewards[arm] += reward\n\n\n# =====================================================================\n# FIXED: worker loop -- speaks the harness protocol.  Do not edit.\n# =====================================================================\ndef _worker_main() -> None:\n    out, inp = sys.stdout, sys.stdin\n    policy = None\n    reported = False\n    while True:\n        raw = inp.readline()\n        if raw == \"\":\n            return\n        line = raw.strip()\n        if not line:\n            continue\n        head, _, rest = line.partition(\" \")\n        if head == \"INIT\":\n            n_arms, horizon, policy_seed = (int(x) for x in rest.split())\n            rng = np.random.default_rng(policy_seed)\n            np.random.seed(policy_seed % (2 ** 32))\n            try:\n                import random as _random\n                _random.seed(policy_seed)\n            except Exception:\n                pass\n            policy = BanditPolicy(n_arms, horizon, rng)\n            policy.reset()\n            reported = False\n            out.write(\"READY\\n\")\n            out.flush()\n        elif head == \"S\":\n            fields = rest.split()\n            t, prev_arm, prev_reward = (\n                int(fields[0]), int(fields[1]), float(fields[2]))\n            if prev_arm >= 0:\n                try:\n                    policy.update(prev_arm, prev_reward)\n                except Exception:\n                    if not reported:\n                        import traceback\n                        traceback.print_exc()\n                        reported = True\n            try:\n                arm = int(policy.select_arm(t))\n            except Exception:\n                if not reported:\n                    import traceback\n                    traceback.print_exc()\n                    reported = True\n                arm = -1\n            out.write(\"%d\\n\" % arm)\n            out.flush()\n        elif head == \"END\":\n            policy = None\n        elif head == \"BYE\":\n            return\n\n\nif __name__ == \"__main__\":\n    if \"--worker\" in sys.argv[1:]:\n        _worker_main()\n    else:\n        sys.stderr.write(\n            \"custom_bandit.py is driven by mlsb_bandit_harness.py; \"\n            \"run the task's scripts/ instead.\\n\")\n        sys.exit(2)\n"
+    },
+    {
+     "filename": "SMPyBandits/mlsb_regimes.py",
+     "edit_ranges": [],
+     "content": "\"\"\"FIXED regime family for this task.  READ-ONLY -- do not edit.\n\nRandomised exploration without a parametric posterior\n-----------------------------------------------------\nThompson sampling and Bayes-UCB explore by drawing from (or taking a quantile\nof) a *posterior*, which has to be a model of the reward distribution: for\nrewards in [0, 1] that model is a Beta posterior fed by a random {0,1}\nbinarisation of every observation (Agrawal & Goyal, COLT 2012, Algorithm 2).\nPerturbed-History Exploration and BESA randomise the *observed history*\ninstead -- adding pseudo-rewards, or sub-sampling two histories to equal\nlength -- and assume nothing about the law of the rewards.\n\nThe ladder keeps the arm means drawn the same way and changes only the law of\nthe rewards around them:\n\n  bernoulli   Ber(mu_i)                        -- the Beta posterior is exact\n  beta        Beta(v*mu_i, v*(1-mu_i)), v = 4  -- continuous, same means\n  truncnorm   N(., sigma_i) truncated to [0,1] -- continuous, per-arm scale\n\nThe first two classes, the arm count, the mean range and the horizon are the\nprotocol of Kveton, Szepesvari, Ghavamzadeh & Boutilier, \"Perturbed-History\nExploration in Stochastic Multi-Armed Bandits\" (arXiv:1902.10089), section\n5.1: K = 10 arms, means drawn uniformly at random from [0.25, 0.75], horizon\nn = 10000, results averaged over independently drawn problems.  The third\nclass extends the same axis to a law with a per-arm scale.\n\nEvery instance is drawn afresh from operating-system entropy inside the\nharness process; only the family described here is public.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport numpy as np\nfrom scipy.special import ndtr, ndtri\n\n\nclass Instance(object):\n    \"\"\"One bandit problem instance.  The harness never shows it to the policy.\"\"\"\n\n    K = 0\n\n    def start(self):\n        raise NotImplementedError\n\n    def pull(self, t, arm):\n        \"\"\"Play ``arm`` at round ``t``; return the observed reward.\"\"\"\n        raise NotImplementedError\n\n    def regret(self):\n        \"\"\"Expected cumulative regret accumulated so far.\"\"\"\n        raise NotImplementedError\n\n    def worst_arm(self):\n        \"\"\"The arm a policy could not do worse than, used to charge a\n        contract violation.\"\"\"\n        raise NotImplementedError\n\n\nclass StationaryInstance(Instance):\n    \"\"\"K arms with fixed expected rewards; ``sampler(arm, rng) -> reward``.\"\"\"\n\n    def __init__(self, means, sampler, rng):\n        self.means = np.asarray(means, dtype=float)\n        self.K = int(self.means.size)\n        self._sampler = sampler\n        self._rng = rng\n        self._best = float(self.means.max())\n        self._worst = int(np.argmin(self.means))\n        self._regret = 0.0\n\n    def start(self):\n        self._regret = 0.0\n\n    def worst_arm(self):\n        return self._worst\n\n    def pull(self, t, arm):\n        self._regret += self._best - float(self.means[arm])\n        return float(self._sampler(arm, self._rng))\n\n    def regret(self):\n        return self._regret\n\n\ndef random_means(rng, n_arms, lower, upper):\n    \"\"\"Arm means drawn i.i.d. uniformly in [lower, upper].\n\n    This is SMPyBandits ``Arms/__init__.py:randomMeans`` (lines 176-189) with\n    ``mingap=None`` and the module-level ``np.random`` replaced by the\n    harness generator, i.e. the draw of arXiv:1902.10089 section 5.1:\n    \"the mean rewards of these arms are chosen uniformly at random from\n    interval [0.25, 0.75]\".\n    \"\"\"\n    return lower + (upper - lower) * rng.random(n_arms)\n\n# ---------------------------------------------------------------------\n# Reward laws on [0, 1], all with the prescribed mean\n# ---------------------------------------------------------------------\ndef _bernoulli_sampler(means):\n    def sample(arm, rng):\n        return 1.0 if rng.random() < means[arm] else 0.0\n    return sample\n\n\ndef _beta_sampler(means, concentrations):\n    alpha = np.clip(means * concentrations, 1e-3, None)\n    beta = np.clip((1.0 - means) * concentrations, 1e-3, None)\n\n    def sample(arm, rng):\n        return float(rng.beta(alpha[arm], beta[arm]))\n    return sample\n\n\ndef _truncnorm_location(mu_target, sigma):\n    \"\"\"Location of a Gaussian whose truncation to [0, 1] has mean mu_target.\"\"\"\n    def trunc_mean(loc):\n        a, b = (0.0 - loc) / sigma, (1.0 - loc) / sigma\n        za, zb = ndtr(a), ndtr(b)\n        mass = max(zb - za, 1e-12)\n        phi = lambda z: np.exp(-0.5 * z * z) / np.sqrt(2.0 * np.pi)\n        return loc + sigma * (phi(a) - phi(b)) / mass\n\n    lo, hi = -6.0, 7.0\n    for _ in range(80):\n        mid = 0.5 * (lo + hi)\n        if trunc_mean(mid) < mu_target:\n            lo = mid\n        else:\n            hi = mid\n    return 0.5 * (lo + hi)\n\n\ndef _truncnorm_sampler(means, sigmas):\n    locs = np.array([_truncnorm_location(m, s) for m, s in zip(means, sigmas)])\n    los = ndtr((0.0 - locs) / sigmas)\n    his = ndtr((1.0 - locs) / sigmas)\n\n    def sample(arm, rng):\n        u = los[arm] + (his[arm] - los[arm]) * rng.random()\n        u = min(max(u, 1e-12), 1.0 - 1e-12)\n        return float(np.clip(locs[arm] + sigmas[arm] * ndtri(u), 0.0, 1.0))\n    return sample\n\n\n# ---------------------------------------------------------------------\n# The regime ladder\n# ---------------------------------------------------------------------\nSETTINGS = {\n    # Bernoulli rewards: the Beta posterior of Thompson sampling and\n    # Bayes-UCB is exactly specified here.  arXiv:1902.10089 section 5.1.\n    \"bernoulli\": {\"law\": \"bernoulli\", \"n_arms\": 10,\n                  \"mean_lower\": 0.25, \"mean_upper\": 0.75,\n                  \"horizon\": 10000, \"instances\": 100},\n    # Beta rewards with the paper's concentration v = 4: same means, a\n    # continuous law the Beta posterior does not model.\n    \"beta\": {\"law\": \"beta\", \"n_arms\": 10,\n             \"mean_lower\": 0.25, \"mean_upper\": 0.75,\n             \"horizon\": 10000, \"instances\": 100},\n    # Truncated Gaussian rewards with a per-arm scale.\n    \"truncnorm\": {\"law\": \"truncnorm\", \"n_arms\": 10,\n                  \"mean_lower\": 0.25, \"mean_upper\": 0.75,\n                  \"horizon\": 10000, \"instances\": 100},\n}\n\n#: Concentration of the beta bandit, v = 4 in arXiv:1902.10089 section 5.1.\nBETA_CONCENTRATION = 4.0\n#: Per-arm truncated-Gaussian scales, cycled over the arms.\nTRUNCNORM_SIGMAS = (0.10, 0.20, 0.35)\n\n\ndef make_instance(label, rng):\n    \"\"\"Draw one instance of the named regime from ``rng``.\"\"\"\n    spec = SETTINGS[label]\n    n_arms = int(spec[\"n_arms\"])\n    means = random_means(rng, n_arms, spec[\"mean_lower\"], spec[\"mean_upper\"])\n    law = spec[\"law\"]\n    if law == \"bernoulli\":\n        sampler = _bernoulli_sampler(means)\n    elif law == \"beta\":\n        conc = np.full(n_arms, BETA_CONCENTRATION, dtype=float)\n        sampler = _beta_sampler(means, conc)\n    elif law == \"truncnorm\":\n        sig = np.array([TRUNCNORM_SIGMAS[i % len(TRUNCNORM_SIGMAS)]\n                        for i in range(n_arms)], dtype=float)\n        rng.shuffle(sig)\n        sampler = _truncnorm_sampler(means, sig)\n    else:\n        raise ValueError(\"unknown reward law %r\" % law)\n    return StationaryInstance(means, sampler, rng)\n"
+    },
+    {
+     "filename": "SMPyBandits/mlsb_bandit_harness.py",
+     "edit_ranges": [],
+     "content": "\"\"\"FIXED online-bandit evaluation harness.  READ-ONLY -- do not edit.\n\nWhat this file does\n-------------------\nIt plays a sequence of independent bandit instances against the policy you\nwrite in ``custom_bandit.py`` and reports the *expected cumulative regret*\n\n    R(T) = sum_{t=1..T} ( best_expected_reward(t) - expected_reward(A_t, t) )\n\naveraged over several independent instances, which is the quantity the bandit\nliterature reports.\n\nTwo properties of this harness matter for how you write your policy:\n\n1. **The instances are drawn from fresh operating-system entropy at the start\n   of every run.**  ``SEED`` seeds *your policy's* random generator only, so\n   your results are reproducible in the parts you control, but the problem\n   instance is new every time and cannot be memorised or recomputed.\n\n2. **Your policy runs in a separate interpreter.**  This harness starts\n   ``custom_bandit.py --worker`` as a child process and talks to it over a\n   pipe, one line per round.  Your code therefore never shares an address\n   space or a standard output with the code that measures it: the only thing\n   you can influence is which arm you name at each round.\n\nWire protocol (handled for you by the fixed ``_worker_main`` in\n``custom_bandit.py``; documented here so the harness is readable):\n\n    parent -> child   INIT <K> <horizon> <policy_seed>\n    child  -> parent  READY\n    parent -> child   S <t> <prev_arm> <prev_reward>      (prev_arm = -1 at t=0)\n    child  -> parent  <arm>\n    ...\n    parent -> child   END        (instance finished; next INIT follows)\n    parent -> child   BYE        (no more instances)\n\"\"\"\n\nfrom __future__ import annotations\n\nimport argparse\nimport json\nimport os\nimport subprocess\nimport sys\nimport time\n\nimport numpy as np\n\nimport mlsb_regimes as regimes\n\nWORKER_ENV_KEYS = (\"PATH\", \"LANG\", \"LC_ALL\", \"TMPDIR\")\n\n\nclass ProtocolError(RuntimeError):\n    \"\"\"The policy process stopped speaking the protocol.\"\"\"\n\n\nclass PolicyWorker:\n    \"\"\"A policy running in its own interpreter, driven over a pipe.\"\"\"\n\n    def __init__(self, policy_path: str, stderr_path: str):\n        policy_path = os.path.abspath(policy_path)\n        workspace = os.path.dirname(os.path.dirname(policy_path))\n        env = {k: os.environ[k] for k in WORKER_ENV_KEYS if k in os.environ}\n        # The vendored SMPyBandits package is importable from the policy, the\n        # same way it is for the reference baselines.\n        env[\"PYTHONPATH\"] = workspace\n        env[\"HOME\"] = env.get(\"TMPDIR\", \"/tmp\")\n        for var in (\"OMP_NUM_THREADS\", \"OPENBLAS_NUM_THREADS\",\n                    \"MKL_NUM_THREADS\", \"NUMEXPR_NUM_THREADS\"):\n            env[var] = \"1\"\n        self._stderr = open(stderr_path, \"w\")\n        self.proc = subprocess.Popen(\n            [sys.executable, \"-B\", \"-s\", policy_path, \"--worker\"],\n            stdin=subprocess.PIPE,\n            stdout=subprocess.PIPE,\n            stderr=self._stderr,\n            cwd=workspace,\n            env=env,\n            text=True,\n            bufsize=1,\n        )\n\n    def send(self, line: str) -> None:\n        try:\n            self.proc.stdin.write(line + \"\\n\")\n            self.proc.stdin.flush()\n        except (BrokenPipeError, ValueError) as exc:\n            raise ProtocolError(\"policy process is gone (%s)\" % exc) from None\n\n    def recv(self) -> str:\n        line = self.proc.stdout.readline()\n        if line == \"\":\n            raise ProtocolError(\"policy process closed its output stream\")\n        return line.strip()\n\n    def close(self) -> None:\n        try:\n            self.send(\"BYE\")\n        except ProtocolError:\n            pass\n        try:\n            self.proc.wait(timeout=20)\n        except subprocess.TimeoutExpired:\n            self.proc.kill()\n            self.proc.wait(timeout=20)\n        for stream in (self.proc.stdin, self.proc.stdout):\n            try:\n                stream.close()\n            except Exception:\n                pass\n        self._stderr.close()\n\n\ndef play_one(worker: PolicyWorker, instance, horizon: int, policy_seed: int):\n    \"\"\"Play a single instance for ``horizon`` rounds.  Returns (regret, n_bad).\"\"\"\n    worker.send(\"INIT %d %d %d\" % (instance.K, horizon, policy_seed))\n    ack = worker.recv()\n    if ack != \"READY\":\n        raise ProtocolError(\"expected READY after INIT, got %r\" % ack[:80])\n\n    instance.start()\n    prev_arm, prev_reward, n_bad = -1, 0.0, 0\n    for t in range(horizon):\n        worker.send(\"S %d %d %.17g\" % (t, prev_arm, prev_reward))\n        answer = worker.recv()\n        try:\n            arm = int(answer)\n        except (TypeError, ValueError):\n            raise ProtocolError(\n                \"policy answered %r, which is not an arm index\" % answer[:80]\n            ) from None\n        if not (0 <= arm < instance.K):\n            # A contract violation is charged as the worst possible choice for\n            # this round rather than crashing the run.\n            n_bad += 1\n            arm = instance.worst_arm()\n        prev_reward = float(instance.pull(t, arm))\n        prev_arm = arm\n    worker.send(\"END\")\n    return float(instance.regret()), n_bad\n\n\ndef main() -> int:\n    ap = argparse.ArgumentParser()\n    ap.add_argument(\"--regime\", required=True)\n    ap.add_argument(\"--seed\", type=int, default=42)\n    ap.add_argument(\"--instances\", type=int, default=0,\n                    help=\"0 = the regime's own default\")\n    ap.add_argument(\"--horizon\", type=int, default=0,\n                    help=\"0 = the regime's own default\")\n    ap.add_argument(\"--nonce-file\", required=True)\n    ap.add_argument(\"--policy\", default=None)\n    ap.add_argument(\"--time-budget\", type=float, default=0.0)\n    args = ap.parse_args()\n\n    # Read the run nonce and destroy it immediately, before any untrusted code\n    # exists in this container: only lines carrying it are trusted downstream.\n    with open(args.nonce_file) as fh:\n        nonce = fh.read().strip()\n    os.unlink(args.nonce_file)\n    if not nonce:\n        print(\"empty nonce\", file=sys.stderr)\n        return 2\n\n    if args.regime not in regimes.SETTINGS:\n        print(\"unknown regime %r\" % args.regime, file=sys.stderr)\n        return 2\n    spec = regimes.SETTINGS[args.regime]\n    horizon = args.horizon or int(spec[\"horizon\"])\n    n_instances = args.instances or int(spec[\"instances\"])\n\n    here = os.path.dirname(os.path.abspath(__file__))\n    policy_path = args.policy or os.path.join(here, \"custom_bandit.py\")\n    stderr_path = os.path.join(\n        os.environ.get(\"TMPDIR\", \"/tmp\"), \"mlsb_policy_stderr.log\")\n\n    # Fresh operating-system entropy: the instances of this run exist nowhere\n    # else and are not a function of any public seed.\n    entropy = np.random.SeedSequence().entropy\n    instance_rng = np.random.default_rng(np.random.SeedSequence(entropy))\n\n    print(\"[harness] regime=%s horizon=%d instances=%d policy_seed=%d\"\n          % (args.regime, horizon, n_instances, args.seed), flush=True)\n\n    worker = PolicyWorker(policy_path, stderr_path)\n    started = time.time()\n    per_instance, n_bad_total, status = [], 0, \"OK\"\n    try:\n        for i in range(n_instances):\n            instance = regimes.make_instance(args.regime, instance_rng)\n            regret, n_bad = play_one(\n                worker, instance, horizon, int(args.seed) * 1000003 + i)\n            per_instance.append(regret)\n            n_bad_total += n_bad\n            print(\"[harness] instance %d/%d regret=%.4f elapsed=%.1fs\"\n                  % (i + 1, n_instances, regret, time.time() - started),\n                  flush=True)\n            if args.time_budget and (time.time() - started) > args.time_budget:\n                status = \"TIMEOUT\"\n                break\n    except ProtocolError as exc:\n        status = \"PROTOCOL_ERROR\"\n        print(\"[harness] %s\" % exc, flush=True)\n    finally:\n        worker.close()\n\n    if os.path.exists(stderr_path):\n        with open(stderr_path) as fh:\n            tail = fh.read()[-4000:]\n        if tail.strip():\n            print(\"[harness] policy stderr tail:\\n%s\" % tail, flush=True)\n\n    if status != \"OK\" or len(per_instance) < n_instances:\n        print(\"[harness] run did not complete (%s, %d/%d instances)\"\n              % (status, len(per_instance), n_instances), flush=True)\n        return 1\n\n    values = np.asarray(per_instance, dtype=float)\n    if not np.all(np.isfinite(values)):\n        print(\"[harness] non-finite regret\", flush=True)\n        return 1\n    payload = {\n        \"regime\": args.regime,\n        \"regret\": float(values.mean()),\n        \"regret_sd\": float(values.std(ddof=1)) if len(values) > 1 else 0.0,\n        \"regret_per_instance\": [round(v, 6) for v in values.tolist()],\n        \"normalized_regret\": float(values.mean() / horizon),\n        \"instances\": int(len(values)),\n        \"horizon\": int(horizon),\n        \"protocol_violations\": int(n_bad_total),\n        \"wall_seconds\": round(time.time() - started, 2),\n    }\n    print(\"HARNESS_RESULT %s %s\" % (nonce, json.dumps(payload, sort_keys=True)),\n          flush=True)\n    return 0\n\n\nif __name__ == \"__main__\":\n    sys.exit(main())\n"
     }
    ],
-   "baselines_code": {},
+   "baselines_code": {
+    "uniform": [
+     {
+      "file": "SMPyBandits/custom_bandit.py",
+      "start_line": 56,
+      "end_line": 83,
+      "content": "class BanditPolicy:\n    \"\"\"DECLARED NULL -- plays a uniformly random arm at every round.\"\"\"\n\n    def __init__(self, K: int, horizon: int, rng: np.random.Generator):\n        self.K = int(K)\n        self.horizon = int(horizon)\n        self.rng = rng\n\n    def reset(self) -> None:\n        pass\n\n    def select_arm(self, t: int) -> int:\n        return int(self.rng.integers(self.K))\n\n    def update(self, arm: int, reward: float) -> None:\n        pass\n\n"
+     }
+    ],
+    "ucb1": [
+     {
+      "file": "SMPyBandits/custom_bandit.py",
+      "start_line": 56,
+      "end_line": 83,
+      "content": "class BanditPolicy:\n    \"\"\"UCB1: index = empirical mean + sqrt(2 log(t) / N_k(t)).\"\"\"\n\n    def __init__(self, K: int, horizon: int, rng: np.random.Generator):\n        self.K = int(K)\n        self.horizon = int(horizon)\n        self.rng = rng\n        self.pulls = np.zeros(self.K, dtype=np.float64)\n        self.rewards = np.zeros(self.K, dtype=np.float64)\n\n    def reset(self) -> None:\n        self.pulls[:] = 0.0\n        self.rewards[:] = 0.0\n\n    def select_arm(self, t: int) -> int:\n        n = np.maximum(self.pulls, 1.0)\n        index = (self.rewards / n) + np.sqrt((2.0 * np.log(max(t, 1))) / n)\n        index[self.pulls < 1] = np.inf\n        best = np.flatnonzero(index == index.max())\n        return int(best[0] if best.size == 1 else self.rng.choice(best))\n\n    def update(self, arm: int, reward: float) -> None:\n        self.pulls[arm] += 1.0\n        self.rewards[arm] += float(reward)\n\n"
+     }
+    ],
+    "klucb": [
+     {
+      "file": "SMPyBandits/custom_bandit.py",
+      "start_line": 56,
+      "end_line": 83,
+      "content": "_KL_EPS = 1e-15\n\n\ndef _kl_bern(x, y):\n    \"\"\"KL(Bern(x) || Bern(y)) -- kullback.py:58-81.\"\"\"\n    x = min(max(x, _KL_EPS), 1.0 - _KL_EPS)\n    y = min(max(y, _KL_EPS), 1.0 - _KL_EPS)\n    return x * np.log(x / y) + (1.0 - x) * np.log((1.0 - x) / (1.0 - y))\n\n\ndef _klucb_bern(x, d, precision=1e-4, max_iterations=50):\n    \"\"\"kl-UCB index for Bernoulli arms -- kullback.py:361-441.\"\"\"\n    upperbound = min(1.0, x + np.sqrt(abs(2.0 * 0.25 * d)))\n    value, u, it = x, upperbound, 0\n    while it < max_iterations and u - value > precision:\n        it += 1\n        m = (value + u) * 0.5\n        if _kl_bern(x, m) > d:\n            u = m\n        else:\n            value = m\n    return (value + u) * 0.5\n\n\nclass BanditPolicy:\n    \"\"\"kl-UCB with the Bernoulli divergence and c = 1.\"\"\"\n\n    C = 1.0\n    TOLERANCE = 1e-4\n\n    def __init__(self, K: int, horizon: int, rng: np.random.Generator):\n        self.K = int(K)\n        self.horizon = int(horizon)\n        self.rng = rng\n        self.pulls = np.zeros(self.K, dtype=np.float64)\n        self.rewards = np.zeros(self.K, dtype=np.float64)\n\n    def reset(self) -> None:\n        self.pulls[:] = 0.0\n        self.rewards[:] = 0.0\n\n    def select_arm(self, t: int) -> int:\n        index = np.empty(self.K, dtype=np.float64)\n        log_t = np.log(max(t, 1))\n        for arm in range(self.K):\n            n = self.pulls[arm]\n            if n < 1:\n                index[arm] = np.inf\n            else:\n                index[arm] = _klucb_bern(\n                    self.rewards[arm] / n, self.C * log_t / n, self.TOLERANCE)\n        best = np.flatnonzero(index == index.max())\n        return int(best[0] if best.size == 1 else self.rng.choice(best))\n\n    def update(self, arm: int, reward: float) -> None:\n        self.pulls[arm] += 1.0\n        self.rewards[arm] += float(reward)\n\n"
+     }
+    ],
+    "thompson": [
+     {
+      "file": "SMPyBandits/custom_bandit.py",
+      "start_line": 56,
+      "end_line": 83,
+      "content": "class BanditPolicy:\n    \"\"\"Thompson sampling, flat Beta(1, 1) prior, Agrawal-Goyal binarisation.\"\"\"\n\n    def __init__(self, K: int, horizon: int, rng: np.random.Generator):\n        self.K = int(K)\n        self.horizon = int(horizon)\n        self.rng = rng\n        self.successes = np.ones(self.K, dtype=np.float64)\n        self.failures = np.ones(self.K, dtype=np.float64)\n\n    def reset(self) -> None:\n        self.successes[:] = 1.0\n        self.failures[:] = 1.0\n\n    def select_arm(self, t: int) -> int:\n        samples = self.rng.beta(self.successes, self.failures)\n        best = np.flatnonzero(samples == samples.max())\n        return int(best[0] if best.size == 1 else self.rng.choice(best))\n\n    def update(self, arm: int, reward: float) -> None:\n        # Beta.py:38-70 -- a reward in [0, 1] is binarised at random.\n        r = float(reward)\n        if r not in (0.0, 1.0):\n            r = 1.0 if self.rng.random() < r else 0.0\n        if r == 1.0:\n            self.successes[arm] += 1.0\n        else:\n            self.failures[arm] += 1.0\n\n"
+     }
+    ],
+    "bayes_ucb": [
+     {
+      "file": "SMPyBandits/custom_bandit.py",
+      "start_line": 56,
+      "end_line": 83,
+      "content": "from scipy.special import betaincinv\n\n\nclass BanditPolicy:\n    \"\"\"Bayes-UCB: the 1 - 1/(1+t) quantile of a flat Beta posterior.\"\"\"\n\n    def __init__(self, K: int, horizon: int, rng: np.random.Generator):\n        self.K = int(K)\n        self.horizon = int(horizon)\n        self.rng = rng\n        self.successes = np.ones(self.K, dtype=np.float64)\n        self.failures = np.ones(self.K, dtype=np.float64)\n\n    def reset(self) -> None:\n        self.successes[:] = 1.0\n        self.failures[:] = 1.0\n\n    def select_arm(self, t: int) -> int:\n        p = 1.0 - 1.0 / (1.0 + t)\n        index = betaincinv(self.successes, self.failures, p)\n        best = np.flatnonzero(index == index.max())\n        return int(best[0] if best.size == 1 else self.rng.choice(best))\n\n    def update(self, arm: int, reward: float) -> None:\n        r = float(reward)\n        if r not in (0.0, 1.0):\n            r = 1.0 if self.rng.random() < r else 0.0\n        if r == 1.0:\n            self.successes[arm] += 1.0\n        else:\n            self.failures[arm] += 1.0\n\n"
+     }
+    ],
+    "phe": [
+     {
+      "file": "SMPyBandits/custom_bandit.py",
+      "start_line": 56,
+      "end_line": 83,
+      "content": "from math import ceil\n\n\nclass BanditPolicy:\n    \"\"\"PHE: add ceil(a*s) pseudo-rewards of mean 1/2 to each arm's history.\"\"\"\n\n    PERTURBATION_SCALE = 1.1  # arXiv:1902.10089 section 5\n\n    def __init__(self, K: int, horizon: int, rng: np.random.Generator):\n        self.K = int(K)\n        self.horizon = int(horizon)\n        self.rng = rng\n        self.pulls = np.zeros(self.K, dtype=np.float64)\n        self.rewards = np.zeros(self.K, dtype=np.float64)\n\n    def reset(self) -> None:\n        self.pulls[:] = 0.0\n        self.rewards[:] = 0.0\n\n    def select_arm(self, t: int) -> int:\n        index = np.empty(self.K, dtype=np.float64)\n        for arm in range(self.K):\n            s = self.pulls[arm]\n            if s <= 0:\n                index[arm] = np.inf\n                continue\n            n_pert = int(ceil(self.PERTURBATION_SCALE * s))\n            u = self.rng.binomial(n_pert, 0.5)\n            index[arm] = (self.rewards[arm] + u) / (s + n_pert)\n        best = np.flatnonzero(index == index.max())\n        return int(best[0] if best.size == 1 else self.rng.choice(best))\n\n    def update(self, arm: int, reward: float) -> None:\n        self.pulls[arm] += 1.0\n        self.rewards[arm] += float(reward)\n\n"
+     }
+    ],
+    "phe_a21": [
+     {
+      "file": "SMPyBandits/custom_bandit.py",
+      "start_line": 56,
+      "end_line": 83,
+      "content": "from math import ceil\n\n\nclass BanditPolicy:\n    \"\"\"PHE: add ceil(a*s) pseudo-rewards of mean 1/2 to each arm's history.\"\"\"\n\n    PERTURBATION_SCALE = 2.1  # arXiv:1902.10089 section 4\n\n    def __init__(self, K: int, horizon: int, rng: np.random.Generator):\n        self.K = int(K)\n        self.horizon = int(horizon)\n        self.rng = rng\n        self.pulls = np.zeros(self.K, dtype=np.float64)\n        self.rewards = np.zeros(self.K, dtype=np.float64)\n\n    def reset(self) -> None:\n        self.pulls[:] = 0.0\n        self.rewards[:] = 0.0\n\n    def select_arm(self, t: int) -> int:\n        index = np.empty(self.K, dtype=np.float64)\n        for arm in range(self.K):\n            s = self.pulls[arm]\n            if s <= 0:\n                index[arm] = np.inf\n                continue\n            n_pert = int(ceil(self.PERTURBATION_SCALE * s))\n            u = self.rng.binomial(n_pert, 0.5)\n            index[arm] = (self.rewards[arm] + u) / (s + n_pert)\n        best = np.flatnonzero(index == index.max())\n        return int(best[0] if best.size == 1 else self.rng.choice(best))\n\n    def update(self, arm: int, reward: float) -> None:\n        self.pulls[arm] += 1.0\n        self.rewards[arm] += float(reward)\n\n"
+     }
+    ],
+    "besa": [
+     {
+      "file": "SMPyBandits/custom_bandit.py",
+      "start_line": 56,
+      "end_line": 83,
+      "content": "class BanditPolicy:\n    \"\"\"BESA: recursive tournament of equal-length sub-sampled histories.\"\"\"\n\n    TOLERANCE = 1e-6\n    MIN_PULLS_OF_EACH_ARM = 1\n\n    def __init__(self, K: int, horizon: int, rng: np.random.Generator):\n        self.K = int(K)\n        self.horizon = int(horizon)\n        self.rng = rng\n        self.pulls = np.zeros(self.K, dtype=np.int64)\n        self.all_rewards = np.full((self.K, self.horizon + 1), -1e5)\n        self._actions = np.arange(self.K)\n\n    def reset(self) -> None:\n        self.pulls[:] = 0\n        self.all_rewards.fill(-1e5)\n\n    def _duel(self, a, b):\n        \"\"\"BESA.py:78-135.\"\"\"\n        if a == b:\n            return a\n        na, nb = int(self.pulls[a]), int(self.pulls[b])\n        n = min(na, nb)\n        ia = self.rng.choice(na, size=n, replace=False)\n        ib = self.rng.choice(nb, size=n, replace=False)\n        mean_a = float(np.sum(self.all_rewards[a, ia])) / n\n        mean_b = float(np.sum(self.all_rewards[b, ib])) / n\n        if mean_a > mean_b + self.TOLERANCE:\n            return a\n        if mean_b > mean_a + self.TOLERANCE:\n            return b\n        if na < nb:\n            return a\n        if na > nb:\n            return b\n        return int(self.rng.choice([a, b]))\n\n    def _tournament(self, actions):\n        \"\"\"BESA.py:312-347 -- binary divide and conquer over shuffled arms.\"\"\"\n        if len(actions) <= 1:\n            return int(actions[0])\n        if len(actions) == 2:\n            return self._duel(int(actions[0]), int(actions[1]))\n        half = len(actions) // 2\n        left = self._tournament(actions[:half])\n        right = self._tournament(actions[half:])\n        return self._duel(left, right)\n\n    def select_arm(self, t: int) -> int:\n        never = np.flatnonzero(self.pulls < self.MIN_PULLS_OF_EACH_ARM)\n        if never.size > 0:\n            return int(self.rng.choice(never))\n        self.rng.shuffle(self._actions)\n        return int(self._tournament(self._actions))\n\n    def update(self, arm: int, reward: float) -> None:\n        self.all_rewards[arm, self.pulls[arm]] = float(reward)\n        self.pulls[arm] += 1\n\n"
+     }
+    ]
+   },
    "rigorous_codebase": true,
    "allow_create": false,
    "has_agent_logs": false
@@ -13546,9 +13627,11 @@
    "description_md": "# Robust regression under distribution shift\n\n## Research question\n\nCan a single, modular regression estimator remain accurate when the training\nresponses have heavy tails, gross errors, or leverage-point corruption? Design\nan influence-control and/or weighting rule that transfers across these regimes,\nrather than tuning a separate model for each one. The editable artifact is the\n`RobustRegressor` class in `scikit-learn/custom_robust.py`; do not change the\ndriver, data, metric, or interface.\n\nThis question is grounded in Huber, “Robust Estimation of a Location\nParameter,” *Annals of Mathematical Statistics* 35(1), 1964,\ndoi:10.1214/aoms/1177703732, and Huber, “Robust Regression,” *Annals of\nStatistics* 1(5), 1973, doi:10.1214/aos/1176342503. The challenge is to improve\non classical bounded-influence estimation while retaining efficiency on clean\nobservations. RANSAC (Fischler and Bolles, CACM 24(6), 1981,\ndoi:10.1145/358669.358692) is included as a consensus reference.\n\n## Interface\n\nImplement `RobustRegressor(seed: int, d: int)`, `reset()`, and\n`fit(data: dict) -> numpy.ndarray`. `data[\"X\"]` is an `(n, d)` floating-point\nmatrix and `data[\"y\"]` is a length-`n` vector. Return a finite vector of shape\n`(d,)`. All estimator randomness must come from `self.rng`; the evaluator may\ncall `fit` repeatedly on fresh samples.\n\nThe supplied driver centers features and includes an intercept column. It gives\nthe estimator only a contaminated training sample and scores predictions on a\nseparate clean holdout. The evaluator uses a controlled linear-regression\ngenerator with a verifier-only keyed seed; exact coefficients, draws, and\nholdout targets are evaluator details. Infer the intended generalization\nbehavior from the interface and metric rather than relying on constants.\n\n## Evaluation\n\nThe metric is test RMSE (lower is better), aggregated geometrically across\nthree settings. Reference implementations are provided for comparison:\n\n- `ols`: ordinary least squares, a non-robust control.\n- `huber`: Huber M-estimation solved by MAD-scaled IRLS (Huber 1964/1973).\n- `ransac`: random-sample consensus regression (Fischler and Bolles 1981).\n\nKeep changes confined to the editable class. Do not access hidden targets,\nalter the driver, or rely on network access.\n",
    "description_html": "<h1>Robust regression under distribution shift</h1>\n<h2>Research question</h2>\n<p>Can a single, modular regression estimator remain accurate when the training\nresponses have heavy tails, gross errors, or leverage-point corruption? Design\nan influence-control and/or weighting rule that transfers across these regimes,\nrather than tuning a separate model for each one. The editable artifact is the\n<code>RobustRegressor</code> class in <code>scikit-learn/custom_robust.py</code>; do not change the\ndriver, data, metric, or interface.</p>\n<p>This question is grounded in Huber, “Robust Estimation of a Location\nParameter,” <em>Annals of Mathematical Statistics</em> 35(1), 1964,\ndoi:10.1214/aoms/1177703732, and Huber, “Robust Regression,” <em>Annals of\nStatistics</em> 1(5), 1973, doi:10.1214/aos/1176342503. The challenge is to improve\non classical bounded-influence estimation while retaining efficiency on clean\nobservations. RANSAC (Fischler and Bolles, CACM 24(6), 1981,\ndoi:10.1145/358669.358692) is included as a consensus reference.</p>\n<h2>Interface</h2>\n<p>Implement <code>RobustRegressor(seed: int, d: int)</code>, <code>reset()</code>, and\n<code>fit(data: dict) -&gt; numpy.ndarray</code>. <code>data[\"X\"]</code> is an <code>(n, d)</code> floating-point\nmatrix and <code>data[\"y\"]</code> is a length-<code>n</code> vector. Return a finite vector of shape\n<code>(d,)</code>. All estimator randomness must come from <code>self.rng</code>; the evaluator may\ncall <code>fit</code> repeatedly on fresh samples.</p>\n<p>The supplied driver centers features and includes an intercept column. It gives\nthe estimator only a contaminated training sample and scores predictions on a\nseparate clean holdout. The evaluator uses a controlled linear-regression\ngenerator with a verifier-only keyed seed; exact coefficients, draws, and\nholdout targets are evaluator details. Infer the intended generalization\nbehavior from the interface and metric rather than relying on constants.</p>\n<h2>Evaluation</h2>\n<p>The metric is test RMSE (lower is better), aggregated geometrically across\nthree settings. Reference implementations are provided for comparison:</p>\n<ul>\n<li><code>ols</code>: ordinary least squares, a non-robust control.</li>\n<li><code>huber</code>: Huber M-estimation solved by MAD-scaled IRLS (Huber 1964/1973).</li>\n<li><code>ransac</code>: random-sample consensus regression (Fischler and Bolles 1981).</li>\n</ul>\n<p>Keep changes confined to the editable class. Do not access hidden targets,\nalter the driver, or rely on network access.</p>",
    "baselines": [
+    "constant_mean",
     "ols",
     "huber",
-    "ransac"
+    "ransac",
+    "theil_sen"
    ],
    "environments": [
     "heavy_tails",
@@ -13574,6 +13657,14 @@
     }
    ],
    "baselines_code": {
+    "constant_mean": [
+     {
+      "file": "scikit-learn/custom_robust.py",
+      "start_line": 7,
+      "end_line": 33,
+      "content": "class RobustRegressor:\n    \"\"\"Declared null: intercept-only fit (predicts the training mean).\"\"\"\n\n    def __init__(self, seed: int, d: int):\n        self.seed, self.d = int(seed), int(d)\n        self.reset()\n\n    def reset(self):\n        self.rng = np.random.default_rng(self.seed)\n\n    def fit(self, data: dict) -> np.ndarray:\n        y = np.asarray(data[\"y\"], dtype=float)\n        beta = np.zeros(self.d, dtype=float)\n        beta[0] = float(np.mean(y))   # column 0 of the staged design is ones\n        return beta\n"
+     }
+    ],
     "ols": [
      {
       "file": "scikit-learn/custom_robust.py",
@@ -13596,6 +13687,14 @@
       "start_line": 7,
       "end_line": 33,
       "content": "class RobustRegressor:\n    \"\"\"RANSAC (Fischler & Bolles 1981) with sklearn's default consensus rule.\"\"\"\n\n    def __init__(self, seed: int, d: int):\n        self.seed, self.d = int(seed), int(d)\n        self.reset()\n\n    def reset(self):\n        self.rng = np.random.default_rng(self.seed)\n\n    def fit(self, data: dict) -> np.ndarray:\n        from sklearn.linear_model import LinearRegression, RANSACRegressor\n        X = np.asarray(data[\"X\"], dtype=float)\n        y = np.asarray(data[\"y\"], dtype=float)\n        base = LinearRegression(fit_intercept=False)\n        try:\n            est = RANSACRegressor(estimator=base, random_state=self.seed).fit(X, y)\n            beta = np.asarray(est.estimator_.coef_, dtype=float).ravel()\n        except Exception:\n            beta = np.asarray(LinearRegression(fit_intercept=False).fit(X, y).coef_, float)\n        return beta\n"
+     }
+    ],
+    "theil_sen": [
+     {
+      "file": "scikit-learn/custom_robust.py",
+      "start_line": 7,
+      "end_line": 33,
+      "content": "class RobustRegressor:\n    \"\"\"Theil-Sen (Theil 1950; Sen 1968; Dang et al. 2008) spatial-median fit.\"\"\"\n\n    def __init__(self, seed: int, d: int):\n        self.seed, self.d = int(seed), int(d)\n        self.reset()\n\n    def reset(self):\n        self.rng = np.random.default_rng(self.seed)\n\n    def fit(self, data: dict) -> np.ndarray:\n        from sklearn.linear_model import LinearRegression, TheilSenRegressor\n        X = np.asarray(data[\"X\"], dtype=float)\n        y = np.asarray(data[\"y\"], dtype=float)\n        try:\n            est = TheilSenRegressor(fit_intercept=False, max_subpopulation=int(1e4),\n                                    random_state=self.seed, n_jobs=1).fit(X, y)\n            beta = np.asarray(est.coef_, dtype=float).ravel()\n        except Exception:\n            beta = np.asarray(LinearRegression(fit_intercept=False).fit(X, y).coef_, float)\n        return beta\n"
      }
     ]
    },
@@ -13834,14 +13933,16 @@
    "description_md": "# Symbolic Regression: Physics-Informed GP Search\n\n## Research Question\nDesign a physics-informed genetic-programming search strategy for symbolic\nregression. Inspired by AI Feynman (Udrescu & Tegmark, Science Advances 2020),\nthe contribution should use observable dimensional metadata to constrain or\ndecompose expression search while retaining an executable expression tree.\n\n## Background\nSymbolic regression searches the space of mathematical expressions for one that\nfits observed `(X, y)` data. Genetic programming (GP) maintains a population\nof expression trees and evolves them by selection, crossover, and mutation.\nAI Feynman adds dimensional analysis and decomposition to reduce the search\nspace. Input files therefore include feature and target unit exponents as\nobservable side information; they do not include target equations or test\nlabels.\n\nReference baselines (provided as `edit_ops` over the same `custom_sr.py` skeleton):\n- **Standard GP** — Koza, *Genetic Programming*, MIT Press 1992. Tournament selection (default tournament size 7), subtree crossover (rate 0.9), subtree mutation (rate 0.05), raw MSE fitness, elitism = 1 best individual, max tree depth 17.\n- **Parsimony GP** — adds a length penalty: fitness becomes `MSE + alpha * tree_size`. Reference: Poli & McPhee, \"Parsimony Pressure Made Easy\", GECCO 2008 ([proceedings](https://dl.acm.org/doi/10.1145/1389095.1389340)).\n- **Lexicase GP** — Spector 2012; for symbolic regression typically ε-lexicase: La Cava, Spector, Danai, \"ε-Lexicase Selection for Regression\", GECCO 2016. Selects parents by filtering candidates on randomly ordered training cases, keeping only those within ε of the best on each case.\n\n## Implementation Contract\nThe agent edits `gplearn/custom_sr.py` and provides four functions:\n\n```python\ndef fitness_function(tree, X, y) -> float:\n    # Lower is better. FEATURE_UNITS and TARGET_UNITS are loaded by the fixed\n    # runner from observable metadata and may be used for dimensional checks.\n    ...\n\ndef selection(population, fitnesses, n_select, tournament_size=7) -> list:\n    # Return n_select selected individuals (copies).\n    ...\n\ndef crossover(parent1, parent2, n_features, max_depth=17):\n    # Return a new offspring expression tree.\n    ...\n\ndef mutation(parent, n_features, max_depth=17):\n    # Return a new mutated expression tree.\n    ...\n\ndef evolve_one_generation(population, fitnesses, X_train, y_train,\n                          n_features, pop_size,\n                          crossover_rate=0.9, mutation_rate=0.05,\n                          max_depth=17) -> list:\n    # Return the next-generation population (length pop_size).\n    ...\n```\n\nAvailable helpers from the skeleton: `safe_evaluate(tree, X)`, `generate_tree('grow'|'full', max_depth, n_features)`, `Tree.copy/size/depth/get_all_nodes()`. Reference code that may be read for context: `gplearn/gplearn/genetic.py`, `gplearn/gplearn/_program.py`, `gplearn/gplearn/fitness.py`. The output must remain an executable symbolic expression, not a black-box predictor.\n\n## Fixed Pipeline & Evaluation\nYour GP is evaluated on a held-out suite of low-dimensional physical-law\nrelations spanning multiplicative, quotient, square-root, and dimensional\nproduct interactions. The\nexact target functions and setting identities are **not** disclosed: at run time\nthe fixed driver hands your search only sampled `(X_train, y_train)`, opaque\n`X_test` inputs, and dimensional unit exponents. Your search must fit those\nsamples and produce an executable expression; the best evolved expression is\nevaluated on held-out inputs by a host-side scorer.\n\nMetric: **R²** on the held-out test set (higher is better; max 1.0). A train-set\nfit summary (train R² and the discovered expression) is reported as feedback.\n",
    "description_html": "<h1>Symbolic Regression: Physics-Informed GP Search</h1>\n<h2>Research Question</h2>\n<p>Design a physics-informed genetic-programming search strategy for symbolic\nregression. Inspired by AI Feynman (Udrescu &amp; Tegmark, Science Advances 2020),\nthe contribution should use observable dimensional metadata to constrain or\ndecompose expression search while retaining an executable expression tree.</p>\n<h2>Background</h2>\n<p>Symbolic regression searches the space of mathematical expressions for one that\nfits observed <code>(X, y)</code> data. Genetic programming (GP) maintains a population\nof expression trees and evolves them by selection, crossover, and mutation.\nAI Feynman adds dimensional analysis and decomposition to reduce the search\nspace. Input files therefore include feature and target unit exponents as\nobservable side information; they do not include target equations or test\nlabels.</p>\n<p>Reference baselines (provided as <code>edit_ops</code> over the same <code>custom_sr.py</code> skeleton):\n- <strong>Standard GP</strong> — Koza, <em>Genetic Programming</em>, MIT Press 1992. Tournament selection (default tournament size 7), subtree crossover (rate 0.9), subtree mutation (rate 0.05), raw MSE fitness, elitism = 1 best individual, max tree depth 17.\n- <strong>Parsimony GP</strong> — adds a length penalty: fitness becomes <code>MSE + alpha * tree_size</code>. Reference: Poli &amp; McPhee, \"Parsimony Pressure Made Easy\", GECCO 2008 (<a href=\"https://dl.acm.org/doi/10.1145/1389095.1389340\">proceedings</a>).\n- <strong>Lexicase GP</strong> — Spector 2012; for symbolic regression typically ε-lexicase: La Cava, Spector, Danai, \"ε-Lexicase Selection for Regression\", GECCO 2016. Selects parents by filtering candidates on randomly ordered training cases, keeping only those within ε of the best on each case.</p>\n<h2>Implementation Contract</h2>\n<p>The agent edits <code>gplearn/custom_sr.py</code> and provides four functions:</p>\n<pre class=\"codehilite\"><code class=\"language-python\">def fitness_function(tree, X, y) -&gt; float:\n    # Lower is better. FEATURE_UNITS and TARGET_UNITS are loaded by the fixed\n    # runner from observable metadata and may be used for dimensional checks.\n    ...\n\ndef selection(population, fitnesses, n_select, tournament_size=7) -&gt; list:\n    # Return n_select selected individuals (copies).\n    ...\n\ndef crossover(parent1, parent2, n_features, max_depth=17):\n    # Return a new offspring expression tree.\n    ...\n\ndef mutation(parent, n_features, max_depth=17):\n    # Return a new mutated expression tree.\n    ...\n\ndef evolve_one_generation(population, fitnesses, X_train, y_train,\n                          n_features, pop_size,\n                          crossover_rate=0.9, mutation_rate=0.05,\n                          max_depth=17) -&gt; list:\n    # Return the next-generation population (length pop_size).\n    ...\n</code></pre>\n\n<p>Available helpers from the skeleton: <code>safe_evaluate(tree, X)</code>, <code>generate_tree('grow'|'full', max_depth, n_features)</code>, <code>Tree.copy/size/depth/get_all_nodes()</code>. Reference code that may be read for context: <code>gplearn/gplearn/genetic.py</code>, <code>gplearn/gplearn/_program.py</code>, <code>gplearn/gplearn/fitness.py</code>. The output must remain an executable symbolic expression, not a black-box predictor.</p>\n<h2>Fixed Pipeline &amp; Evaluation</h2>\n<p>Your GP is evaluated on a held-out suite of low-dimensional physical-law\nrelations spanning multiplicative, quotient, square-root, and dimensional\nproduct interactions. The\nexact target functions and setting identities are <strong>not</strong> disclosed: at run time\nthe fixed driver hands your search only sampled <code>(X_train, y_train)</code>, opaque\n<code>X_test</code> inputs, and dimensional unit exponents. Your search must fit those\nsamples and produce an executable expression; the best evolved expression is\nevaluated on held-out inputs by a host-side scorer.</p>\n<p>Metric: <strong>R²</strong> on the held-out test set (higher is better; max 1.0). A train-set\nfit summary (train R² and the discovered expression) is reported as feedback.</p>",
    "baselines": [
+    "null_starter",
     "standard_gp",
     "parsimony_gp",
-    "lexicase_gp"
+    "lexicase_gp",
+    "dimensional_gp"
    ],
    "environments": [
-    "newton-force",
-    "pendulum-period",
-    "ideal-gas"
+    "suite-a",
+    "suite-b",
+    "suite-c"
    ],
    "packages": [
     "gplearn"
@@ -13851,8 +13952,8 @@
      "filename": "gplearn/custom_sr.py",
      "edit_ranges": [
       {
-       "start": 192,
-       "end": 270
+       "start": 214,
+       "end": 315
       }
      ]
     },
@@ -13870,28 +13971,44 @@
     }
    ],
    "baselines_code": {
+    "null_starter": [
+     {
+      "file": "gplearn/custom_sr.py",
+      "start_line": 214,
+      "end_line": 315,
+      "content": "def dimensional_reduction(feature_units, target_units, X, y):\n    \"\"\"Choose the variables the search runs on, from the unit exponents.\n\n    Args:\n        feature_units: int array (d, 5) - unit exponents of each input over\n            (mass, length, time, temperature, amount)\n        target_units: int array (5,) - unit exponents of the target\n        X: float array (n, d) - training inputs (all strictly positive)\n        y: float array (n,)   - noisy training targets\n\n    Returns:\n        (a, B) where\n          a: float array (d,)    - the search fits  w = y / prod_i x_i**a_i\n          B: float array (d, k)  - the search variables are\n                                   z_j = prod_i x_i**B[i, j],  1 <= k <= d\n\n    The identity below leaves the problem untouched: the GP searches the raw\n    variables for y itself.\n    \"\"\"\n    d = int(feature_units.shape[0])\n    return np.zeros(d, dtype=np.float64), np.eye(d, dtype=np.float64)\n\n\ndef fitness_function(tree, Z, w):\n    \"\"\"Evaluate fitness of a candidate program. Lower is better.\"\"\"\n    w_pred = safe_evaluate(tree, Z)\n    return float(np.mean((w - w_pred) ** 2))\n\n\ndef selection(population, fitnesses, n_select):\n    \"\"\"Select individuals from the population for reproduction.\n\n    Args:\n        population: list of Node trees\n        fitnesses: list of float fitness values (lower is better)\n        n_select: int number of individuals to select\n\n    Returns:\n        list of Node copies of selected individuals\n    \"\"\"\n    selected = []\n    for _ in range(n_select):\n        idx = random.randint(0, len(population) - 1)\n        selected.append(population[idx].copy())\n    return selected\n\n\ndef crossover(parent1, parent2, n_vars, max_depth=17):\n    \"\"\"Perform crossover between two parent trees.\n\n    Returns:\n        Node - offspring tree\n    \"\"\"\n    return parent1.copy()\n\n\ndef mutation(parent, n_vars, max_depth=17):\n    \"\"\"Perform mutation on a parent tree.\n\n    Returns:\n        Node - mutated tree\n    \"\"\"\n    return parent.copy()\n\n\ndef evolve_one_generation(population, fitnesses, Z_train, w_train,\n                          n_vars, pop_size,\n                          crossover_rate=0.9, mutation_rate=0.05,\n                          max_depth=17):\n    \"\"\"Create the next generation from the current population.\n\n    Args:\n        population: list of Node trees\n        fitnesses: list of float fitness values (lower is better)\n        Z_train: numpy array (n_samples, n_vars) - reduced training inputs\n        w_train: numpy array (n_samples,) - reduced training targets\n        n_vars: number of reduced input variables\n        pop_size: desired population size\n        crossover_rate: probability of crossover\n        mutation_rate: probability of mutation\n        max_depth: maximum allowed tree depth\n\n    Returns:\n        list of Node - next generation population\n    \"\"\"\n    new_population = []\n    # Elitism: keep best individual\n    elite_idx = int(np.argmin(fitnesses))\n    new_population.append(population[elite_idx].copy())\n\n    while len(new_population) < pop_size:\n        parents = selection(population, fitnesses, 2)\n        r = random.random()\n        if r < crossover_rate:\n            child = crossover(parents[0], parents[1], n_vars, max_depth)\n        elif r < crossover_rate + mutation_rate:\n            child = mutation(parents[0], n_vars, max_depth)\n        else:\n            child = parents[0]\n        new_population.append(child)\n\n    return new_population[:pop_size]\n"
+     }
+    ],
     "standard_gp": [
      {
       "file": "gplearn/custom_sr.py",
-      "start_line": 192,
-      "end_line": 270,
-      "content": "def fitness_function(tree, X, y):\n    \"\"\"MSE fitness — lower is better.\"\"\"\n    y_pred = safe_evaluate(tree, X)\n    return float(np.mean((y - y_pred) ** 2))\n\n\ndef selection(population, fitnesses, n_select, tournament_size=7):\n    \"\"\"Tournament selection.\"\"\"\n    selected = []\n    pop_size = len(population)\n    for _ in range(n_select):\n        candidates = random.sample(range(pop_size), min(tournament_size, pop_size))\n        best = min(candidates, key=lambda i: fitnesses[i])\n        selected.append(population[best].copy())\n    return selected\n\n\ndef crossover(parent1, parent2, n_features, max_depth=17):\n    \"\"\"Standard subtree crossover.\"\"\"\n    offspring = parent1.copy()\n    donor = parent2.copy()\n\n    # Pick random crossover points\n    off_size = offspring.size()\n    don_size = donor.size()\n    if off_size <= 1 or don_size <= 1:\n        return offspring\n\n    off_point = random.randint(1, off_size - 1)\n    don_point = random.randint(0, don_size - 1)\n\n    # Extract donor subtree\n    donor_nodes = donor.get_all_nodes()\n    donor_subtree = donor_nodes[don_point][0].copy()\n\n    # Replace in offspring\n    off_nodes = offspring.get_all_nodes()\n    node, parent, child_idx = off_nodes[off_point]\n    if parent is not None:\n        parent.children[child_idx] = donor_subtree\n    else:\n        offspring = donor_subtree\n\n    # Reject if too deep\n    if offspring.depth() > max_depth:\n        return parent1.copy()\n\n    return offspring\n\n\ndef mutation(parent, n_features, max_depth=17):\n    \"\"\"Subtree mutation — replace a random subtree with a new random tree.\"\"\"\n    offspring = parent.copy()\n    tree_size = offspring.size()\n    if tree_size <= 1:\n        return generate_tree('grow', 3, n_features)\n\n    mut_point = random.randint(1, tree_size - 1)\n    new_subtree = generate_tree('grow', 3, n_features)\n\n    nodes = offspring.get_all_nodes()\n    node, par, child_idx = nodes[mut_point]\n    if par is not None:\n        par.children[child_idx] = new_subtree\n    else:\n        offspring = new_subtree\n\n    if offspring.depth() > max_depth:\n        return parent.copy()\n\n    return offspring\n\n\ndef evolve_one_generation(population, fitnesses, X_train, y_train,\n                          n_features, pop_size,\n                          crossover_rate=0.9, mutation_rate=0.05,\n                          max_depth=17):\n    \"\"\"Standard GP generation with elitism.\"\"\"\n    new_population = []\n\n    # Elitism: keep best\n    elite_idx = int(np.argmin(fitnesses))\n    new_population.append(population[elite_idx].copy())\n\n    while len(new_population) < pop_size:\n        r = random.random()\n        if r < crossover_rate:\n            parents = selection(population, fitnesses, 2)\n            child = crossover(parents[0], parents[1], n_features, max_depth)\n        elif r < crossover_rate + mutation_rate:\n            parents = selection(population, fitnesses, 1)\n            child = mutation(parents[0], n_features, max_depth)\n        else:\n            parents = selection(population, fitnesses, 1)\n            child = parents[0]\n        new_population.append(child)\n\n    return new_population[:pop_size]\n"
+      "start_line": 214,
+      "end_line": 315,
+      "content": "def dimensional_reduction(feature_units, target_units, X, y):\n    \"\"\"No reduction: the search runs on the raw variables.\"\"\"\n    d = int(feature_units.shape[0])\n    return np.zeros(d, dtype=np.float64), np.eye(d, dtype=np.float64)\n\n\ndef fitness_function(tree, Z, w):\n    \"\"\"Raw MSE. gplearn's `mean square error` metric (fitness.py).\"\"\"\n    return float(np.mean((w - safe_evaluate(tree, Z)) ** 2))\n\n\n# --- gplearn/_program.py:509-524 : Koza's 90%-function / 10%-terminal choice\ndef _pick_node(tree):\n    nodes = tree.get_all_nodes()\n    probs = np.array([0.1 if n[0].is_terminal else 0.9 for n in nodes])\n    probs = np.cumsum(probs / probs.sum())\n    return int(np.searchsorted(probs, random.random())), nodes\n\n\ndef _graft(tree, idx, nodes, replacement):\n    node, parent, slot = nodes[idx]\n    if parent is None:\n        return replacement\n    parent.children[slot] = replacement\n    return tree\n\n\n# --- gplearn/genetic.py:60-67\ndef selection(population, fitnesses, n_select, tournament_size=20):\n    \"\"\"Tournament selection; gplearn default tournament_size=20.\"\"\"\n    selected = []\n    n = len(population)\n    for _ in range(n_select):\n        contenders = [random.randrange(n) for _ in range(tournament_size)]\n        selected.append(population[min(contenders, key=lambda i: fitnesses[i])].copy())\n    return selected\n\n\n# --- gplearn/_program.py:530-561\ndef crossover(parent1, parent2, n_vars, max_depth=17):\n    \"\"\"Subtree crossover: a subtree of parent1 is replaced by one of parent2.\"\"\"\n    offspring = parent1.copy()\n    donor = parent2.copy()\n    d_idx, d_nodes = _pick_node(donor)\n    graft = d_nodes[d_idx][0].copy()\n    o_idx, o_nodes = _pick_node(offspring)\n    child = _graft(offspring, o_idx, o_nodes, graft)\n    return child if child.depth() <= max_depth else parent1.copy()\n\n\n# --- gplearn/_program.py:563-587 (subtree, headless chicken)\ndef _subtree_mutation(parent, n_vars, max_depth):\n    chicken = generate_tree('grow', min(3, max_depth), n_vars)\n    return crossover(parent, chicken, n_vars, max_depth)\n\n\n# --- gplearn/_program.py:589-617 (hoist)\ndef _hoist_mutation(parent, n_vars, max_depth):\n    child = parent.copy()\n    idx, nodes = _pick_node(child)\n    subtree = nodes[idx][0]\n    s_idx, s_nodes = _pick_node(subtree)\n    hoist = s_nodes[s_idx][0].copy()\n    return _graft(child, idx, nodes, hoist)\n\n\n# --- gplearn/_program.py:619-660 (point), p_point_replace=0.05\ndef _point_mutation(parent, n_vars, max_depth, p_point_replace=0.05):\n    child = parent.copy()\n    for node, _parent, _slot in child.get_all_nodes():\n        if random.random() >= p_point_replace:\n            continue\n        if node.is_terminal:\n            repl = random_terminal(n_vars)\n            node.value = repl.value\n        else:\n            arity = OPERATORS[node.value][1]\n            same = [k for k in OPERATOR_NAMES if OPERATORS[k][1] == arity]\n            node.value = random.choice(same)\n    return child\n\n\ndef mutation(parent, n_vars, max_depth=17):\n    \"\"\"gplearn's three mutations, in its own 1:1:1 ratio.\"\"\"\n    r = random.random()\n    if r < 1.0 / 3.0:\n        child = _subtree_mutation(parent, n_vars, max_depth)\n    elif r < 2.0 / 3.0:\n        child = _hoist_mutation(parent, n_vars, max_depth)\n    else:\n        child = _point_mutation(parent, n_vars, max_depth)\n    return child if child.depth() <= max_depth else parent.copy()\n\n\n# --- gplearn/genetic.py:76-117 : one tournament parent per offspring, a second\n#     tournament only for the crossover donor; remainder is reproduction.\n_P_CROSSOVER, _P_SUBTREE, _P_HOIST, _P_POINT = 0.9, 0.01, 0.01, 0.01\n\n\ndef evolve_one_generation(population, fitnesses, Z_train, w_train,\n                          n_vars, pop_size,\n                          crossover_rate=0.9, mutation_rate=0.05,\n                          max_depth=17):\n    new_population = [population[int(np.argmin(fitnesses))].copy()]\n    while len(new_population) < pop_size:\n        parent = selection(population, fitnesses, 1)[0]\n        r = random.random()\n        if r < _P_CROSSOVER:\n            donor = selection(population, fitnesses, 1)[0]\n            child = crossover(parent, donor, n_vars, max_depth)\n        elif r < _P_CROSSOVER + _P_SUBTREE:\n            child = _subtree_mutation(parent, n_vars, max_depth)\n        elif r < _P_CROSSOVER + _P_SUBTREE + _P_HOIST:\n            child = _hoist_mutation(parent, n_vars, max_depth)\n        elif r < _P_CROSSOVER + _P_SUBTREE + _P_HOIST + _P_POINT:\n            child = _point_mutation(parent, n_vars, max_depth)\n        else:\n            child = parent\n        if child.depth() > max_depth:\n            child = parent\n        new_population.append(child)\n    return new_population[:pop_size]\n"
      }
     ],
     "parsimony_gp": [
      {
       "file": "gplearn/custom_sr.py",
-      "start_line": 192,
-      "end_line": 270,
-      "content": "def fitness_function(tree, X, y):\n    \"\"\"Raw MSE fitness — lower is better.\n\n    Parsimony pressure is applied at the population level inside\n    evolve_one_generation, not here. This ensures best_tree_ever\n    in the main loop tracks the best-fitting tree by actual MSE.\n    \"\"\"\n    y_pred = safe_evaluate(tree, X)\n    return float(np.mean((y - y_pred) ** 2))\n\n\ndef selection(population, fitnesses, n_select, tournament_size=7):\n    \"\"\"Tournament selection on (possibly penalized) fitnesses.\"\"\"\n    selected = []\n    pop_size = len(population)\n    for _ in range(n_select):\n        candidates = random.sample(range(pop_size), min(tournament_size, pop_size))\n        best = min(candidates, key=lambda i: fitnesses[i])\n        selected.append(population[best].copy())\n    return selected\n\n\ndef crossover(parent1, parent2, n_features, max_depth=17):\n    \"\"\"Standard subtree crossover.\"\"\"\n    offspring = parent1.copy()\n    donor = parent2.copy()\n\n    off_size = offspring.size()\n    don_size = donor.size()\n    if off_size <= 1 or don_size <= 1:\n        return offspring\n\n    off_point = random.randint(1, off_size - 1)\n    don_point = random.randint(0, don_size - 1)\n\n    donor_nodes = donor.get_all_nodes()\n    donor_subtree = donor_nodes[don_point][0].copy()\n\n    off_nodes = offspring.get_all_nodes()\n    node, parent, child_idx = off_nodes[off_point]\n    if parent is not None:\n        parent.children[child_idx] = donor_subtree\n    else:\n        offspring = donor_subtree\n\n    if offspring.depth() > max_depth:\n        return parent1.copy()\n\n    return offspring\n\n\ndef mutation(parent, n_features, max_depth=17):\n    \"\"\"Subtree mutation — replace a random subtree with a new random tree.\"\"\"\n    offspring = parent.copy()\n    tree_size = offspring.size()\n    if tree_size <= 1:\n        return generate_tree('grow', 3, n_features)\n\n    mut_point = random.randint(1, tree_size - 1)\n    new_subtree = generate_tree('grow', 3, n_features)\n\n    nodes = offspring.get_all_nodes()\n    node, par, child_idx = nodes[mut_point]\n    if par is not None:\n        par.children[child_idx] = new_subtree\n    else:\n        offspring = new_subtree\n\n    if offspring.depth() > max_depth:\n        return parent.copy()\n\n    return offspring\n\n\ndef evolve_one_generation(population, fitnesses, X_train, y_train,\n                          n_features, pop_size,\n                          crossover_rate=0.9, mutation_rate=0.05,\n                          max_depth=17):\n    \"\"\"Parsimony GP generation with parsimony pressure for bloat control.\n\n    Uses gplearn-style auto parsimony coefficient computed per generation:\n        c = Cov(length, fitness) / Var(length)\n    clamped to [0, 0.001] to prevent runaway penalization.\n    Parsimony pressure is applied only during selection; elitism uses\n    raw fitness so the best-fitting individual is always preserved.\n    \"\"\"\n    new_population = []\n\n    # Adaptive parsimony coefficient (gplearn 'auto' method, clamped)\n    lengths = np.array([tree.size() for tree in population], dtype=float)\n    raw_fit = np.array(fitnesses, dtype=float)\n    len_var = float(np.var(lengths))\n    if len_var > 1e-15:\n        parsimony_coeff = float(np.cov(lengths, raw_fit)[1, 0]) / len_var\n        parsimony_coeff = max(parsimony_coeff, 0.0)\n        parsimony_coeff = min(parsimony_coeff, 0.001)\n    else:\n        parsimony_coeff = 0.0\n\n    # Penalized fitnesses for selection only\n    penalized = [f + parsimony_coeff * l for f, l in zip(fitnesses, lengths)]\n\n    # Elitism: keep best by raw fitness (not penalized)\n    elite_idx = int(np.argmin(fitnesses))\n    new_population.append(population[elite_idx].copy())\n\n    while len(new_population) < pop_size:\n        r = random.random()\n        if r < crossover_rate:\n            parents = selection(population, penalized, 2)\n            child = crossover(parents[0], parents[1], n_features, max_depth)\n        elif r < crossover_rate + mutation_rate:\n            parents = selection(population, penalized, 1)\n            child = mutation(parents[0], n_features, max_depth)\n        else:\n            parents = selection(population, penalized, 1)\n            child = parents[0]\n        new_population.append(child)\n\n    return new_population[:pop_size]\n"
+      "start_line": 214,
+      "end_line": 315,
+      "content": "def dimensional_reduction(feature_units, target_units, X, y):\n    \"\"\"No reduction: the search runs on the raw variables.\"\"\"\n    d = int(feature_units.shape[0])\n    return np.zeros(d, dtype=np.float64), np.eye(d, dtype=np.float64)\n\n\n_PARSIMONY_COEFFICIENT = 0.001   # gplearn/genetic.py:183\n\n\ndef fitness_function(tree, Z, w):\n    \"\"\"MSE + parsimony penalty (gplearn/_program.py:484-487).\"\"\"\n    raw = float(np.mean((w - safe_evaluate(tree, Z)) ** 2))\n    return raw + _PARSIMONY_COEFFICIENT * tree.size()\n\n\n# --- gplearn/_program.py:509-524 : Koza's 90%-function / 10%-terminal choice\ndef _pick_node(tree):\n    nodes = tree.get_all_nodes()\n    probs = np.array([0.1 if n[0].is_terminal else 0.9 for n in nodes])\n    probs = np.cumsum(probs / probs.sum())\n    return int(np.searchsorted(probs, random.random())), nodes\n\n\ndef _graft(tree, idx, nodes, replacement):\n    node, parent, slot = nodes[idx]\n    if parent is None:\n        return replacement\n    parent.children[slot] = replacement\n    return tree\n\n\n# --- gplearn/genetic.py:60-67\ndef selection(population, fitnesses, n_select, tournament_size=20):\n    \"\"\"Tournament selection; gplearn default tournament_size=20.\"\"\"\n    selected = []\n    n = len(population)\n    for _ in range(n_select):\n        contenders = [random.randrange(n) for _ in range(tournament_size)]\n        selected.append(population[min(contenders, key=lambda i: fitnesses[i])].copy())\n    return selected\n\n\n# --- gplearn/_program.py:530-561\ndef crossover(parent1, parent2, n_vars, max_depth=17):\n    \"\"\"Subtree crossover: a subtree of parent1 is replaced by one of parent2.\"\"\"\n    offspring = parent1.copy()\n    donor = parent2.copy()\n    d_idx, d_nodes = _pick_node(donor)\n    graft = d_nodes[d_idx][0].copy()\n    o_idx, o_nodes = _pick_node(offspring)\n    child = _graft(offspring, o_idx, o_nodes, graft)\n    return child if child.depth() <= max_depth else parent1.copy()\n\n\n# --- gplearn/_program.py:563-587 (subtree, headless chicken)\ndef _subtree_mutation(parent, n_vars, max_depth):\n    chicken = generate_tree('grow', min(3, max_depth), n_vars)\n    return crossover(parent, chicken, n_vars, max_depth)\n\n\n# --- gplearn/_program.py:589-617 (hoist)\ndef _hoist_mutation(parent, n_vars, max_depth):\n    child = parent.copy()\n    idx, nodes = _pick_node(child)\n    subtree = nodes[idx][0]\n    s_idx, s_nodes = _pick_node(subtree)\n    hoist = s_nodes[s_idx][0].copy()\n    return _graft(child, idx, nodes, hoist)\n\n\n# --- gplearn/_program.py:619-660 (point), p_point_replace=0.05\ndef _point_mutation(parent, n_vars, max_depth, p_point_replace=0.05):\n    child = parent.copy()\n    for node, _parent, _slot in child.get_all_nodes():\n        if random.random() >= p_point_replace:\n            continue\n        if node.is_terminal:\n            repl = random_terminal(n_vars)\n            node.value = repl.value\n        else:\n            arity = OPERATORS[node.value][1]\n            same = [k for k in OPERATOR_NAMES if OPERATORS[k][1] == arity]\n            node.value = random.choice(same)\n    return child\n\n\ndef mutation(parent, n_vars, max_depth=17):\n    \"\"\"gplearn's three mutations, in its own 1:1:1 ratio.\"\"\"\n    r = random.random()\n    if r < 1.0 / 3.0:\n        child = _subtree_mutation(parent, n_vars, max_depth)\n    elif r < 2.0 / 3.0:\n        child = _hoist_mutation(parent, n_vars, max_depth)\n    else:\n        child = _point_mutation(parent, n_vars, max_depth)\n    return child if child.depth() <= max_depth else parent.copy()\n\n\n# --- gplearn/genetic.py:76-117 : one tournament parent per offspring, a second\n#     tournament only for the crossover donor; remainder is reproduction.\n_P_CROSSOVER, _P_SUBTREE, _P_HOIST, _P_POINT = 0.9, 0.01, 0.01, 0.01\n\n\ndef evolve_one_generation(population, fitnesses, Z_train, w_train,\n                          n_vars, pop_size,\n                          crossover_rate=0.9, mutation_rate=0.05,\n                          max_depth=17):\n    new_population = [population[int(np.argmin(fitnesses))].copy()]\n    while len(new_population) < pop_size:\n        parent = selection(population, fitnesses, 1)[0]\n        r = random.random()\n        if r < _P_CROSSOVER:\n            donor = selection(population, fitnesses, 1)[0]\n            child = crossover(parent, donor, n_vars, max_depth)\n        elif r < _P_CROSSOVER + _P_SUBTREE:\n            child = _subtree_mutation(parent, n_vars, max_depth)\n        elif r < _P_CROSSOVER + _P_SUBTREE + _P_HOIST:\n            child = _hoist_mutation(parent, n_vars, max_depth)\n        elif r < _P_CROSSOVER + _P_SUBTREE + _P_HOIST + _P_POINT:\n            child = _point_mutation(parent, n_vars, max_depth)\n        else:\n            child = parent\n        if child.depth() > max_depth:\n            child = parent\n        new_population.append(child)\n    return new_population[:pop_size]\n"
      }
     ],
     "lexicase_gp": [
      {
       "file": "gplearn/custom_sr.py",
-      "start_line": 192,
-      "end_line": 270,
-      "content": "def fitness_function(tree, X, y):\n    \"\"\"MSE fitness — lower is better.\"\"\"\n    y_pred = safe_evaluate(tree, X)\n    return float(np.mean((y - y_pred) ** 2))\n\n\ndef _per_case_errors(population, X, y):\n    \"\"\"Compute per-case absolute errors for the entire population.\n\n    Returns:\n        numpy array of shape (len(population), n_samples)\n    \"\"\"\n    errors = np.empty((len(population), X.shape[0]))\n    for i, tree in enumerate(population):\n        y_pred = safe_evaluate(tree, X)\n        errors[i] = np.abs(y - y_pred)\n    return errors\n\n\ndef selection(population, fitnesses, n_select, _errors=None, _X=None, _y=None):\n    \"\"\"Epsilon-lexicase selection.\n\n    Requires _errors (per-case errors), _X, _y to be passed via\n    evolve_one_generation. Falls back to tournament if not available.\n    \"\"\"\n    selected = []\n    pop_size = len(population)\n\n    if _errors is None:\n        # Fallback to tournament\n        for _ in range(n_select):\n            candidates = random.sample(range(pop_size), min(7, pop_size))\n            best = min(candidates, key=lambda i: fitnesses[i])\n            selected.append(population[best].copy())\n        return selected\n\n    n_cases = _errors.shape[1]\n    for _ in range(n_select):\n        candidates = list(range(pop_size))\n        cases = list(range(n_cases))\n        random.shuffle(cases)\n\n        for case in cases:\n            if len(candidates) <= 1:\n                break\n            case_errors = _errors[candidates, case]\n            # Semi-dynamic epsilon-lexicase (La Cava 2016/2019): candidates\n            # survive iff their error ≤ best_on_case + MAD. The previous\n            # `median + MAD` admitted most of the population and degraded\n            # lexicase toward random selection.\n            min_err = float(np.min(case_errors))\n            mad = float(np.median(np.abs(case_errors - float(np.median(case_errors)))))\n            candidates = [c for c, e in zip(candidates, case_errors) if e <= min_err + mad]\n\n        winner = random.choice(candidates)\n        selected.append(population[winner].copy())\n\n    return selected\n\n\ndef crossover(parent1, parent2, n_features, max_depth=17):\n    \"\"\"Standard subtree crossover.\"\"\"\n    offspring = parent1.copy()\n    donor = parent2.copy()\n\n    off_size = offspring.size()\n    don_size = donor.size()\n    if off_size <= 1 or don_size <= 1:\n        return offspring\n\n    off_point = random.randint(1, off_size - 1)\n    don_point = random.randint(0, don_size - 1)\n\n    donor_nodes = donor.get_all_nodes()\n    donor_subtree = donor_nodes[don_point][0].copy()\n\n    off_nodes = offspring.get_all_nodes()\n    node, parent, child_idx = off_nodes[off_point]\n    if parent is not None:\n        parent.children[child_idx] = donor_subtree\n    else:\n        offspring = donor_subtree\n\n    if offspring.depth() > max_depth:\n        return parent1.copy()\n\n    return offspring\n\n\ndef mutation(parent, n_features, max_depth=17):\n    \"\"\"Subtree mutation — replace a random subtree with a new random tree.\"\"\"\n    offspring = parent.copy()\n    tree_size = offspring.size()\n    if tree_size <= 1:\n        return generate_tree('grow', 3, n_features)\n\n    mut_point = random.randint(1, tree_size - 1)\n    new_subtree = generate_tree('grow', 3, n_features)\n\n    nodes = offspring.get_all_nodes()\n    node, par, child_idx = nodes[mut_point]\n    if par is not None:\n        par.children[child_idx] = new_subtree\n    else:\n        offspring = new_subtree\n\n    if offspring.depth() > max_depth:\n        return parent.copy()\n\n    return offspring\n\n\ndef evolve_one_generation(population, fitnesses, X_train, y_train,\n                          n_features, pop_size,\n                          crossover_rate=0.9, mutation_rate=0.05,\n                          max_depth=17):\n    \"\"\"Lexicase GP generation — uses epsilon-lexicase selection.\"\"\"\n    new_population = []\n\n    # Elitism: keep best\n    elite_idx = int(np.argmin(fitnesses))\n    new_population.append(population[elite_idx].copy())\n\n    # Pre-compute per-case errors for lexicase selection\n    errors = _per_case_errors(population, X_train, y_train)\n\n    while len(new_population) < pop_size:\n        r = random.random()\n        if r < crossover_rate:\n            parents = selection(population, fitnesses, 2, _errors=errors)\n            child = crossover(parents[0], parents[1], n_features, max_depth)\n        elif r < crossover_rate + mutation_rate:\n            parents = selection(population, fitnesses, 1, _errors=errors)\n            child = mutation(parents[0], n_features, max_depth)\n        else:\n            parents = selection(population, fitnesses, 1, _errors=errors)\n            child = parents[0]\n        new_population.append(child)\n\n    return new_population[:pop_size]\n"
+      "start_line": 214,
+      "end_line": 315,
+      "content": "def dimensional_reduction(feature_units, target_units, X, y):\n    \"\"\"No reduction: the search runs on the raw variables.\"\"\"\n    d = int(feature_units.shape[0])\n    return np.zeros(d, dtype=np.float64), np.eye(d, dtype=np.float64)\n\n\ndef fitness_function(tree, Z, w):\n    \"\"\"Raw MSE. gplearn's `mean square error` metric (fitness.py).\"\"\"\n    return float(np.mean((w - safe_evaluate(tree, Z)) ** 2))\n\n\n# --- gplearn/_program.py:509-524 : Koza's 90%-function / 10%-terminal choice\ndef _pick_node(tree):\n    nodes = tree.get_all_nodes()\n    probs = np.array([0.1 if n[0].is_terminal else 0.9 for n in nodes])\n    probs = np.cumsum(probs / probs.sum())\n    return int(np.searchsorted(probs, random.random())), nodes\n\n\ndef _graft(tree, idx, nodes, replacement):\n    node, parent, slot = nodes[idx]\n    if parent is None:\n        return replacement\n    parent.children[slot] = replacement\n    return tree\n\n\n_LEX_STATE = {\"gen\": None, \"err\": None, \"eps\": None}\n_LEX_MAX_CASES = 64      # deviation: cap on cases visited per selection event\n\n\ndef _lexicase_prepare(population, Z, w):\n    \"\"\"Per-generation error matrix and per-case MAD epsilon (ellyn:112-145).\"\"\"\n    err = np.empty((len(population), Z.shape[0]), dtype=np.float64)\n    for i, tree in enumerate(population):\n        err[i] = np.abs(w - safe_evaluate(tree, Z))\n    med = np.median(err, axis=0)\n    eps = np.median(np.abs(err - med[None, :]), axis=0)   # MAD per case\n    _LEX_STATE[\"err\"], _LEX_STATE[\"eps\"] = err, eps\n\n\ndef selection(population, fitnesses, n_select, tournament_size=20):\n    \"\"\"Epsilon-lexicase selection (La Cava et al. 2016).\"\"\"\n    err, eps = _LEX_STATE[\"err\"], _LEX_STATE[\"eps\"]\n    if err is None or err.shape[0] != len(population):\n        # no case errors available (e.g. called outside the generation loop):\n        # fall back to the tournament ellyn also ships.\n        n = len(population)\n        return [population[min([random.randrange(n) for _ in range(tournament_size)],\n                               key=lambda i: fitnesses[i])].copy()\n                for _ in range(n_select)]\n    n_cases = err.shape[1]\n    selected = []\n    for _ in range(n_select):\n        pool = np.arange(err.shape[0])\n        order = np.random.permutation(n_cases)[:_LEX_MAX_CASES]\n        for c in order:\n            if pool.size <= 1:\n                break\n            e = err[pool, c]\n            keep = e <= (e.min() + eps[c])\n            pool = pool[keep]\n        idx = int(pool[random.randrange(pool.size)])\n        selected.append(population[idx].copy())\n    return selected\n\n\n# --- gplearn/_program.py:530-561\ndef crossover(parent1, parent2, n_vars, max_depth=17):\n    \"\"\"Subtree crossover: a subtree of parent1 is replaced by one of parent2.\"\"\"\n    offspring = parent1.copy()\n    donor = parent2.copy()\n    d_idx, d_nodes = _pick_node(donor)\n    graft = d_nodes[d_idx][0].copy()\n    o_idx, o_nodes = _pick_node(offspring)\n    child = _graft(offspring, o_idx, o_nodes, graft)\n    return child if child.depth() <= max_depth else parent1.copy()\n\n\n# --- gplearn/_program.py:563-587 (subtree, headless chicken)\ndef _subtree_mutation(parent, n_vars, max_depth):\n    chicken = generate_tree('grow', min(3, max_depth), n_vars)\n    return crossover(parent, chicken, n_vars, max_depth)\n\n\n# --- gplearn/_program.py:589-617 (hoist)\ndef _hoist_mutation(parent, n_vars, max_depth):\n    child = parent.copy()\n    idx, nodes = _pick_node(child)\n    subtree = nodes[idx][0]\n    s_idx, s_nodes = _pick_node(subtree)\n    hoist = s_nodes[s_idx][0].copy()\n    return _graft(child, idx, nodes, hoist)\n\n\n# --- gplearn/_program.py:619-660 (point), p_point_replace=0.05\ndef _point_mutation(parent, n_vars, max_depth, p_point_replace=0.05):\n    child = parent.copy()\n    for node, _parent, _slot in child.get_all_nodes():\n        if random.random() >= p_point_replace:\n            continue\n        if node.is_terminal:\n            repl = random_terminal(n_vars)\n            node.value = repl.value\n        else:\n            arity = OPERATORS[node.value][1]\n            same = [k for k in OPERATOR_NAMES if OPERATORS[k][1] == arity]\n            node.value = random.choice(same)\n    return child\n\n\ndef mutation(parent, n_vars, max_depth=17):\n    \"\"\"gplearn's three mutations, in its own 1:1:1 ratio.\"\"\"\n    r = random.random()\n    if r < 1.0 / 3.0:\n        child = _subtree_mutation(parent, n_vars, max_depth)\n    elif r < 2.0 / 3.0:\n        child = _hoist_mutation(parent, n_vars, max_depth)\n    else:\n        child = _point_mutation(parent, n_vars, max_depth)\n    return child if child.depth() <= max_depth else parent.copy()\n\n\n# --- gplearn/genetic.py:76-117 : one tournament parent per offspring, a second\n#     tournament only for the crossover donor; remainder is reproduction.\n_P_CROSSOVER, _P_SUBTREE, _P_HOIST, _P_POINT = 0.9, 0.01, 0.01, 0.01\n\n\ndef evolve_one_generation(population, fitnesses, Z_train, w_train,\n                          n_vars, pop_size,\n                          crossover_rate=0.9, mutation_rate=0.05,\n                          max_depth=17):\n    _lexicase_prepare(population, Z_train, w_train)\n    new_population = [population[int(np.argmin(fitnesses))].copy()]\n    while len(new_population) < pop_size:\n        parent = selection(population, fitnesses, 1)[0]\n        r = random.random()\n        if r < _P_CROSSOVER:\n            donor = selection(population, fitnesses, 1)[0]\n            child = crossover(parent, donor, n_vars, max_depth)\n        elif r < _P_CROSSOVER + _P_SUBTREE:\n            child = _subtree_mutation(parent, n_vars, max_depth)\n        elif r < _P_CROSSOVER + _P_SUBTREE + _P_HOIST:\n            child = _hoist_mutation(parent, n_vars, max_depth)\n        elif r < _P_CROSSOVER + _P_SUBTREE + _P_HOIST + _P_POINT:\n            child = _point_mutation(parent, n_vars, max_depth)\n        else:\n            child = parent\n        if child.depth() > max_depth:\n            child = parent\n        new_population.append(child)\n    return new_population[:pop_size]\n"
+     }
+    ],
+    "dimensional_gp": [
+     {
+      "file": "gplearn/custom_sr.py",
+      "start_line": 214,
+      "end_line": 315,
+      "content": "def _get_powers(N, a):\n    \"\"\"Port of AI-Feynman `getPowers` (getPowers.py:27-60).\n\n    N: (n_base, d) unit matrix, columns are variables.  a: (n_base,) target.\n    \"\"\"\n    from itertools import combinations\n    n_base, d = N.shape\n    rank = int(np.linalg.matrix_rank(N))\n    d_cols = list(combinations(range(d), d - rank))\n    d_rows = list(combinations(reversed(range(n_base)), n_base - rank))\n    solved_M = indices_sol = indices_powers = None\n    for i in d_cols:\n        M = np.delete(N, i, 1).T                       # (d-|i|, n_base)\n        for j in d_rows:\n            P = np.delete(M, j, 1)                     # (rank, rank)\n            if P.shape[0] == P.shape[1] and abs(np.linalg.det(P)) > 1e-9:\n                solved_M, indices_sol, indices_powers = P.T, j, i\n                break\n    if solved_M is None:\n        return np.zeros(d, dtype=np.float64)\n    b = np.delete(a, indices_sol)\n    params = list(np.linalg.solve(solved_M.astype(np.float64), b.astype(np.float64)))\n    sol = []\n    for i in range(d):\n        if i in indices_powers:\n            sol.append(0.0)\n        else:\n            sol.append(float(params.pop(0)))\n    return np.asarray(sol, dtype=np.float64)\n\n\ndef dimensional_reduction(feature_units, target_units, X, y):\n    \"\"\"Buckingham-pi reduction (AI Feynman, dimensionalAnalysis.py:9-19).\"\"\"\n    from sympy import Matrix\n    M = np.asarray(feature_units, dtype=np.int64).T        # (n_base, d)\n    t = np.asarray(target_units, dtype=np.int64)\n    d = M.shape[1]\n    a = _get_powers(M, t)\n    ns = Matrix(M.tolist()).nullspace()\n    if not ns:\n        return a, np.eye(d, dtype=np.float64)\n    B = np.array([[float(v[i]) for v in ns] for i in range(d)], dtype=np.float64)\n    # scale each group to the smallest integer exponents (cosmetic; the group\n    # pi^c is an equally valid dimensionless variable for any c != 0)\n    for j in range(B.shape[1]):\n        nz = np.abs(B[:, j][np.abs(B[:, j]) > 1e-12])\n        if nz.size:\n            B[:, j] = B[:, j] / nz.min()\n    return a, B\n\n\ndef fitness_function(tree, Z, w):\n    \"\"\"Raw MSE. gplearn's `mean square error` metric (fitness.py).\"\"\"\n    return float(np.mean((w - safe_evaluate(tree, Z)) ** 2))\n\n\n# --- gplearn/_program.py:509-524 : Koza's 90%-function / 10%-terminal choice\ndef _pick_node(tree):\n    nodes = tree.get_all_nodes()\n    probs = np.array([0.1 if n[0].is_terminal else 0.9 for n in nodes])\n    probs = np.cumsum(probs / probs.sum())\n    return int(np.searchsorted(probs, random.random())), nodes\n\n\ndef _graft(tree, idx, nodes, replacement):\n    node, parent, slot = nodes[idx]\n    if parent is None:\n        return replacement\n    parent.children[slot] = replacement\n    return tree\n\n\n# --- gplearn/genetic.py:60-67\ndef selection(population, fitnesses, n_select, tournament_size=20):\n    \"\"\"Tournament selection; gplearn default tournament_size=20.\"\"\"\n    selected = []\n    n = len(population)\n    for _ in range(n_select):\n        contenders = [random.randrange(n) for _ in range(tournament_size)]\n        selected.append(population[min(contenders, key=lambda i: fitnesses[i])].copy())\n    return selected\n\n\n# --- gplearn/_program.py:530-561\ndef crossover(parent1, parent2, n_vars, max_depth=17):\n    \"\"\"Subtree crossover: a subtree of parent1 is replaced by one of parent2.\"\"\"\n    offspring = parent1.copy()\n    donor = parent2.copy()\n    d_idx, d_nodes = _pick_node(donor)\n    graft = d_nodes[d_idx][0].copy()\n    o_idx, o_nodes = _pick_node(offspring)\n    child = _graft(offspring, o_idx, o_nodes, graft)\n    return child if child.depth() <= max_depth else parent1.copy()\n\n\n# --- gplearn/_program.py:563-587 (subtree, headless chicken)\ndef _subtree_mutation(parent, n_vars, max_depth):\n    chicken = generate_tree('grow', min(3, max_depth), n_vars)\n    return crossover(parent, chicken, n_vars, max_depth)\n\n\n# --- gplearn/_program.py:589-617 (hoist)\ndef _hoist_mutation(parent, n_vars, max_depth):\n    child = parent.copy()\n    idx, nodes = _pick_node(child)\n    subtree = nodes[idx][0]\n    s_idx, s_nodes = _pick_node(subtree)\n    hoist = s_nodes[s_idx][0].copy()\n    return _graft(child, idx, nodes, hoist)\n\n\n# --- gplearn/_program.py:619-660 (point), p_point_replace=0.05\ndef _point_mutation(parent, n_vars, max_depth, p_point_replace=0.05):\n    child = parent.copy()\n    for node, _parent, _slot in child.get_all_nodes():\n        if random.random() >= p_point_replace:\n            continue\n        if node.is_terminal:\n            repl = random_terminal(n_vars)\n            node.value = repl.value\n        else:\n            arity = OPERATORS[node.value][1]\n            same = [k for k in OPERATOR_NAMES if OPERATORS[k][1] == arity]\n            node.value = random.choice(same)\n    return child\n\n\ndef mutation(parent, n_vars, max_depth=17):\n    \"\"\"gplearn's three mutations, in its own 1:1:1 ratio.\"\"\"\n    r = random.random()\n    if r < 1.0 / 3.0:\n        child = _subtree_mutation(parent, n_vars, max_depth)\n    elif r < 2.0 / 3.0:\n        child = _hoist_mutation(parent, n_vars, max_depth)\n    else:\n        child = _point_mutation(parent, n_vars, max_depth)\n    return child if child.depth() <= max_depth else parent.copy()\n\n\n# --- gplearn/genetic.py:76-117 : one tournament parent per offspring, a second\n#     tournament only for the crossover donor; remainder is reproduction.\n_P_CROSSOVER, _P_SUBTREE, _P_HOIST, _P_POINT = 0.9, 0.01, 0.01, 0.01\n\n\ndef evolve_one_generation(population, fitnesses, Z_train, w_train,\n                          n_vars, pop_size,\n                          crossover_rate=0.9, mutation_rate=0.05,\n                          max_depth=17):\n    new_population = [population[int(np.argmin(fitnesses))].copy()]\n    while len(new_population) < pop_size:\n        parent = selection(population, fitnesses, 1)[0]\n        r = random.random()\n        if r < _P_CROSSOVER:\n            donor = selection(population, fitnesses, 1)[0]\n            child = crossover(parent, donor, n_vars, max_depth)\n        elif r < _P_CROSSOVER + _P_SUBTREE:\n            child = _subtree_mutation(parent, n_vars, max_depth)\n        elif r < _P_CROSSOVER + _P_SUBTREE + _P_HOIST:\n            child = _hoist_mutation(parent, n_vars, max_depth)\n        elif r < _P_CROSSOVER + _P_SUBTREE + _P_HOIST + _P_POINT:\n            child = _point_mutation(parent, n_vars, max_depth)\n        else:\n            child = parent\n        if child.depth() > max_depth:\n            child = parent\n        new_population.append(child)\n    return new_population[:pop_size]\n"
      }
     ]
    },
@@ -14769,9 +14886,9 @@
    "description_html": "<h1>Concatenated power-mean sentence composition</h1>\n<h2>Research question</h2>\n<p>Can a parameter-free concatenation of complementary power means provide a more\ntransferable sentence representation than one pooling statistic? Rücklé,\nKristiawan, Ruder and Gurevych, <em>Concatenated Power Mean Word Embeddings as\nUniversal Cross-Lingual Sentence Representations</em> (arXiv:1803.01400,\nhttps://arxiv.org/abs/1803.01400), study concatenating power-mean pools of\nstatic word vectors. Replace only the sentence-composition function; vectors,\ntokenisation and scoring remain fixed.</p>\n<h2>Interface</h2>\n<p>Edit only <code>SIF/custom_sentence_embedding.py</code> between the editable markers. It\nmust define <code>embed_sentences(word_vectors, word_probs, doc_freq, n_docs,\nsentences) -&gt; np.ndarray</code>; return one finite row per input sentence. Frequency\nmaps are available for unsupervised weighting. Labels and evaluator files are\nnot inputs and must not be read.</p>\n<h2>Settings and metric</h2>\n<p>The fixed evaluator uses several distinct SemEval STS collections, with one\ncollection withheld from the public description. Pearson correlation of cosine\nsimilarities with human judgements is averaged within each collection; the task\nscore is the geometric mean across collections. CPU execution should remain\nbelow a few minutes per collection.</p>\n<h2>Baselines</h2>\n<p><code>average</code> is avg-GloVe from Arora, Liang &amp; Ma (ICLR 2017,\nhttps://openreview.net/forum?id=SyK00v5xx). <code>max_only</code> is the p=+infinity\npower-mean limit. <code>power_concat</code> concatenates signed p=-1, p=1 and p=2 means,\nfollowing Rücklé et al. <code>sif</code> is the independent smoothed-inverse-frequency\nand first-component-removal control from Arora et al. The editable process\nreceives no gold labels.</p>",
    "baselines": [
     "average",
+    "max_only",
     "power_concat",
-    "sif",
-    "max_only"
+    "sif"
    ],
    "environments": [
     "sts12",
@@ -14787,11 +14904,11 @@
      "filename": "SIF/custom_sentence_embedding.py",
      "edit_ranges": [
       {
-       "start": 7,
-       "end": 17
+       "start": 53,
+       "end": 71
       }
      ],
-     "content": "\"\"\"Power-mean sentence composition scaffold.\"\"\"\nfrom __future__ import annotations\nfrom typing import Dict, Sequence\nimport numpy as np\n\n# ----- BEGIN EDITABLE REGION -----\ndef embed_sentences(word_vectors: Dict[str, np.ndarray], word_probs: Dict[str, float],\n                    doc_freq: Dict[str, int], n_docs: int,\n                    sentences: Sequence[Sequence[str]]) -> np.ndarray:\n    \"\"\"Starter: arithmetic mean; agent may implement a composition rule.\"\"\"\n    dim = next(iter(word_vectors.values())).shape[0]\n    out = np.zeros((len(sentences), dim), dtype=np.float64)\n    for i, sent in enumerate(sentences):\n        v = [word_vectors[t] for t in sent if t in word_vectors]\n        if v:\n            out[i] = np.mean(v, axis=0)\n    return out\n# ----- END EDITABLE REGION -----\n"
+     "content": "\"\"\"Unsupervised composition of word vectors into sentence vectors.\n\nMLS-Bench task ``nlp-sentence-embedding-powermean``. The FIXED evaluator\n(``SIF/mlsb_sts/run_embed.py``) imports this module and calls\n\n    embed_sentences(word_vectors, word_probs, doc_freq, n_docs, sentences)\n\nonce per evaluation set. Only the region between the BEGIN/END markers may be\nchanged; everything the function needs must live inside it (helper functions,\nimports, constants).\n\nInputs\n------\nword_vectors : dict[str, np.ndarray]\n    token -> 300-d float32 GloVe (Common Crawl 840B) vector. Only tokens that\n    occur in the evaluation sentences are present; a token missing from the\n    dict has no vector and must be treated as out-of-vocabulary.\nword_probs : dict[str, float]\n    Unigram probability p(w) = count(w) / sum(counts) estimated from English\n    Wikipedia (``SIF/auxiliary_data/enwiki_vocab_min200.txt``; every word with\n    at least 200 occurrences). Tokens absent from the dict are rarer than that.\ndoc_freq : dict[str, int]\n    Number of occurrences of each token over the SemEval STS 2012-2015 sentence\n    collection (counted as in SIF's getIDFWeight); absent tokens have count 0.\nn_docs : int\n    Number of sentences (documents) in that collection.\nsentences : list[list[str]]\n    The tokenised (PTB-style), lowercased sentences of ONE evaluation set.\n    ``sentences[2*i]`` and ``sentences[2*i + 1]`` are the two sides of pair i.\n\nOutput\n------\nnp.ndarray of shape ``(len(sentences), d)``, any ``d >= 1``, all entries\nfinite. The evaluator computes the cosine similarity between rows ``2*i`` and\n``2*i + 1`` and reports its Pearson correlation with the human scores (a\nzero row is allowed; its cosine similarity is defined as 0).\n\nThe whole evaluation set is passed in one call, so transductive\npost-processing over the evaluated sentences (as SIF's common-component\nremoval does) is possible. Nothing outside ``sentences`` is visible, and the\ninputs must not be relied on to persist between calls.\n\"\"\"\nfrom __future__ import annotations\n\nfrom typing import Dict, List, Sequence\n\nimport numpy as np\n\n# =============================================================================\n# FIXED ABOVE THIS LINE\n# =============================================================================\n# ----- BEGIN EDITABLE REGION -----\n\n\ndef embed_sentences(\n    word_vectors: Dict[str, np.ndarray],\n    word_probs: Dict[str, float],\n    doc_freq: Dict[str, int],\n    n_docs: int,\n    sentences: Sequence[Sequence[str]],\n) -> np.ndarray:\n    \"\"\"Unweighted arithmetic mean of the in-vocabulary word vectors.\"\"\"\n    dim = next(iter(word_vectors.values())).shape[0]\n    out = np.zeros((len(sentences), dim), dtype=np.float64)\n    for i, tokens in enumerate(sentences):\n        vecs = [word_vectors[t] for t in tokens if t in word_vectors]\n        if vecs:\n            out[i] = np.mean(vecs, axis=0)\n    return out\n\n\n# ----- END EDITABLE REGION -----\n"
     },
     {
      "filename": "SIF/mlsb_sts/run_embed.py",
@@ -14821,33 +14938,33 @@
     "average": [
      {
       "file": "SIF/custom_sentence_embedding.py",
-      "start_line": 7,
-      "end_line": 17,
-      "content": "def embed_sentences(word_vectors, word_probs, doc_freq, n_docs, sentences):\n    dim = next(iter(word_vectors.values())).shape[0]\n    out = np.zeros((len(sentences), dim), dtype=np.float64)\n    for i, sent in enumerate(sentences):\n        v = [word_vectors[t] for t in sent if t in word_vectors]\n        if v: out[i] = np.mean(v, axis=0)\n    return out\n"
-     }
-    ],
-    "power_concat": [
-     {
-      "file": "SIF/custom_sentence_embedding.py",
-      "start_line": 7,
-      "end_line": 17,
-      "content": "def embed_sentences(word_vectors, word_probs, doc_freq, n_docs, sentences):\n    dim = next(iter(word_vectors.values())).shape[0]\n    out = np.zeros((len(sentences), 3 * dim), dtype=np.float64)\n    for i, sent in enumerate(sentences):\n        v = np.asarray([word_vectors[t] for t in sent if t in word_vectors], dtype=np.float64)\n        if v.size:\n            means = [np.mean(np.sign(v) * np.sqrt(np.abs(v) + 1e-12), axis=0),\n                     np.mean(v, axis=0), np.mean(v * v, axis=0)]\n            out[i] = np.concatenate(means)\n    return out\n"
-     }
-    ],
-    "sif": [
-     {
-      "file": "SIF/custom_sentence_embedding.py",
-      "start_line": 7,
-      "end_line": 17,
-      "content": "from sklearn.decomposition import TruncatedSVD\n\nSIF_A = 1e-3     # examples/sim_sif.py: weightpara\nSIF_RMPC = 1     # examples/sim_sif.py: rmpc\n\n\ndef embed_sentences(\n    word_vectors: Dict[str, np.ndarray],\n    word_probs: Dict[str, float],\n    doc_freq: Dict[str, int],\n    n_docs: int,\n    sentences: Sequence[Sequence[str]],\n) -> np.ndarray:\n    \"\"\"SIF: a/(a+p(w)) weighted average, then remove the first principal component.\"\"\"\n    dim = next(iter(word_vectors.values())).shape[0]\n    emb = np.zeros((len(sentences), dim), dtype=np.float64)\n    for i, tokens in enumerate(sentences):\n        vecs, weights = [], []\n        for t in tokens:\n            if t in word_vectors:\n                vecs.append(word_vectors[t])\n                # data_io.getWordWeight / getWeight: a/(a+p) if in the frequency file else 1.0\n                weights.append(SIF_A / (SIF_A + word_probs[t]) if t in word_probs else 1.0)\n        if vecs:\n            w = np.asarray(weights, dtype=np.float64)\n            emb[i] = w.dot(np.stack(vecs)) / max(1, np.count_nonzero(w))\n    if SIF_RMPC > 0:\n        # sim_algo.weighted_average_sim_rmpc calls SIF_embedding separately for\n        # the first and the second sentences of the pairs, so the principal\n        # component is computed and removed per side (rows 2i vs rows 2i+1).\n        for side in (slice(0, None, 2), slice(1, None, 2)):\n            X = emb[side]\n            # SIF_embedding.compute_pc: \"DO NOT MAKE THE DATA ZERO MEAN!\"\n            svd = TruncatedSVD(n_components=SIF_RMPC, n_iter=7, random_state=0)\n            svd.fit(X)\n            pc = svd.components_\n            if SIF_RMPC == 1:\n                emb[side] = X - X.dot(pc.transpose()) * pc\n            else:\n                emb[side] = X - X.dot(pc.transpose()).dot(pc)\n    return emb\n\n\n"
+      "start_line": 53,
+      "end_line": 71,
+      "content": "\n\ndef embed_sentences(\n    word_vectors: Dict[str, np.ndarray],\n    word_probs: Dict[str, float],\n    doc_freq: Dict[str, int],\n    n_docs: int,\n    sentences: Sequence[Sequence[str]],\n) -> np.ndarray:\n    \"\"\"Unweighted average of the in-vocabulary word vectors (avg-GloVe).\"\"\"\n    dim = next(iter(word_vectors.values())).shape[0]\n    out = np.zeros((len(sentences), dim), dtype=np.float64)\n    for i, tokens in enumerate(sentences):\n        vecs = [word_vectors[t] for t in tokens if t in word_vectors]\n        if vecs:\n            out[i] = np.mean(vecs, axis=0)\n    return out\n\n\n"
      }
     ],
     "max_only": [
      {
       "file": "SIF/custom_sentence_embedding.py",
-      "start_line": 7,
-      "end_line": 17,
-      "content": "def embed_sentences(word_vectors, word_probs, doc_freq, n_docs, sentences):\n    dim = next(iter(word_vectors.values())).shape[0]\n    out = np.zeros((len(sentences), dim), dtype=np.float64)\n    for i, sent in enumerate(sentences):\n        v = np.asarray([word_vectors[t] for t in sent if t in word_vectors], dtype=np.float64)\n        if v.size: out[i] = np.max(v, axis=0)\n    return out\n"
+      "start_line": 53,
+      "end_line": 71,
+      "content": "\n\ndef embed_sentences(\n    word_vectors: Dict[str, np.ndarray],\n    word_probs: Dict[str, float],\n    doc_freq: Dict[str, int],\n    n_docs: int,\n    sentences: Sequence[Sequence[str]],\n) -> np.ndarray:\n    \"\"\"operations['max'] of sentence_embeddings.py, applied on its own.\"\"\"\n    dim = next(iter(word_vectors.values())).shape[0]\n    out = np.zeros((len(sentences), dim), dtype=np.float64)\n    for i, tokens in enumerate(sentences):\n        vecs = [word_vectors[t] for t in tokens if t in word_vectors]\n        if vecs:\n            out[i] = np.max(vecs, axis=0)\n    return out\n\n\n"
+     }
+    ],
+    "power_concat": [
+     {
+      "file": "SIF/custom_sentence_embedding.py",
+      "start_line": 53,
+      "end_line": 71,
+      "content": "\n\ndef _gen_mean(vals, p):\n    \"\"\"Verbatim from UKPLab .../model/sentence_embeddings.py:4-13.\"\"\"\n    p = float(p)\n    return np.power(\n        np.mean(\n            np.power(\n                np.array(vals, dtype=complex),\n                p),\n            axis=0),\n        1 / p\n    )\n\n\ndef embed_sentences(\n    word_vectors: Dict[str, np.ndarray],\n    word_probs: Dict[str, float],\n    doc_freq: Dict[str, int],\n    n_docs: int,\n    sentences: Sequence[Sequence[str]],\n) -> np.ndarray:\n    \"\"\"Concatenation of the p = 1, +inf, -inf and 3 power means.\"\"\"\n    dim = next(iter(word_vectors.values())).shape[0]\n    out = np.zeros((len(sentences), 4 * dim), dtype=np.float64)\n    for i, tokens in enumerate(sentences):\n        vecs = [word_vectors[t] for t in tokens if t in word_vectors]\n        if not vecs:\n            continue\n        out[i] = np.concatenate([\n            np.mean(vecs, axis=0),\n            np.max(vecs, axis=0),\n            np.min(vecs, axis=0),\n            _gen_mean(vecs, p=3.0).real,\n        ], axis=0)\n    return out\n\n\n"
+     }
+    ],
+    "sif": [
+     {
+      "file": "SIF/custom_sentence_embedding.py",
+      "start_line": 53,
+      "end_line": 71,
+      "content": "from sklearn.decomposition import TruncatedSVD\n\nSIF_A = 1e-3     # examples/sim_sif.py: weightpara\nSIF_RMPC = 1     # examples/sim_sif.py: rmpc\n\n\ndef embed_sentences(\n    word_vectors: Dict[str, np.ndarray],\n    word_probs: Dict[str, float],\n    doc_freq: Dict[str, int],\n    n_docs: int,\n    sentences: Sequence[Sequence[str]],\n) -> np.ndarray:\n    \"\"\"SIF: a/(a+p(w)) weighted average, then remove the first principal component.\"\"\"\n    dim = next(iter(word_vectors.values())).shape[0]\n    emb = np.zeros((len(sentences), dim), dtype=np.float64)\n    for i, tokens in enumerate(sentences):\n        vecs, weights = [], []\n        for t in tokens:\n            if t in word_vectors:\n                vecs.append(word_vectors[t])\n                # data_io.getWordWeight / getWeight: a/(a+p) if in the frequency file else 1.0\n                weights.append(SIF_A / (SIF_A + word_probs[t]) if t in word_probs else 1.0)\n        if vecs:\n            w = np.asarray(weights, dtype=np.float64)\n            emb[i] = w.dot(np.stack(vecs)) / max(1, np.count_nonzero(w))\n    if SIF_RMPC > 0:\n        # sim_algo.weighted_average_sim_rmpc calls SIF_embedding separately for\n        # the first and the second sentences of the pairs, so the principal\n        # component is computed and removed per side (rows 2i vs rows 2i+1).\n        for side in (slice(0, None, 2), slice(1, None, 2)):\n            X = emb[side]\n            # SIF_embedding.compute_pc: \"DO NOT MAKE THE DATA ZERO MEAN!\"\n            svd = TruncatedSVD(n_components=SIF_RMPC, n_iter=7, random_state=0)\n            svd.fit(X)\n            pc = svd.components_\n            if SIF_RMPC == 1:\n                emb[side] = X - X.dot(pc.transpose()) * pc\n            else:\n                emb[side] = X - X.dot(pc.transpose()).dot(pc)\n    return emb\n\n\n"
      }
     ]
    },
@@ -14884,11 +15001,11 @@
      "filename": "SIF/custom_sentence_embedding.py",
      "edit_ranges": [
       {
-       "start": 7,
-       "end": 17
+       "start": 53,
+       "end": 71
       }
      ],
-     "content": "\"\"\"SCDV soft-cluster sentence composition scaffold.\"\"\"\nfrom __future__ import annotations\nfrom typing import Dict, Sequence\nimport numpy as np\n\n# ----- BEGIN EDITABLE REGION -----\ndef embed_sentences(word_vectors: Dict[str, np.ndarray], word_probs: Dict[str, float],\n                    doc_freq: Dict[str, int], n_docs: int,\n                    sentences: Sequence[Sequence[str]]) -> np.ndarray:\n    \"\"\"Starter: arithmetic mean; agent may implement soft-cluster pooling.\"\"\"\n    dim = next(iter(word_vectors.values())).shape[0]\n    out = np.zeros((len(sentences), dim), dtype=np.float64)\n    for i, sent in enumerate(sentences):\n        v = [word_vectors[t] for t in sent if t in word_vectors]\n        if v:\n            out[i] = np.mean(v, axis=0)\n    return out\n# ----- END EDITABLE REGION -----\n"
+     "content": "\"\"\"Unsupervised composition of word vectors into sentence vectors.\n\nMLS-Bench task ``nlp-sentence-embedding-scdv``. The FIXED evaluator\n(``SIF/mlsb_sts/run_embed.py``) imports this module and calls\n\n    embed_sentences(word_vectors, word_probs, doc_freq, n_docs, sentences)\n\nonce per evaluation set. Only the region between the BEGIN/END markers may be\nchanged; everything the function needs must live inside it (helper functions,\nimports, constants).\n\nInputs\n------\nword_vectors : dict[str, np.ndarray]\n    token -> 300-d float32 GloVe (Common Crawl 840B) vector. Only tokens that\n    occur in the evaluation sentences are present; a token missing from the\n    dict has no vector and must be treated as out-of-vocabulary.\nword_probs : dict[str, float]\n    Unigram probability p(w) = count(w) / sum(counts) estimated from English\n    Wikipedia (``SIF/auxiliary_data/enwiki_vocab_min200.txt``; every word with\n    at least 200 occurrences). Tokens absent from the dict are rarer than that.\ndoc_freq : dict[str, int]\n    Number of occurrences of each token over the SemEval STS 2012-2015 sentence\n    collection (counted as in SIF's getIDFWeight); absent tokens have count 0.\nn_docs : int\n    Number of sentences (documents) in that collection.\nsentences : list[list[str]]\n    The tokenised (PTB-style), lowercased sentences of ONE evaluation set.\n    ``sentences[2*i]`` and ``sentences[2*i + 1]`` are the two sides of pair i.\n\nOutput\n------\nnp.ndarray of shape ``(len(sentences), d)``, any ``d >= 1``, all entries\nfinite. The evaluator computes the cosine similarity between rows ``2*i`` and\n``2*i + 1`` and reports its Pearson correlation with the human scores (a\nzero row is allowed; its cosine similarity is defined as 0).\n\nThe whole evaluation set is passed in one call, so transductive\npost-processing over the evaluated sentences (as SIF's common-component\nremoval does) is possible. Nothing outside ``sentences`` is visible, and the\ninputs must not be relied on to persist between calls.\n\"\"\"\nfrom __future__ import annotations\n\nfrom typing import Dict, List, Sequence\n\nimport numpy as np\n\n# =============================================================================\n# FIXED ABOVE THIS LINE\n# =============================================================================\n# ----- BEGIN EDITABLE REGION -----\n\n\ndef embed_sentences(\n    word_vectors: Dict[str, np.ndarray],\n    word_probs: Dict[str, float],\n    doc_freq: Dict[str, int],\n    n_docs: int,\n    sentences: Sequence[Sequence[str]],\n) -> np.ndarray:\n    \"\"\"Unweighted arithmetic mean of the in-vocabulary word vectors.\"\"\"\n    dim = next(iter(word_vectors.values())).shape[0]\n    out = np.zeros((len(sentences), dim), dtype=np.float64)\n    for i, tokens in enumerate(sentences):\n        vecs = [word_vectors[t] for t in tokens if t in word_vectors]\n        if vecs:\n            out[i] = np.mean(vecs, axis=0)\n    return out\n\n\n# ----- END EDITABLE REGION -----\n"
     },
     {
      "filename": "SIF/mlsb_sts/run_embed.py",
@@ -14918,33 +15035,33 @@
     "average": [
      {
       "file": "SIF/custom_sentence_embedding.py",
-      "start_line": 7,
-      "end_line": 17,
-      "content": "def embed_sentences(word_vectors, word_probs, doc_freq, n_docs, sentences):\n    dim=next(iter(word_vectors.values())).shape[0]; out=np.zeros((len(sentences),dim),float)\n    for i,s in enumerate(sentences):\n        v=[word_vectors[t] for t in s if t in word_vectors]\n        if v: out[i]=np.mean(v,axis=0)\n    return out\n"
+      "start_line": 53,
+      "end_line": 71,
+      "content": "\n\ndef embed_sentences(\n    word_vectors: Dict[str, np.ndarray],\n    word_probs: Dict[str, float],\n    doc_freq: Dict[str, int],\n    n_docs: int,\n    sentences: Sequence[Sequence[str]],\n) -> np.ndarray:\n    \"\"\"Unweighted average of the in-vocabulary word vectors (avg-GloVe).\"\"\"\n    dim = next(iter(word_vectors.values())).shape[0]\n    out = np.zeros((len(sentences), dim), dtype=np.float64)\n    for i, tokens in enumerate(sentences):\n        vecs = [word_vectors[t] for t in tokens if t in word_vectors]\n        if vecs:\n            out[i] = np.mean(vecs, axis=0)\n    return out\n\n\n"
      }
     ],
     "tfidf": [
      {
       "file": "SIF/custom_sentence_embedding.py",
-      "start_line": 7,
-      "end_line": 17,
+      "start_line": 53,
+      "end_line": 71,
       "content": "\n\ndef embed_sentences(\n    word_vectors: Dict[str, np.ndarray],\n    word_probs: Dict[str, float],\n    doc_freq: Dict[str, int],\n    n_docs: int,\n    sentences: Sequence[Sequence[str]],\n) -> np.ndarray:\n    \"\"\"tf-idf weighted average (SIF/src/data_io.py:getIDFWeight, rmpc=0).\"\"\"\n    dim = next(iter(word_vectors.values())).shape[0]\n    out = np.zeros((len(sentences), dim), dtype=np.float64)\n    for i, tokens in enumerate(sentences):\n        vecs, weights = [], []\n        for t in tokens:\n            if t in word_vectors:\n                vecs.append(word_vectors[t])\n                weights.append(np.log2((n_docs + 2.0) / (1.0 + doc_freq.get(t, 0))))\n        if vecs:\n            w = np.asarray(weights, dtype=np.float64)\n            out[i] = w.dot(np.stack(vecs)) / max(1, np.count_nonzero(w))\n    return out\n\n\n"
      }
     ],
     "sif": [
      {
       "file": "SIF/custom_sentence_embedding.py",
-      "start_line": 7,
-      "end_line": 17,
+      "start_line": 53,
+      "end_line": 71,
       "content": "from sklearn.decomposition import TruncatedSVD\n\nSIF_A = 1e-3     # examples/sim_sif.py: weightpara\nSIF_RMPC = 1     # examples/sim_sif.py: rmpc\n\n\ndef embed_sentences(\n    word_vectors: Dict[str, np.ndarray],\n    word_probs: Dict[str, float],\n    doc_freq: Dict[str, int],\n    n_docs: int,\n    sentences: Sequence[Sequence[str]],\n) -> np.ndarray:\n    \"\"\"SIF: a/(a+p(w)) weighted average, then remove the first principal component.\"\"\"\n    dim = next(iter(word_vectors.values())).shape[0]\n    emb = np.zeros((len(sentences), dim), dtype=np.float64)\n    for i, tokens in enumerate(sentences):\n        vecs, weights = [], []\n        for t in tokens:\n            if t in word_vectors:\n                vecs.append(word_vectors[t])\n                # data_io.getWordWeight / getWeight: a/(a+p) if in the frequency file else 1.0\n                weights.append(SIF_A / (SIF_A + word_probs[t]) if t in word_probs else 1.0)\n        if vecs:\n            w = np.asarray(weights, dtype=np.float64)\n            emb[i] = w.dot(np.stack(vecs)) / max(1, np.count_nonzero(w))\n    if SIF_RMPC > 0:\n        # sim_algo.weighted_average_sim_rmpc calls SIF_embedding separately for\n        # the first and the second sentences of the pairs, so the principal\n        # component is computed and removed per side (rows 2i vs rows 2i+1).\n        for side in (slice(0, None, 2), slice(1, None, 2)):\n            X = emb[side]\n            # SIF_embedding.compute_pc: \"DO NOT MAKE THE DATA ZERO MEAN!\"\n            svd = TruncatedSVD(n_components=SIF_RMPC, n_iter=7, random_state=0)\n            svd.fit(X)\n            pc = svd.components_\n            if SIF_RMPC == 1:\n                emb[side] = X - X.dot(pc.transpose()) * pc\n            else:\n                emb[side] = X - X.dot(pc.transpose()).dot(pc)\n    return emb\n\n\n"
      }
     ],
     "scdv": [
      {
       "file": "SIF/custom_sentence_embedding.py",
-      "start_line": 7,
-      "end_line": 17,
-      "content": "def embed_sentences(word_vectors, word_probs, doc_freq, n_docs, sentences):\n    from sklearn.cluster import MiniBatchKMeans\n    dim=next(iter(word_vectors.values())).shape[0]; vocab=list(word_vectors)\n    W=np.asarray([word_vectors[t] for t in vocab],float)\n    fit=np.asarray([i for i,t in enumerate(vocab) if t in word_probs],int)\n    if fit.size<2: fit=np.arange(len(vocab))\n    k=min(20,max(2,int(np.sqrt(fit.size/20))))\n    km=MiniBatchKMeans(n_clusters=k,random_state=0,n_init=1,batch_size=1024,max_iter=40).fit(W[fit])\n    C=km.cluster_centers_; scale=np.mean(np.sum((W[fit]-C[km.labels_])**2,axis=1))+1e-8\n    assign={}\n    for j,t in enumerate(vocab):\n        d=np.sum((C-W[j][None,:])**2,axis=1); z=np.exp(-(d-d.min())/scale); assign[t]=z/z.sum()\n    out=np.zeros((len(sentences),k*dim),float)\n    for i,s in enumerate(sentences):\n        row=np.zeros((k,dim)); n=0\n        for t in s:\n            if t not in word_vectors: continue\n            wt=np.log((n_docs+1.)/(doc_freq.get(t,0)+1.)); row += assign[t][:,None]*wt*word_vectors[t][None,:]; n+=1\n        if n:\n            row/=n; row=np.sign(row)*np.sqrt(np.abs(row)); z=np.linalg.norm(row)\n            if z>0: row/=z\n        out[i]=row.ravel()\n    return out\n"
+      "start_line": 53,
+      "end_line": 71,
+      "content": "from sklearn.mixture import GaussianMixture\n\nSCDV_NUM_CLUSTERS = 60      # dheeraj7596/SCDV README: \"number of clusters as 60\"\nSCDV_MAX_ITER = 50          # 20news/SCDV.py:25\nSCDV_PERCENTAGE = 0.04      # 20news/SCDV.py:225\n\n\ndef embed_sentences(\n    word_vectors: Dict[str, np.ndarray],\n    word_probs: Dict[str, float],\n    doc_freq: Dict[str, int],\n    n_docs: int,\n    sentences: Sequence[Sequence[str]],\n) -> np.ndarray:\n    \"\"\"SCDV: GMM soft clusters x idf, summed per sentence, L2-normalised, sparsified.\"\"\"\n    vocab = list(word_vectors)\n    W = np.asarray([word_vectors[t] for t in vocab], dtype=np.float64)\n    dim = W.shape[1]\n    k = min(SCDV_NUM_CLUSTERS, max(1, W.shape[0]))\n\n    gmm = GaussianMixture(n_components=k, covariance_type=\"tied\",\n                          init_params=\"kmeans\", max_iter=SCDV_MAX_ITER,\n                          random_state=0)\n    gmm.fit(W)\n    proba = gmm.predict_proba(W)                       # [V, k]\n\n    # scikit-learn TfidfVectorizer(smooth_idf=True): ln((1+n)/(1+df)) + 1\n    idf = np.asarray([np.log((1.0 + n_docs) / (1.0 + doc_freq.get(t, 0))) + 1.0\n                      for t in vocab], dtype=np.float64)\n    # word-topic vector wtv(w) = concat_k( wv(w) * P(k|w) * idf(w) ), and the\n    # document vector is their SUM over the words of the document.  Summing\n    # first as (k, dim) = P[rows].T @ (idf[rows] * W[rows]) is the identical\n    # quantity without materialising the V x k*dim table.\n    Widf = idf[:, None] * W\n    index = {t: i for i, t in enumerate(vocab)}\n\n    out = np.zeros((len(sentences), k * dim), dtype=np.float64)\n    for i, tokens in enumerate(sentences):\n        rows = [index[t] for t in tokens if t in index]\n        if not rows:\n            continue\n        v = (proba[rows].T @ Widf[rows]).reshape(k * dim)\n        norm = float(np.sqrt(np.dot(v, v)))\n        if norm != 0:\n            v = v / norm\n        out[i] = v\n\n    # 20news/SCDV.py:223-238 -- make it sparse\n    min_no = float(np.mean(np.min(out, axis=1)))\n    max_no = float(np.mean(np.max(out, axis=1)))\n    thres = (abs(max_no) + abs(min_no)) / 2.0 * SCDV_PERCENTAGE\n    out[np.abs(out) < thres] = 0.0\n    return out\n\n\n"
      }
     ]
    },
@@ -129281,6 +129398,293 @@
     }
    ]
   },
+  "ml-robust-regression": {
+   "task_id": "ml-robust-regression",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "rmse_heavy_tails",
+    "elapsed_heavy_tails",
+    "rmse_response_outliers",
+    "elapsed_response_outliers",
+    "rmse_leverage_outliers",
+    "elapsed_leverage_outliers"
+   ],
+   "metric_columns": [
+    "rmse_heavy_tails",
+    "rmse_response_outliers",
+    "rmse_leverage_outliers"
+   ],
+   "metric_directions": {
+    "rmse_heavy_tails": "lower",
+    "rmse_response_outliers": "lower",
+    "rmse_leverage_outliers": "lower"
+   },
+   "metric_groups": [
+    {
+     "setting": "heavy_tails",
+     "metrics": [
+      "rmse_heavy_tails"
+     ]
+    },
+    {
+     "setting": "response_outliers",
+     "metrics": [
+      "rmse_response_outliers"
+     ]
+    },
+    {
+     "setting": "leverage_outliers",
+     "metrics": [
+      "rmse_leverage_outliers"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-05T17:00:31.735481+00:00",
+     "model": "baseline:constant_mean",
+     "is_final": true,
+     "seed": "123",
+     "rmse_heavy_tails": 0.9781122309154577,
+     "elapsed_heavy_tails": 2.0,
+     "rmse_response_outliers": 1.0325185803894168,
+     "elapsed_response_outliers": 2.0,
+     "rmse_leverage_outliers": 0.9894965074981235,
+     "elapsed_leverage_outliers": 2.0
+    },
+    {
+     "timestamp": "2026-09-05T17:00:31.734992+00:00",
+     "model": "baseline:constant_mean",
+     "is_final": true,
+     "seed": "42",
+     "rmse_heavy_tails": 1.0886037872960581,
+     "elapsed_heavy_tails": 2.0,
+     "rmse_response_outliers": 1.0576221324302923,
+     "elapsed_response_outliers": 2.0,
+     "rmse_leverage_outliers": 0.9575802663806451,
+     "elapsed_leverage_outliers": 2.0
+    },
+    {
+     "timestamp": "2026-09-05T17:00:31.735761+00:00",
+     "model": "baseline:constant_mean",
+     "is_final": true,
+     "seed": "456",
+     "rmse_heavy_tails": 1.028826975643078,
+     "elapsed_heavy_tails": 2.0,
+     "rmse_response_outliers": 1.0877829704286641,
+     "elapsed_response_outliers": 2.0,
+     "rmse_leverage_outliers": 1.070862959650278,
+     "elapsed_leverage_outliers": 2.0
+    },
+    {
+     "timestamp": "2026-09-05T17:00:31.736031+00:00",
+     "model": "baseline:constant_mean",
+     "is_final": true,
+     "seed": "mean",
+     "rmse_heavy_tails": 1.031847664618198,
+     "elapsed_heavy_tails": 2.0,
+     "rmse_response_outliers": 1.0593078944161245,
+     "elapsed_response_outliers": 2.0,
+     "rmse_leverage_outliers": 1.0059799111763488,
+     "elapsed_leverage_outliers": 2.0
+    },
+    {
+     "timestamp": "2026-09-05T17:01:44.447642+00:00",
+     "model": "baseline:huber",
+     "is_final": true,
+     "seed": "123",
+     "rmse_heavy_tails": 0.2510446483583977,
+     "elapsed_heavy_tails": 3.0,
+     "rmse_response_outliers": 0.20390558322411512,
+     "elapsed_response_outliers": 3.0,
+     "rmse_leverage_outliers": 0.39325908766266576,
+     "elapsed_leverage_outliers": 3.0
+    },
+    {
+     "timestamp": "2026-09-05T17:01:44.446839+00:00",
+     "model": "baseline:huber",
+     "is_final": true,
+     "seed": "42",
+     "rmse_heavy_tails": 0.25095502346084253,
+     "elapsed_heavy_tails": 3.0,
+     "rmse_response_outliers": 0.2071746105336359,
+     "elapsed_response_outliers": 3.0,
+     "rmse_leverage_outliers": 0.3864447023634027,
+     "elapsed_leverage_outliers": 3.0
+    },
+    {
+     "timestamp": "2026-09-05T17:01:44.447980+00:00",
+     "model": "baseline:huber",
+     "is_final": true,
+     "seed": "456",
+     "rmse_heavy_tails": 0.2622282968555552,
+     "elapsed_heavy_tails": 3.0,
+     "rmse_response_outliers": 0.20803948004508657,
+     "elapsed_response_outliers": 3.0,
+     "rmse_leverage_outliers": 0.41905574076731944,
+     "elapsed_leverage_outliers": 3.0
+    },
+    {
+     "timestamp": "2026-09-05T17:01:44.448289+00:00",
+     "model": "baseline:huber",
+     "is_final": true,
+     "seed": "mean",
+     "rmse_heavy_tails": 0.2547426562249318,
+     "elapsed_heavy_tails": 3.0,
+     "rmse_response_outliers": 0.20637322460094587,
+     "elapsed_response_outliers": 3.0,
+     "rmse_leverage_outliers": 0.3995865102644626,
+     "elapsed_leverage_outliers": 3.0
+    },
+    {
+     "timestamp": "2026-09-05T17:00:08.055601+00:00",
+     "model": "baseline:ols",
+     "is_final": true,
+     "seed": "123",
+     "rmse_heavy_tails": 0.27137863219171277,
+     "elapsed_heavy_tails": 2.0,
+     "rmse_response_outliers": 0.3895073729337055,
+     "elapsed_response_outliers": 3.0,
+     "rmse_leverage_outliers": 0.7625333668069146,
+     "elapsed_leverage_outliers": 3.0
+    },
+    {
+     "timestamp": "2026-09-05T17:00:08.055198+00:00",
+     "model": "baseline:ols",
+     "is_final": true,
+     "seed": "42",
+     "rmse_heavy_tails": 0.3048811817937497,
+     "elapsed_heavy_tails": 3.0,
+     "rmse_response_outliers": 0.4274588922601627,
+     "elapsed_response_outliers": 2.0,
+     "rmse_leverage_outliers": 0.8269918565243725,
+     "elapsed_leverage_outliers": 3.0
+    },
+    {
+     "timestamp": "2026-09-05T17:00:08.055908+00:00",
+     "model": "baseline:ols",
+     "is_final": true,
+     "seed": "456",
+     "rmse_heavy_tails": 0.3588171527149855,
+     "elapsed_heavy_tails": 2.0,
+     "rmse_response_outliers": 0.31535356255940505,
+     "elapsed_response_outliers": 3.0,
+     "rmse_leverage_outliers": 0.9145284070414181,
+     "elapsed_leverage_outliers": 3.0
+    },
+    {
+     "timestamp": "2026-09-05T17:00:08.056170+00:00",
+     "model": "baseline:ols",
+     "is_final": true,
+     "seed": "mean",
+     "rmse_heavy_tails": 0.31169232223348264,
+     "elapsed_heavy_tails": 2.3333333333333335,
+     "rmse_response_outliers": 0.3774399425844244,
+     "elapsed_response_outliers": 2.6666666666666665,
+     "rmse_leverage_outliers": 0.8346845434575684,
+     "elapsed_leverage_outliers": 3.0
+    },
+    {
+     "timestamp": "2026-09-05T17:01:55.114059+00:00",
+     "model": "baseline:ransac",
+     "is_final": true,
+     "seed": "123",
+     "rmse_heavy_tails": 0.7341600569060754,
+     "elapsed_heavy_tails": 3.0,
+     "rmse_response_outliers": 0.2037574923086126,
+     "elapsed_response_outliers": 3.0,
+     "rmse_leverage_outliers": 0.23914957477100443,
+     "elapsed_leverage_outliers": 3.0
+    },
+    {
+     "timestamp": "2026-09-05T17:01:55.113447+00:00",
+     "model": "baseline:ransac",
+     "is_final": true,
+     "seed": "42",
+     "rmse_heavy_tails": 0.33194287443774084,
+     "elapsed_heavy_tails": 3.0,
+     "rmse_response_outliers": 0.20436251470128153,
+     "elapsed_response_outliers": 3.0,
+     "rmse_leverage_outliers": 0.21787450215336743,
+     "elapsed_leverage_outliers": 3.0
+    },
+    {
+     "timestamp": "2026-09-05T17:01:55.114411+00:00",
+     "model": "baseline:ransac",
+     "is_final": true,
+     "seed": "456",
+     "rmse_heavy_tails": 0.39459013562183143,
+     "elapsed_heavy_tails": 3.0,
+     "rmse_response_outliers": 0.2071330279443421,
+     "elapsed_response_outliers": 3.0,
+     "rmse_leverage_outliers": 0.21406808464429153,
+     "elapsed_leverage_outliers": 3.0
+    },
+    {
+     "timestamp": "2026-09-05T17:01:55.114744+00:00",
+     "model": "baseline:ransac",
+     "is_final": true,
+     "seed": "mean",
+     "rmse_heavy_tails": 0.48689768898854924,
+     "elapsed_heavy_tails": 3.0,
+     "rmse_response_outliers": 0.2050843449847454,
+     "elapsed_response_outliers": 3.0,
+     "rmse_leverage_outliers": 0.22369738718955445,
+     "elapsed_leverage_outliers": 3.0
+    },
+    {
+     "timestamp": "2026-09-05T17:02:05.933721+00:00",
+     "model": "baseline:theil_sen",
+     "is_final": true,
+     "seed": "123",
+     "rmse_heavy_tails": 0.2616207168146279,
+     "elapsed_heavy_tails": 3.0,
+     "rmse_response_outliers": 0.2324532919447743,
+     "elapsed_response_outliers": 3.0,
+     "rmse_leverage_outliers": 0.2279193356897133,
+     "elapsed_leverage_outliers": 3.0
+    },
+    {
+     "timestamp": "2026-09-05T17:02:05.931618+00:00",
+     "model": "baseline:theil_sen",
+     "is_final": true,
+     "seed": "42",
+     "rmse_heavy_tails": 0.2691418897543178,
+     "elapsed_heavy_tails": 3.0,
+     "rmse_response_outliers": 0.2673542482098514,
+     "elapsed_response_outliers": 3.0,
+     "rmse_leverage_outliers": 0.21535864833848598,
+     "elapsed_leverage_outliers": 3.0
+    },
+    {
+     "timestamp": "2026-09-05T17:02:05.934208+00:00",
+     "model": "baseline:theil_sen",
+     "is_final": true,
+     "seed": "456",
+     "rmse_heavy_tails": 0.292171119961872,
+     "elapsed_heavy_tails": 3.0,
+     "rmse_response_outliers": 0.22077513554189634,
+     "elapsed_response_outliers": 3.0,
+     "rmse_leverage_outliers": 0.2108183111146577,
+     "elapsed_leverage_outliers": 3.0
+    },
+    {
+     "timestamp": "2026-09-05T17:02:05.934651+00:00",
+     "model": "baseline:theil_sen",
+     "is_final": true,
+     "seed": "mean",
+     "rmse_heavy_tails": 0.2743112421769392,
+     "elapsed_heavy_tails": 3.0,
+     "rmse_response_outliers": 0.240194225232174,
+     "elapsed_response_outliers": 3.0,
+     "rmse_leverage_outliers": 0.2180320983809523,
+     "elapsed_leverage_outliers": 3.0
+    }
+   ]
+  },
   "ml-selective-deferral": {
    "task_id": "ml-selective-deferral",
    "columns": [
@@ -134125,36 +134529,9 @@
     "test_r2_pendulum_period",
     "test_r2_ideal_gas"
    ],
-   "metric_columns": [
-    "test_r2_newton_force",
-    "test_r2_pendulum_period",
-    "test_r2_ideal_gas"
-   ],
-   "metric_directions": {
-    "test_r2_newton_force": "higher",
-    "test_r2_pendulum_period": "higher",
-    "test_r2_ideal_gas": "higher"
-   },
-   "metric_groups": [
-    {
-     "setting": "newton-force",
-     "metrics": [
-      "test_r2_newton_force"
-     ]
-    },
-    {
-     "setting": "pendulum-period",
-     "metrics": [
-      "test_r2_pendulum_period"
-     ]
-    },
-    {
-     "setting": "ideal-gas",
-     "metrics": [
-      "test_r2_ideal_gas"
-     ]
-    }
-   ],
+   "metric_columns": [],
+   "metric_directions": {},
+   "metric_groups": [],
    "rows": []
   },
   "mlsys-abr-bitrate-selection": {
