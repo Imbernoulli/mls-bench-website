@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-04",
+ "generated": "2026-09-05",
  "tasks": [
   {
    "id": "agent-tool-reasoning",
@@ -4454,6 +4454,330 @@
       "start_line": 58,
       "end_line": 64,
       "content": "def compute_scores(traj, seed):\n    \"\"\"Negated area under the margin: keep the examples with the smallest AUM.\"\"\"\n    aum = traj.train_margin.mean(axis=0).astype(np.float64)\n    return -aum\n"
+     }
+    ]
+   },
+   "rigorous_codebase": true,
+   "allow_create": false,
+   "has_agent_logs": false
+  },
+  {
+   "id": "dl-lorasym-domain-generalization",
+   "name": "Does A/B asymmetry improve out-of-domain generalization?",
+   "summary": "The information-theoretic argument in Zhu et al., *Asymmetry in Low-Rank",
+   "category": "deep-learning",
+   "category_label": "Deep Learning",
+   "category_abbr": "",
+   "description_md": "# Does A/B asymmetry improve out-of-domain generalization?\n\n## Research question\n\nThe information-theoretic argument in Zhu et al., *Asymmetry in Low-Rank\nAdapters of Foundation Models* (arXiv:2402.16842, §4.2 and §5.4), predicts\nthat freezing a random input feature extractor `A` while learning only `B`\nreduces the generalization burden.  Their DomainBed experiments report a\nsmaller in-domain/out-of-domain gap for this design.  This task tests that\nalgorithmic claim under a controlled domain shift: train on the source split\nof each real corpus and score on a disjoint target-style split.\n\n## Editable surface\n\nEdit the marked region of `AsymmetryLoRA/mlsb_method.py`.  Return the update and\ninitialisation rule for each layer (`update_A`, `update_B`, `A_init`, `B_init`).\nThe runner fixes the rank, base network, optimiser, data order and training\nbudget.  Only the adapter structure may change; adding parameters, changing\nthe split or tuning a rate is outside the question.  The released\n`LoRASYM` implementation in the package is used.\n\n## Evaluation and baselines\n\nSettings are `digits_shift`, `breast_cancer_shift`, and hidden `wine_shift`.\nThey use real sklearn examples; the target split receives a fixed sensor/style\nperturbation while labels and source training data remain untouched.  A fixed\nevaluator, in a separate process, merges the learned adapter and reports target\naccuracy.  Baselines are standard full LoRA, the paper's B-only/random-A rule,\nthe reversed A-only (Kaiming-random-B) control, and a frozen-null control.  Compare both scores\nand the source-to-target gap when interpreting a result.\n",
+   "description_html": "<h1>Does A/B asymmetry improve out-of-domain generalization?</h1>\n<h2>Research question</h2>\n<p>The information-theoretic argument in Zhu et al., <em>Asymmetry in Low-Rank\nAdapters of Foundation Models</em> (arXiv:2402.16842, §4.2 and §5.4), predicts\nthat freezing a random input feature extractor <code>A</code> while learning only <code>B</code>\nreduces the generalization burden.  Their DomainBed experiments report a\nsmaller in-domain/out-of-domain gap for this design.  This task tests that\nalgorithmic claim under a controlled domain shift: train on the source split\nof each real corpus and score on a disjoint target-style split.</p>\n<h2>Editable surface</h2>\n<p>Edit the marked region of <code>AsymmetryLoRA/mlsb_method.py</code>.  Return the update and\ninitialisation rule for each layer (<code>update_A</code>, <code>update_B</code>, <code>A_init</code>, <code>B_init</code>).\nThe runner fixes the rank, base network, optimiser, data order and training\nbudget.  Only the adapter structure may change; adding parameters, changing\nthe split or tuning a rate is outside the question.  The released\n<code>LoRASYM</code> implementation in the package is used.</p>\n<h2>Evaluation and baselines</h2>\n<p>Settings are <code>digits_shift</code>, <code>breast_cancer_shift</code>, and hidden <code>wine_shift</code>.\nThey use real sklearn examples; the target split receives a fixed sensor/style\nperturbation while labels and source training data remain untouched.  A fixed\nevaluator, in a separate process, merges the learned adapter and reports target\naccuracy.  Baselines are standard full LoRA, the paper's B-only/random-A rule,\nthe reversed A-only (Kaiming-random-B) control, and a frozen-null control.  Compare both scores\nand the source-to-target gap when interpreting a result.</p>",
+   "baselines": [
+    "full_lora",
+    "b_only",
+    "a_only",
+    "frozen_null"
+   ],
+   "environments": [
+    "digits_shift",
+    "breast_cancer_shift",
+    "wine_shift"
+   ],
+   "packages": [
+    "AsymmetryLoRA"
+   ],
+   "files": [
+    {
+     "filename": "AsymmetryLoRA/mlsb_method.py",
+     "edit_ranges": [
+      {
+       "start": 10,
+       "end": 27
+      }
+     ],
+     "content": "\"\"\"Editable A/B rule for the AsymmetryLoRA domain-generalization task.\"\"\"\n\nfrom __future__ import annotations\n\n# ============================================================================\n# FIXED -- DO NOT MODIFY ABOVE THIS LINE\n# ============================================================================\n\n# ----- BEGIN EDITABLE REGION (lines 10-27 in config.json) -----\nRULE = {\n    \"update_A\": False,\n    \"update_B\": True,\n    \"A_init\": \"rand\",\n    \"B_init\": \"zero\",\n}\n\n\ndef get_rule(layer_name: str, in_features: int, out_features: int,\n             default_rank: int) -> dict:\n    del layer_name, in_features, out_features, default_rank\n    return dict(RULE)\n\n# ----- END EDITABLE REGION -----\n"
+    },
+    {
+     "filename": "AsymmetryLoRA/mlsb_runtime.py",
+     "edit_ranges": []
+    },
+    {
+     "filename": "AsymmetryLoRA/mlsb_eval.py",
+     "edit_ranges": []
+    }
+   ],
+   "baselines_code": {
+    "full_lora": [
+     {
+      "file": "AsymmetryLoRA/mlsb_method.py",
+      "start_line": 10,
+      "end_line": 27,
+      "content": "RULE = {\"update_A\": True, \"update_B\": True, \"A_init\": \"he\", \"B_init\": \"zero\"}\n\ndef get_rule(layer_name, in_features, out_features, default_rank):\n    del layer_name, in_features, out_features, default_rank\n    return dict(RULE)\n"
+     }
+    ],
+    "b_only": [
+     {
+      "file": "AsymmetryLoRA/mlsb_method.py",
+      "start_line": 10,
+      "end_line": 27,
+      "content": "RULE = {\"update_A\": False, \"update_B\": True, \"A_init\": \"rand\", \"B_init\": \"zero\"}\n\ndef get_rule(layer_name, in_features, out_features, default_rank):\n    del layer_name, in_features, out_features, default_rank\n    return dict(RULE)\n"
+     }
+    ],
+    "a_only": [
+     {
+      "file": "AsymmetryLoRA/mlsb_method.py",
+      "start_line": 10,
+      "end_line": 27,
+      "content": "RULE = {\"update_A\": True, \"update_B\": False, \"A_init\": \"zero\", \"B_init\": \"he\"}\n\ndef get_rule(layer_name, in_features, out_features, default_rank):\n    del layer_name, in_features, out_features, default_rank\n    return dict(RULE)\n"
+     }
+    ],
+    "frozen_null": [
+     {
+      "file": "AsymmetryLoRA/mlsb_method.py",
+      "start_line": 10,
+      "end_line": 27,
+      "content": "RULE = {\"update_A\": False, \"update_B\": False, \"A_init\": \"zero\", \"B_init\": \"zero\"}\n\ndef get_rule(layer_name, in_features, out_features, default_rank):\n    del layer_name, in_features, out_features, default_rank\n    return dict(RULE)\n"
+     }
+    ]
+   },
+   "rigorous_codebase": true,
+   "allow_create": false,
+   "has_agent_logs": false
+  },
+  {
+   "id": "dl-lorasym-factor-freezing",
+   "name": "Which side of a low-rank adapter should learn?",
+   "summary": "LoRA writes a weight update as `ΔW = B A`.  The paper *Asymmetry in Low-Rank",
+   "category": "deep-learning",
+   "category_label": "Deep Learning",
+   "category_abbr": "",
+   "description_md": "# Which side of a low-rank adapter should learn?\n\n## Research question\n\nLoRA writes a weight update as `ΔW = B A`.  The paper *Asymmetry in Low-Rank\nAdapters of Foundation Models* (Zhu et al., arXiv:2402.16842, §4.1 and §5)\nargues that `A` extracts input features while `B` predicts the desired output.\nIts linear least-squares analysis therefore predicts that freezing a random\nfeature extractor `A` and training `B` is less damaging than freezing `B` and\ntraining `A`.  This task tests that algorithmic claim directly on three real,\nsmall tabular/image datasets with the same frozen two-layer network and the\nsame rank and optimisation budget.\n\n## What you may modify\n\nEdit only `AsymmetryLoRA/mlsb_method.py` in the marked region.  Implement\n`get_rule(layer_name, in_features, out_features, default_rank)`, returning the\ninitialisation and update rule for that layer:\n\n``update_A`` / ``update_B`` choose which LoRA factor receives gradients;\n``A_init`` / ``B_init`` choose one of the released initialisers (`rand`, `he`,\n`zero`, or the frozen-weight SVD bases `V`/`U`).  The adapter rank, optimiser,\ndata split, epochs, and learning rate are fixed by the runner.  Do not add\nparameters or alter the frozen base weights.\n\nThe upstream implementation is `LoRASYM_peft/local_lorasym_all.py` in the\nread-only package.  Its `LoRASYM` layer and update flags are the object under\nstudy; the runner calls that implementation (with a compatibility layer only\nfor local smoke tests).\n\n## Evaluation\n\nThe fixed runner first trains a small MLP on one split of the real dataset,\nfreezes it, then adapts on a disjoint split with your rule.  Accuracy on the\nthird split is computed by `mlsb_eval.py` in a separate process after the\nadapter is merged.  Settings are `digits`, `breast_cancer`, and a hidden\n`wine` setting; higher held-out accuracy is better.  Every method sees the\nsame seed, base checkpoint, optimiser and number of steps.\n\n## Reference baselines\n\n* `full_lora`: Hu et al. (ICLR 2022, arXiv:2106.09685), train both factors,\n  Kaiming `A`, zero `B`.\n* `b_only`: Zhu et al. (arXiv:2402.16842, Tables 1–2), freeze random\n  orthogonal `A` and train `B`.\n* `a_only`: the paper's reversed control, freeze a random Kaiming output basis\n  `B` and train `A`.\n* `frozen_null`: no trainable adapter, the fixed-base control.\n\nThe question is the A/B update asymmetry, not a search over learning rates or\ndataset-specific hyperparameters.  A parameter-budget check rejects rules\nthat unfreeze the base network or exceed the full-LoRA rank-4 budget.\n",
+   "description_html": "<h1>Which side of a low-rank adapter should learn?</h1>\n<h2>Research question</h2>\n<p>LoRA writes a weight update as <code>ΔW = B A</code>.  The paper <em>Asymmetry in Low-Rank\nAdapters of Foundation Models</em> (Zhu et al., arXiv:2402.16842, §4.1 and §5)\nargues that <code>A</code> extracts input features while <code>B</code> predicts the desired output.\nIts linear least-squares analysis therefore predicts that freezing a random\nfeature extractor <code>A</code> and training <code>B</code> is less damaging than freezing <code>B</code> and\ntraining <code>A</code>.  This task tests that algorithmic claim directly on three real,\nsmall tabular/image datasets with the same frozen two-layer network and the\nsame rank and optimisation budget.</p>\n<h2>What you may modify</h2>\n<p>Edit only <code>AsymmetryLoRA/mlsb_method.py</code> in the marked region.  Implement\n<code>get_rule(layer_name, in_features, out_features, default_rank)</code>, returning the\ninitialisation and update rule for that layer:</p>\n<p><code>update_A</code> / <code>update_B</code> choose which LoRA factor receives gradients;\n<code>A_init</code> / <code>B_init</code> choose one of the released initialisers (<code>rand</code>, <code>he</code>,\n<code>zero</code>, or the frozen-weight SVD bases <code>V</code>/<code>U</code>).  The adapter rank, optimiser,\ndata split, epochs, and learning rate are fixed by the runner.  Do not add\nparameters or alter the frozen base weights.</p>\n<p>The upstream implementation is <code>LoRASYM_peft/local_lorasym_all.py</code> in the\nread-only package.  Its <code>LoRASYM</code> layer and update flags are the object under\nstudy; the runner calls that implementation (with a compatibility layer only\nfor local smoke tests).</p>\n<h2>Evaluation</h2>\n<p>The fixed runner first trains a small MLP on one split of the real dataset,\nfreezes it, then adapts on a disjoint split with your rule.  Accuracy on the\nthird split is computed by <code>mlsb_eval.py</code> in a separate process after the\nadapter is merged.  Settings are <code>digits</code>, <code>breast_cancer</code>, and a hidden\n<code>wine</code> setting; higher held-out accuracy is better.  Every method sees the\nsame seed, base checkpoint, optimiser and number of steps.</p>\n<h2>Reference baselines</h2>\n<ul>\n<li><code>full_lora</code>: Hu et al. (ICLR 2022, arXiv:2106.09685), train both factors,\n  Kaiming <code>A</code>, zero <code>B</code>.</li>\n<li><code>b_only</code>: Zhu et al. (arXiv:2402.16842, Tables 1–2), freeze random\n  orthogonal <code>A</code> and train <code>B</code>.</li>\n<li><code>a_only</code>: the paper's reversed control, freeze a random Kaiming output basis\n  <code>B</code> and train <code>A</code>.</li>\n<li><code>frozen_null</code>: no trainable adapter, the fixed-base control.</li>\n</ul>\n<p>The question is the A/B update asymmetry, not a search over learning rates or\ndataset-specific hyperparameters.  A parameter-budget check rejects rules\nthat unfreeze the base network or exceed the full-LoRA rank-4 budget.</p>",
+   "baselines": [
+    "full_lora",
+    "b_only",
+    "a_only",
+    "frozen_null"
+   ],
+   "environments": [
+    "digits",
+    "breast_cancer",
+    "wine"
+   ],
+   "packages": [
+    "AsymmetryLoRA"
+   ],
+   "files": [
+    {
+     "filename": "AsymmetryLoRA/mlsb_method.py",
+     "edit_ranges": [
+      {
+       "start": 10,
+       "end": 27
+      }
+     ],
+     "content": "\"\"\"Editable A/B factor rule for the AsymmetryLoRA freezing task.\"\"\"\n\nfrom __future__ import annotations\n\n# ============================================================================\n# FIXED -- DO NOT MODIFY ABOVE THIS LINE\n# ============================================================================\n\n# ----- BEGIN EDITABLE REGION (lines 10-27 in config.json) -----\nRULE = {\n    \"update_A\": True,\n    \"update_B\": True,\n    \"A_init\": \"he\",\n    \"B_init\": \"zero\",\n}\n\n\ndef get_rule(layer_name: str, in_features: int, out_features: int,\n             default_rank: int) -> dict:\n    \"\"\"Return the LoRASYM rule for one adapted linear layer.\n\n    Keep the interface and the four keys.  ``layer_name`` and the dimensions\n    are supplied so a structural method can make a principled, layer-aware\n    choice; the training budget and rank remain fixed by the harness.\n    \"\"\"\n    del layer_name, in_features, out_features, default_rank\n    return dict(RULE)\n\n# ----- END EDITABLE REGION -----\n"
+    },
+    {
+     "filename": "AsymmetryLoRA/mlsb_runtime.py",
+     "edit_ranges": []
+    },
+    {
+     "filename": "AsymmetryLoRA/mlsb_eval.py",
+     "edit_ranges": []
+    }
+   ],
+   "baselines_code": {
+    "full_lora": [
+     {
+      "file": "AsymmetryLoRA/mlsb_method.py",
+      "start_line": 10,
+      "end_line": 27,
+      "content": "RULE = {\"update_A\": True, \"update_B\": True, \"A_init\": \"he\", \"B_init\": \"zero\"}\n\ndef get_rule(layer_name, in_features, out_features, default_rank):\n    del layer_name, in_features, out_features, default_rank\n    return dict(RULE)\n"
+     }
+    ],
+    "b_only": [
+     {
+      "file": "AsymmetryLoRA/mlsb_method.py",
+      "start_line": 10,
+      "end_line": 27,
+      "content": "RULE = {\"update_A\": False, \"update_B\": True, \"A_init\": \"rand\", \"B_init\": \"zero\"}\n\ndef get_rule(layer_name, in_features, out_features, default_rank):\n    del layer_name, in_features, out_features, default_rank\n    return dict(RULE)\n"
+     }
+    ],
+    "a_only": [
+     {
+      "file": "AsymmetryLoRA/mlsb_method.py",
+      "start_line": 10,
+      "end_line": 27,
+      "content": "RULE = {\"update_A\": True, \"update_B\": False, \"A_init\": \"zero\", \"B_init\": \"he\"}\n\ndef get_rule(layer_name, in_features, out_features, default_rank):\n    del layer_name, in_features, out_features, default_rank\n    return dict(RULE)\n"
+     }
+    ],
+    "frozen_null": [
+     {
+      "file": "AsymmetryLoRA/mlsb_method.py",
+      "start_line": 10,
+      "end_line": 27,
+      "content": "RULE = {\"update_A\": False, \"update_B\": False, \"A_init\": \"zero\", \"B_init\": \"zero\"}\n\ndef get_rule(layer_name, in_features, out_features, default_rank):\n    del layer_name, in_features, out_features, default_rank\n    return dict(RULE)\n"
+     }
+    ]
+   },
+   "rigorous_codebase": true,
+   "allow_create": false,
+   "has_agent_logs": false
+  },
+  {
+   "id": "dl-lorasym-init-geometry",
+   "name": "Which input features should a frozen LoRA factor extract?",
+   "summary": "Zhu et al., *Asymmetry in Low-Rank Adapters of Foundation Models*",
+   "category": "deep-learning",
+   "category_label": "Deep Learning",
+   "category_abbr": "",
+   "description_md": "# Which input features should a frozen LoRA factor extract?\n\n## Research question\n\nZhu et al., *Asymmetry in Low-Rank Adapters of Foundation Models*\n(arXiv:2402.16842, §4.1 and Table 2), report that the feature factor `A` can\nbe frozen while `B` learns, and that a random orthonormal `A` is consistently\nas good as alternatives.  This task isolates that initialization claim: `B`\nis always the only trainable factor, while the agent designs the fixed `A`\nsubspace.  The choices are structural (random orthogonal, Kaiming/Gaussian,\nfrozen-weight singular vectors, or another principled construction), not a\nlearning-rate or epoch search.\n\n## Editable surface\n\nEdit `AsymmetryLoRA/mlsb_method.py` only.  Implement `get_rule(...)` and return\nthe desired `A_init` (`rand`, `he`, `V`, or `zero`) with `B_init=\"zero\"`.\nThe harness fixes rank 4, freezes `A`, trains `B`, and owns all optimisation and\ndata settings.  The upstream `LoRASYM` layer in\n`LoRASYM_peft/local_lorasym_all.py` is used directly.\n\n## Evaluation and baselines\n\nThe fixed runner adapts a frozen MLP on real `digits`, `breast_cancer`, and\nhidden `wine` data.  A separate evaluator computes held-out accuracy after\nmerging the adapter.  Baselines are the paper's random orthonormal feature\nmatrix (`orthogonal_a`), Kaiming/random-uniform (`gaussian_a`), frozen-weight\nright singular vectors (`weight_svd_a`), and the zero-feature control\n(`zero_a`).  All use the same B-only update and parameter budget.\n",
+   "description_html": "<h1>Which input features should a frozen LoRA factor extract?</h1>\n<h2>Research question</h2>\n<p>Zhu et al., <em>Asymmetry in Low-Rank Adapters of Foundation Models</em>\n(arXiv:2402.16842, §4.1 and Table 2), report that the feature factor <code>A</code> can\nbe frozen while <code>B</code> learns, and that a random orthonormal <code>A</code> is consistently\nas good as alternatives.  This task isolates that initialization claim: <code>B</code>\nis always the only trainable factor, while the agent designs the fixed <code>A</code>\nsubspace.  The choices are structural (random orthogonal, Kaiming/Gaussian,\nfrozen-weight singular vectors, or another principled construction), not a\nlearning-rate or epoch search.</p>\n<h2>Editable surface</h2>\n<p>Edit <code>AsymmetryLoRA/mlsb_method.py</code> only.  Implement <code>get_rule(...)</code> and return\nthe desired <code>A_init</code> (<code>rand</code>, <code>he</code>, <code>V</code>, or <code>zero</code>) with <code>B_init=\"zero\"</code>.\nThe harness fixes rank 4, freezes <code>A</code>, trains <code>B</code>, and owns all optimisation and\ndata settings.  The upstream <code>LoRASYM</code> layer in\n<code>LoRASYM_peft/local_lorasym_all.py</code> is used directly.</p>\n<h2>Evaluation and baselines</h2>\n<p>The fixed runner adapts a frozen MLP on real <code>digits</code>, <code>breast_cancer</code>, and\nhidden <code>wine</code> data.  A separate evaluator computes held-out accuracy after\nmerging the adapter.  Baselines are the paper's random orthonormal feature\nmatrix (<code>orthogonal_a</code>), Kaiming/random-uniform (<code>gaussian_a</code>), frozen-weight\nright singular vectors (<code>weight_svd_a</code>), and the zero-feature control\n(<code>zero_a</code>).  All use the same B-only update and parameter budget.</p>",
+   "baselines": [
+    "orthogonal_a",
+    "gaussian_a",
+    "weight_svd_a",
+    "zero_a"
+   ],
+   "environments": [
+    "digits",
+    "breast_cancer",
+    "wine"
+   ],
+   "packages": [
+    "AsymmetryLoRA"
+   ],
+   "files": [
+    {
+     "filename": "AsymmetryLoRA/mlsb_method.py",
+     "edit_ranges": [
+      {
+       "start": 10,
+       "end": 23
+      }
+     ],
+     "content": "\"\"\"Editable feature-basis rule for the AsymmetryLoRA init task.\"\"\"\n\nfrom __future__ import annotations\n\n# ============================================================================\n# FIXED -- DO NOT MODIFY ABOVE THIS LINE\n# ============================================================================\n\n# ----- BEGIN EDITABLE REGION (lines 10-23 in config.json) -----\nA_INIT = \"rand\"\n\n\ndef get_rule(layer_name: str, in_features: int, out_features: int,\n             default_rank: int) -> dict:\n    \"\"\"Choose the frozen input-feature basis; B is trained by the harness.\"\"\"\n    del layer_name, in_features, out_features, default_rank\n    return {\"update_A\": False, \"update_B\": True,\n            \"A_init\": A_INIT, \"B_init\": \"zero\"}\n\n# ----- END EDITABLE REGION -----\n"
+    },
+    {
+     "filename": "AsymmetryLoRA/mlsb_runtime.py",
+     "edit_ranges": []
+    },
+    {
+     "filename": "AsymmetryLoRA/mlsb_eval.py",
+     "edit_ranges": []
+    }
+   ],
+   "baselines_code": {
+    "orthogonal_a": [
+     {
+      "file": "AsymmetryLoRA/mlsb_method.py",
+      "start_line": 10,
+      "end_line": 23,
+      "content": "A_INIT = \"rand\"\n\ndef get_rule(layer_name, in_features, out_features, default_rank):\n    del layer_name, in_features, out_features, default_rank\n    return {\"update_A\": False, \"update_B\": True, \"A_init\": \"rand\", \"B_init\": \"zero\"}\n"
+     }
+    ],
+    "gaussian_a": [
+     {
+      "file": "AsymmetryLoRA/mlsb_method.py",
+      "start_line": 10,
+      "end_line": 23,
+      "content": "A_INIT = \"he\"\n\ndef get_rule(layer_name, in_features, out_features, default_rank):\n    del layer_name, in_features, out_features, default_rank\n    return {\"update_A\": False, \"update_B\": True, \"A_init\": \"he\", \"B_init\": \"zero\"}\n"
+     }
+    ],
+    "weight_svd_a": [
+     {
+      "file": "AsymmetryLoRA/mlsb_method.py",
+      "start_line": 10,
+      "end_line": 23,
+      "content": "A_INIT = \"V\"\n\ndef get_rule(layer_name, in_features, out_features, default_rank):\n    del layer_name, in_features, out_features, default_rank\n    return {\"update_A\": False, \"update_B\": True, \"A_init\": \"V\", \"B_init\": \"zero\"}\n"
+     }
+    ],
+    "zero_a": [
+     {
+      "file": "AsymmetryLoRA/mlsb_method.py",
+      "start_line": 10,
+      "end_line": 23,
+      "content": "A_INIT = \"zero\"\n\ndef get_rule(layer_name, in_features, out_features, default_rank):\n    del layer_name, in_features, out_features, default_rank\n    return {\"update_A\": False, \"update_B\": True, \"A_init\": \"zero\", \"B_init\": \"zero\"}\n"
+     }
+    ]
+   },
+   "rigorous_codebase": true,
+   "allow_create": false,
+   "has_agent_logs": false
+  },
+  {
+   "id": "dl-lorasym-rank-budget",
+   "name": "Can the saved parameters buy a wider output basis?",
+   "summary": "Section 4.3 of Zhu et al., *Asymmetry in Low-Rank Adapters of Foundation",
+   "category": "deep-learning",
+   "category_label": "Deep Learning",
+   "category_abbr": "",
+   "description_md": "# Can the saved parameters buy a wider output basis?\n\n## Research question\n\nSection 4.3 of Zhu et al., *Asymmetry in Low-Rank Adapters of Foundation\nModels* (arXiv:2402.16842), observes that training only `B` uses roughly half\nthe parameters of full LoRA.  At a fixed trainable-parameter budget, those\nparameters can instead purchase a larger rank for `B`; the paper predicts that\nthe wider output basis is at least as expressive and often generalises better.\nThis task tests that structural rank-allocation claim, with all optimisation\nchoices held fixed.\n\n## Editable surface\n\nEdit only `AsymmetryLoRA/mlsb_method.py`.  Return a rule containing\n`update_A`, `update_B`, `A_init`, `B_init`, and an integer `rank`.  The harness\nuses the same rank-4 full-LoRA budget as the reference.  A sound method may\nallocate that budget asymmetrically (for example, rank 8 for `B` and a frozen\nrank-8 feature basis), but may not add parameters or unfreeze the base MLP.\n\nThe fixed runner uses the released `LoRASYM` layer, AdamW, data splits and\ntraining epochs for every method.  Learning-rate or dataset-specific tuning is\noutside the question.\n\n## Evaluation and baselines\n\nHeld-out accuracy is measured on real `digits`, `breast_cancer`, and hidden\n`wine` data after a separate evaluator merges the adapter.  Baselines are\n`full_r4` (standard LoRA, rank 4 on both factors), `b_only_r8` (the paper's\nparameter-matched B-only proposal), `b_only_r4` (same asymmetry without the\nextra rank), and `a_only_r4` (the reversed A-only control at the reference\nrank).  An A-only rank-8 adapter would exceed the fixed full-LoRA budget, so it\nis intentionally not admitted as a baseline.  A standalone budget check and\nthe runner's in-process check enforce the 1.05× full-LoRA parameter cap.\n",
+   "description_html": "<h1>Can the saved parameters buy a wider output basis?</h1>\n<h2>Research question</h2>\n<p>Section 4.3 of Zhu et al., <em>Asymmetry in Low-Rank Adapters of Foundation\nModels</em> (arXiv:2402.16842), observes that training only <code>B</code> uses roughly half\nthe parameters of full LoRA.  At a fixed trainable-parameter budget, those\nparameters can instead purchase a larger rank for <code>B</code>; the paper predicts that\nthe wider output basis is at least as expressive and often generalises better.\nThis task tests that structural rank-allocation claim, with all optimisation\nchoices held fixed.</p>\n<h2>Editable surface</h2>\n<p>Edit only <code>AsymmetryLoRA/mlsb_method.py</code>.  Return a rule containing\n<code>update_A</code>, <code>update_B</code>, <code>A_init</code>, <code>B_init</code>, and an integer <code>rank</code>.  The harness\nuses the same rank-4 full-LoRA budget as the reference.  A sound method may\nallocate that budget asymmetrically (for example, rank 8 for <code>B</code> and a frozen\nrank-8 feature basis), but may not add parameters or unfreeze the base MLP.</p>\n<p>The fixed runner uses the released <code>LoRASYM</code> layer, AdamW, data splits and\ntraining epochs for every method.  Learning-rate or dataset-specific tuning is\noutside the question.</p>\n<h2>Evaluation and baselines</h2>\n<p>Held-out accuracy is measured on real <code>digits</code>, <code>breast_cancer</code>, and hidden\n<code>wine</code> data after a separate evaluator merges the adapter.  Baselines are\n<code>full_r4</code> (standard LoRA, rank 4 on both factors), <code>b_only_r8</code> (the paper's\nparameter-matched B-only proposal), <code>b_only_r4</code> (same asymmetry without the\nextra rank), and <code>a_only_r4</code> (the reversed A-only control at the reference\nrank).  An A-only rank-8 adapter would exceed the fixed full-LoRA budget, so it\nis intentionally not admitted as a baseline.  A standalone budget check and\nthe runner's in-process check enforce the 1.05× full-LoRA parameter cap.</p>",
+   "baselines": [
+    "full_r4",
+    "b_only_r8",
+    "b_only_r4",
+    "a_only_r4"
+   ],
+   "environments": [
+    "digits",
+    "breast_cancer",
+    "wine"
+   ],
+   "packages": [
+    "AsymmetryLoRA"
+   ],
+   "files": [
+    {
+     "filename": "AsymmetryLoRA/mlsb_method.py",
+     "edit_ranges": [
+      {
+       "start": 10,
+       "end": 27
+      }
+     ],
+     "content": "\"\"\"Editable rank-allocation rule for the AsymmetryLoRA budget task.\"\"\"\n\nfrom __future__ import annotations\n\n# ============================================================================\n# FIXED -- DO NOT MODIFY ABOVE THIS LINE\n# ============================================================================\n\n# ----- BEGIN EDITABLE REGION (lines 10-27 in config.json) -----\nRULE = {\n    \"rank\": 8,\n    \"update_A\": False,\n    \"update_B\": True,\n    \"A_init\": \"rand\",\n    \"B_init\": \"zero\",\n}\n\n\ndef get_rule(layer_name: str, in_features: int, out_features: int,\n             default_rank: int) -> dict:\n    del layer_name, in_features, out_features, default_rank\n    return dict(RULE)\n\n# ----- END EDITABLE REGION -----\n"
+    },
+    {
+     "filename": "AsymmetryLoRA/mlsb_runtime.py",
+     "edit_ranges": []
+    },
+    {
+     "filename": "AsymmetryLoRA/mlsb_eval.py",
+     "edit_ranges": []
+    }
+   ],
+   "baselines_code": {
+    "full_r4": [
+     {
+      "file": "AsymmetryLoRA/mlsb_method.py",
+      "start_line": 10,
+      "end_line": 27,
+      "content": "RULE = {\"rank\": 4, \"update_A\": True, \"update_B\": True, \"A_init\": \"he\", \"B_init\": \"zero\"}\n\ndef get_rule(layer_name, in_features, out_features, default_rank):\n    del layer_name, in_features, out_features, default_rank\n    return dict(RULE)\n"
+     }
+    ],
+    "b_only_r8": [
+     {
+      "file": "AsymmetryLoRA/mlsb_method.py",
+      "start_line": 10,
+      "end_line": 27,
+      "content": "RULE = {\"rank\": 8, \"update_A\": False, \"update_B\": True, \"A_init\": \"rand\", \"B_init\": \"zero\"}\n\ndef get_rule(layer_name, in_features, out_features, default_rank):\n    del layer_name, in_features, out_features, default_rank\n    return dict(RULE)\n"
+     }
+    ],
+    "b_only_r4": [
+     {
+      "file": "AsymmetryLoRA/mlsb_method.py",
+      "start_line": 10,
+      "end_line": 27,
+      "content": "RULE = {\"rank\": 4, \"update_A\": False, \"update_B\": True, \"A_init\": \"rand\", \"B_init\": \"zero\"}\n\ndef get_rule(layer_name, in_features, out_features, default_rank):\n    del layer_name, in_features, out_features, default_rank\n    return dict(RULE)\n"
+     }
+    ],
+    "a_only_r4": [
+     {
+      "file": "AsymmetryLoRA/mlsb_method.py",
+      "start_line": 10,
+      "end_line": 27,
+      "content": "RULE = {\"rank\": 4, \"update_A\": True, \"update_B\": False, \"A_init\": \"zero\", \"B_init\": \"he\"}\n\ndef get_rule(layer_name, in_features, out_features, default_rank):\n    del layer_name, in_features, out_features, default_rank\n    return dict(RULE)\n"
      }
     ]
    },
@@ -19004,7 +19328,7 @@
       "file": "CleanDiffuser/train_custom.py",
       "start_line": 74,
       "end_line": 129,
-      "content": "CONFIG = {\n    \"diffusion_steps\": 100,\n    \"sample_steps\": 100,\n    \"beta_schedule\": \"cosine\",\n}\n\n\ndef _cosine_beta_schedule(T, s=0.008):\n    \"\"\"Cosine noise schedule from Nichol & Dhariwal.\"\"\"\n    import math\n    steps = torch.arange(T + 1, dtype=torch.float64)\n    alpha_bar = torch.cos((steps / T + s) / (1 + s) * math.pi / 2) ** 2\n    alpha_bar = alpha_bar / alpha_bar[0]\n    betas = 1 - (alpha_bar[1:] / alpha_bar[:-1])\n    return torch.clamp(betas, 0.0001, 0.9999).float()\n\n\nclass ImitationObjective:\n    \"\"\"DDPM: Denoising Diffusion Probabilistic Model.\n\n    Forward process adds Gaussian noise via cosine schedule.\n    Network predicts the added noise (epsilon-prediction).\n    Inference uses the full DDPM reverse chain.\n    \"\"\"\n\n    def __init__(self, network: nn.Module, network_ema: nn.Module,\n                 act_dim: int, horizon: int, device: str, config: dict):\n        self.network = network\n        self.network_ema = network_ema\n        self.act_dim = act_dim\n        self.horizon = horizon\n        self.device = device\n        self.config = config\n\n        T = config.get(\"diffusion_steps\", 100)\n        self.T = T\n\n        betas = _cosine_beta_schedule(T).to(device)\n        self.betas = betas\n        self.alphas = 1.0 - betas\n        self.alpha_bar = torch.cumprod(self.alphas, dim=0)\n\n    def compute_loss(self, network: nn.Module, actions: torch.Tensor,\n                     condition: torch.Tensor) -> torch.Tensor:\n        B = actions.shape[0]\n        t = torch.randint(0, self.T, (B,), device=self.device)\n        eps = torch.randn_like(actions)\n        alpha_bar_t = self.alpha_bar[t].view(B, 1, 1)\n        x_t = actions * alpha_bar_t.sqrt() + eps * (1 - alpha_bar_t).sqrt()\n        eps_pred = network(x_t, t, condition)\n        loss = ((eps_pred - eps) ** 2).mean()\n        return loss\n\n    def sample(self, network_ema: nn.Module, condition: torch.Tensor,\n               prior_shape: tuple) -> torch.Tensor:\n        B = prior_shape[0]\n        x_t = torch.randn(prior_shape, device=self.device)\n\n        for t_val in reversed(range(self.T)):\n            t = torch.full((B,), t_val, device=self.device, dtype=torch.long)\n            alpha_bar_t = self.alpha_bar[t_val]\n            alpha_t = self.alphas[t_val]\n            beta_t = self.betas[t_val]\n\n            eps_pred = network_ema(x_t, t, condition)\n\n            mean = (1.0 / alpha_t.sqrt()) * (\n                x_t - beta_t / (1 - alpha_bar_t).sqrt() * eps_pred)\n\n            if t_val > 0:\n                alpha_bar_prev = self.alpha_bar[t_val - 1]\n                sigma = (beta_t * (1 - alpha_bar_prev) / (1 - alpha_bar_t)).sqrt()\n                x_t = mean + sigma * torch.randn_like(x_t)\n            else:\n                x_t = mean\n\n        return x_t\n"
+      "content": "CONFIG = {\n    \"diffusion_steps\": 100,\n    \"sample_steps\": 100,\n    \"beta_schedule\": \"cosine\",\n}\n\n\ndef _cosine_beta_schedule(T, s=0.008):\n    \"\"\"Cosine noise schedule from Nichol & Dhariwal.\"\"\"\n    import math\n    steps = torch.arange(T + 1, dtype=torch.float64)\n    alpha_bar = torch.cos((steps / T + s) / (1 + s) * math.pi / 2) ** 2\n    alpha_bar = alpha_bar / alpha_bar[0]\n    betas = 1 - (alpha_bar[1:] / alpha_bar[:-1])\n    return torch.clamp(betas, max=0.999).float()\n\n\nclass ImitationObjective:\n    \"\"\"DDPM: Denoising Diffusion Probabilistic Model.\n\n    Forward process adds Gaussian noise via cosine schedule.\n    Network predicts the added noise (epsilon-prediction).\n    Inference uses the full DDPM reverse chain.\n    \"\"\"\n\n    def __init__(self, network: nn.Module, network_ema: nn.Module,\n                 act_dim: int, horizon: int, device: str, config: dict):\n        self.network = network\n        self.network_ema = network_ema\n        self.act_dim = act_dim\n        self.horizon = horizon\n        self.device = device\n        self.config = config\n\n        T = config.get(\"diffusion_steps\", 100)\n        self.T = T\n\n        betas = _cosine_beta_schedule(T).to(device)\n        self.betas = betas\n        self.alphas = 1.0 - betas\n        self.alpha_bar = torch.cumprod(self.alphas, dim=0)\n\n    def compute_loss(self, network: nn.Module, actions: torch.Tensor,\n                     condition: torch.Tensor) -> torch.Tensor:\n        B = actions.shape[0]\n        t = torch.randint(0, self.T, (B,), device=self.device)\n        eps = torch.randn_like(actions)\n        alpha_bar_t = self.alpha_bar[t].view(B, 1, 1)\n        x_t = actions * alpha_bar_t.sqrt() + eps * (1 - alpha_bar_t).sqrt()\n        eps_pred = network(x_t, t, condition)\n        loss = ((eps_pred - eps) ** 2).mean()\n        return loss\n\n    def sample(self, network_ema: nn.Module, condition: torch.Tensor,\n               prior_shape: tuple) -> torch.Tensor:\n        B = prior_shape[0]\n        x_t = torch.randn(prior_shape, device=self.device)\n\n        for t_val in reversed(range(self.T)):\n            t = torch.full((B,), t_val, device=self.device, dtype=torch.long)\n            alpha_bar_t = self.alpha_bar[t_val]\n            alpha_t = self.alphas[t_val]\n            beta_t = self.betas[t_val]\n\n            eps_pred = network_ema(x_t, t, condition)\n\n            mean = (1.0 / alpha_t.sqrt()) * (\n                x_t - beta_t / (1 - alpha_bar_t).sqrt() * eps_pred)\n\n            if t_val > 0:\n                alpha_bar_prev = self.alpha_bar[t_val - 1]\n                sigma = (beta_t * (1 - alpha_bar_prev) / (1 - alpha_bar_t)).sqrt()\n                x_t = mean + sigma * torch.randn_like(x_t)\n            else:\n                x_t = mean\n\n        return x_t\n"
      }
     ],
     "Flow Matching": [
@@ -56117,6 +56441,578 @@
      "elapsed_c10_keep50": 4616.166666666667,
      "test_acc_c100_keep70": 74.18333333333334,
      "elapsed_c100_keep70": 4626.566666666667
+    }
+   ]
+  },
+  "dl-lorasym-domain-generalization": {
+   "task_id": "dl-lorasym-domain-generalization",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "accuracy_digits_shift",
+    "elapsed_digits_shift",
+    "accuracy_breast_cancer_shift",
+    "elapsed_breast_cancer_shift",
+    "accuracy_wine_shift",
+    "elapsed_wine_shift"
+   ],
+   "metric_columns": [
+    "accuracy_digits_shift",
+    "accuracy_breast_cancer_shift",
+    "accuracy_wine_shift"
+   ],
+   "metric_directions": {
+    "accuracy_digits_shift": "higher",
+    "accuracy_breast_cancer_shift": "higher",
+    "accuracy_wine_shift": "higher"
+   },
+   "metric_groups": [
+    {
+     "setting": "digits_shift",
+     "metrics": [
+      "accuracy_digits_shift"
+     ]
+    },
+    {
+     "setting": "breast_cancer_shift",
+     "metrics": [
+      "accuracy_breast_cancer_shift"
+     ]
+    },
+    {
+     "setting": "wine_shift",
+     "metrics": [
+      "accuracy_wine_shift"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-04T16:53:00+00:00",
+     "model": "baseline:a_only",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_digits_shift": 0.08425721,
+     "elapsed_digits_shift": 31.605,
+     "accuracy_breast_cancer_shift": 0.86013985,
+     "elapsed_breast_cancer_shift": 14.014,
+     "accuracy_wine_shift": 0.86666667,
+     "elapsed_wine_shift": 17.178
+    },
+    {
+     "timestamp": "2026-09-04T16:53:01+00:00",
+     "model": "baseline:a_only",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_digits_shift": 0.08425721,
+     "elapsed_digits_shift": 31.605,
+     "accuracy_breast_cancer_shift": 0.86013985,
+     "elapsed_breast_cancer_shift": 14.014,
+     "accuracy_wine_shift": 0.86666667,
+     "elapsed_wine_shift": 17.178
+    },
+    {
+     "timestamp": "2026-09-04T16:53:00+00:00",
+     "model": "baseline:b_only",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_digits_shift": 0.14634146,
+     "elapsed_digits_shift": 15.871,
+     "accuracy_breast_cancer_shift": 0.81818181,
+     "elapsed_breast_cancer_shift": 14.131,
+     "accuracy_wine_shift": 0.84444445,
+     "elapsed_wine_shift": 14.883
+    },
+    {
+     "timestamp": "2026-09-04T16:53:01+00:00",
+     "model": "baseline:b_only",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_digits_shift": 0.14634146,
+     "elapsed_digits_shift": 15.871,
+     "accuracy_breast_cancer_shift": 0.81818181,
+     "elapsed_breast_cancer_shift": 14.131,
+     "accuracy_wine_shift": 0.84444445,
+     "elapsed_wine_shift": 14.883
+    },
+    {
+     "timestamp": "2026-09-04T16:53:00+00:00",
+     "model": "baseline:frozen_null",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_digits_shift": 0.14412417,
+     "elapsed_digits_shift": 11.009,
+     "accuracy_breast_cancer_shift": 0.80419582,
+     "elapsed_breast_cancer_shift": 13.276,
+     "accuracy_wine_shift": 0.93333334,
+     "elapsed_wine_shift": 12.098
+    },
+    {
+     "timestamp": "2026-09-04T16:53:01+00:00",
+     "model": "baseline:frozen_null",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_digits_shift": 0.14412417,
+     "elapsed_digits_shift": 11.009,
+     "accuracy_breast_cancer_shift": 0.80419582,
+     "elapsed_breast_cancer_shift": 13.276,
+     "accuracy_wine_shift": 0.93333334,
+     "elapsed_wine_shift": 12.098
+    },
+    {
+     "timestamp": "2026-09-04T16:53:00+00:00",
+     "model": "baseline:full_lora",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_digits_shift": 0.0443459,
+     "elapsed_digits_shift": 27.355,
+     "accuracy_breast_cancer_shift": 0.85314685,
+     "elapsed_breast_cancer_shift": 37.769,
+     "accuracy_wine_shift": 0.86666667,
+     "elapsed_wine_shift": 36.913
+    },
+    {
+     "timestamp": "2026-09-04T16:53:01+00:00",
+     "model": "baseline:full_lora",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_digits_shift": 0.0443459,
+     "elapsed_digits_shift": 27.355,
+     "accuracy_breast_cancer_shift": 0.85314685,
+     "elapsed_breast_cancer_shift": 37.769,
+     "accuracy_wine_shift": 0.86666667,
+     "elapsed_wine_shift": 36.913
+    }
+   ]
+  },
+  "dl-lorasym-factor-freezing": {
+   "task_id": "dl-lorasym-factor-freezing",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "accuracy_digits",
+    "elapsed_digits",
+    "accuracy_breast_cancer",
+    "elapsed_breast_cancer",
+    "accuracy_wine",
+    "elapsed_wine"
+   ],
+   "metric_columns": [
+    "accuracy_digits",
+    "accuracy_breast_cancer",
+    "accuracy_wine"
+   ],
+   "metric_directions": {
+    "accuracy_digits": "higher",
+    "accuracy_breast_cancer": "higher",
+    "accuracy_wine": "higher"
+   },
+   "metric_groups": [
+    {
+     "setting": "digits",
+     "metrics": [
+      "accuracy_digits"
+     ]
+    },
+    {
+     "setting": "breast_cancer",
+     "metrics": [
+      "accuracy_breast_cancer"
+     ]
+    },
+    {
+     "setting": "wine",
+     "metrics": [
+      "accuracy_wine"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-04T16:53:00+00:00",
+     "model": "baseline:a_only",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_digits": 0.95343679,
+     "elapsed_digits": 11.402,
+     "accuracy_breast_cancer": 0.97202796,
+     "elapsed_breast_cancer": 10.835,
+     "accuracy_wine": 0.97777778,
+     "elapsed_wine": 12.351
+    },
+    {
+     "timestamp": "2026-09-04T16:53:01+00:00",
+     "model": "baseline:a_only",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_digits": 0.95343679,
+     "elapsed_digits": 11.402,
+     "accuracy_breast_cancer": 0.97202796,
+     "elapsed_breast_cancer": 10.835,
+     "accuracy_wine": 0.97777778,
+     "elapsed_wine": 12.351
+    },
+    {
+     "timestamp": "2026-09-04T16:53:00+00:00",
+     "model": "baseline:b_only",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_digits": 0.93791574,
+     "elapsed_digits": 12.182,
+     "accuracy_breast_cancer": 0.95804197,
+     "elapsed_breast_cancer": 18.839,
+     "accuracy_wine": 0.93333334,
+     "elapsed_wine": 11.568
+    },
+    {
+     "timestamp": "2026-09-04T16:53:01+00:00",
+     "model": "baseline:b_only",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_digits": 0.93791574,
+     "elapsed_digits": 12.182,
+     "accuracy_breast_cancer": 0.95804197,
+     "elapsed_breast_cancer": 18.839,
+     "accuracy_wine": 0.93333334,
+     "elapsed_wine": 11.568
+    },
+    {
+     "timestamp": "2026-09-04T16:53:00+00:00",
+     "model": "baseline:frozen_null",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_digits": 0.93126386,
+     "elapsed_digits": 10.49,
+     "accuracy_breast_cancer": 0.97902095,
+     "elapsed_breast_cancer": 11.516,
+     "accuracy_wine": 0.95555556,
+     "elapsed_wine": 13.192
+    },
+    {
+     "timestamp": "2026-09-04T16:53:01+00:00",
+     "model": "baseline:frozen_null",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_digits": 0.93126386,
+     "elapsed_digits": 10.49,
+     "accuracy_breast_cancer": 0.97902095,
+     "elapsed_breast_cancer": 11.516,
+     "accuracy_wine": 0.95555556,
+     "elapsed_wine": 13.192
+    },
+    {
+     "timestamp": "2026-09-04T16:53:00+00:00",
+     "model": "baseline:full_lora",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_digits": 0.95787138,
+     "elapsed_digits": 15.196,
+     "accuracy_breast_cancer": 0.96503496,
+     "elapsed_breast_cancer": 12.879,
+     "accuracy_wine": 0.95555556,
+     "elapsed_wine": 9.825
+    },
+    {
+     "timestamp": "2026-09-04T16:53:01+00:00",
+     "model": "baseline:full_lora",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_digits": 0.95787138,
+     "elapsed_digits": 15.196,
+     "accuracy_breast_cancer": 0.96503496,
+     "elapsed_breast_cancer": 12.879,
+     "accuracy_wine": 0.95555556,
+     "elapsed_wine": 9.825
+    }
+   ]
+  },
+  "dl-lorasym-init-geometry": {
+   "task_id": "dl-lorasym-init-geometry",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "accuracy_digits",
+    "elapsed_digits",
+    "accuracy_breast_cancer",
+    "elapsed_breast_cancer",
+    "accuracy_wine",
+    "elapsed_wine"
+   ],
+   "metric_columns": [
+    "accuracy_digits",
+    "accuracy_breast_cancer",
+    "accuracy_wine"
+   ],
+   "metric_directions": {
+    "accuracy_digits": "higher",
+    "accuracy_breast_cancer": "higher",
+    "accuracy_wine": "higher"
+   },
+   "metric_groups": [
+    {
+     "setting": "digits",
+     "metrics": [
+      "accuracy_digits"
+     ]
+    },
+    {
+     "setting": "breast_cancer",
+     "metrics": [
+      "accuracy_breast_cancer"
+     ]
+    },
+    {
+     "setting": "wine",
+     "metrics": [
+      "accuracy_wine"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-04T16:53:00+00:00",
+     "model": "baseline:gaussian_a",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_digits": 0.94456762,
+     "elapsed_digits": 9.934,
+     "accuracy_breast_cancer": 0.95804197,
+     "elapsed_breast_cancer": 12.564,
+     "accuracy_wine": 0.97777778,
+     "elapsed_wine": 11.102
+    },
+    {
+     "timestamp": "2026-09-04T16:53:01+00:00",
+     "model": "baseline:gaussian_a",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_digits": 0.94456762,
+     "elapsed_digits": 9.934,
+     "accuracy_breast_cancer": 0.95804197,
+     "elapsed_breast_cancer": 12.564,
+     "accuracy_wine": 0.97777778,
+     "elapsed_wine": 11.102
+    },
+    {
+     "timestamp": "2026-09-04T16:53:00+00:00",
+     "model": "baseline:orthogonal_a",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_digits": 0.93791574,
+     "elapsed_digits": 10.81,
+     "accuracy_breast_cancer": 0.95804197,
+     "elapsed_breast_cancer": 12.245,
+     "accuracy_wine": 0.93333334,
+     "elapsed_wine": 11.116
+    },
+    {
+     "timestamp": "2026-09-04T16:53:01+00:00",
+     "model": "baseline:orthogonal_a",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_digits": 0.93791574,
+     "elapsed_digits": 10.81,
+     "accuracy_breast_cancer": 0.95804197,
+     "elapsed_breast_cancer": 12.245,
+     "accuracy_wine": 0.93333334,
+     "elapsed_wine": 11.116
+    },
+    {
+     "timestamp": "2026-09-04T16:53:00+00:00",
+     "model": "baseline:weight_svd_a",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_digits": 0.93569845,
+     "elapsed_digits": 12.101,
+     "accuracy_breast_cancer": 0.96503496,
+     "elapsed_breast_cancer": 10.244,
+     "accuracy_wine": 0.97777778,
+     "elapsed_wine": 11.313
+    },
+    {
+     "timestamp": "2026-09-04T16:53:01+00:00",
+     "model": "baseline:weight_svd_a",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_digits": 0.93569845,
+     "elapsed_digits": 12.101,
+     "accuracy_breast_cancer": 0.96503496,
+     "elapsed_breast_cancer": 10.244,
+     "accuracy_wine": 0.97777778,
+     "elapsed_wine": 11.313
+    },
+    {
+     "timestamp": "2026-09-04T16:53:00+00:00",
+     "model": "baseline:zero_a",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_digits": 0.93126386,
+     "elapsed_digits": 10.212,
+     "accuracy_breast_cancer": 0.97902095,
+     "elapsed_breast_cancer": 10.407,
+     "accuracy_wine": 0.95555556,
+     "elapsed_wine": 10.904
+    },
+    {
+     "timestamp": "2026-09-04T16:53:01+00:00",
+     "model": "baseline:zero_a",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_digits": 0.93126386,
+     "elapsed_digits": 10.212,
+     "accuracy_breast_cancer": 0.97902095,
+     "elapsed_breast_cancer": 10.407,
+     "accuracy_wine": 0.95555556,
+     "elapsed_wine": 10.904
+    }
+   ]
+  },
+  "dl-lorasym-rank-budget": {
+   "task_id": "dl-lorasym-rank-budget",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "accuracy_digits",
+    "elapsed_digits",
+    "accuracy_breast_cancer",
+    "elapsed_breast_cancer",
+    "accuracy_wine",
+    "elapsed_wine"
+   ],
+   "metric_columns": [
+    "accuracy_digits",
+    "accuracy_breast_cancer",
+    "accuracy_wine"
+   ],
+   "metric_directions": {
+    "accuracy_digits": "higher",
+    "accuracy_breast_cancer": "higher",
+    "accuracy_wine": "higher"
+   },
+   "metric_groups": [
+    {
+     "setting": "digits",
+     "metrics": [
+      "accuracy_digits"
+     ]
+    },
+    {
+     "setting": "breast_cancer",
+     "metrics": [
+      "accuracy_breast_cancer"
+     ]
+    },
+    {
+     "setting": "wine",
+     "metrics": [
+      "accuracy_wine"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-04T16:53:00+00:00",
+     "model": "baseline:a_only_r4",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_digits": 0.95343679,
+     "elapsed_digits": 21.18,
+     "accuracy_breast_cancer": 0.97202796,
+     "elapsed_breast_cancer": 22.885,
+     "accuracy_wine": 0.97777778,
+     "elapsed_wine": 25.737
+    },
+    {
+     "timestamp": "2026-09-04T16:53:01+00:00",
+     "model": "baseline:a_only_r4",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_digits": 0.95343679,
+     "elapsed_digits": 21.18,
+     "accuracy_breast_cancer": 0.97202796,
+     "elapsed_breast_cancer": 22.885,
+     "accuracy_wine": 0.97777778,
+     "elapsed_wine": 25.737
+    },
+    {
+     "timestamp": "2026-09-04T16:53:00+00:00",
+     "model": "baseline:b_only_r4",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_digits": 0.93791574,
+     "elapsed_digits": 82.671,
+     "accuracy_breast_cancer": 0.95804197,
+     "elapsed_breast_cancer": 109.798,
+     "accuracy_wine": 0.93333334,
+     "elapsed_wine": 22.941
+    },
+    {
+     "timestamp": "2026-09-04T16:53:01+00:00",
+     "model": "baseline:b_only_r4",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_digits": 0.93791574,
+     "elapsed_digits": 82.671,
+     "accuracy_breast_cancer": 0.95804197,
+     "elapsed_breast_cancer": 109.798,
+     "accuracy_wine": 0.93333334,
+     "elapsed_wine": 22.941
+    },
+    {
+     "timestamp": "2026-09-04T16:53:00+00:00",
+     "model": "baseline:b_only_r8",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_digits": 0.94235033,
+     "elapsed_digits": 65.274,
+     "accuracy_breast_cancer": 0.97202796,
+     "elapsed_breast_cancer": 20.644,
+     "accuracy_wine": 0.95555556,
+     "elapsed_wine": 18.347
+    },
+    {
+     "timestamp": "2026-09-04T16:53:01+00:00",
+     "model": "baseline:b_only_r8",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_digits": 0.94235033,
+     "elapsed_digits": 65.274,
+     "accuracy_breast_cancer": 0.97202796,
+     "elapsed_breast_cancer": 20.644,
+     "accuracy_wine": 0.95555556,
+     "elapsed_wine": 18.347
+    },
+    {
+     "timestamp": "2026-09-04T16:53:00+00:00",
+     "model": "baseline:full_r4",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_digits": 0.95787138,
+     "elapsed_digits": 15.111,
+     "accuracy_breast_cancer": 0.96503496,
+     "elapsed_breast_cancer": 13.753,
+     "accuracy_wine": 0.95555556,
+     "elapsed_wine": 14.549
+    },
+    {
+     "timestamp": "2026-09-04T16:53:01+00:00",
+     "model": "baseline:full_r4",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_digits": 0.95787138,
+     "elapsed_digits": 15.111,
+     "accuracy_breast_cancer": 0.96503496,
+     "elapsed_breast_cancer": 13.753,
+     "accuracy_wine": 0.95555556,
+     "elapsed_wine": 14.549
     }
    ]
   },
