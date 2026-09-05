@@ -15070,22 +15070,23 @@
   },
   {
    "id": "online-river-linear-optimizer",
-   "name": "Online River Logistic Optimization",
-   "summary": "Design an online binary classifier for streaming feature/label pairs. Your algorithm is the `OnlineOptimizer` class in `custom_optimizer.py`; it must support `predict_proba_one`, `learn_one`, `reset`, and operate one example at a time without seeing the horizon.",
+   "name": "The update rule of an online linear classifier",
+   "summary": "An online linear model is only as good as the rule that turns one example's gradient",
    "category": "other",
    "category_label": "Other",
    "category_abbr": "",
-   "description_md": "# Online River Logistic Optimization\n\nDesign an online binary classifier for streaming feature/label pairs. Your algorithm is the `OnlineOptimizer` class in `custom_optimizer.py`; it must support `predict_proba_one`, `learn_one`, `reset`, and operate one example at a time without seeing the horizon.\n\nThe benchmark studies optimizer choice for online logistic regression, a central empirical question in the River stream-learning framework. Reference implementations include vanilla SGD (Bottou, 2010), AdaGrad (Duchi, Hazan & Singer, JMLR 2011), and FTRL-Proximal (McMahan et al., 2013). You may change the update rule and state, but keep the public interface and avoid batch storage or future labels.\n\nMetric is prequential log loss (lower is better), with accuracy reported for feedback. The fixed driver generates multiple stream regimes, with one regime held out, and evaluates predictions before each update.\n\nImplement a scientifically motivated online optimization strategy rather than tuning constants alone. Keep memory bounded by the feature dimension. The evaluator draws a fresh hidden stream for each run; the exposed seed is only for model bookkeeping.\n",
-   "description_html": "<h1>Online River Logistic Optimization</h1>\n<p>Design an online binary classifier for streaming feature/label pairs. Your algorithm is the <code>OnlineOptimizer</code> class in <code>custom_optimizer.py</code>; it must support <code>predict_proba_one</code>, <code>learn_one</code>, <code>reset</code>, and operate one example at a time without seeing the horizon.</p>\n<p>The benchmark studies optimizer choice for online logistic regression, a central empirical question in the River stream-learning framework. Reference implementations include vanilla SGD (Bottou, 2010), AdaGrad (Duchi, Hazan &amp; Singer, JMLR 2011), and FTRL-Proximal (McMahan et al., 2013). You may change the update rule and state, but keep the public interface and avoid batch storage or future labels.</p>\n<p>Metric is prequential log loss (lower is better), with accuracy reported for feedback. The fixed driver generates multiple stream regimes, with one regime held out, and evaluates predictions before each update.</p>\n<p>Implement a scientifically motivated online optimization strategy rather than tuning constants alone. Keep memory bounded by the feature dimension. The evaluator draws a fresh hidden stream for each run; the exposed seed is only for model bookkeeping.</p>",
+   "description_md": "# The update rule of an online linear classifier\n\n## Research question\n\nAn online linear model is only as good as the rule that turns one example's gradient\ninto a weight update. Plain stochastic gradient descent (Robbins & Monro 1951) uses\none step size for every coordinate and keeps no memory, which is wasteful when\nfeatures differ wildly in scale and frequency and dangerous when the optimum moves.\nAdaGrad (Duchi, Hazan & Singer, *Adaptive subgradient methods for online learning and\nstochastic optimization*, JMLR 2011) gives each coordinate its own step, shrinking it\nwith the accumulated squared gradient — excellent on sparse, heavy-tailed features\nand, by construction, unable to speed back up when the concept changes. FTRL-Proximal\n(McMahan et al., *Ad click prediction: a view from the trenches*, KDD 2013) keeps a\nper-coordinate schedule but re-solves a regularised leader problem at every step, so\nit can hold sparsity in a way a projected step cannot. None of these was designed for\na stream whose optimum drifts. Propose and implement one algorithmic improvement to\nthe update rule — the per-coordinate schedule, the gradient statistics it keeps, how\nthose statistics are forgotten, or what happens to the weights before a prediction —\nand show it transfers across streams.\n\n## Interface (the editable module)\n\n`river-lab/custom_optimizer.py` is the only editable file. It must define\n\n```python\ndef build_optimizer(seed: int, meta: dict):\n    ...  # returns a river.optim.base.Optimizer subclass\n```\n\n**Only the optimiser is yours.** The classifier is River's logistic regression\n(one-vs-rest above two classes), the loss is the log loss, there is no explicit\nregularisation, and the features pass through a running standardiser — all fixed by\nthe harness, which rejects anything that is not an `Optimizer`. The two methods that\nmatter are `_step_with_dict(w, g)` (turn the gradient dict into a weight update,\nmodifying and returning `w`) and, optionally, `look_ahead(w)` (rewrite the weights\nbefore a prediction is made). `meta` carries `n_features`, `n_examples` and\n`n_classes`. Keep memory bounded — a constant number of scalars per coordinate.\nProcess / file-system / introspection modules are rejected by a static screen before\nthe run.\n\n## Metric\n\nPrequential log loss (lower is better) on several real classification streams that\nstress a first-order update differently, aggregated by a geometric mean; one stream is\nheld out to test transfer. Accuracy is parsed and reported for diagnostics only.\n\n## Reference baselines (supplied as edit operations on the same file)\n\n- `sgd` — constant-step stochastic gradient descent, River's default.\n- `adagrad` — Duchi, Hazan & Singer (2011).\n- `ftrl_proximal` — McMahan et al. (2013).\n- `no_update_null` — declared null: an optimiser that never moves the weights.\n\nChanging the learning rate alone is not a contribution.\n",
+   "description_html": "<h1>The update rule of an online linear classifier</h1>\n<h2>Research question</h2>\n<p>An online linear model is only as good as the rule that turns one example's gradient\ninto a weight update. Plain stochastic gradient descent (Robbins &amp; Monro 1951) uses\none step size for every coordinate and keeps no memory, which is wasteful when\nfeatures differ wildly in scale and frequency and dangerous when the optimum moves.\nAdaGrad (Duchi, Hazan &amp; Singer, <em>Adaptive subgradient methods for online learning and\nstochastic optimization</em>, JMLR 2011) gives each coordinate its own step, shrinking it\nwith the accumulated squared gradient — excellent on sparse, heavy-tailed features\nand, by construction, unable to speed back up when the concept changes. FTRL-Proximal\n(McMahan et al., <em>Ad click prediction: a view from the trenches</em>, KDD 2013) keeps a\nper-coordinate schedule but re-solves a regularised leader problem at every step, so\nit can hold sparsity in a way a projected step cannot. None of these was designed for\na stream whose optimum drifts. Propose and implement one algorithmic improvement to\nthe update rule — the per-coordinate schedule, the gradient statistics it keeps, how\nthose statistics are forgotten, or what happens to the weights before a prediction —\nand show it transfers across streams.</p>\n<h2>Interface (the editable module)</h2>\n<p><code>river-lab/custom_optimizer.py</code> is the only editable file. It must define</p>\n<pre class=\"codehilite\"><code class=\"language-python\">def build_optimizer(seed: int, meta: dict):\n    ...  # returns a river.optim.base.Optimizer subclass\n</code></pre>\n\n<p><strong>Only the optimiser is yours.</strong> The classifier is River's logistic regression\n(one-vs-rest above two classes), the loss is the log loss, there is no explicit\nregularisation, and the features pass through a running standardiser — all fixed by\nthe harness, which rejects anything that is not an <code>Optimizer</code>. The two methods that\nmatter are <code>_step_with_dict(w, g)</code> (turn the gradient dict into a weight update,\nmodifying and returning <code>w</code>) and, optionally, <code>look_ahead(w)</code> (rewrite the weights\nbefore a prediction is made). <code>meta</code> carries <code>n_features</code>, <code>n_examples</code> and\n<code>n_classes</code>. Keep memory bounded — a constant number of scalars per coordinate.\nProcess / file-system / introspection modules are rejected by a static screen before\nthe run.</p>\n<h2>Metric</h2>\n<p>Prequential log loss (lower is better) on several real classification streams that\nstress a first-order update differently, aggregated by a geometric mean; one stream is\nheld out to test transfer. Accuracy is parsed and reported for diagnostics only.</p>\n<h2>Reference baselines (supplied as edit operations on the same file)</h2>\n<ul>\n<li><code>sgd</code> — constant-step stochastic gradient descent, River's default.</li>\n<li><code>adagrad</code> — Duchi, Hazan &amp; Singer (2011).</li>\n<li><code>ftrl_proximal</code> — McMahan et al. (2013).</li>\n<li><code>no_update_null</code> — declared null: an optimiser that never moves the weights.</li>\n</ul>\n<p>Changing the learning rate alone is not a contribution.</p>",
    "baselines": [
     "sgd",
     "adagrad",
-    "ftrl"
+    "ftrl_proximal",
+    "no_update_null"
    ],
    "environments": [
-    "stationary",
-    "drift",
-    "noisy"
+    "stream_a",
+    "stream_b",
+    "stream_c"
    ],
    "packages": [
     "river-lab"
@@ -15095,36 +15096,44 @@
      "filename": "river-lab/custom_optimizer.py",
      "edit_ranges": [
       {
-       "start": 7,
-       "end": 30
+       "start": -1,
+       "end": -1
       }
      ],
-     "content": "\"\"\"Editable online linear optimizer for the River benchmark.\"\"\"\nimport os, math, sys\n_SRC_ROOT = os.path.dirname(os.path.abspath(__file__))\nsys.path = [p for p in sys.path if os.path.abspath(p or os.curdir) != _SRC_ROOT]\nimport numpy as np\nfrom river import optim, linear_model, preprocessing\n\n# The vendored checkout is mounted beside this file; removing both the script\n# directory and empty-string cwd entry above ensures the pinned wheel wins.\nclass OnlineOptimizer:\n    def __init__(self, n_features: int = 10): self.n_features = n_features; self.reset()\n    def reset(self):\n        self.w = np.zeros(self.n_features, dtype=float); self.b = 0.0; self.t = 0\n    def predict_proba_one(self, x):\n        z = self.b + sum(self.w[i] * float(x.get(i, 0.0)) for i in range(self.n_features)); z = max(-30.0, min(30.0, z))\n        return 1.0 / (1.0 + math.exp(-z))\n    def learn_one(self, x, y):\n        p = self.predict_proba_one(x); g = p - float(y); lr = 0.05 / math.sqrt(self.t + 1.0); self.b -= lr * g\n        for i in range(self.n_features): self.w[i] -= lr * g * float(x.get(i, 0.0))\n        self.t += 1; return self\n"
+     "content": "\"\"\"The optimiser of an online linear classifier -- the editable module.\n\n``build_optimizer(seed, meta)`` must return a subclass of\n``river.optim.base.Optimizer``. The two methods that matter are\n\n    _step_with_dict(w, g) -> w     turn the gradient dict ``g`` into a weight update\n    look_ahead(w) -> w             optional: rewrite the weights before a prediction\n\nEverything else is fixed by the harness and is NOT editable: the model is River's\nlogistic regression (one-vs-rest above two classes), the loss is the log loss, there\nis no explicit regularisation, and the features pass through a running standardiser.\nSo the only lever is the update rule -- how a per-coordinate step is chosen, what\nhistory of the gradients it keeps, and whether it can forget that history when the\nconcept moves.\n\n``w`` and ``g`` are dict-like (feature name -> float); modify and return ``w``.\n``meta`` carries ``n_features``, ``n_examples`` and ``n_classes``. Keep memory\nbounded (one or two scalars per coordinate).\n\"\"\"\nfrom river import optim\n\n\nclass ConstantStep(optim.base.Optimizer):\n    \"\"\"Starter: plain stochastic gradient descent with a constant step.\n\n    One global step size for every coordinate, no memory of past gradients, no\n    adaptation when the optimum moves. That is the thing to replace.\n    \"\"\"\n\n    def __init__(self, lr=0.01):\n        super().__init__(lr)\n\n    def _step_with_dict(self, w, g):\n        step = self.learning_rate\n        for i, gi in g.items():\n            w[i] -= step * gi\n        return w\n\n\ndef build_optimizer(seed, meta):\n    \"\"\"Return the optimiser the fixed classifier will use.\"\"\"\n    return ConstantStep()\n"
     }
    ],
    "baselines_code": {
     "sgd": [
      {
       "file": "river-lab/custom_optimizer.py",
-      "start_line": 7,
-      "end_line": 30,
-      "content": "class OnlineOptimizer:\n    def __init__(self, n_features=10):\n        self.model = linear_model.LogisticRegression(optimizer=optim.SGD(lr=0.05))\n    def reset(self):\n        self.model = linear_model.LogisticRegression(optimizer=optim.SGD(lr=0.05))\n    def predict_proba_one(self, x):\n        return float(self.model.predict_proba_one(x).get(True, 0.5))\n    def learn_one(self, x, y):\n        self.model.learn_one(x, y)\n"
+      "start_line": 1,
+      "end_line": 42,
+      "content": "\"\"\"Stochastic gradient descent with a constant step (Robbins & Monro 1951; the\nonline-learning workhorse): River 0.26.1 optim/sgd.py SGD at its default lr=0.01,\nwhich is also the default optimizer of linear_model.LogisticRegression.\"\"\"\nfrom river import optim\n\n\ndef build_optimizer(seed, meta):\n    return optim.SGD(0.01)\n"
      }
     ],
     "adagrad": [
      {
       "file": "river-lab/custom_optimizer.py",
-      "start_line": 7,
-      "end_line": 30,
-      "content": "class OnlineOptimizer:\n    def __init__(self, n_features=10):\n        self.model = linear_model.LogisticRegression(optimizer=optim.AdaGrad(lr=0.1))\n    def reset(self):\n        self.model = linear_model.LogisticRegression(optimizer=optim.AdaGrad(lr=0.1))\n    def predict_proba_one(self, x):\n        return float(self.model.predict_proba_one(x).get(True, 0.5))\n    def learn_one(self, x, y):\n        self.model.learn_one(x, y)\n"
+      "start_line": 1,
+      "end_line": 42,
+      "content": "\"\"\"AdaGrad (Duchi, Hazan & Singer, \"Adaptive subgradient methods for online learning\nand stochastic optimization\", JMLR 2011): a per-coordinate step scaled by the inverse\nsquare root of the accumulated squared gradient. River 0.26.1 optim/ada_grad.py\ndefaults (lr=0.1, eps=1e-8).\"\"\"\nfrom river import optim\n\n\ndef build_optimizer(seed, meta):\n    return optim.AdaGrad()\n"
      }
     ],
-    "ftrl": [
+    "ftrl_proximal": [
      {
       "file": "river-lab/custom_optimizer.py",
-      "start_line": 7,
-      "end_line": 30,
-      "content": "class OnlineOptimizer:\n    def __init__(self, n_features=10):\n        self.model = linear_model.LogisticRegression(optimizer=optim.FTRLProximal(alpha=0.05, beta=1.0, l1=0.1, l2=0.1))\n    def reset(self):\n        self.model = linear_model.LogisticRegression(optimizer=optim.FTRLProximal(alpha=0.05, beta=1.0, l1=0.1, l2=0.1))\n    def predict_proba_one(self, x):\n        return float(self.model.predict_proba_one(x).get(True, 0.5))\n    def learn_one(self, x, y):\n        self.model.learn_one(x, y)\n"
+      "start_line": 1,
+      "end_line": 42,
+      "content": "\"\"\"FTRL-Proximal (McMahan et al., \"Ad click prediction: a view from the trenches\",\nKDD 2013): follow-the-regularised-leader with a per-coordinate learning-rate schedule\nand lazy L1/L2 shrinkage applied in look_ahead. River 0.26.1 optim/ftrl.py defaults\n(alpha=0.05, beta=1, l1=0, l2=1).\"\"\"\nfrom river import optim\n\n\ndef build_optimizer(seed, meta):\n    return optim.FTRLProximal()\n"
+     }
+    ],
+    "no_update_null": [
+     {
+      "file": "river-lab/custom_optimizer.py",
+      "start_line": 1,
+      "end_line": 42,
+      "content": "\"\"\"NULL baseline (declared): an optimiser that never moves the weights. The fixed\nclassifier then predicts from its intercept alone, so this measures what the model\ngives you before any gradient is used.\"\"\"\nfrom river import optim\n\n\nclass NoUpdate(optim.base.Optimizer):\n    def __init__(self):\n        super().__init__(0.0)\n\n    def _step_with_dict(self, w, g):\n        return w\n\n\ndef build_optimizer(seed, meta):\n    return NoUpdate()\n"
      }
     ]
    },
@@ -141210,36 +141219,9 @@
     "accuracy_noisy",
     "elapsed_noisy"
    ],
-   "metric_columns": [
-    "log_loss_stationary",
-    "log_loss_drift",
-    "log_loss_noisy"
-   ],
-   "metric_directions": {
-    "log_loss_stationary": "lower",
-    "log_loss_drift": "lower",
-    "log_loss_noisy": "lower"
-   },
-   "metric_groups": [
-    {
-     "setting": "stationary",
-     "metrics": [
-      "log_loss_stationary"
-     ]
-    },
-    {
-     "setting": "drift",
-     "metrics": [
-      "log_loss_drift"
-     ]
-    },
-    {
-     "setting": "noisy",
-     "metrics": [
-      "log_loss_noisy"
-     ]
-    }
-   ],
+   "metric_columns": [],
+   "metric_directions": {},
+   "metric_groups": [],
    "rows": [
     {
      "timestamp": "2026-09-04T06:36:50.771866+00:00",
@@ -141943,80 +141925,7 @@
      ]
     }
    ],
-   "rows": [
-    {
-     "timestamp": "2026-09-05T08:28:58.897521+00:00",
-     "model": "baseline:im_equal_mass10",
-     "is_final": true,
-     "seed": "42",
-     "mae_alpha": 11.129625778947368,
-     "elapsed_alpha": 0.4,
-     "mae_beta": 5.767517000000012,
-     "elapsed_beta": 0.4,
-     "mae_gamma": 22.455023333333333,
-     "elapsed_gamma": 0.4
-    },
-    {
-     "timestamp": "2026-09-05T08:28:58.898094+00:00",
-     "model": "baseline:im_equal_mass10",
-     "is_final": true,
-     "seed": "mean",
-     "mae_alpha": 11.129625778947368,
-     "elapsed_alpha": 0.4,
-     "mae_beta": 5.767517000000012,
-     "elapsed_beta": 0.4,
-     "mae_gamma": 22.455023333333333,
-     "elapsed_gamma": 0.4
-    },
-    {
-     "timestamp": "2026-09-05T08:28:58.058566+00:00",
-     "model": "baseline:im_hist10",
-     "is_final": true,
-     "seed": "42",
-     "mae_alpha": 11.650071684210527,
-     "elapsed_alpha": 0.6,
-     "mae_beta": 6.331161000000009,
-     "elapsed_beta": 0.4,
-     "mae_gamma": 12.294259000000004,
-     "elapsed_gamma": 0.4
-    },
-    {
-     "timestamp": "2026-09-05T08:28:58.059063+00:00",
-     "model": "baseline:im_hist10",
-     "is_final": true,
-     "seed": "mean",
-     "mae_alpha": 11.650071684210527,
-     "elapsed_alpha": 0.6,
-     "mae_beta": 6.331161000000009,
-     "elapsed_beta": 0.4,
-     "mae_gamma": 12.294259000000004,
-     "elapsed_gamma": 0.4
-    },
-    {
-     "timestamp": "2026-09-05T08:28:55.572832+00:00",
-     "model": "baseline:uniform",
-     "is_final": true,
-     "seed": "42",
-     "mae_alpha": 20.392052631578945,
-     "elapsed_alpha": 0.7,
-     "mae_beta": 9.905000000000001,
-     "elapsed_beta": 0.7,
-     "mae_gamma": 30.81333333333333,
-     "elapsed_gamma": 0.7
-    },
-    {
-     "timestamp": "2026-09-05T08:28:55.573431+00:00",
-     "model": "baseline:uniform",
-     "is_final": true,
-     "seed": "mean",
-     "mae_alpha": 20.392052631578945,
-     "elapsed_alpha": 0.7,
-     "mae_beta": 9.905000000000001,
-     "elapsed_beta": 0.7,
-     "mae_gamma": 30.81333333333333,
-     "elapsed_gamma": 0.7
-    }
-   ]
+   "rows": []
   },
   "ood-atc-disagreement": {
    "task_id": "ood-atc-disagreement",
@@ -142062,80 +141971,7 @@
      ]
     }
    ],
-   "rows": [
-    {
-     "timestamp": "2026-09-05T08:29:16.128251+00:00",
-     "model": "baseline:ac",
-     "is_final": true,
-     "seed": "42",
-     "mae_alpha": 12.155724178947374,
-     "elapsed_alpha": 0.6,
-     "mae_beta": 6.815853000000004,
-     "elapsed_beta": 0.4,
-     "mae_gamma": 12.013521000000003,
-     "elapsed_gamma": 0.4
-    },
-    {
-     "timestamp": "2026-09-05T08:29:16.128832+00:00",
-     "model": "baseline:ac",
-     "is_final": true,
-     "seed": "mean",
-     "mae_alpha": 12.155724178947374,
-     "elapsed_alpha": 0.6,
-     "mae_beta": 6.815853000000004,
-     "elapsed_beta": 0.4,
-     "mae_gamma": 12.013521000000003,
-     "elapsed_gamma": 0.4
-    },
-    {
-     "timestamp": "2026-09-05T08:29:15.294541+00:00",
-     "model": "baseline:atc_mc",
-     "is_final": true,
-     "seed": "42",
-     "mae_alpha": 5.4634210526315785,
-     "elapsed_alpha": 1.8,
-     "mae_beta": 4.200000000000003,
-     "elapsed_beta": 0.4,
-     "mae_gamma": 0.8083333333333312,
-     "elapsed_gamma": 0.4
-    },
-    {
-     "timestamp": "2026-09-05T08:29:15.295699+00:00",
-     "model": "baseline:atc_mc",
-     "is_final": true,
-     "seed": "mean",
-     "mae_alpha": 5.4634210526315785,
-     "elapsed_alpha": 1.8,
-     "mae_beta": 4.200000000000003,
-     "elapsed_beta": 0.4,
-     "mae_gamma": 0.8083333333333312,
-     "elapsed_gamma": 0.4
-    },
-    {
-     "timestamp": "2026-09-05T08:29:11.177083+00:00",
-     "model": "baseline:gde",
-     "is_final": true,
-     "seed": "42",
-     "mae_alpha": 7.810526315789476,
-     "elapsed_alpha": 6.2,
-     "mae_beta": 4.550000000000011,
-     "elapsed_beta": 6.0,
-     "mae_gamma": 23.05,
-     "elapsed_gamma": 6.0
-    },
-    {
-     "timestamp": "2026-09-05T08:29:11.177641+00:00",
-     "model": "baseline:gde",
-     "is_final": true,
-     "seed": "mean",
-     "mae_alpha": 7.810526315789476,
-     "elapsed_alpha": 6.2,
-     "mae_beta": 4.550000000000011,
-     "elapsed_beta": 6.0,
-     "mae_gamma": 23.05,
-     "elapsed_gamma": 6.0
-    }
-   ]
+   "rows": []
   },
   "ood-atc-score-function": {
    "task_id": "ood-atc-score-function",
@@ -142181,80 +142017,7 @@
      ]
     }
    ],
-   "rows": [
-    {
-     "timestamp": "2026-09-05T08:28:29.566529+00:00",
-     "model": "baseline:ac",
-     "is_final": true,
-     "seed": "42",
-     "mae_alpha": 12.155724178947374,
-     "elapsed_alpha": 0.9,
-     "mae_beta": 6.815853000000004,
-     "elapsed_beta": 0.6,
-     "mae_gamma": 12.013521000000003,
-     "elapsed_gamma": 0.6
-    },
-    {
-     "timestamp": "2026-09-05T08:28:29.567235+00:00",
-     "model": "baseline:ac",
-     "is_final": true,
-     "seed": "mean",
-     "mae_alpha": 12.155724178947374,
-     "elapsed_alpha": 0.9,
-     "mae_beta": 6.815853000000004,
-     "elapsed_beta": 0.6,
-     "mae_gamma": 12.013521000000003,
-     "elapsed_gamma": 0.6
-    },
-    {
-     "timestamp": "2026-09-05T08:28:23.158314+00:00",
-     "model": "baseline:atc_mc",
-     "is_final": true,
-     "seed": "42",
-     "mae_alpha": 5.4634210526315785,
-     "elapsed_alpha": 1.8,
-     "mae_beta": 4.200000000000003,
-     "elapsed_beta": 0.6,
-     "mae_gamma": 0.8083333333333312,
-     "elapsed_gamma": 0.6
-    },
-    {
-     "timestamp": "2026-09-05T08:28:23.159533+00:00",
-     "model": "baseline:atc_mc",
-     "is_final": true,
-     "seed": "mean",
-     "mae_alpha": 5.4634210526315785,
-     "elapsed_alpha": 1.8,
-     "mae_beta": 4.200000000000003,
-     "elapsed_beta": 0.6,
-     "mae_gamma": 0.8083333333333312,
-     "elapsed_gamma": 0.6
-    },
-    {
-     "timestamp": "2026-09-05T08:28:32.767790+00:00",
-     "model": "baseline:atc_ne",
-     "is_final": true,
-     "seed": "42",
-     "mae_alpha": 3.9105263157894736,
-     "elapsed_alpha": 2.1,
-     "mae_beta": 3.6750000000000114,
-     "elapsed_beta": 0.6,
-     "mae_gamma": 3.766666666666667,
-     "elapsed_gamma": 0.6
-    },
-    {
-     "timestamp": "2026-09-05T08:28:32.768405+00:00",
-     "model": "baseline:atc_ne",
-     "is_final": true,
-     "seed": "mean",
-     "mae_alpha": 3.9105263157894736,
-     "elapsed_alpha": 2.1,
-     "mae_beta": 3.6750000000000114,
-     "elapsed_beta": 0.6,
-     "mae_gamma": 3.766666666666667,
-     "elapsed_gamma": 0.6
-    }
-   ]
+   "rows": []
   },
   "ood-atc-threshold": {
    "task_id": "ood-atc-threshold",
@@ -142263,18 +142026,12 @@
     "model",
     "is_final",
     "seed",
-    "abs_error_alpha",
-    "estimate_alpha",
-    "elapsed_alpha",
-    "abs_error_beta",
-    "estimate_beta",
-    "elapsed_beta",
-    "abs_error_gamma",
-    "estimate_gamma",
-    "elapsed_gamma",
     "mae_alpha",
+    "elapsed_alpha",
     "mae_beta",
-    "mae_gamma"
+    "elapsed_beta",
+    "mae_gamma",
+    "elapsed_gamma"
    ],
    "metric_columns": [
     "mae_alpha",
@@ -142306,224 +142063,7 @@
      ]
     }
    ],
-   "rows": [
-    {
-     "timestamp": "2026-09-05T08:27:58.800214+00:00",
-     "model": "baseline:ac",
-     "is_final": true,
-     "seed": "42",
-     "abs_error_alpha": null,
-     "estimate_alpha": null,
-     "elapsed_alpha": 0.5,
-     "abs_error_beta": null,
-     "estimate_beta": null,
-     "elapsed_beta": 0.5,
-     "abs_error_gamma": null,
-     "estimate_gamma": null,
-     "elapsed_gamma": 0.5,
-     "mae_alpha": 12.155724178947374,
-     "mae_beta": 6.815853000000004,
-     "mae_gamma": 12.013521000000003
-    },
-    {
-     "timestamp": "2026-09-05T08:27:58.801733+00:00",
-     "model": "baseline:ac",
-     "is_final": true,
-     "seed": "mean",
-     "abs_error_alpha": null,
-     "estimate_alpha": null,
-     "elapsed_alpha": 0.5,
-     "abs_error_beta": null,
-     "estimate_beta": null,
-     "elapsed_beta": 0.5,
-     "abs_error_gamma": null,
-     "estimate_gamma": null,
-     "elapsed_gamma": 0.5,
-     "mae_alpha": 12.155724178947374,
-     "mae_beta": 6.815853000000004,
-     "mae_gamma": 12.013521000000003
-    },
-    {
-     "timestamp": "2026-09-04T07:23:22.917950+00:00",
-     "model": "baseline:atc",
-     "is_final": true,
-     "seed": "42",
-     "abs_error_alpha": 89.84375,
-     "estimate_alpha": 100.0,
-     "elapsed_alpha": 3.0,
-     "abs_error_beta": 10.9375,
-     "estimate_beta": 100.0,
-     "elapsed_beta": 3.0,
-     "abs_error_gamma": 13.28125,
-     "estimate_gamma": 96.484375,
-     "elapsed_gamma": 3.0,
-     "mae_alpha": null,
-     "mae_beta": null,
-     "mae_gamma": null
-    },
-    {
-     "timestamp": "2026-09-04T07:23:22.918528+00:00",
-     "model": "baseline:atc",
-     "is_final": true,
-     "seed": "mean",
-     "abs_error_alpha": 89.84375,
-     "estimate_alpha": 100.0,
-     "elapsed_alpha": 3.0,
-     "abs_error_beta": 10.9375,
-     "estimate_beta": 100.0,
-     "elapsed_beta": 3.0,
-     "abs_error_gamma": 13.28125,
-     "estimate_gamma": 96.484375,
-     "elapsed_gamma": 3.0,
-     "mae_alpha": null,
-     "mae_beta": null,
-     "mae_gamma": null
-    },
-    {
-     "timestamp": "2026-09-05T08:28:00.202300+00:00",
-     "model": "baseline:atc_mc",
-     "is_final": true,
-     "seed": "42",
-     "abs_error_alpha": null,
-     "estimate_alpha": null,
-     "elapsed_alpha": 1.9,
-     "abs_error_beta": null,
-     "estimate_beta": null,
-     "elapsed_beta": 0.4,
-     "abs_error_gamma": null,
-     "estimate_gamma": null,
-     "elapsed_gamma": 0.7,
-     "mae_alpha": 5.4634210526315785,
-     "mae_beta": 4.200000000000003,
-     "mae_gamma": 0.8083333333333312
-    },
-    {
-     "timestamp": "2026-09-05T08:28:00.203045+00:00",
-     "model": "baseline:atc_mc",
-     "is_final": true,
-     "seed": "mean",
-     "abs_error_alpha": null,
-     "estimate_alpha": null,
-     "elapsed_alpha": 1.9,
-     "abs_error_beta": null,
-     "estimate_beta": null,
-     "elapsed_beta": 0.4,
-     "abs_error_gamma": null,
-     "estimate_gamma": null,
-     "elapsed_gamma": 0.7,
-     "mae_alpha": 5.4634210526315785,
-     "mae_beta": 4.200000000000003,
-     "mae_gamma": 0.8083333333333312
-    },
-    {
-     "timestamp": "2026-09-05T08:27:55.394269+00:00",
-     "model": "baseline:doc",
-     "is_final": true,
-     "seed": "42",
-     "abs_error_alpha": null,
-     "estimate_alpha": null,
-     "elapsed_alpha": 0.8,
-     "abs_error_beta": null,
-     "estimate_beta": null,
-     "elapsed_beta": 0.6,
-     "abs_error_gamma": null,
-     "estimate_gamma": null,
-     "elapsed_gamma": 0.6,
-     "mae_alpha": 11.42731645263158,
-     "mae_beta": 6.085985000000008,
-     "mae_gamma": 12.018122000000004
-    },
-    {
-     "timestamp": "2026-09-05T08:27:55.395094+00:00",
-     "model": "baseline:doc",
-     "is_final": true,
-     "seed": "mean",
-     "abs_error_alpha": null,
-     "estimate_alpha": null,
-     "elapsed_alpha": 0.8,
-     "abs_error_beta": null,
-     "estimate_beta": null,
-     "elapsed_beta": 0.6,
-     "abs_error_gamma": null,
-     "estimate_gamma": null,
-     "elapsed_gamma": 0.6,
-     "mae_alpha": 11.42731645263158,
-     "mae_beta": 6.085985000000008,
-     "mae_gamma": 12.018122000000004
-    },
-    {
-     "timestamp": "2026-09-04T07:29:39.027499+00:00",
-     "model": "baseline:histogram",
-     "is_final": true,
-     "seed": "42",
-     "abs_error_alpha": 89.341237,
-     "estimate_alpha": 99.497487,
-     "elapsed_alpha": 3.0,
-     "abs_error_beta": 8.120728,
-     "estimate_beta": 97.183228,
-     "elapsed_beta": 2.0,
-     "abs_error_gamma": 15.783691000000005,
-     "estimate_gamma": 98.986816,
-     "elapsed_gamma": 2.0,
-     "mae_alpha": null,
-     "mae_beta": null,
-     "mae_gamma": null
-    },
-    {
-     "timestamp": "2026-09-04T07:29:39.029697+00:00",
-     "model": "baseline:histogram",
-     "is_final": true,
-     "seed": "mean",
-     "abs_error_alpha": 89.341237,
-     "estimate_alpha": 99.497487,
-     "elapsed_alpha": 3.0,
-     "abs_error_beta": 8.120728,
-     "estimate_beta": 97.183228,
-     "elapsed_beta": 2.0,
-     "abs_error_gamma": 15.783691000000005,
-     "estimate_gamma": 98.986816,
-     "elapsed_gamma": 2.0,
-     "mae_alpha": null,
-     "mae_beta": null,
-     "mae_gamma": null
-    },
-    {
-     "timestamp": "2026-09-04T07:27:27.849448+00:00",
-     "model": "baseline:quantile",
-     "is_final": true,
-     "seed": "42",
-     "abs_error_alpha": 89.84375,
-     "estimate_alpha": 100.0,
-     "elapsed_alpha": 3.0,
-     "abs_error_beta": 10.9375,
-     "estimate_beta": 100.0,
-     "elapsed_beta": 4.0,
-     "abs_error_gamma": 13.28125,
-     "estimate_gamma": 96.484375,
-     "elapsed_gamma": 4.0,
-     "mae_alpha": null,
-     "mae_beta": null,
-     "mae_gamma": null
-    },
-    {
-     "timestamp": "2026-09-04T07:27:27.850327+00:00",
-     "model": "baseline:quantile",
-     "is_final": true,
-     "seed": "mean",
-     "abs_error_alpha": 89.84375,
-     "estimate_alpha": 100.0,
-     "elapsed_alpha": 3.0,
-     "abs_error_beta": 10.9375,
-     "estimate_beta": 100.0,
-     "elapsed_beta": 4.0,
-     "abs_error_gamma": 13.28125,
-     "estimate_gamma": 96.484375,
-     "elapsed_gamma": 4.0,
-     "mae_alpha": null,
-     "mae_beta": null,
-     "mae_gamma": null
-    }
-   ]
+   "rows": []
   },
   "optimization-bilevel": {
    "task_id": "optimization-bilevel",
