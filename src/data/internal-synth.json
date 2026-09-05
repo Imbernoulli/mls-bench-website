@@ -4919,13 +4919,13 @@
   },
   {
    "id": "dl-optim-mup-coord-stability",
-   "name": "Coordinate stability across width and depth",
-   "summary": "Which algorithmic parameterization keeps activation coordinates at a stable scale when both network width and depth grow?",
+   "name": "Coordinate stability across width for MLPs of growing depth",
+   "summary": "Can a single algorithmic **width-scaling rule** (an abc-parametrization: how initial weights, forward",
    "category": "deep-learning",
    "category_label": "Deep Learning",
    "category_abbr": "",
-   "description_md": "# Coordinate stability across width and depth\n\n## Research question\nWhich algorithmic parameterization keeps activation coordinates at a stable scale when both network width and depth grow?\n\n## Background\nThe μP paper (Yang & Hu, “Tensor Programs V,” ICML 2022) proposes a coordinate check: the mean absolute coordinate of each activation should remain order one across widths after a few updates.  This task measures that falsifiable implementation prediction rather than final accuracy.  It uses the released `mup` shape bookkeeping and optimizers, with standard and NTK controls.\n\n## What you may modify\nImplement only `Parametrization` in `mup/mlsb_mup_coord.py`.  The fixed MLP, real-data minibatch, update count, and scale ladder are not editable.  Return a model and optimizer; do not special-case the public scales.\n\n## Metric and baselines\nThe harness reports the absolute slope of log mean-absolute activation coordinate versus log width (lower is better, zero is perfectly width-stable), across several fixed depth regimes.  Baselines are standard fan-in SGD (`sp`), maximal-update μP (`mup`), and the NTK control (`ntk`).\n",
-   "description_html": "<h1>Coordinate stability across width and depth</h1>\n<h2>Research question</h2>\n<p>Which algorithmic parameterization keeps activation coordinates at a stable scale when both network width and depth grow?</p>\n<h2>Background</h2>\n<p>The μP paper (Yang &amp; Hu, “Tensor Programs V,” ICML 2022) proposes a coordinate check: the mean absolute coordinate of each activation should remain order one across widths after a few updates.  This task measures that falsifiable implementation prediction rather than final accuracy.  It uses the released <code>mup</code> shape bookkeeping and optimizers, with standard and NTK controls.</p>\n<h2>What you may modify</h2>\n<p>Implement only <code>Parametrization</code> in <code>mup/mlsb_mup_coord.py</code>.  The fixed MLP, real-data minibatch, update count, and scale ladder are not editable.  Return a model and optimizer; do not special-case the public scales.</p>\n<h2>Metric and baselines</h2>\n<p>The harness reports the absolute slope of log mean-absolute activation coordinate versus log width (lower is better, zero is perfectly width-stable), across several fixed depth regimes.  Baselines are standard fan-in SGD (<code>sp</code>), maximal-update μP (<code>mup</code>), and the NTK control (<code>ntk</code>).</p>",
+   "description_md": "# Coordinate stability across width for MLPs of growing depth\n\n## Research question\nCan a single algorithmic **width-scaling rule** (an abc-parametrization: how initial weights, forward\nmultipliers and per-layer learning rates scale with width) keep every activation coordinate at a\nwidth-independent scale *after SGD updates* -- while the network still learns -- and does the rule keep\ndoing so as the MLP gets deeper?\n\n## Background\nYang & Hu et al., *Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer*\n(ICML 2022, arXiv:2203.03466) derive the maximal-update parametrization (μP) from the requirement that the\ncoordinates of every (pre-)activation stay Θ(1) as width n → ∞ *throughout training*, and that every layer's\nfeatures move by Θ(1) per step. Their **coordinate check** (`mup.coord_check`, run by\n`examples/MLP/main.py --coord_check`) is the diagnostic: instantiate the same rule at a ladder of widths,\ntake a few SGD steps on one real minibatch at one learning rate, and plot the mean absolute coordinate\n(`l1`) of every layer's output against width. Under standard parametrization (SP) the logits and then the\nhidden pre-activations blow up with width after the first update; under μP the curves are flat; under the\nneural tangent parametrization they are flat but the features barely move. The released `mup` package\n(`mup.MuReadout`, `mup.MuSGD`, `mup.set_base_shapes`, `mup.init`) implements the bookkeeping. μP is derived\nfor a fixed depth; whether one rule stays coordinate-stable *and* learning as depth grows is what the\nsettings probe.\n\n## What you may modify\nOnly the class `Parametrization` in `mup/mlsb_mup_coord.py`:\n\n* `Parametrization(width, depth, base_width=64).build()` must return the fixed `_MLP` (3072 → width →\n  … → width → 10 with `depth` hidden matrices, ReLU, no biases) defined read-only above it. Its weight\n  tensors are your initialisation; a `mup.MuReadout` readout contributes its forward multiplier\n  `output_mult / width_mult()`.\n* `.optimizer(model, lr)` must return a `torch.optim.SGD` (`mup.MuSGD` returns one) over exactly the\n  model's parameters with momentum 0.9 and no weight decay. Per-parameter-group learning rates are your\n  per-layer LR scaling and must scale linearly with the supplied `lr`.\n\nThe harness owns the data, the forward function, the update loop and the statistics; it computes them\ndirectly from the weights you return, so the rule controls exactly what an abc-parametrization controls.\nAny rule should coincide with SP at `base_width`. The same rule is instantiated at every width of a ladder\nthat reaches far beyond the base width, at one fixed learning rate.\n\n## Fixed protocol and metrics\nFor each scored depth: one fixed real minibatch, a few SGD updates at a fixed learning rate, several seeds\naveraged; after every update the mean absolute coordinate of each hidden pre-activation and of the logits\nis recorded at every width of the ladder. Reported per depth:\n\n* `coord_slope` -- the largest |slope| of log mean-absolute-coordinate versus log width over all layers and\n  update counts (0 = every coordinate is Θ(1) in width; lower is better; 70 %);\n* `train_loss` -- the minibatch cross-entropy after the updates, averaged over the ladder (a rule that stays\n  flat by not learning, or that diverges, pays here; lower is better; 30 %).\n\n`hidden_slope`, `logit_slope`, `delta_slope` (slope of the coordinate *change* since initialisation, i.e. how\n\"maximal\" the update is) and `n_diverged` are reported for diagnosis. Depths include a held-out one, so\nper-depth or per-width constants are not a scaling rule.\n\n## Reference baselines\n`sp` (standard parametrization; the null -- `set_base_shapes(model, None)` in the reference code), `mup`\n(the paper's μP: `MuReadout` + `set_base_shapes` + `MuSGD`) and `ntk` (the neural tangent parametrization\nwritten as an abc-parametrization, Yang & Hu 2021 Table 1: input weights at η, every deeper matrix at η/n).\n",
+   "description_html": "<h1>Coordinate stability across width for MLPs of growing depth</h1>\n<h2>Research question</h2>\n<p>Can a single algorithmic <strong>width-scaling rule</strong> (an abc-parametrization: how initial weights, forward\nmultipliers and per-layer learning rates scale with width) keep every activation coordinate at a\nwidth-independent scale <em>after SGD updates</em> -- while the network still learns -- and does the rule keep\ndoing so as the MLP gets deeper?</p>\n<h2>Background</h2>\n<p>Yang &amp; Hu et al., <em>Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer</em>\n(ICML 2022, arXiv:2203.03466) derive the maximal-update parametrization (μP) from the requirement that the\ncoordinates of every (pre-)activation stay Θ(1) as width n → ∞ <em>throughout training</em>, and that every layer's\nfeatures move by Θ(1) per step. Their <strong>coordinate check</strong> (<code>mup.coord_check</code>, run by\n<code>examples/MLP/main.py --coord_check</code>) is the diagnostic: instantiate the same rule at a ladder of widths,\ntake a few SGD steps on one real minibatch at one learning rate, and plot the mean absolute coordinate\n(<code>l1</code>) of every layer's output against width. Under standard parametrization (SP) the logits and then the\nhidden pre-activations blow up with width after the first update; under μP the curves are flat; under the\nneural tangent parametrization they are flat but the features barely move. The released <code>mup</code> package\n(<code>mup.MuReadout</code>, <code>mup.MuSGD</code>, <code>mup.set_base_shapes</code>, <code>mup.init</code>) implements the bookkeeping. μP is derived\nfor a fixed depth; whether one rule stays coordinate-stable <em>and</em> learning as depth grows is what the\nsettings probe.</p>\n<h2>What you may modify</h2>\n<p>Only the class <code>Parametrization</code> in <code>mup/mlsb_mup_coord.py</code>:</p>\n<ul>\n<li><code>Parametrization(width, depth, base_width=64).build()</code> must return the fixed <code>_MLP</code> (3072 → width →\n  … → width → 10 with <code>depth</code> hidden matrices, ReLU, no biases) defined read-only above it. Its weight\n  tensors are your initialisation; a <code>mup.MuReadout</code> readout contributes its forward multiplier\n  <code>output_mult / width_mult()</code>.</li>\n<li><code>.optimizer(model, lr)</code> must return a <code>torch.optim.SGD</code> (<code>mup.MuSGD</code> returns one) over exactly the\n  model's parameters with momentum 0.9 and no weight decay. Per-parameter-group learning rates are your\n  per-layer LR scaling and must scale linearly with the supplied <code>lr</code>.</li>\n</ul>\n<p>The harness owns the data, the forward function, the update loop and the statistics; it computes them\ndirectly from the weights you return, so the rule controls exactly what an abc-parametrization controls.\nAny rule should coincide with SP at <code>base_width</code>. The same rule is instantiated at every width of a ladder\nthat reaches far beyond the base width, at one fixed learning rate.</p>\n<h2>Fixed protocol and metrics</h2>\n<p>For each scored depth: one fixed real minibatch, a few SGD updates at a fixed learning rate, several seeds\naveraged; after every update the mean absolute coordinate of each hidden pre-activation and of the logits\nis recorded at every width of the ladder. Reported per depth:</p>\n<ul>\n<li><code>coord_slope</code> -- the largest |slope| of log mean-absolute-coordinate versus log width over all layers and\n  update counts (0 = every coordinate is Θ(1) in width; lower is better; 70 %);</li>\n<li><code>train_loss</code> -- the minibatch cross-entropy after the updates, averaged over the ladder (a rule that stays\n  flat by not learning, or that diverges, pays here; lower is better; 30 %).</li>\n</ul>\n<p><code>hidden_slope</code>, <code>logit_slope</code>, <code>delta_slope</code> (slope of the coordinate <em>change</em> since initialisation, i.e. how\n\"maximal\" the update is) and <code>n_diverged</code> are reported for diagnosis. Depths include a held-out one, so\nper-depth or per-width constants are not a scaling rule.</p>\n<h2>Reference baselines</h2>\n<p><code>sp</code> (standard parametrization; the null -- <code>set_base_shapes(model, None)</code> in the reference code), <code>mup</code>\n(the paper's μP: <code>MuReadout</code> + <code>set_base_shapes</code> + <code>MuSGD</code>) and <code>ntk</code> (the neural tangent parametrization\nwritten as an abc-parametrization, Yang &amp; Hu 2021 Table 1: input weights at η, every deeper matrix at η/n).</p>",
    "baselines": [
     "sp",
     "mup",
@@ -4944,14 +4944,39 @@
      "filename": "mup/mlsb_mup_coord.py",
      "edit_ranges": [
       {
-       "start": 30,
-       "end": 42
+       "start": 63,
+       "end": 83
       }
      ],
-     "content": "\"\"\"Coordinate-stability probe for maximal-update parametrization.\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path: sys.path.insert(0, str(PKG_DIR))\nimport mup\n\nclass _MLP(nn.Module):\n    def __init__(self, width: int, depth: int, mu_readout: bool = False):\n        super().__init__()\n        layers = [nn.Linear(3072, width, bias=False)]\n        layers += [nn.Linear(width, width, bias=False) for _ in range(max(1, depth - 1))]\n        self.hidden = nn.ModuleList(layers)\n        self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True) if mu_readout else nn.Linear(width, 10, bias=False)\n        self.coord_l1 = []\n    def forward(self, x):\n        self.coord_l1 = []\n        for layer in self.hidden:\n            x = torch.relu(layer(x)); self.coord_l1.append(float(x.detach().abs().mean()))\n        return self.readout(x)\n\n# ============================================================================\n# FIXED — only the parametrization rule below is editable.\n# ----- BEGIN EDITABLE REGION (lines 30..42) -----\nclass Parametrization:\n    \"\"\"Return a model and optimizer implementing a width-scaling algorithm.\"\"\"\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width); self.depth = int(depth); self.base_width = int(base_width)\n    def build(self):\n        model = _MLP(self.width, self.depth, mu_readout=True)\n        base = _MLP(self.base_width, self.depth); delta = _MLP(self.base_width + 1, self.depth)\n        mup.set_base_shapes(model, base, delta=delta)\n        for p in list(model.hidden.parameters()): mup.init.kaiming_normal_(p, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)\n        return model\n    def optimizer(self, model, lr):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)\n# ----- END EDITABLE REGION -----\n\ndef main():\n    depth = {\"depth-2\": 2, \"depth-4\": 4, \"depth-8\": 8}[os.environ.get(\"ENV\", \"depth-2\")]\n    smoke = bool(os.environ.get(\"MLSB_SMOKE\")); seed = int(os.environ.get(\"SEED\", \"42\")); torch.manual_seed(seed)\n    from torchvision import datasets, transforms\n    root = os.environ.get(\"DATA_ROOT\", \"/opt/mlsb-data\")\n    tfm = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,) * 3, (0.5,) * 3)])\n    ds = datasets.CIFAR10(root=root, train=True, download=False, transform=tfm)\n    ds = torch.utils.data.Subset(ds, range(min(64 if smoke else 256, len(ds))))\n    xb, yb = next(iter(torch.utils.data.DataLoader(ds, batch_size=len(ds), shuffle=False, num_workers=0)))\n    device = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\"); xb, yb = xb.to(device), yb.to(device)\n    vals = []\n    widths = [64, 256] if smoke else [64, 256, 1024]\n    for width in widths:\n        rule = Parametrization(width, depth); model = rule.build().to(device); opt = rule.optimizer(model, 0.1)\n        opt.zero_grad(set_to_none=True); loss = torch.nn.functional.cross_entropy(model(xb.flatten(1)), yb); loss.backward(); opt.step()\n        # Probe coordinates at the post-update point, matching the coordinate\n        # check in the source paper rather than only measuring initialization.\n        with torch.no_grad(): model(xb.flatten(1))\n        vals.append((math.log(width), math.log(max(1e-12, sum(model.coord_l1) / len(model.coord_l1)))))\n    x0, y0 = vals[0]; x1, y1 = vals[-1]; slope = (y1 - y0) / max(1e-12, x1 - x0)\n    print(f\"TRAIN_METRICS: depth={depth} coord_l1={math.exp(y1):.6g} log_width_slope={slope:.6f}\", flush=True)\n    # Include the fixed post-update loss in the score so a constant/zero model\n    # cannot win by collapsing every activation to zero while reporting a flat\n    # coordinate curve.\n    print(f\"TEST_METRICS: coord_slope={abs(slope):.6f} train_loss={float(loss):.6f} depth={depth}\", flush=True)\n\nif __name__ == \"__main__\": main()\n"
+     "content": "\"\"\"Editable width-scaling rule (abc-parametrization) for a fixed CIFAR-10 MLP of variable DEPTH.\n\nContract -- read before editing ``Parametrization`` below:\n  * ``Parametrization(width, depth, base_width=64).build()`` returns the fixed ``_MLP`` at ``width`` with\n    ``depth`` hidden matrices (3072 -> width -> ... -> width -> 10, ReLU, no biases).  Its weight tensors\n    ARE the parametrization's initialisation; a ``mup.MuReadout`` readout additionally contributes its\n    forward multiplier ``output_mult / width_mult()``.\n  * ``Parametrization(width, depth, base_width=64).optimizer(model, lr)`` returns a ``torch.optim.SGD``\n    (``mup.MuSGD`` returns one) over exactly the model's parameters, momentum 0.9, no weight decay.\n    Per-parameter-group learning rates are the parametrization's per-layer LR scaling; each must\n    scale linearly with the supplied ``lr`` -- the rule may not fix its own learning rate.\nThe harness owns the data, the forward function, the update loop and the coordinate statistics.  It\nevaluates the fixed architecture directly from the weight tensors (and the readout multiplier), so the\nrule controls exactly what an abc-parametrization controls: initial weights, readout multiplier and\nper-layer learning rates.  The same rule is instantiated at every width of a ladder reaching far beyond\nthe base width, at one fixed learning rate -- per-width constants are not a scaling rule.\n\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\n\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path:\n    sys.path.insert(0, str(PKG_DIR))\nimport mup  # pinned microsoft/mup: MuReadout, MuSGD, set_base_shapes, mup.init\n\n\nclass _MLP(nn.Module):\n    \"\"\"Fixed architecture: examples/MLP of Yang & Hu (2022) generalised to ``depth`` hidden matrices.\n\n    3072 -> width -> (width -> width) x (depth - 1) -> 10, ReLU after every hidden matrix, no biases.\n    ``mu_readout=True`` makes the output layer a ``mup.MuReadout`` (multiplier output_mult / width_mult(),\n    zero-initialised); otherwise it is a plain ``nn.Linear``.  The harness re-derives this exact function\n    from ``hidden[i].weight``, ``readout.weight`` and the readout multiplier, so overriding ``forward``\n    or adding hooks changes nothing that is measured.\n    \"\"\"\n\n    def __init__(self, width: int, depth: int, mu_readout: bool = False):\n        super().__init__()\n        layers = [nn.Linear(3072, width, bias=False)]\n        layers += [nn.Linear(width, width, bias=False) for _ in range(depth - 1)]\n        self.hidden = nn.ModuleList(layers)\n        if mu_readout:\n            self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True)\n        else:\n            self.readout = nn.Linear(width, 10, bias=False)\n\n    def forward(self, x):\n        for layer in self.hidden:\n            x = torch.relu(layer(x))\n        return self.readout(x)\n\n\n# ============================================================================\n# FIXED above.  Only the class below is editable.\n# ============================================================================\n\n# ----- BEGIN EDITABLE REGION (lines 63..83) -----\nclass Parametrization:\n    \"\"\"Width-scaling rule.  Starter = standard parametrization (the null: PyTorch-default scaling).\n\n    ``self.width`` is the network width being built, ``self.depth`` the number of hidden matrices and\n    ``self.base_width`` the proxy width (every rule should coincide with SP at the base width).\n    \"\"\"\n\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width)\n        self.depth = int(depth)\n        self.base_width = int(base_width)\n\n    def build(self) -> nn.Module:\n        model = _MLP(self.width, self.depth, mu_readout=False)\n        for layer in model.hidden:                       # reference init: kaiming_normal_(a=1, fan_in)\n            nn.init.kaiming_normal_(layer.weight, a=1, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)             # the reference zero-initialises the readout\n        return model\n\n    def optimizer(self, model: nn.Module, lr: float):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)\n# ----- END EDITABLE REGION -----\n"
     }
    ],
-   "baselines_code": {},
+   "baselines_code": {
+    "sp": [
+     {
+      "file": "mup/mlsb_mup_coord.py",
+      "start_line": 63,
+      "end_line": 83,
+      "content": "class Parametrization:\n    \"\"\"Standard parametrization (SP): PyTorch-default width scaling, one global learning rate.\"\"\"\n\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width)\n        self.depth = int(depth)\n        self.base_width = int(base_width)\n\n    def build(self) -> nn.Module:\n        model = _MLP(self.width, self.depth, mu_readout=False)\n        for layer in model.hidden:                       # examples/MLP/main.py reset_parameters\n            nn.init.kaiming_normal_(layer.weight, a=1, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)             # fc_3 zero-initialised for SP and muP alike\n        return model\n\n    def optimizer(self, model: nn.Module, lr: float):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)\n"
+     }
+    ],
+    "mup": [
+     {
+      "file": "mup/mlsb_mup_coord.py",
+      "start_line": 63,
+      "end_line": 83,
+      "content": "class Parametrization:\n    \"\"\"Maximal-update parametrization (muP, Yang & Hu 2022) via the mup package.\"\"\"\n\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width)\n        self.depth = int(depth)\n        self.base_width = int(base_width)\n\n    def build(self) -> nn.Module:\n        model = _MLP(self.width, self.depth, mu_readout=True)\n        base = _MLP(self.base_width, self.depth, mu_readout=True)      # make_base_shapes(base=64, delta=65)\n        delta = _MLP(self.base_width + 1, self.depth, mu_readout=True)\n        mup.set_base_shapes(model, base, delta=delta)\n        for layer in model.hidden:                                    # same fan_in init as SP (Table 3)\n            nn.init.kaiming_normal_(layer.weight, a=1, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)                          # fc_3 zero-initialised\n        return model\n\n    def optimizer(self, model: nn.Module, lr: float):\n        return mup.MuSGD(model.parameters(), lr=lr, momentum=0.9)\n"
+     }
+    ],
+    "ntk": [
+     {
+      "file": "mup/mlsb_mup_coord.py",
+      "start_line": 63,
+      "end_line": 83,
+      "content": "class Parametrization:\n    \"\"\"Neural tangent parametrization (NTP), standard-weight form relative to the base width.\"\"\"\n\n    def __init__(self, width: int, depth: int, base_width: int = 64):\n        self.width = int(width)\n        self.depth = int(depth)\n        self.base_width = int(base_width)\n\n    def build(self) -> nn.Module:\n        model = _MLP(self.width, self.depth, mu_readout=False)\n        for layer in model.hidden:                       # init var 1/fan_in, as in SP\n            nn.init.kaiming_normal_(layer.weight, a=1, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)\n        return model\n\n    def optimizer(self, model: nn.Module, lr: float):\n        m = self.width / self.base_width                 # width multiplier n / n_base\n        deep = [l.weight for l in list(model.hidden)[1:]] + [model.readout.weight]\n        groups = [{\"params\": [model.hidden[0].weight], \"lr\": lr},   # input weights: eta\n                  {\"params\": deep, \"lr\": lr / m}]                     # square hidden + output: eta / n\n        return torch.optim.SGD(groups, lr=lr, momentum=0.9)\n"
+     }
+    ]
+   },
    "rigorous_codebase": true,
    "allow_create": false,
    "has_agent_logs": false
@@ -5060,7 +5085,7 @@
        "end": 78
       }
      ],
-     "content": "\"\"\"Editable OUTPUT-LAYER scaling rule for a fixed CIFAR-10 MLP whose hidden layers are pinned to SP.\n\nContract -- read before editing ``ReadoutRule`` below:\n  * ``ReadoutRule(width, base_width=64).build()`` returns the fixed ``_MLP`` at ``width``.  Only the\n    READOUT is yours: its initial weights and, for a ``mup.MuReadout``, its forward multiplier\n    ``output_mult / width_mult()``.  The harness RE-INITIALISES the two hidden/input matrices with the\n    standard fan-in init and trains them at the base learning rate whatever ``build`` did to them.\n  * ``.optimizer(model, lr)`` returns a ``torch.optim.SGD`` (``mup.MuSGD`` returns one) over exactly the\n    model's parameters, momentum 0.9, no weight decay.  Only the learning rate of the group holding\n    ``model.readout.weight`` is used (the hidden groups are reset to ``lr``); it must scale linearly\n    with the supplied ``lr``.\nThe harness owns the data, the forward function, the training loop and the metric; it evaluates the\nfixed architecture directly from the weight tensors and the readout multiplier.  The learning rate is\nselected on a narrow proxy network and transferred as-is to wider networks, including a held-out width.\n\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\n\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path:\n    sys.path.insert(0, str(PKG_DIR))\nimport mup  # pinned microsoft/mup: MuReadout, MuSGD, set_base_shapes, mup.init\n\n\nclass _MLP(nn.Module):\n    \"\"\"Fixed architecture of Yang & Hu (2022), examples/MLP: 3072 -> width -> width -> 10, ReLU, no biases.\n\n    ``mu_readout=True`` makes the output layer a ``mup.MuReadout`` (multiplier output_mult / width_mult(),\n    zero-initialised); otherwise it is a plain ``nn.Linear``.  The harness re-derives this exact function\n    from ``hidden[i].weight``, ``readout.weight`` and the readout multiplier, so overriding ``forward``\n    or adding hooks changes nothing that is scored.\n    \"\"\"\n\n    def __init__(self, width: int, mu_readout: bool = False):\n        super().__init__()\n        self.hidden = nn.ModuleList([nn.Linear(3072, width, bias=False), nn.Linear(width, width, bias=False)])\n        if mu_readout:\n            self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True)\n        else:\n            self.readout = nn.Linear(width, 10, bias=False)\n\n    def forward(self, x):\n        for layer in self.hidden:\n            x = torch.relu(layer(x))\n        return self.readout(x)\n\n\n# ============================================================================\n# FIXED above.  Only the class below is editable.\n# ============================================================================\n\n# ----- BEGIN EDITABLE REGION (lines 58..77) -----\nclass ReadoutRule:\n    \"\"\"Output-layer scaling rule.  Starter = standard readout (the null: PyTorch-default scaling).\n\n    ``self.width`` is the network width being built; ``self.base_width`` is the proxy width the\n    learning rate was tuned at (every rule should coincide with the standard readout at the base width).\n    \"\"\"\n\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width)\n        self.base_width = int(base_width)\n\n    def build(self) -> nn.Module:\n        model = _MLP(self.width, mu_readout=False)\n        for layer in model.hidden:                       # (re-initialised by the harness anyway)\n            nn.init.kaiming_normal_(layer.weight, a=1, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)             # the reference zero-initialises the readout\n        return model\n\n    def optimizer(self, model: nn.Module, lr: float):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)\n# ----- END EDITABLE REGION -----\n"
+     "content": "\"\"\"Editable OUTPUT-LAYER scaling rule for a fixed CIFAR-10 MLP whose hidden layers are pinned to SP.\n\nContract -- read before editing ``ReadoutRule`` below:\n  * ``ReadoutRule(width, base_width=64).build()`` returns the fixed ``_MLP`` at ``width``.  Only the\n    READOUT is yours: its initial weights and, for a ``mup.MuReadout``, its forward multiplier\n    ``output_mult / width_mult()``.  The harness RE-INITIALISES the two hidden/input matrices with the\n    standard fan-in init and trains them at the base learning rate whatever ``build`` did to them.\n  * ``.optimizer(model, lr)`` returns a ``torch.optim.SGD`` (``mup.MuSGD`` returns one) over exactly the\n    model's parameters, momentum 0.9, no weight decay.  Only the learning rate of the group holding\n    ``model.readout.weight`` is used (the hidden groups are reset to ``lr``); it must scale linearly\n    with the supplied ``lr``.\n\nThe harness owns the data, the forward function, the training loop and the metric; it evaluates the\nfixed architecture directly from the weight tensors and the readout multiplier.  The learning rate is\nselected on a narrow proxy network and transferred as-is to wider networks, including a held-out width.\n\"\"\"\nimport math\nimport os\nimport sys\nfrom pathlib import Path\n\nimport torch\nfrom torch import nn\n\nPKG_DIR = Path(os.environ.get(\"MLSBENCH_PKG_DIR\", Path(__file__).resolve().parent))\nif str(PKG_DIR) not in sys.path:\n    sys.path.insert(0, str(PKG_DIR))\nimport mup  # pinned microsoft/mup: MuReadout, MuSGD, set_base_shapes, mup.init\n\n\nclass _MLP(nn.Module):\n    \"\"\"Fixed architecture of Yang & Hu (2022), examples/MLP: 3072 -> width -> width -> 10, ReLU, no biases.\n\n    ``mu_readout=True`` makes the output layer a ``mup.MuReadout`` (multiplier output_mult / width_mult(),\n    zero-initialised); otherwise it is a plain ``nn.Linear``.  The harness re-derives this exact function\n    from ``hidden[i].weight``, ``readout.weight`` and the readout multiplier, so overriding ``forward``\n    or adding hooks changes nothing that is scored.\n    \"\"\"\n\n    def __init__(self, width: int, mu_readout: bool = False):\n        super().__init__()\n        self.hidden = nn.ModuleList([nn.Linear(3072, width, bias=False), nn.Linear(width, width, bias=False)])\n        if mu_readout:\n            self.readout = mup.MuReadout(width, 10, bias=False, readout_zero_init=True)\n        else:\n            self.readout = nn.Linear(width, 10, bias=False)\n\n    def forward(self, x):\n        for layer in self.hidden:\n            x = torch.relu(layer(x))\n        return self.readout(x)\n\n\n# ============================================================================\n# FIXED above.  Only the class below is editable.\n# ============================================================================\n\n# ----- BEGIN EDITABLE REGION (lines 59..78) -----\nclass ReadoutRule:\n    \"\"\"Output-layer scaling rule.  Starter = standard readout (the null: PyTorch-default scaling).\n\n    ``self.width`` is the network width being built; ``self.base_width`` is the proxy width the\n    learning rate was tuned at (every rule should coincide with the standard readout at the base width).\n    \"\"\"\n\n    def __init__(self, width: int, base_width: int = 64):\n        self.width = int(width)\n        self.base_width = int(base_width)\n\n    def build(self) -> nn.Module:\n        model = _MLP(self.width, mu_readout=False)\n        for layer in model.hidden:                       # (re-initialised by the harness anyway)\n            nn.init.kaiming_normal_(layer.weight, a=1, mode=\"fan_in\")\n        nn.init.zeros_(model.readout.weight)             # the reference zero-initialises the readout\n        return model\n\n    def optimizer(self, model: nn.Module, lr: float):\n        return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)\n# ----- END EDITABLE REGION -----\n"
     }
    ],
    "baselines_code": {
@@ -14689,22 +14714,23 @@
   },
   {
    "id": "online-river-anomaly",
-   "name": "Online anomaly scoring with River",
-   "summary": "Design an online, unsupervised anomaly detector for scalar data streams.  The",
+   "name": "Unsupervised anomaly detection in a data stream",
+   "summary": "An online anomaly detector sees one unlabelled example at a time, must score it",
    "category": "other",
    "category_label": "Other",
    "category_abbr": "",
-   "description_md": "# Online anomaly scoring with River\n\nDesign an online, unsupervised anomaly detector for scalar data streams.  The\ndetector receives one observation at a time and must emit a score before seeing\nthe next observation; larger scores indicate more anomalous points.  Your\nalgorithm should adapt to changing location, scale, and recurring structure\nwithout labels or future data.\n\nThe editable surface is `river-lab/custom_anomaly.py`, implementing\n`CustomAnomalyDetector.reset()` and `score_one(x)`.  Keep state bounded and\ndeterministic.  The fixed driver evaluates AUROC (ranking quality) and F1\n(thresholded detection quality) on several stream regimes.\n\nReference methods include robust online z-score/MAD detectors and River's\nHalf-Space Trees (Tan et al., 2011, *Fast Anomaly Detection for Streaming Data*).\nThe contribution is the streaming scoring rule, not hyperparameter tuning.\n",
-   "description_html": "<h1>Online anomaly scoring with River</h1>\n<p>Design an online, unsupervised anomaly detector for scalar data streams.  The\ndetector receives one observation at a time and must emit a score before seeing\nthe next observation; larger scores indicate more anomalous points.  Your\nalgorithm should adapt to changing location, scale, and recurring structure\nwithout labels or future data.</p>\n<p>The editable surface is <code>river-lab/custom_anomaly.py</code>, implementing\n<code>CustomAnomalyDetector.reset()</code> and <code>score_one(x)</code>.  Keep state bounded and\ndeterministic.  The fixed driver evaluates AUROC (ranking quality) and F1\n(thresholded detection quality) on several stream regimes.</p>\n<p>Reference methods include robust online z-score/MAD detectors and River's\nHalf-Space Trees (Tan et al., 2011, <em>Fast Anomaly Detection for Streaming Data</em>).\nThe contribution is the streaming scoring rule, not hyperparameter tuning.</p>",
+   "description_md": "# Unsupervised anomaly detection in a data stream\n\n## Research question\n\nAn online anomaly detector sees one unlabelled example at a time, must score it\nbefore learning it, and must keep its model of \"normal\" in bounded memory. The\nthree families that define the state of the art make three different bets:\nan ensemble of random half-space partitions with mass profiles kept over a sliding\nwindow (Tan, Ting & Liu, *Fast anomaly detection for streaming data*, IJCAI 2011),\na collection of sparse random projections whose one-dimensional histograms give a\ncheap density estimate (Pevný, *LODA: lightweight on-line detector of anomalies*,\nMachine Learning 2016), and a one-class max-margin model fitted by stochastic\ngradient descent (Schölkopf et al., *Estimating the support of a high-dimensional\ndistribution*, Neural Computation 2001). None of them dominates: each wins on some\nof the standard streams and collapses on others, and which one collapses depends on\nthe intrinsic dimension and on how tight the normal class is. Propose and implement\none algorithmic improvement — the model of normality, the score, the projection or\npartition scheme, the forgetting policy — that holds up across streams instead of\nwinning on one.\n\n## Interface (the editable module)\n\n`river-lab/custom_anomaly.py` is the only editable file. It must define\n\n```python\ndef build_model(seed: int, meta: dict):\n    ...  # returns an object with score_one(x) -> float and learn_one(x)\n```\n\nThe fixed evaluator is prequential and fully unsupervised: for every example it\ncalls `score_one(x)` first, records the score, and only then calls `learn_one(x)`\nexactly once. **No label is ever revealed.** `x` is a `dict[str, float]`, `meta`\ncarries `n_features` and `n_examples`. A larger score must mean \"more anomalous\";\nscores need no calibration, only a consistent ordering. Use `seed` for any\nrandomness and keep memory bounded. River's public estimators (`anomaly`,\n`preprocessing`, `stats`, ...) and the standard library are available; process /\nfile-system / introspection modules are rejected by a static screen before the run.\n\n## Metric\n\nArea under the ROC curve of the recorded scores against the held-out anomaly labels\n(higher is better), on several real streams, aggregated by a geometric mean; one\nstream is held out to test transfer. Wall clock is not scored, but each setting has\na fixed time limit, so a detector orders of magnitude slower than the references\nwill not finish.\n\n## Reference baselines (supplied as edit operations on the same file)\n\n- `half_space_trees` — Tan, Ting & Liu (IJCAI 2011), behind the min-max scaler the\n  method assumes.\n- `loda` — Pevný (Machine Learning 2016): sparse random projections with histogram\n  density estimates.\n- `one_class_svm` — the SGD-trained one-class SVM (Schölkopf et al. 2001).\n- `constant_null` — declared null: a constant score, AUROC 0.5 by construction.\n\nA hyperparameter-only change (tree count, window size, ν) is not a contribution.\n",
+   "description_html": "<h1>Unsupervised anomaly detection in a data stream</h1>\n<h2>Research question</h2>\n<p>An online anomaly detector sees one unlabelled example at a time, must score it\nbefore learning it, and must keep its model of \"normal\" in bounded memory. The\nthree families that define the state of the art make three different bets:\nan ensemble of random half-space partitions with mass profiles kept over a sliding\nwindow (Tan, Ting &amp; Liu, <em>Fast anomaly detection for streaming data</em>, IJCAI 2011),\na collection of sparse random projections whose one-dimensional histograms give a\ncheap density estimate (Pevný, <em>LODA: lightweight on-line detector of anomalies</em>,\nMachine Learning 2016), and a one-class max-margin model fitted by stochastic\ngradient descent (Schölkopf et al., <em>Estimating the support of a high-dimensional\ndistribution</em>, Neural Computation 2001). None of them dominates: each wins on some\nof the standard streams and collapses on others, and which one collapses depends on\nthe intrinsic dimension and on how tight the normal class is. Propose and implement\none algorithmic improvement — the model of normality, the score, the projection or\npartition scheme, the forgetting policy — that holds up across streams instead of\nwinning on one.</p>\n<h2>Interface (the editable module)</h2>\n<p><code>river-lab/custom_anomaly.py</code> is the only editable file. It must define</p>\n<pre class=\"codehilite\"><code class=\"language-python\">def build_model(seed: int, meta: dict):\n    ...  # returns an object with score_one(x) -&gt; float and learn_one(x)\n</code></pre>\n\n<p>The fixed evaluator is prequential and fully unsupervised: for every example it\ncalls <code>score_one(x)</code> first, records the score, and only then calls <code>learn_one(x)</code>\nexactly once. <strong>No label is ever revealed.</strong> <code>x</code> is a <code>dict[str, float]</code>, <code>meta</code>\ncarries <code>n_features</code> and <code>n_examples</code>. A larger score must mean \"more anomalous\";\nscores need no calibration, only a consistent ordering. Use <code>seed</code> for any\nrandomness and keep memory bounded. River's public estimators (<code>anomaly</code>,\n<code>preprocessing</code>, <code>stats</code>, ...) and the standard library are available; process /\nfile-system / introspection modules are rejected by a static screen before the run.</p>\n<h2>Metric</h2>\n<p>Area under the ROC curve of the recorded scores against the held-out anomaly labels\n(higher is better), on several real streams, aggregated by a geometric mean; one\nstream is held out to test transfer. Wall clock is not scored, but each setting has\na fixed time limit, so a detector orders of magnitude slower than the references\nwill not finish.</p>\n<h2>Reference baselines (supplied as edit operations on the same file)</h2>\n<ul>\n<li><code>half_space_trees</code> — Tan, Ting &amp; Liu (IJCAI 2011), behind the min-max scaler the\n  method assumes.</li>\n<li><code>loda</code> — Pevný (Machine Learning 2016): sparse random projections with histogram\n  density estimates.</li>\n<li><code>one_class_svm</code> — the SGD-trained one-class SVM (Schölkopf et al. 2001).</li>\n<li><code>constant_null</code> — declared null: a constant score, AUROC 0.5 by construction.</li>\n</ul>\n<p>A hyperparameter-only change (tree count, window size, ν) is not a contribution.</p>",
    "baselines": [
-    "online_zscore",
-    "online_mad",
-    "half_space_trees"
+    "half_space_trees",
+    "loda",
+    "one_class_svm",
+    "constant_null"
    ],
    "environments": [
-    "stationary",
-    "drift",
-    "seasonal"
+    "stream_a",
+    "stream_b",
+    "stream_c"
    ],
    "packages": [
     "river-lab"
@@ -14714,15 +14740,48 @@
      "filename": "river-lab/custom_anomaly.py",
      "edit_ranges": [
       {
-       "start": 12,
-       "end": 38
+       "start": -1,
+       "end": -1
       }
      ],
-     "content": "\"\"\"Online anomaly detector submitted by the agent.\n\nOnly ``score_one`` is editable.  The fixed driver feeds one scalar observation\nat a time and requires a finite score (larger means more anomalous).\n\"\"\"\nimport math\n\n\nclass CustomAnomalyDetector:\n    \"\"\"Streaming anomaly scoring rule.\n\n    Implement ``reset`` and ``score_one``.  The detector must not use labels or\n    future observations; state is updated online after each score.\n    \"\"\"\n\n    def __init__(self):\n        self.reset()\n\n    def reset(self):\n        # EDITABLE: initialise online state here.\n        self.n = 0\n        self.mean = 0.0\n        self.m2 = 1.0\n\n    def score_one(self, x):\n        \"\"\"Return an anomaly score for scalar ``x`` and then update state.\"\"\"\n        # EDITABLE: replace this scoring/update rule with your algorithm.\n        x = float(x)\n        var = self.m2 / max(self.n, 1)\n        score = abs(x - self.mean) / math.sqrt(var + 1e-6)\n        self.n += 1\n        d = x - self.mean\n        self.mean += d / self.n\n        self.m2 += d * (x - self.mean)\n        return float(score)\n"
+     "content": "\"\"\"Online anomaly detector -- the editable module.\n\n``build_model(seed, meta)`` must return an object with River's anomaly API:\n\n    score_one(x) -> float    called BEFORE the example is learnt; larger = more anomalous\n    learn_one(x)             called exactly once per example, after the score is recorded\n\n``x`` is a dict ``{feature_name: float}``; ``meta`` carries ``n_features`` and\n``n_examples``. The evaluator is prequential and fully unsupervised: no label is\never revealed, so the detector must decide what \"normal\" means from the stream\nitself. Everything in this file is editable: the scaling, the score, the model\nof normality, and how it is updated (or forgotten). Keep memory bounded.\n\"\"\"\nfrom river import base, stats\n\n\nclass RunningZScore(base.AnomalyDetector):\n    \"\"\"Starter: the largest per-feature |z-score| under running mean/variance.\n\n    It is a scaffold to replace, not a method: it treats the features as\n    independent, has no notion of a joint density, and never forgets.\n    \"\"\"\n\n    def __init__(self):\n        self.var = {}\n\n    def learn_one(self, x):\n        for k, v in x.items():\n            self.var.setdefault(k, stats.Var()).update(float(v))\n\n    def score_one(self, x):\n        best = 0.0\n        for k, v in x.items():\n            s = self.var.get(k)\n            if s is None or s.mean.n < 2:\n                continue\n            sd = s.get() ** 0.5\n            if sd <= 0.0:\n                continue\n            best = max(best, abs(float(v) - s.mean.get()) / sd)\n        return best\n\n\ndef build_model(seed, meta):\n    \"\"\"Return the detector the evaluator will drive.\"\"\"\n    return RunningZScore()\n"
     }
    ],
-   "baselines_code": {},
-   "rigorous_codebase": false,
+   "baselines_code": {
+    "half_space_trees": [
+     {
+      "file": "river-lab/custom_anomaly.py",
+      "start_line": 1,
+      "end_line": 46,
+      "content": "\"\"\"Streaming Half-Space Trees (Tan, Ting & Liu, IJCAI 2011): River 0.26.1\nanomaly.HalfSpaceTrees behind the min-max scaler River documents for it\n(the detector assumes features in [0, 1]).\"\"\"\nfrom river import anomaly, preprocessing\n\n\ndef build_model(seed, meta):\n    return preprocessing.MinMaxScaler() | anomaly.HalfSpaceTrees(seed=seed)\n"
+     }
+    ],
+    "loda": [
+     {
+      "file": "river-lab/custom_anomaly.py",
+      "start_line": 1,
+      "end_line": 46,
+      "content": "\"\"\"LODA -- Lightweight On-line Detector of Anomalies (Pevny, Machine Learning 2016):\nRiver 0.26.1 anomaly.LODA (sparse random projections + one-dimensional histograms,\nnegative average log-likelihood as the score), behind the same min-max scaler.\"\"\"\nfrom river import anomaly, preprocessing\n\n\ndef build_model(seed, meta):\n    return preprocessing.MinMaxScaler() | anomaly.LODA(seed=seed)\n"
+     }
+    ],
+    "one_class_svm": [
+     {
+      "file": "river-lab/custom_anomaly.py",
+      "start_line": 1,
+      "end_line": 46,
+      "content": "\"\"\"One-class SVM trained by stochastic gradient descent (Scholkopf et al., Neural\nComputation 2001; the online SGD variant River implements): River 0.26.1\nanomaly.OneClassSVM behind the standard scaler River documents for it.\"\"\"\nfrom river import anomaly, preprocessing\n\n\ndef build_model(seed, meta):\n    return preprocessing.StandardScaler() | anomaly.OneClassSVM()\n"
+     }
+    ],
+    "constant_null": [
+     {
+      "file": "river-lab/custom_anomaly.py",
+      "start_line": 1,
+      "end_line": 46,
+      "content": "\"\"\"NULL baseline (declared): a constant score. Every example is equally anomalous,\nso the ranking carries no information and the AUROC is exactly 0.5.\"\"\"\nfrom river import base\n\n\nclass Constant(base.AnomalyDetector):\n    def learn_one(self, x):\n        return self\n\n    def score_one(self, x):\n        return 0.0\n\n\ndef build_model(seed, meta):\n    return Constant()\n"
+     }
+    ]
+   },
+   "rigorous_codebase": true,
    "allow_create": false,
    "has_agent_logs": false
   },
@@ -14856,22 +14915,23 @@
   },
   {
    "id": "online-river-forest",
-   "name": "Online forest design for evolving data streams",
-   "summary": "Implement an online ensemble classifier in `river-lab/custom_forest.py` using",
+   "name": "Online tree ensembles for evolving data streams",
+   "summary": "An ensemble of Hoeffding trees is the reference learner for evolving data streams,",
    "category": "other",
    "category_label": "Other",
    "category_abbr": "",
-   "description_md": "# Online forest design for evolving data streams\n\nImplement an online ensemble classifier in `river-lab/custom_forest.py` using\nRiver's one-example-at-a-time `predict_one(x)` and `learn_one(x, y)` protocol.\nThe learner must update only after each label arrives, keep bounded state, and\nreturn a prediction before seeing the current label.  You may use River's\npublic model components and standard-library utilities, but do not alter the\nfixed driver.\n\nPerformance is measured by prequential accuracy (higher is better) on multiple\nestablished streaming settings. One regime is held out to check whether the\nalgorithm transfers beyond the visible streams.\n\nThe reference implementations are Adaptive Random Forest (Gomes et al., 2017),\nAggregated Mondrian Forest (Mourtada et al., 2021), and the single Hoeffding\nTree (Domingos & Hulten, 2000), all from River.  Your contribution should be an\nalgorithmic change to online ensemble learning (for example, weighting or\nresampling members), rather than tuning a few constants.\n",
-   "description_html": "<h1>Online forest design for evolving data streams</h1>\n<p>Implement an online ensemble classifier in <code>river-lab/custom_forest.py</code> using\nRiver's one-example-at-a-time <code>predict_one(x)</code> and <code>learn_one(x, y)</code> protocol.\nThe learner must update only after each label arrives, keep bounded state, and\nreturn a prediction before seeing the current label.  You may use River's\npublic model components and standard-library utilities, but do not alter the\nfixed driver.</p>\n<p>Performance is measured by prequential accuracy (higher is better) on multiple\nestablished streaming settings. One regime is held out to check whether the\nalgorithm transfers beyond the visible streams.</p>\n<p>The reference implementations are Adaptive Random Forest (Gomes et al., 2017),\nAggregated Mondrian Forest (Mourtada et al., 2021), and the single Hoeffding\nTree (Domingos &amp; Hulten, 2000), all from River.  Your contribution should be an\nalgorithmic change to online ensemble learning (for example, weighting or\nresampling members), rather than tuning a few constants.</p>",
+   "description_md": "# Online tree ensembles for evolving data streams\n\n## Research question\n\nAn ensemble of Hoeffding trees is the reference learner for evolving data streams,\nand every part of it is an algorithmic choice: how each arriving example is\nresampled into the members (the Poisson(1) online bagging of Oza & Russell,\n*Online bagging and boosting*, AISTATS 2001; the Poisson(6) \"leveraging\" of Bifet,\nHolmes & Pfahringer, *Leveraging bagging for evolving data streams*, ECML-PKDD 2010),\nhow members are diversified (random feature subspaces per split, as in the Adaptive\nRandom Forest of Gomes et al., *Adaptive random forests for evolving data stream\nclassification*, Machine Learning 2017), how their votes are combined (uniform,\naccuracy-weighted, recency-weighted), and how the ensemble reacts when the concept\nchanges (per-member change detectors, warning states, background learners that\nreplace a member once the drift is confirmed). Propose and implement one such\nalgorithmic improvement to the online ensemble and show that it transfers across\nstreams with different drift behaviour.\n\n## Interface (the editable module)\n\n`river-lab/custom_forest.py` is the only editable file. It must define\n\n```python\ndef build_model(seed: int, meta: dict):\n    ...  # returns an object with predict_proba_one(x) and learn_one(x, y)\n```\n\nThe fixed evaluator is prequential (test-then-train): for every example it calls\n`predict_proba_one(x)` first, records the prediction, and only then calls\n`learn_one(x, y)` exactly once. `x` is a `dict[str, float]`, `y` an `int` class label,\n`meta` carries `n_features` and `n_examples`. Predictions must be a `{class: probability}`\ndict; unknown classes may be omitted. Use `seed` for any randomness, keep memory\nbounded, and never read a label other than the one handed to `learn_one`. River's\npublic estimators (`tree`, `forest`, `ensemble`, `drift`, `preprocessing`, ...) and the\nstandard library are available; process / file-system / introspection modules are\nrejected by a static screen before the run.\n\n## Metric\n\nPrequential accuracy (higher is better) on several real classification streams that\ndiffer in how the concept moves, aggregated by a geometric mean; one stream is held\nout to test transfer. Log loss is reported for diagnostics only. Wall clock is not\nscored, but each setting has a fixed time limit, so an ensemble that is orders of\nmagnitude slower than the references will not finish.\n\n## Reference baselines (supplied as edit operations on the same file)\n\n- `online_bagging` — Oza & Russell's online bagging over Hoeffding trees (Poisson(1)).\n- `leveraging_bagging` — Bifet et al. 2010: Poisson(6) weights plus a per-member ADWIN\n  that resets the member on a change signal.\n- `adaptive_random_forest` — Gomes et al. 2017: random feature subspaces, Poisson(6)\n  resampling, and per-tree warning/drift detectors with background learners.\n- `single_tree_null` — declared null: one Hoeffding tree, no ensemble.\n\nA hyperparameter-only change (member count, Poisson rate, detector delta) is not a\ncontribution.\n",
+   "description_html": "<h1>Online tree ensembles for evolving data streams</h1>\n<h2>Research question</h2>\n<p>An ensemble of Hoeffding trees is the reference learner for evolving data streams,\nand every part of it is an algorithmic choice: how each arriving example is\nresampled into the members (the Poisson(1) online bagging of Oza &amp; Russell,\n<em>Online bagging and boosting</em>, AISTATS 2001; the Poisson(6) \"leveraging\" of Bifet,\nHolmes &amp; Pfahringer, <em>Leveraging bagging for evolving data streams</em>, ECML-PKDD 2010),\nhow members are diversified (random feature subspaces per split, as in the Adaptive\nRandom Forest of Gomes et al., <em>Adaptive random forests for evolving data stream\nclassification</em>, Machine Learning 2017), how their votes are combined (uniform,\naccuracy-weighted, recency-weighted), and how the ensemble reacts when the concept\nchanges (per-member change detectors, warning states, background learners that\nreplace a member once the drift is confirmed). Propose and implement one such\nalgorithmic improvement to the online ensemble and show that it transfers across\nstreams with different drift behaviour.</p>\n<h2>Interface (the editable module)</h2>\n<p><code>river-lab/custom_forest.py</code> is the only editable file. It must define</p>\n<pre class=\"codehilite\"><code class=\"language-python\">def build_model(seed: int, meta: dict):\n    ...  # returns an object with predict_proba_one(x) and learn_one(x, y)\n</code></pre>\n\n<p>The fixed evaluator is prequential (test-then-train): for every example it calls\n<code>predict_proba_one(x)</code> first, records the prediction, and only then calls\n<code>learn_one(x, y)</code> exactly once. <code>x</code> is a <code>dict[str, float]</code>, <code>y</code> an <code>int</code> class label,\n<code>meta</code> carries <code>n_features</code> and <code>n_examples</code>. Predictions must be a <code>{class: probability}</code>\ndict; unknown classes may be omitted. Use <code>seed</code> for any randomness, keep memory\nbounded, and never read a label other than the one handed to <code>learn_one</code>. River's\npublic estimators (<code>tree</code>, <code>forest</code>, <code>ensemble</code>, <code>drift</code>, <code>preprocessing</code>, ...) and the\nstandard library are available; process / file-system / introspection modules are\nrejected by a static screen before the run.</p>\n<h2>Metric</h2>\n<p>Prequential accuracy (higher is better) on several real classification streams that\ndiffer in how the concept moves, aggregated by a geometric mean; one stream is held\nout to test transfer. Log loss is reported for diagnostics only. Wall clock is not\nscored, but each setting has a fixed time limit, so an ensemble that is orders of\nmagnitude slower than the references will not finish.</p>\n<h2>Reference baselines (supplied as edit operations on the same file)</h2>\n<ul>\n<li><code>online_bagging</code> — Oza &amp; Russell's online bagging over Hoeffding trees (Poisson(1)).</li>\n<li><code>leveraging_bagging</code> — Bifet et al. 2010: Poisson(6) weights plus a per-member ADWIN\n  that resets the member on a change signal.</li>\n<li><code>adaptive_random_forest</code> — Gomes et al. 2017: random feature subspaces, Poisson(6)\n  resampling, and per-tree warning/drift detectors with background learners.</li>\n<li><code>single_tree_null</code> — declared null: one Hoeffding tree, no ensemble.</li>\n</ul>\n<p>A hyperparameter-only change (member count, Poisson rate, detector delta) is not a\ncontribution.</p>",
    "baselines": [
     "adaptive_random_forest",
-    "aggregated_mondrian_forest",
-    "hoeffding_tree"
+    "leveraging_bagging",
+    "online_bagging",
+    "single_tree_null"
    ],
    "environments": [
-    "sea",
-    "hyperplane",
-    "drift"
+    "stream_a",
+    "stream_b",
+    "stream_c"
    ],
    "packages": [
     "river-lab"
@@ -14881,36 +14941,44 @@
      "filename": "river-lab/custom_forest.py",
      "edit_ranges": [
       {
-       "start": 8,
-       "end": 48
+       "start": -1,
+       "end": -1
       }
      ],
-     "content": "\"\"\"Editable online forest wrapper (River-compatible API).\"\"\"\nfrom river import tree\n\n\n# =====================================================================\n# EDITABLE: Classifier\n# =====================================================================\nclass Classifier:\n    \"\"\"An online ensemble of Hoeffding trees.\n\n    ``predict_one`` is called before ``learn_one`` for every observation.\n    Replace this implementation with a principled online-forest algorithm;\n    do not batch examples or inspect future labels.\n    \"\"\"\n\n    def __init__(self, n_models=5, seed=42):\n        self.n_models = int(n_models)\n        self.seed = int(seed)\n        self.reset()\n\n    def reset(self):\n        self.models = [tree.HoeffdingTreeClassifier()\n                       for _ in range(self.n_models)]\n\n    def predict_one(self, x):\n        votes = {}\n        for model in self.models:\n            for label, prob in model.predict_proba_one(x).items():\n                votes[label] = votes.get(label, 0.0) + float(prob)\n        if not votes:\n            return 0\n        return max(votes, key=votes.get)\n\n    def learn_one(self, x, y):\n        for model in self.models:\n            model.learn_one(x, y)\n        return self\n"
+     "content": "\"\"\"Online forest of Hoeffding trees -- the editable module.\n\n``build_model(seed, meta)`` must return an object with River's one-example API:\n\n    predict_proba_one(x) -> {class_label: probability}   called BEFORE the label is revealed\n    learn_one(x, y)                                        called exactly once per example, after\n\n``x`` is a dict ``{feature_name: float}``, ``y`` an int class label, ``meta`` has\n``n_features`` / ``n_examples``. The fixed evaluator is prequential (test-then-\ntrain) and never reveals a future label. Everything in this file is editable:\nhow members are trained on each example (resampling weights, feature subspaces),\nhow they vote, and how the ensemble reacts to concept drift (detectors, background\nlearners, member replacement). Use ``seed`` for any randomness; keep memory bounded.\n\"\"\"\nimport random\n\nfrom river import base, tree\n\n\nclass OnlineForest(base.Classifier):\n    \"\"\"Starter: ``n_models`` Hoeffding trees, each trained once on every example,\n    combined by averaging their class probabilities.\n\n    All members see identical data, so this ensemble has no diversity and no\n    drift handling -- it is a scaffold to replace, not a method.\n    \"\"\"\n\n    def __init__(self, n_models=10, seed=42):\n        self.n_models = int(n_models)\n        self.rng = random.Random(seed)\n        self.members = [tree.HoeffdingTreeClassifier() for _ in range(self.n_models)]\n\n    @property\n    def _multiclass(self):\n        return True\n\n    def learn_one(self, x, y):\n        for m in self.members:\n            m.learn_one(x, y)\n\n    def predict_proba_one(self, x):\n        votes = {}\n        for m in self.members:\n            for c, p in m.predict_proba_one(x).items():\n                votes[c] = votes.get(c, 0.0) + p\n        total = sum(votes.values())\n        return {c: v / total for c, v in votes.items()} if total > 0 else votes\n\n\ndef build_model(seed, meta):\n    return OnlineForest(n_models=10, seed=seed)\n"
     }
    ],
    "baselines_code": {
     "adaptive_random_forest": [
      {
       "file": "river-lab/custom_forest.py",
-      "start_line": 8,
-      "end_line": 48,
-      "content": "class Classifier:\n    def __init__(self, n_models=5, seed=42):\n        from river import forest\n        self.n_models, self.seed = n_models, seed\n        self.model = forest.ARFClassifier(n_models=n_models, seed=seed)\n    def reset(self):\n        from river import forest\n        self.model = forest.ARFClassifier(n_models=self.n_models, seed=self.seed)\n    def predict_one(self, x):\n        return self.model.predict_one(x)\n    def learn_one(self, x, y):\n        self.model.learn_one(x, y)\n        return self\n"
+      "start_line": 1,
+      "end_line": 51,
+      "content": "\"\"\"Adaptive Random Forest (Gomes et al., Machine Learning 2017): River 0.26.1\nforest.ARFClassifier with its defaults (10 members, sqrt feature subspaces, Poisson(6)\nonline bagging, per-tree ADWIN warning/drift detectors with background learners).\"\"\"\nfrom river import forest\n\n\ndef build_model(seed, meta):\n    return forest.ARFClassifier(n_models=10, seed=seed)\n"
      }
     ],
-    "aggregated_mondrian_forest": [
+    "leveraging_bagging": [
      {
       "file": "river-lab/custom_forest.py",
-      "start_line": 8,
-      "end_line": 48,
-      "content": "class Classifier:\n    def __init__(self, n_models=5, seed=42):\n        from river import forest\n        self.n_models, self.seed = n_models, seed\n        self.model = forest.AMFClassifier(n_estimators=n_models, seed=seed)\n    def reset(self):\n        from river import forest\n        self.model = forest.AMFClassifier(n_estimators=self.n_models, seed=self.seed)\n    def predict_one(self, x):\n        return self.model.predict_one(x)\n    def learn_one(self, x, y):\n        self.model.learn_one(x, y)\n        return self\n"
+      "start_line": 1,
+      "end_line": 51,
+      "content": "\"\"\"Leveraging Bagging (Bifet, Holmes & Pfahringer, ECML-PKDD 2010): River 0.26.1\nensemble.LeveragingBaggingClassifier over Hoeffding trees with its defaults\n(10 members, Poisson(6) weights, per-member ADWIN with delta=0.002 resetting the member).\"\"\"\nfrom river import ensemble, tree\n\n\ndef build_model(seed, meta):\n    return ensemble.LeveragingBaggingClassifier(model=tree.HoeffdingTreeClassifier(), n_models=10, seed=seed)\n"
      }
     ],
-    "hoeffding_tree": [
+    "online_bagging": [
      {
       "file": "river-lab/custom_forest.py",
-      "start_line": 8,
-      "end_line": 48,
-      "content": "class Classifier:\n    def __init__(self, n_models=5, seed=42):\n        from river import tree\n        self.seed = seed\n        self.model = tree.HoeffdingTreeClassifier()\n    def reset(self):\n        from river import tree\n        self.model = tree.HoeffdingTreeClassifier()\n    def predict_one(self, x):\n        return self.model.predict_one(x)\n    def learn_one(self, x, y):\n        self.model.learn_one(x, y)\n        return self\n"
+      "start_line": 1,
+      "end_line": 51,
+      "content": "\"\"\"Online Bagging (Oza & Russell, AISTATS 2001): River 0.26.1 ensemble.BaggingClassifier\nover Hoeffding trees, 10 members, each example replicated Poisson(1) times per member.\"\"\"\nfrom river import ensemble, tree\n\n\ndef build_model(seed, meta):\n    return ensemble.BaggingClassifier(model=tree.HoeffdingTreeClassifier(), n_models=10, seed=seed)\n"
+     }
+    ],
+    "single_tree_null": [
+     {
+      "file": "river-lab/custom_forest.py",
+      "start_line": 1,
+      "end_line": 51,
+      "content": "\"\"\"NULL baseline: a single Hoeffding tree (Domingos & Hulten, KDD 2000; River 0.26.1\ntree.HoeffdingTreeClassifier defaults) -- no ensemble at all.\"\"\"\nfrom river import tree\n\n\ndef build_model(seed, meta):\n    return tree.HoeffdingTreeClassifier()\n"
      }
     ]
    },
@@ -14921,21 +14989,22 @@
   {
    "id": "online-river-knn",
    "name": "Online k-nearest neighbours for streaming classification",
-   "summary": "Implement an algorithmic improvement to the online k-nearest-neighbour",
+   "summary": "A sliding-window k-nearest-neighbour classifier is the simplest strong learner for",
    "category": "other",
    "category_label": "Other",
    "category_abbr": "",
-   "description_md": "# Online k-nearest neighbours for streaming classification\n\nImplement an algorithmic improvement to the online k-nearest-neighbour\nclassifier in `river-lab/custom_knn.py`.  The fixed driver calls\n`build_model(seed, setting)` once, then performs strict progressive validation:\nit calls `predict_proba_one(x)` before revealing each label and calls\n`learn_one(x, y)` exactly once.  Do not batch examples or use future labels.\n\nThe package is River (Montiel et al., *River: machine learning for streaming\ndata in Python*, JMLR 2021); the reference is its lazy `KNNClassifier`.  The\ndriver draws a fresh hidden stream per run, while your method should remain\ndeterministic given its model seed and use River's one-example estimator API.\nThe score is prequential classification accuracy (higher is better), reported\nfor each stream and aggregated across the three settings.\n\nUseful published comparators are uniform-vote KNN, inverse-distance KNN, and a\ndiversity-preserving sliding window.  You may rewrite the model construction\ninside the editable region, but keep the function signature and driver files\nunchanged.\n",
-   "description_html": "<h1>Online k-nearest neighbours for streaming classification</h1>\n<p>Implement an algorithmic improvement to the online k-nearest-neighbour\nclassifier in <code>river-lab/custom_knn.py</code>.  The fixed driver calls\n<code>build_model(seed, setting)</code> once, then performs strict progressive validation:\nit calls <code>predict_proba_one(x)</code> before revealing each label and calls\n<code>learn_one(x, y)</code> exactly once.  Do not batch examples or use future labels.</p>\n<p>The package is River (Montiel et al., <em>River: machine learning for streaming\ndata in Python</em>, JMLR 2021); the reference is its lazy <code>KNNClassifier</code>.  The\ndriver draws a fresh hidden stream per run, while your method should remain\ndeterministic given its model seed and use River's one-example estimator API.\nThe score is prequential classification accuracy (higher is better), reported\nfor each stream and aggregated across the three settings.</p>\n<p>Useful published comparators are uniform-vote KNN, inverse-distance KNN, and a\ndiversity-preserving sliding window.  You may rewrite the model construction\ninside the editable region, but keep the function signature and driver files\nunchanged.</p>",
+   "description_md": "# Online k-nearest neighbours for streaming classification\n\n## Research question\n\nA sliding-window k-nearest-neighbour classifier is the simplest strong learner for\nevolving data streams (River, Montiel et al., *River: machine learning for streaming\ndata in Python*, JMLR 2021). Its accuracy is decided by three algorithmic choices:\nhow neighbours vote (the uniform vote of Cover & Hart 1967 versus the inverse-distance\nvote of Dudani 1976), how the window is maintained (first-in-first-out, or reset /\nresized when a change is detected, as in the kNN+ADWIN of Bifet, Pfahringer, Read &\nHolmes, *Efficient data stream classification via probabilistic adaptive windows*,\nSAC 2013), and how neighbours are found. Losing, Hammer & Wersing's SAM-kNN (ICDM 2016)\nshows that a smarter memory policy alone changes the ordering of methods across\nstationary and drifting streams. Propose and implement one such algorithmic\nimprovement -- the vote, the window / memory policy, the distance, or the search --\nthat transfers across streams.\n\n## Interface (the editable module)\n\n`river-lab/custom_knn.py` is the only editable file. It must define\n\n```python\ndef build_model(seed: int, meta: dict):\n    ...  # returns an object with predict_proba_one(x) and learn_one(x, y)\n```\n\nThe fixed evaluator is prequential (test-then-train): for every example it calls\n`predict_proba_one(x)` first, records the prediction, and only then calls\n`learn_one(x, y)` exactly once. `x` is a `dict[str, float]`, `y` an `int` class label,\n`meta` carries `n_features` and `n_examples`. Predictions must be a `{class: probability}`\ndict; unknown classes may be omitted. Use `seed` for any randomness; keep memory\nbounded and do not read labels other than those handed to `learn_one`. River's public\nestimators (`neighbors`, `preprocessing`, `drift`, ...) and the standard library are\navailable; process / file-system / introspection modules are rejected by a static\nscreen before the run.\n\n## Metric\n\nPrequential accuracy (higher is better) on several real classification streams,\naggregated by a geometric mean; one stream is held out to test transfer. Log loss is\nreported for diagnostics only.\n\n## Reference baselines (supplied as edit operations on the same file)\n\n- `uniform_vote` -- uniform-vote kNN over an exact FIFO window (Cover & Hart 1967).\n- `inverse_distance` -- inverse-distance-weighted vote (Dudani 1976).\n- `knn_adwin` -- weighted kNN whose error stream is monitored by ADWIN (Bifet & Gavaldà\n  2007); the learner is reset when a change is detected (Bifet et al. 2013).\n- `prior_null` -- declared null: predicts the running class prior and ignores `x`.\n\nA hyperparameter-only change (k, window size) is not a contribution.\n",
+   "description_html": "<h1>Online k-nearest neighbours for streaming classification</h1>\n<h2>Research question</h2>\n<p>A sliding-window k-nearest-neighbour classifier is the simplest strong learner for\nevolving data streams (River, Montiel et al., <em>River: machine learning for streaming\ndata in Python</em>, JMLR 2021). Its accuracy is decided by three algorithmic choices:\nhow neighbours vote (the uniform vote of Cover &amp; Hart 1967 versus the inverse-distance\nvote of Dudani 1976), how the window is maintained (first-in-first-out, or reset /\nresized when a change is detected, as in the kNN+ADWIN of Bifet, Pfahringer, Read &amp;\nHolmes, <em>Efficient data stream classification via probabilistic adaptive windows</em>,\nSAC 2013), and how neighbours are found. Losing, Hammer &amp; Wersing's SAM-kNN (ICDM 2016)\nshows that a smarter memory policy alone changes the ordering of methods across\nstationary and drifting streams. Propose and implement one such algorithmic\nimprovement -- the vote, the window / memory policy, the distance, or the search --\nthat transfers across streams.</p>\n<h2>Interface (the editable module)</h2>\n<p><code>river-lab/custom_knn.py</code> is the only editable file. It must define</p>\n<pre class=\"codehilite\"><code class=\"language-python\">def build_model(seed: int, meta: dict):\n    ...  # returns an object with predict_proba_one(x) and learn_one(x, y)\n</code></pre>\n\n<p>The fixed evaluator is prequential (test-then-train): for every example it calls\n<code>predict_proba_one(x)</code> first, records the prediction, and only then calls\n<code>learn_one(x, y)</code> exactly once. <code>x</code> is a <code>dict[str, float]</code>, <code>y</code> an <code>int</code> class label,\n<code>meta</code> carries <code>n_features</code> and <code>n_examples</code>. Predictions must be a <code>{class: probability}</code>\ndict; unknown classes may be omitted. Use <code>seed</code> for any randomness; keep memory\nbounded and do not read labels other than those handed to <code>learn_one</code>. River's public\nestimators (<code>neighbors</code>, <code>preprocessing</code>, <code>drift</code>, ...) and the standard library are\navailable; process / file-system / introspection modules are rejected by a static\nscreen before the run.</p>\n<h2>Metric</h2>\n<p>Prequential accuracy (higher is better) on several real classification streams,\naggregated by a geometric mean; one stream is held out to test transfer. Log loss is\nreported for diagnostics only.</p>\n<h2>Reference baselines (supplied as edit operations on the same file)</h2>\n<ul>\n<li><code>uniform_vote</code> -- uniform-vote kNN over an exact FIFO window (Cover &amp; Hart 1967).</li>\n<li><code>inverse_distance</code> -- inverse-distance-weighted vote (Dudani 1976).</li>\n<li><code>knn_adwin</code> -- weighted kNN whose error stream is monitored by ADWIN (Bifet &amp; Gavaldà\n  2007); the learner is reset when a change is detected (Bifet et al. 2013).</li>\n<li><code>prior_null</code> -- declared null: predicts the running class prior and ignores <code>x</code>.</li>\n</ul>\n<p>A hyperparameter-only change (k, window size) is not a contribution.</p>",
    "baselines": [
-    "uniform_knn",
+    "uniform_vote",
     "inverse_distance",
-    "diverse_window"
+    "knn_adwin",
+    "prior_null"
    ],
    "environments": [
-    "bananas",
-    "phishing",
-    "segments"
+    "stream_a",
+    "stream_b",
+    "stream_c"
    ],
    "packages": [
     "river-lab"
@@ -14945,36 +15014,44 @@
      "filename": "river-lab/custom_knn.py",
      "edit_ranges": [
       {
-       "start": 8,
-       "end": 18
+       "start": -1,
+       "end": -1
       }
      ],
-     "content": "\"\"\"Editable online k-nearest-neighbour classifier (River API).\"\"\"\nfrom river import neighbors, preprocessing\n\n\n# =====================================================================\n# EDITABLE: model construction\n# =====================================================================\ndef build_model(seed=42, setting=\"default\"):\n    \"\"\"Return a River estimator implementing predict_one/learn_one.\n\n    The driver presents one labelled example at a time and always predicts\n    before revealing its label.  Keep this function online and deterministic.\n    \"\"\"\n    # Replace this reference with an algorithmic improvement, not a batch fit.\n    return preprocessing.StandardScaler() | neighbors.KNNClassifier(\n        n_neighbors=5, weighted=True, cleanup_every=0\n    )\n"
+     "content": "\"\"\"Online k-nearest-neighbour classifier -- the editable module.\n\n``build_model(seed, meta)`` must return an object with River's one-example API:\n\n    predict_proba_one(x) -> {class_label: probability}   called BEFORE the label is revealed\n    learn_one(x, y)                                        called exactly once per example, after\n\n``x`` is a dict ``{feature_name: float}`` and ``y`` an int class label. The fixed\nevaluator streams one example at a time (prequential / test-then-train) and\nnever reveals a future label. ``meta`` carries ``n_features`` and ``n_examples``.\nEverything in this file is editable: the neighbour search, the vote, the window\nmaintenance policy, the distance. Keep it online and bounded in memory.\n\"\"\"\nimport math\nfrom collections import deque\n\nfrom river import base, preprocessing\n\n\nclass OnlineKNN(base.Classifier):\n    \"\"\"Sliding-window kNN with a uniform vote (Cover & Hart, 1967).\n\n    The window is first-in-first-out with a fixed capacity; every stored\n    example votes with weight 1 among the ``n_neighbors`` closest (Euclidean).\n    \"\"\"\n\n    def __init__(self, n_neighbors=5, window_size=1000):\n        self.n_neighbors = int(n_neighbors)\n        self.window_size = int(window_size)\n        self.window = deque(maxlen=self.window_size)  # (features, label)\n        self.classes = set()\n\n    @property\n    def _multiclass(self):\n        return True\n\n    def learn_one(self, x, y):\n        self.window.append((dict(x), y))\n        self.classes.add(y)\n\n    def predict_proba_one(self, x):\n        if not self.window:\n            return {c: 1.0 / len(self.classes) for c in self.classes} if self.classes else {}\n        scored = []\n        for xi, yi in self.window:\n            d = 0.0\n            for k, v in xi.items():\n                diff = x.get(k, 0.0) - v\n                d += diff * diff\n            scored.append((math.sqrt(d), yi))\n        scored.sort(key=lambda t: t[0])\n        votes = {c: 0.0 for c in self.classes}\n        for _, yi in scored[: self.n_neighbors]:\n            votes[yi] += 1.0\n        total = sum(votes.values())\n        return {c: v / total for c, v in votes.items()}\n\n\ndef build_model(seed, meta):\n    \"\"\"Return the classifier the evaluator will drive (features are standardised online).\"\"\"\n    return preprocessing.StandardScaler() | OnlineKNN(n_neighbors=5, window_size=1000)\n"
     }
    ],
    "baselines_code": {
-    "uniform_knn": [
+    "uniform_vote": [
      {
       "file": "river-lab/custom_knn.py",
-      "start_line": 8,
-      "end_line": 18,
-      "content": "def build_model(seed=42, setting=\"bananas\"):\n    from river import neighbors, preprocessing\n    return preprocessing.StandardScaler() | neighbors.KNNClassifier(\n        n_neighbors=5, weighted=False, cleanup_every=0)\n"
+      "start_line": 1,
+      "end_line": 61,
+      "content": "\"\"\"Uniform-vote sliding-window kNN: River 0.26.1 neighbors.KNNClassifier(weighted=False)\nover an exact LazySearch window of 1000 (Cover & Hart 1967 vote; Montiel et al. 2021).\"\"\"\nfrom river import neighbors, preprocessing\n\n\ndef build_model(seed, meta):\n    return preprocessing.StandardScaler() | neighbors.KNNClassifier(\n        n_neighbors=5, weighted=False, cleanup_every=0,\n        engine=neighbors.LazySearch(window_size=1000))\n"
      }
     ],
     "inverse_distance": [
      {
       "file": "river-lab/custom_knn.py",
-      "start_line": 8,
-      "end_line": 18,
-      "content": "def build_model(seed=42, setting=\"bananas\"):\n    from river import neighbors, preprocessing\n    return preprocessing.StandardScaler() | neighbors.KNNClassifier(\n        n_neighbors=7, weighted=True, cleanup_every=0)\n"
+      "start_line": 1,
+      "end_line": 61,
+      "content": "\"\"\"Inverse-distance-weighted sliding-window kNN (Dudani 1976): River 0.26.1\nneighbors.KNNClassifier(weighted=True) over an exact LazySearch window of 1000.\"\"\"\nfrom river import neighbors, preprocessing\n\n\ndef build_model(seed, meta):\n    return preprocessing.StandardScaler() | neighbors.KNNClassifier(\n        n_neighbors=5, weighted=True, cleanup_every=0,\n        engine=neighbors.LazySearch(window_size=1000))\n"
      }
     ],
-    "diverse_window": [
+    "knn_adwin": [
      {
       "file": "river-lab/custom_knn.py",
-      "start_line": 8,
-      "end_line": 18,
-      "content": "def build_model(seed=42, setting=\"bananas\"):\n    from river import neighbors, preprocessing\n    engine = neighbors.LazySearch(window_size=500, min_distance_keep=0.01)\n    return preprocessing.StandardScaler() | neighbors.KNNClassifier(\n        # River 0.26.1's LazySearch stores plain tuples, while its periodic\n        # class cleanup expects newer vertex objects (and raises AttributeError).\n        # Keep cleanup disabled; class labels remain valid for these binary streams.\n        n_neighbors=5, weighted=True, engine=engine, cleanup_every=0)\n"
+      "start_line": 1,
+      "end_line": 61,
+      "content": "\"\"\"kNN with an ADWIN-monitored error stream (Bifet, Pfahringer, Read & Holmes 2013,\n\"Efficient data stream classification via probabilistic adaptive windows\", kNN+ADWIN):\nRiver 0.26.1 drift.DriftRetrainingClassifier resets the weighted kNN when ADWIN\n(Bifet & Gavalda 2007) signals a change in its 0/1 error stream.\"\"\"\nfrom river import drift, neighbors, preprocessing\n\n\ndef build_model(seed, meta):\n    knn = preprocessing.StandardScaler() | neighbors.KNNClassifier(\n        n_neighbors=5, weighted=True, cleanup_every=0,\n        engine=neighbors.LazySearch(window_size=1000))\n    return drift.DriftRetrainingClassifier(model=knn, drift_detector=drift.ADWIN(),\n                                           train_in_background=False)\n"
+     }
+    ],
+    "prior_null": [
+     {
+      "file": "river-lab/custom_knn.py",
+      "start_line": 1,
+      "end_line": 61,
+      "content": "\"\"\"NULL baseline: predict the running class prior, ignore the features\n(River 0.26.1 dummy.PriorClassifier). Satisfies the I/O contract, does no neighbour search.\"\"\"\nfrom river import dummy\n\n\ndef build_model(seed, meta):\n    return dummy.PriorClassifier()\n"
      }
     ]
    },
@@ -15309,8 +15386,8 @@
    "category": "other",
    "category_label": "Other",
    "category_abbr": "",
-   "description_md": "# Importance re-weighting of source error through a confidence-score density ratio\n\nGarg, Balakrishnan, Lipton, Neyshabur & Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).\n\n## Research question\n\nThe IM baseline of the ATC paper (Mandoline with one slice, Chen et al. 2021) estimates target accuracy by re-weighting each labelled source-validation example by the ratio of target to source density of its confidence score, so that the re-weighted source accuracy stands in for the target accuracy. Upstream estimates both densities with equal-width histograms of 10 bins (`predict_acc_helper.HistogramDensity`, `get_im_estimate`); the paper notes it also tried equal-mass binning and 5/50 bins. This task isolates the density-ratio estimator: how should the importance weights over source examples be estimated from the two unlabeled score samples?\n\n## What you implement\n\nEdit `ATC-code/atc_estimator.py` and implement\n\n```\nimportance_weights(val_scores, target_scores) -> np.ndarray of shape (n_val,)\n```\n\n`val_scores` (n_val,) and `target_scores` (n_target,) are max-confidence scores in [0, 1] of one temperature-scaled classifier on labelled source-validation examples and on unlabeled target examples. Return one non-negative weight per source example (shape (n_val,)). The fixed evaluator normalises the weights to mean one and reports `100 * mean(w * val_correct)` as the predicted target accuracy, exactly as upstream `get_im_estimate` does; the source correctness vector is deliberately not passed to your function. The function is called once per target set.\n\nThe upstream reference code is on the import path inside the workspace (`ATC-code/ATC_helper.py`,\n`ATC-code/predict_acc_helper.py`) and the fixed driver `ATC-code/bench/run_eval.py` shows exactly how your function is\ncalled. Only `atc_estimator.py` is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.\n\n## Reference baselines\n\n`im_hist10` -- the paper's IM: `HistogramDensity(num_bins=10)` equal-width histograms on [0, 1] fitted to source and target scores, weights = target density / source density at each source score. `im_equal_mass10` -- the same with `equal_mass=True` (10 equal-mass bins per sample), the alternative binning the paper reports trying. `uniform` -- all weights equal (null): the estimate collapses to the source validation accuracy.\n\n## Metric\n\nEach evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.\n",
-   "description_html": "<h1>Importance re-weighting of source error through a confidence-score density ratio</h1>\n<p>Garg, Balakrishnan, Lipton, Neyshabur &amp; Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).</p>\n<h2>Research question</h2>\n<p>The IM baseline of the ATC paper (Mandoline with one slice, Chen et al. 2021) estimates target accuracy by re-weighting each labelled source-validation example by the ratio of target to source density of its confidence score, so that the re-weighted source accuracy stands in for the target accuracy. Upstream estimates both densities with equal-width histograms of 10 bins (<code>predict_acc_helper.HistogramDensity</code>, <code>get_im_estimate</code>); the paper notes it also tried equal-mass binning and 5/50 bins. This task isolates the density-ratio estimator: how should the importance weights over source examples be estimated from the two unlabeled score samples?</p>\n<h2>What you implement</h2>\n<p>Edit <code>ATC-code/atc_estimator.py</code> and implement</p>\n<pre class=\"codehilite\"><code>importance_weights(val_scores, target_scores) -&gt; np.ndarray of shape (n_val,)\n</code></pre>\n\n<p><code>val_scores</code> (n_val,) and <code>target_scores</code> (n_target,) are max-confidence scores in [0, 1] of one temperature-scaled classifier on labelled source-validation examples and on unlabeled target examples. Return one non-negative weight per source example (shape (n_val,)). The fixed evaluator normalises the weights to mean one and reports <code>100 * mean(w * val_correct)</code> as the predicted target accuracy, exactly as upstream <code>get_im_estimate</code> does; the source correctness vector is deliberately not passed to your function. The function is called once per target set.</p>\n<p>The upstream reference code is on the import path inside the workspace (<code>ATC-code/ATC_helper.py</code>,\n<code>ATC-code/predict_acc_helper.py</code>) and the fixed driver <code>ATC-code/bench/run_eval.py</code> shows exactly how your function is\ncalled. Only <code>atc_estimator.py</code> is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.</p>\n<h2>Reference baselines</h2>\n<p><code>im_hist10</code> -- the paper's IM: <code>HistogramDensity(num_bins=10)</code> equal-width histograms on [0, 1] fitted to source and target scores, weights = target density / source density at each source score. <code>im_equal_mass10</code> -- the same with <code>equal_mass=True</code> (10 equal-mass bins per sample), the alternative binning the paper reports trying. <code>uniform</code> -- all weights equal (null): the estimate collapses to the source validation accuracy.</p>\n<h2>Metric</h2>\n<p>Each evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.</p>",
+   "description_md": "# Importance re-weighting of source error through a confidence-score density ratio\n\nGarg, Balakrishnan, Lipton, Neyshabur & Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).\n\n## Research question\n\nThe IM baseline of the ATC paper (Mandoline with one slice, Chen et al. 2021) estimates target accuracy by re-weighting each labelled source-validation example by the ratio of target to source density of its confidence score, so that the re-weighted source accuracy stands in for the target accuracy. Upstream estimates both densities with equal-width histograms of 10 bins (`predict_acc_helper.HistogramDensity`, `get_im_estimate`); the paper notes it also tried equal-mass binning and 5/50 bins. This task isolates the density-ratio estimator: how should the importance weights over source examples be estimated from the two unlabeled score samples?\n\n## What you implement\n\nEdit `ATC-code/atc_estimator.py` and implement\n\n```\nimportance_weights(val_scores, target_scores) -> np.ndarray of shape (n_val,)\n```\n\n`val_scores` (n_val,) and `target_scores` (n_target,) are max-confidence scores in [0, 1] of one temperature-scaled classifier on labelled source-validation examples and on unlabeled target examples. Return one non-negative weight per source example (shape (n_val,)). The fixed evaluator normalises the weights to mean one and reports `100 * mean(w * val_correct)` as the predicted target accuracy, exactly as upstream `get_im_estimate` does; the source correctness vector is deliberately not passed to your function. The function is called once per target set on a freshly loaded copy of your module (no state carries over between target sets).\n\nThe upstream reference code is on the import path inside the workspace (`ATC-code/ATC_helper.py`,\n`ATC-code/predict_acc_helper.py`) and the fixed driver `ATC-code/bench/run_eval.py` shows exactly how your function is\ncalled. Only `atc_estimator.py` is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.\n\n## Reference baselines\n\n`im_hist10` -- the paper's IM: `HistogramDensity(num_bins=10)` equal-width histograms on [0, 1] fitted to source and target scores, weights = target density / source density at each source score. `im_equal_mass10` -- the same with `equal_mass=True` (10 equal-mass bins per sample), the alternative binning the paper reports trying. `uniform` -- all weights equal (null): the estimate collapses to the source validation accuracy.\n\n## Metric\n\nEach evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.\n",
+   "description_html": "<h1>Importance re-weighting of source error through a confidence-score density ratio</h1>\n<p>Garg, Balakrishnan, Lipton, Neyshabur &amp; Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).</p>\n<h2>Research question</h2>\n<p>The IM baseline of the ATC paper (Mandoline with one slice, Chen et al. 2021) estimates target accuracy by re-weighting each labelled source-validation example by the ratio of target to source density of its confidence score, so that the re-weighted source accuracy stands in for the target accuracy. Upstream estimates both densities with equal-width histograms of 10 bins (<code>predict_acc_helper.HistogramDensity</code>, <code>get_im_estimate</code>); the paper notes it also tried equal-mass binning and 5/50 bins. This task isolates the density-ratio estimator: how should the importance weights over source examples be estimated from the two unlabeled score samples?</p>\n<h2>What you implement</h2>\n<p>Edit <code>ATC-code/atc_estimator.py</code> and implement</p>\n<pre class=\"codehilite\"><code>importance_weights(val_scores, target_scores) -&gt; np.ndarray of shape (n_val,)\n</code></pre>\n\n<p><code>val_scores</code> (n_val,) and <code>target_scores</code> (n_target,) are max-confidence scores in [0, 1] of one temperature-scaled classifier on labelled source-validation examples and on unlabeled target examples. Return one non-negative weight per source example (shape (n_val,)). The fixed evaluator normalises the weights to mean one and reports <code>100 * mean(w * val_correct)</code> as the predicted target accuracy, exactly as upstream <code>get_im_estimate</code> does; the source correctness vector is deliberately not passed to your function. The function is called once per target set on a freshly loaded copy of your module (no state carries over between target sets).</p>\n<p>The upstream reference code is on the import path inside the workspace (<code>ATC-code/ATC_helper.py</code>,\n<code>ATC-code/predict_acc_helper.py</code>) and the fixed driver <code>ATC-code/bench/run_eval.py</code> shows exactly how your function is\ncalled. Only <code>atc_estimator.py</code> is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.</p>\n<h2>Reference baselines</h2>\n<p><code>im_hist10</code> -- the paper's IM: <code>HistogramDensity(num_bins=10)</code> equal-width histograms on [0, 1] fitted to source and target scores, weights = target density / source density at each source score. <code>im_equal_mass10</code> -- the same with <code>equal_mass=True</code> (10 equal-mass bins per sample), the alternative binning the paper reports trying. <code>uniform</code> -- all weights equal (null): the estimate collapses to the source validation accuracy.</p>\n<h2>Metric</h2>\n<p>Each evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.</p>",
    "baselines": [
     "im_hist10",
     "im_equal_mass10",
@@ -15384,8 +15461,8 @@
    "category": "other",
    "category_label": "Other",
    "category_abbr": "",
-   "description_md": "# Disagreement between two independently trained models as an accuracy estimator\n\nGarg, Balakrishnan, Lipton, Neyshabur & Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).\n\n## Research question\n\nGeneralized Disagreement Equality (GDE, Jiang et al. 2022) predicts the accuracy of a model on unlabeled target data as its rate of agreement with a second model trained on the same data with a different seed; the ATC paper reports it as the strongest prior baseline on most shift families but well behind ATC, and far behind on others. This task asks how the two models' predictions -- together with labelled source-validation data for both -- should be combined into a target-accuracy estimate for the first model.\n\n## What you implement\n\nEdit `ATC-code/atc_estimator.py` and implement\n\n```\nestimate_accuracy(val_probs, val_correct, target_probs, val_probs_other, val_correct_other, target_probs_other) -> float\n```\n\n`val_probs` (n_val, K) and `target_probs` (n_target, K) are temperature-scaled class-probability vectors of the model whose accuracy is being estimated, on labelled source-validation examples and on unlabeled target examples; `val_correct` (n_val,) is its source correctness. `val_probs_other`, `val_correct_other`, `target_probs_other` are the same three quantities for a second model of the same architecture trained on the same source data with a different random seed, evaluated on the same examples (row i of every target array is the same target example). Return the predicted target accuracy of the FIRST model in percent (0-100). The function is called once per (model, target set) pair; each model of the pair takes the role of the first.\n\nThe upstream reference code is on the import path inside the workspace (`ATC-code/ATC_helper.py`,\n`ATC-code/predict_acc_helper.py`) and the fixed driver `ATC-code/bench/run_eval.py` shows exactly how your function is\ncalled. Only `atc_estimator.py` is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.\n\n## Reference baselines\n\n`gde` -- GDE: `100 * mean(argmax(target_probs) == argmax(target_probs_other))` (upstream `model_helper.evaluate_disagreement`). `atc_mc` -- single-model ATC-MC on the first model (`ATC_helper.find_ATC_threshold` / `get_ATC_acc` on max-confidence), ignoring the second model. `ac` -- Average Confidence of the first model (null).\n\n## Metric\n\nEach evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.\n",
-   "description_html": "<h1>Disagreement between two independently trained models as an accuracy estimator</h1>\n<p>Garg, Balakrishnan, Lipton, Neyshabur &amp; Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).</p>\n<h2>Research question</h2>\n<p>Generalized Disagreement Equality (GDE, Jiang et al. 2022) predicts the accuracy of a model on unlabeled target data as its rate of agreement with a second model trained on the same data with a different seed; the ATC paper reports it as the strongest prior baseline on most shift families but well behind ATC, and far behind on others. This task asks how the two models' predictions -- together with labelled source-validation data for both -- should be combined into a target-accuracy estimate for the first model.</p>\n<h2>What you implement</h2>\n<p>Edit <code>ATC-code/atc_estimator.py</code> and implement</p>\n<pre class=\"codehilite\"><code>estimate_accuracy(val_probs, val_correct, target_probs, val_probs_other, val_correct_other, target_probs_other) -&gt; float\n</code></pre>\n\n<p><code>val_probs</code> (n_val, K) and <code>target_probs</code> (n_target, K) are temperature-scaled class-probability vectors of the model whose accuracy is being estimated, on labelled source-validation examples and on unlabeled target examples; <code>val_correct</code> (n_val,) is its source correctness. <code>val_probs_other</code>, <code>val_correct_other</code>, <code>target_probs_other</code> are the same three quantities for a second model of the same architecture trained on the same source data with a different random seed, evaluated on the same examples (row i of every target array is the same target example). Return the predicted target accuracy of the FIRST model in percent (0-100). The function is called once per (model, target set) pair; each model of the pair takes the role of the first.</p>\n<p>The upstream reference code is on the import path inside the workspace (<code>ATC-code/ATC_helper.py</code>,\n<code>ATC-code/predict_acc_helper.py</code>) and the fixed driver <code>ATC-code/bench/run_eval.py</code> shows exactly how your function is\ncalled. Only <code>atc_estimator.py</code> is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.</p>\n<h2>Reference baselines</h2>\n<p><code>gde</code> -- GDE: <code>100 * mean(argmax(target_probs) == argmax(target_probs_other))</code> (upstream <code>model_helper.evaluate_disagreement</code>). <code>atc_mc</code> -- single-model ATC-MC on the first model (<code>ATC_helper.find_ATC_threshold</code> / <code>get_ATC_acc</code> on max-confidence), ignoring the second model. <code>ac</code> -- Average Confidence of the first model (null).</p>\n<h2>Metric</h2>\n<p>Each evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.</p>",
+   "description_md": "# Disagreement between two independently trained models as an accuracy estimator\n\nGarg, Balakrishnan, Lipton, Neyshabur & Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).\n\n## Research question\n\nGeneralized Disagreement Equality (GDE, Jiang et al. 2022) predicts the accuracy of a model on unlabeled target data as its rate of agreement with a second model trained on the same data with a different seed; the ATC paper reports it as the strongest prior baseline on most shift families but well behind ATC, and far behind on others. This task asks how the two models' predictions -- together with labelled source-validation data for both -- should be combined into a target-accuracy estimate for the first model.\n\n## What you implement\n\nEdit `ATC-code/atc_estimator.py` and implement\n\n```\nestimate_accuracy(val_probs, val_correct, target_probs, other) -> float\n```\n\n`val_probs` (n_val, K) and `target_probs` (n_target, K) are temperature-scaled class-probability vectors of model A on labelled source-validation examples and on unlabeled target examples; `val_correct` (n_val,) is 1 where model A's source prediction was correct. `other` is a dict with the outputs of model B -- an independently seeded run of the same training recipe -- on the SAME examples: `val_pred` / `target_pred` (argmax class per example), `val_conf` / `target_conf` (its max confidence), `val_correct`. Row i of every target array is the same example. Return model A's predicted target accuracy in percent (0-100). The function is called once per target set on a freshly loaded copy of your module (no state carries over between target sets).\n\nThe upstream reference code is on the import path inside the workspace (`ATC-code/ATC_helper.py`,\n`ATC-code/predict_acc_helper.py`) and the fixed driver `ATC-code/bench/run_eval.py` shows exactly how your function is\ncalled. Only `atc_estimator.py` is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.\n\n## Reference baselines\n\n`gde` -- Generalised Disagreement Equality (Jiang et al., 2022) as run by the ATC paper: the agreement rate of the two models' argmax predictions on the target set (`other['target_pred']` against model A's argmax). `atc_mc` -- single-model ATC-MC on model A (`ATC_helper.find_ATC_threshold` / `get_ATC_acc` on max-confidence), ignoring the second model. `ac` -- Average Confidence of model A (null).\n\n## Metric\n\nEach evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.\n",
+   "description_html": "<h1>Disagreement between two independently trained models as an accuracy estimator</h1>\n<p>Garg, Balakrishnan, Lipton, Neyshabur &amp; Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).</p>\n<h2>Research question</h2>\n<p>Generalized Disagreement Equality (GDE, Jiang et al. 2022) predicts the accuracy of a model on unlabeled target data as its rate of agreement with a second model trained on the same data with a different seed; the ATC paper reports it as the strongest prior baseline on most shift families but well behind ATC, and far behind on others. This task asks how the two models' predictions -- together with labelled source-validation data for both -- should be combined into a target-accuracy estimate for the first model.</p>\n<h2>What you implement</h2>\n<p>Edit <code>ATC-code/atc_estimator.py</code> and implement</p>\n<pre class=\"codehilite\"><code>estimate_accuracy(val_probs, val_correct, target_probs, other) -&gt; float\n</code></pre>\n\n<p><code>val_probs</code> (n_val, K) and <code>target_probs</code> (n_target, K) are temperature-scaled class-probability vectors of model A on labelled source-validation examples and on unlabeled target examples; <code>val_correct</code> (n_val,) is 1 where model A's source prediction was correct. <code>other</code> is a dict with the outputs of model B -- an independently seeded run of the same training recipe -- on the SAME examples: <code>val_pred</code> / <code>target_pred</code> (argmax class per example), <code>val_conf</code> / <code>target_conf</code> (its max confidence), <code>val_correct</code>. Row i of every target array is the same example. Return model A's predicted target accuracy in percent (0-100). The function is called once per target set on a freshly loaded copy of your module (no state carries over between target sets).</p>\n<p>The upstream reference code is on the import path inside the workspace (<code>ATC-code/ATC_helper.py</code>,\n<code>ATC-code/predict_acc_helper.py</code>) and the fixed driver <code>ATC-code/bench/run_eval.py</code> shows exactly how your function is\ncalled. Only <code>atc_estimator.py</code> is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.</p>\n<h2>Reference baselines</h2>\n<p><code>gde</code> -- Generalised Disagreement Equality (Jiang et al., 2022) as run by the ATC paper: the agreement rate of the two models' argmax predictions on the target set (<code>other['target_pred']</code> against model A's argmax). <code>atc_mc</code> -- single-model ATC-MC on model A (<code>ATC_helper.find_ATC_threshold</code> / <code>get_ATC_acc</code> on max-confidence), ignoring the second model. <code>ac</code> -- Average Confidence of model A (null).</p>\n<h2>Metric</h2>\n<p>Each evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.</p>",
    "baselines": [
     "gde",
     "atc_mc",
@@ -15405,7 +15482,7 @@
      "edit_ranges": [
       {
        "start": 1,
-       "end": 12
+       "end": 15
       }
      ]
     },
@@ -15427,24 +15504,24 @@
      {
       "file": "ATC-code/atc_estimator.py",
       "start_line": 1,
-      "end_line": 12,
-      "content": "\"\"\"GDE (Jiang et al. 2022) as run by the ATC paper: predicted accuracy = agreement rate of the two models' argmax\npredictions on the target set.  Port of model_helper.evaluate_disagreement lines 199-209 (correct += equal(pred1, pred2);\n100 * correct / total), reported at get_GDE_acc.py:92-96.\"\"\"\nimport numpy as np\n\n\ndef estimate_accuracy(val_probs, val_correct, target_probs, val_probs_other, val_correct_other, target_probs_other):\n    p1 = np.argmax(np.asarray(target_probs), axis=-1); p2 = np.argmax(np.asarray(target_probs_other), axis=-1)\n    return float(100.0 * np.equal(p1, p2).sum() / len(p1))\n"
+      "end_line": 15,
+      "content": "\"\"\"GDE (Jiang et al. 2022) as run by the ATC paper: predicted accuracy = agreement rate of the two models' argmax\npredictions on the target set.  Port of model_helper.evaluate_disagreement lines 199-209 (correct += equal(pred1, pred2);\n100 * correct / total), reported at get_GDE_acc.py:92-96.\"\"\"\nimport numpy as np\n\n\ndef estimate_accuracy(val_probs, val_correct, target_probs, other):\n    p1 = np.argmax(np.asarray(target_probs), axis=-1); p2 = np.asarray(other[\"target_pred\"]).reshape(-1)\n    return float(100.0 * np.equal(p1, p2).sum() / len(p1))\n"
      }
     ],
     "atc_mc": [
      {
       "file": "ATC-code/atc_estimator.py",
       "start_line": 1,
-      "end_line": 12,
-      "content": "\"\"\"ATC-MC (Garg et al. 2022) on the first model only; the second model is ignored.  Port of get_acc.py:89,98,109,124 with\nATC_helper.get_max_conf / find_ATC_threshold / get_ATC_acc (ATC_helper.py:6-34).\"\"\"\nimport numpy as np\nfrom ATC_helper import get_max_conf, find_ATC_threshold, get_ATC_acc\n\n\ndef estimate_accuracy(val_probs, val_correct, target_probs, val_probs_other, val_correct_other, target_probs_other):\n    val_probs = np.asarray(val_probs, dtype=np.float64); target_probs = np.asarray(target_probs, dtype=np.float64)\n    _, thres = find_ATC_threshold(get_max_conf(val_probs), np.asarray(val_correct) == 1)\n    return float(get_ATC_acc(thres, get_max_conf(target_probs)))\n"
+      "end_line": 15,
+      "content": "\"\"\"ATC-MC (Garg et al. 2022) on model A only; model B is ignored.  Port of get_acc.py:89,98,109,124 with\nATC_helper.get_max_conf / find_ATC_threshold / get_ATC_acc (ATC_helper.py:6-34).\"\"\"\nimport numpy as np\nfrom ATC_helper import get_max_conf, find_ATC_threshold, get_ATC_acc\n\n\ndef estimate_accuracy(val_probs, val_correct, target_probs, other):\n    val_probs = np.asarray(val_probs, dtype=np.float64); target_probs = np.asarray(target_probs, dtype=np.float64)\n    _, thres = find_ATC_threshold(get_max_conf(val_probs), np.asarray(val_correct) == 1)\n    return float(get_ATC_acc(thres, get_max_conf(target_probs)))\n"
      }
     ],
     "ac": [
      {
       "file": "ATC-code/atc_estimator.py",
       "start_line": 1,
-      "end_line": 12,
-      "content": "\"\"\"Average Confidence of the first model (null).  Port of get_acc.py:109,131.\"\"\"\nimport numpy as np\n\n\ndef estimate_accuracy(val_probs, val_correct, target_probs, val_probs_other, val_correct_other, target_probs_other):\n    return float(np.mean(np.max(np.asarray(target_probs, dtype=np.float64), axis=1)) * 100.0)\n"
+      "end_line": 15,
+      "content": "\"\"\"Average Confidence of model A (null).  Port of get_acc.py:109,131; model B is ignored.\"\"\"\nimport numpy as np\n\n\ndef estimate_accuracy(val_probs, val_correct, target_probs, other):\n    return float(np.mean(np.max(np.asarray(target_probs, dtype=np.float64), axis=1)) * 100.0)\n"
      }
     ]
    },
@@ -15459,8 +15536,8 @@
    "category": "other",
    "category_label": "Other",
    "category_abbr": "",
-   "description_md": "# ATC: which scalar score of the probability vector should be thresholded?\n\nGarg, Balakrishnan, Lipton, Neyshabur & Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).\n\n## Research question\n\nATC thresholds a scalar confidence score; the paper reports two choices, maximum confidence (ATC-MC) and negative entropy (ATC-NE, upstream `ATC_helper.get_entropy`), and finds that neither dominates across shift families. This task asks what function of the full class-probability vector should be thresholded -- and how the threshold should then be chosen -- to estimate target accuracy from unlabeled target predictions.\n\n## What you implement\n\nEdit `ATC-code/atc_estimator.py` and implement\n\n```\nestimate_accuracy(val_probs, val_correct, target_probs) -> float\n```\n\n`val_probs` (n_val, K) and `target_probs` (n_target, K) are temperature-scaled class-probability vectors (rows sum to one) of one classifier on labelled source-validation examples and on unlabeled target examples; `val_correct` (n_val,) is 1 where the source prediction was correct. Return the predicted target accuracy in percent (0-100). The function is called once per target set.\n\nThe upstream reference code is on the import path inside the workspace (`ATC-code/ATC_helper.py`,\n`ATC-code/predict_acc_helper.py`) and the fixed driver `ATC-code/bench/run_eval.py` shows exactly how your function is\ncalled. Only `atc_estimator.py` is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.\n\n## Reference baselines\n\n`atc_ne` -- ATC with the negative-entropy score `sum_k p_k log p_k` (`ATC_helper.get_entropy`) and the balanced-error threshold (`find_ATC_threshold`, `get_ATC_acc`). `atc_mc` -- the same threshold rule on the max-confidence score (`ATC_helper.get_max_conf`). `ac` -- Average Confidence (null): mean target max-confidence.\n\n## Metric\n\nEach evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.\n",
-   "description_html": "<h1>ATC: which scalar score of the probability vector should be thresholded?</h1>\n<p>Garg, Balakrishnan, Lipton, Neyshabur &amp; Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).</p>\n<h2>Research question</h2>\n<p>ATC thresholds a scalar confidence score; the paper reports two choices, maximum confidence (ATC-MC) and negative entropy (ATC-NE, upstream <code>ATC_helper.get_entropy</code>), and finds that neither dominates across shift families. This task asks what function of the full class-probability vector should be thresholded -- and how the threshold should then be chosen -- to estimate target accuracy from unlabeled target predictions.</p>\n<h2>What you implement</h2>\n<p>Edit <code>ATC-code/atc_estimator.py</code> and implement</p>\n<pre class=\"codehilite\"><code>estimate_accuracy(val_probs, val_correct, target_probs) -&gt; float\n</code></pre>\n\n<p><code>val_probs</code> (n_val, K) and <code>target_probs</code> (n_target, K) are temperature-scaled class-probability vectors (rows sum to one) of one classifier on labelled source-validation examples and on unlabeled target examples; <code>val_correct</code> (n_val,) is 1 where the source prediction was correct. Return the predicted target accuracy in percent (0-100). The function is called once per target set.</p>\n<p>The upstream reference code is on the import path inside the workspace (<code>ATC-code/ATC_helper.py</code>,\n<code>ATC-code/predict_acc_helper.py</code>) and the fixed driver <code>ATC-code/bench/run_eval.py</code> shows exactly how your function is\ncalled. Only <code>atc_estimator.py</code> is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.</p>\n<h2>Reference baselines</h2>\n<p><code>atc_ne</code> -- ATC with the negative-entropy score <code>sum_k p_k log p_k</code> (<code>ATC_helper.get_entropy</code>) and the balanced-error threshold (<code>find_ATC_threshold</code>, <code>get_ATC_acc</code>). <code>atc_mc</code> -- the same threshold rule on the max-confidence score (<code>ATC_helper.get_max_conf</code>). <code>ac</code> -- Average Confidence (null): mean target max-confidence.</p>\n<h2>Metric</h2>\n<p>Each evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.</p>",
+   "description_md": "# ATC: which scalar score of the probability vector should be thresholded?\n\nGarg, Balakrishnan, Lipton, Neyshabur & Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).\n\n## Research question\n\nATC thresholds a scalar confidence score; the paper reports two choices, maximum confidence (ATC-MC) and negative entropy (ATC-NE, upstream `ATC_helper.get_entropy`), and finds that neither dominates across shift families. This task asks what function of the full class-probability vector should be thresholded -- and how the threshold should then be chosen -- to estimate target accuracy from unlabeled target predictions.\n\n## What you implement\n\nEdit `ATC-code/atc_estimator.py` and implement\n\n```\nestimate_accuracy(val_probs, val_correct, target_probs) -> float\n```\n\n`val_probs` (n_val, K) and `target_probs` (n_target, K) are temperature-scaled class-probability vectors (rows sum to one) of one classifier on labelled source-validation examples and on unlabeled target examples; `val_correct` (n_val,) is 1 where the source prediction was correct. Return the predicted target accuracy in percent (0-100). The function is called once per target set on a freshly loaded copy of your module (no state carries over between target sets).\n\nThe upstream reference code is on the import path inside the workspace (`ATC-code/ATC_helper.py`,\n`ATC-code/predict_acc_helper.py`) and the fixed driver `ATC-code/bench/run_eval.py` shows exactly how your function is\ncalled. Only `atc_estimator.py` is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.\n\n## Reference baselines\n\n`atc_ne` -- ATC with the negative-entropy score `sum_k p_k log p_k` (`ATC_helper.get_entropy`) and the balanced-error threshold (`find_ATC_threshold`, `get_ATC_acc`). `atc_mc` -- the same threshold rule on the max-confidence score (`ATC_helper.get_max_conf`). `ac` -- Average Confidence (null): mean target max-confidence.\n\n## Metric\n\nEach evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.\n",
+   "description_html": "<h1>ATC: which scalar score of the probability vector should be thresholded?</h1>\n<p>Garg, Balakrishnan, Lipton, Neyshabur &amp; Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).</p>\n<h2>Research question</h2>\n<p>ATC thresholds a scalar confidence score; the paper reports two choices, maximum confidence (ATC-MC) and negative entropy (ATC-NE, upstream <code>ATC_helper.get_entropy</code>), and finds that neither dominates across shift families. This task asks what function of the full class-probability vector should be thresholded -- and how the threshold should then be chosen -- to estimate target accuracy from unlabeled target predictions.</p>\n<h2>What you implement</h2>\n<p>Edit <code>ATC-code/atc_estimator.py</code> and implement</p>\n<pre class=\"codehilite\"><code>estimate_accuracy(val_probs, val_correct, target_probs) -&gt; float\n</code></pre>\n\n<p><code>val_probs</code> (n_val, K) and <code>target_probs</code> (n_target, K) are temperature-scaled class-probability vectors (rows sum to one) of one classifier on labelled source-validation examples and on unlabeled target examples; <code>val_correct</code> (n_val,) is 1 where the source prediction was correct. Return the predicted target accuracy in percent (0-100). The function is called once per target set on a freshly loaded copy of your module (no state carries over between target sets).</p>\n<p>The upstream reference code is on the import path inside the workspace (<code>ATC-code/ATC_helper.py</code>,\n<code>ATC-code/predict_acc_helper.py</code>) and the fixed driver <code>ATC-code/bench/run_eval.py</code> shows exactly how your function is\ncalled. Only <code>atc_estimator.py</code> is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.</p>\n<h2>Reference baselines</h2>\n<p><code>atc_ne</code> -- ATC with the negative-entropy score <code>sum_k p_k log p_k</code> (<code>ATC_helper.get_entropy</code>) and the balanced-error threshold (<code>find_ATC_threshold</code>, <code>get_ATC_acc</code>). <code>atc_mc</code> -- the same threshold rule on the max-confidence score (<code>ATC_helper.get_max_conf</code>). <code>ac</code> -- Average Confidence (null): mean target max-confidence.</p>\n<h2>Metric</h2>\n<p>Each evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.</p>",
    "baselines": [
     "atc_ne",
     "atc_mc",
@@ -15534,8 +15611,8 @@
    "category": "other",
    "category_label": "Other",
    "category_abbr": "",
-   "description_md": "# ATC: the threshold-selection rule for accuracy estimation from confidence scores\n\nGarg, Balakrishnan, Lipton, Neyshabur & Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).\n\n## Research question\n\nATC (Average Thresholded Confidence) predicts a classifier's accuracy on an unlabeled, shifted target set as the fraction of target examples whose confidence score exceeds a threshold learned on labelled source-validation data. The paper picks the threshold that balances false positives and false negatives on the source validation set (upstream `ATC_helper.find_ATC_threshold`). This task isolates that choice: given one-dimensional confidence scores, design the rule that turns labelled source scores and unlabeled target scores into a target-accuracy estimate.\n\n## What you implement\n\nEdit `ATC-code/atc_estimator.py` and implement\n\n```\nestimate_accuracy(val_scores, val_correct, target_scores) -> float\n```\n\n`val_scores` (n_val,) and `target_scores` (n_target,) are maximum-softmax-confidence scores in [0, 1] of one temperature-scaled classifier on labelled source-validation examples and on unlabeled target examples; `val_correct` (n_val,) is 1 where the classifier's source prediction was correct. Return the predicted target accuracy in percent (0-100). The function is called once per target set; target sets are independent shifted versions of the source distribution.\n\nThe upstream reference code is on the import path inside the workspace (`ATC-code/ATC_helper.py`,\n`ATC-code/predict_acc_helper.py`) and the fixed driver `ATC-code/bench/run_eval.py` shows exactly how your function is\ncalled. Only `atc_estimator.py` is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.\n\n## Reference baselines\n\n`atc_mc` -- ATC with the max-confidence score: `ATC_helper.find_ATC_threshold` (balance FP and FN on source validation) then `get_ATC_acc` (fraction of target scores above the threshold). `doc` -- Difference of Confidences (Guillory et al., 2021; `predict_acc_helper.get_doc`): source validation accuracy plus the change in mean confidence from source to target. `ac` -- Average Confidence (null): the mean target confidence.\n\n## Metric\n\nEach evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.\n",
-   "description_html": "<h1>ATC: the threshold-selection rule for accuracy estimation from confidence scores</h1>\n<p>Garg, Balakrishnan, Lipton, Neyshabur &amp; Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).</p>\n<h2>Research question</h2>\n<p>ATC (Average Thresholded Confidence) predicts a classifier's accuracy on an unlabeled, shifted target set as the fraction of target examples whose confidence score exceeds a threshold learned on labelled source-validation data. The paper picks the threshold that balances false positives and false negatives on the source validation set (upstream <code>ATC_helper.find_ATC_threshold</code>). This task isolates that choice: given one-dimensional confidence scores, design the rule that turns labelled source scores and unlabeled target scores into a target-accuracy estimate.</p>\n<h2>What you implement</h2>\n<p>Edit <code>ATC-code/atc_estimator.py</code> and implement</p>\n<pre class=\"codehilite\"><code>estimate_accuracy(val_scores, val_correct, target_scores) -&gt; float\n</code></pre>\n\n<p><code>val_scores</code> (n_val,) and <code>target_scores</code> (n_target,) are maximum-softmax-confidence scores in [0, 1] of one temperature-scaled classifier on labelled source-validation examples and on unlabeled target examples; <code>val_correct</code> (n_val,) is 1 where the classifier's source prediction was correct. Return the predicted target accuracy in percent (0-100). The function is called once per target set; target sets are independent shifted versions of the source distribution.</p>\n<p>The upstream reference code is on the import path inside the workspace (<code>ATC-code/ATC_helper.py</code>,\n<code>ATC-code/predict_acc_helper.py</code>) and the fixed driver <code>ATC-code/bench/run_eval.py</code> shows exactly how your function is\ncalled. Only <code>atc_estimator.py</code> is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.</p>\n<h2>Reference baselines</h2>\n<p><code>atc_mc</code> -- ATC with the max-confidence score: <code>ATC_helper.find_ATC_threshold</code> (balance FP and FN on source validation) then <code>get_ATC_acc</code> (fraction of target scores above the threshold). <code>doc</code> -- Difference of Confidences (Guillory et al., 2021; <code>predict_acc_helper.get_doc</code>): source validation accuracy plus the change in mean confidence from source to target. <code>ac</code> -- Average Confidence (null): the mean target confidence.</p>\n<h2>Metric</h2>\n<p>Each evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.</p>",
+   "description_md": "# ATC: the threshold-selection rule for accuracy estimation from confidence scores\n\nGarg, Balakrishnan, Lipton, Neyshabur & Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).\n\n## Research question\n\nATC (Average Thresholded Confidence) predicts a classifier's accuracy on an unlabeled, shifted target set as the fraction of target examples whose confidence score exceeds a threshold learned on labelled source-validation data. The paper picks the threshold that balances false positives and false negatives on the source validation set (upstream `ATC_helper.find_ATC_threshold`). This task isolates that choice: given one-dimensional confidence scores, design the rule that turns labelled source scores and unlabeled target scores into a target-accuracy estimate.\n\n## What you implement\n\nEdit `ATC-code/atc_estimator.py` and implement\n\n```\nestimate_accuracy(val_scores, val_correct, target_scores) -> float\n```\n\n`val_scores` (n_val,) and `target_scores` (n_target,) are maximum-softmax-confidence scores in [0, 1] of one temperature-scaled classifier on labelled source-validation examples and on unlabeled target examples; `val_correct` (n_val,) is 1 where the classifier's source prediction was correct. Return the predicted target accuracy in percent (0-100). The function is called once per target set on a freshly loaded copy of your module (no state carries over between target sets); target sets are independent shifted versions of the source distribution.\n\nThe upstream reference code is on the import path inside the workspace (`ATC-code/ATC_helper.py`,\n`ATC-code/predict_acc_helper.py`) and the fixed driver `ATC-code/bench/run_eval.py` shows exactly how your function is\ncalled. Only `atc_estimator.py` is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.\n\n## Reference baselines\n\n`atc_mc` -- ATC with the max-confidence score: `ATC_helper.find_ATC_threshold` (balance FP and FN on source validation) then `get_ATC_acc` (fraction of target scores above the threshold). `doc` -- Difference of Confidences (Guillory et al., 2021; `predict_acc_helper.get_doc`): source validation accuracy plus the change in mean confidence from source to target. `ac` -- Average Confidence (null): the mean target confidence.\n\n## Metric\n\nEach evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.\n",
+   "description_html": "<h1>ATC: the threshold-selection rule for accuracy estimation from confidence scores</h1>\n<p>Garg, Balakrishnan, Lipton, Neyshabur &amp; Sedghi, \"Leveraging Unlabeled Data to Predict Out-of-Distribution Performance\", ICLR 2022 (arXiv:2201.04234; code github.com/saurabhgarg1996/ATC_code).</p>\n<h2>Research question</h2>\n<p>ATC (Average Thresholded Confidence) predicts a classifier's accuracy on an unlabeled, shifted target set as the fraction of target examples whose confidence score exceeds a threshold learned on labelled source-validation data. The paper picks the threshold that balances false positives and false negatives on the source validation set (upstream <code>ATC_helper.find_ATC_threshold</code>). This task isolates that choice: given one-dimensional confidence scores, design the rule that turns labelled source scores and unlabeled target scores into a target-accuracy estimate.</p>\n<h2>What you implement</h2>\n<p>Edit <code>ATC-code/atc_estimator.py</code> and implement</p>\n<pre class=\"codehilite\"><code>estimate_accuracy(val_scores, val_correct, target_scores) -&gt; float\n</code></pre>\n\n<p><code>val_scores</code> (n_val,) and <code>target_scores</code> (n_target,) are maximum-softmax-confidence scores in [0, 1] of one temperature-scaled classifier on labelled source-validation examples and on unlabeled target examples; <code>val_correct</code> (n_val,) is 1 where the classifier's source prediction was correct. Return the predicted target accuracy in percent (0-100). The function is called once per target set on a freshly loaded copy of your module (no state carries over between target sets); target sets are independent shifted versions of the source distribution.</p>\n<p>The upstream reference code is on the import path inside the workspace (<code>ATC-code/ATC_helper.py</code>,\n<code>ATC-code/predict_acc_helper.py</code>) and the fixed driver <code>ATC-code/bench/run_eval.py</code> shows exactly how your function is\ncalled. Only <code>atc_estimator.py</code> is editable; the driver and the staged inputs are fixed. Target labels are never\navailable to your code: the evaluation scores your predictions against them outside the container. Hard-coded\nanswers, per-setting special-casing, or reading anything beyond the arguments you are given are outside the editable\nsurface.</p>\n<h2>Reference baselines</h2>\n<p><code>atc_mc</code> -- ATC with the max-confidence score: <code>ATC_helper.find_ATC_threshold</code> (balance FP and FN on source validation) then <code>get_ATC_acc</code> (fraction of target scores above the threshold). <code>doc</code> -- Difference of Confidences (Guillory et al., 2021; <code>predict_acc_helper.get_doc</code>): source validation accuracy plus the change in mean confidence from source to target. <code>ac</code> -- Average Confidence (null): the mean target confidence.</p>\n<h2>Metric</h2>\n<p>Each evaluation setting is a family of distribution shifts of one source-trained, temperature-scaled classifier\n(several unlabeled target sets, all from the same source model). The metric per setting is the mean absolute\nestimation error (MAE, percentage points) between your predicted and the true target accuracy over the target sets of\nthe family, as in the paper's Table 1 (lower is better). One method must serve every setting; a non-finite prediction\ncounts as an error of 100 for that target set.</p>",
    "baselines": [
     "atc_mc",
     "doc",
@@ -140142,45 +140219,9 @@
     "f1_seasonal",
     "elapsed_seasonal"
    ],
-   "metric_columns": [
-    "auroc_stationary",
-    "f1_stationary",
-    "auroc_drift",
-    "f1_drift",
-    "auroc_seasonal",
-    "f1_seasonal"
-   ],
-   "metric_directions": {
-    "auroc_stationary": "higher",
-    "f1_stationary": "higher",
-    "auroc_drift": "higher",
-    "f1_drift": "higher",
-    "auroc_seasonal": "higher",
-    "f1_seasonal": "higher"
-   },
-   "metric_groups": [
-    {
-     "setting": "stationary",
-     "metrics": [
-      "auroc_stationary",
-      "f1_stationary"
-     ]
-    },
-    {
-     "setting": "drift",
-     "metrics": [
-      "auroc_drift",
-      "f1_drift"
-     ]
-    },
-    {
-     "setting": "seasonal",
-     "metrics": [
-      "auroc_seasonal",
-      "f1_seasonal"
-     ]
-    }
-   ],
+   "metric_columns": [],
+   "metric_directions": {},
+   "metric_groups": [],
    "rows": [
     {
      "timestamp": "2026-09-04T06:32:19.605332+00:00",
@@ -140744,187 +140785,193 @@
     "model",
     "is_final",
     "seed",
-    "accuracy_sea",
-    "elapsed_sea",
-    "accuracy_hyperplane",
-    "elapsed_hyperplane",
-    "accuracy_drift",
-    "elapsed_drift"
+    "accuracy_stream_a",
+    "accuracy_stream_b",
+    "accuracy_stream_c",
+    "elapsed_stream_a",
+    "elapsed_stream_b",
+    "elapsed_stream_c",
+    "log_loss_stream_a",
+    "log_loss_stream_b",
+    "log_loss_stream_c",
+    "n_empty_stream_a",
+    "n_empty_stream_b",
+    "n_empty_stream_c"
    ],
    "metric_columns": [
-    "accuracy_sea",
-    "accuracy_hyperplane",
-    "accuracy_drift"
+    "accuracy_stream_a",
+    "accuracy_stream_b",
+    "accuracy_stream_c"
    ],
    "metric_directions": {
-    "accuracy_sea": "higher",
-    "accuracy_hyperplane": "higher",
-    "accuracy_drift": "higher"
+    "accuracy_stream_a": "higher",
+    "accuracy_stream_b": "higher",
+    "accuracy_stream_c": "higher"
    },
    "metric_groups": [
     {
-     "setting": "sea",
+     "setting": "stream_a",
      "metrics": [
-      "accuracy_sea"
+      "accuracy_stream_a"
      ]
     },
     {
-     "setting": "hyperplane",
+     "setting": "stream_b",
      "metrics": [
-      "accuracy_hyperplane"
+      "accuracy_stream_b"
      ]
     },
     {
-     "setting": "drift",
+     "setting": "stream_c",
      "metrics": [
-      "accuracy_drift"
+      "accuracy_stream_c"
      ]
     }
    ],
    "rows": [
     {
-     "timestamp": "2026-09-04T06:36:23.763736+00:00",
-     "model": "baseline:adaptive_random_forest",
-     "is_final": true,
-     "seed": "123",
-     "accuracy_sea": 0.5888,
-     "elapsed_sea": 3.4,
-     "accuracy_hyperplane": 0.7934,
-     "elapsed_hyperplane": 3.4,
-     "accuracy_drift": 0.827,
-     "elapsed_drift": 3.4
-    },
-    {
-     "timestamp": "2026-09-04T06:36:23.762976+00:00",
+     "timestamp": "2026-09-05T15:53:01.672871+00:00",
      "model": "baseline:adaptive_random_forest",
      "is_final": true,
      "seed": "42",
-     "accuracy_sea": 0.6006,
-     "elapsed_sea": 3.2,
-     "accuracy_hyperplane": 0.7918,
-     "elapsed_hyperplane": 4.3,
-     "accuracy_drift": 0.834,
-     "elapsed_drift": 3.0
+     "accuracy_stream_a": 0.88561529,
+     "accuracy_stream_b": 0.743907054,
+     "accuracy_stream_c": 0.77300207,
+     "elapsed_stream_a": 30.4,
+     "elapsed_stream_b": 58.9,
+     "elapsed_stream_c": 28.1,
+     "log_loss_stream_a": 0.296578089,
+     "log_loss_stream_b": 0.757890707,
+     "log_loss_stream_c": 0.679314938,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 1.0
     },
     {
-     "timestamp": "2026-09-04T06:36:23.764121+00:00",
-     "model": "baseline:adaptive_random_forest",
-     "is_final": true,
-     "seed": "456",
-     "accuracy_sea": 0.6218,
-     "elapsed_sea": 3.4,
-     "accuracy_hyperplane": 0.8022,
-     "elapsed_hyperplane": 3.4,
-     "accuracy_drift": 0.832,
-     "elapsed_drift": 3.4
-    },
-    {
-     "timestamp": "2026-09-04T06:36:23.764505+00:00",
+     "timestamp": "2026-09-05T15:53:04.986548+00:00",
      "model": "baseline:adaptive_random_forest",
      "is_final": true,
      "seed": "mean",
-     "accuracy_sea": 0.6037333333333333,
-     "elapsed_sea": 3.3333333333333335,
-     "accuracy_hyperplane": 0.7958,
-     "elapsed_hyperplane": 3.6999999999999997,
-     "accuracy_drift": 0.831,
-     "elapsed_drift": 3.266666666666667
+     "accuracy_stream_a": 0.88561529,
+     "accuracy_stream_b": 0.743907054,
+     "accuracy_stream_c": 0.77300207,
+     "elapsed_stream_a": 30.4,
+     "elapsed_stream_b": 58.9,
+     "elapsed_stream_c": 28.1,
+     "log_loss_stream_a": 0.296578089,
+     "log_loss_stream_b": 0.757890707,
+     "log_loss_stream_c": 0.679314938,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 1.0
     },
     {
-     "timestamp": "2026-09-04T06:36:21.021814+00:00",
-     "model": "baseline:aggregated_mondrian_forest",
-     "is_final": true,
-     "seed": "123",
-     "accuracy_sea": 0.6242,
-     "elapsed_sea": 3.6,
-     "accuracy_hyperplane": 0.8082,
-     "elapsed_hyperplane": 3.9,
-     "accuracy_drift": 0.6766,
-     "elapsed_drift": 3.2
-    },
-    {
-     "timestamp": "2026-09-04T06:36:21.021247+00:00",
-     "model": "baseline:aggregated_mondrian_forest",
+     "timestamp": "2026-09-05T15:53:04.987216+00:00",
+     "model": "baseline:leveraging_bagging",
      "is_final": true,
      "seed": "42",
-     "accuracy_sea": 0.6048,
-     "elapsed_sea": 3.7,
-     "accuracy_hyperplane": 0.7814,
-     "elapsed_hyperplane": 3.9,
-     "accuracy_drift": 0.6792,
-     "elapsed_drift": 3.9
+     "accuracy_stream_a": 0.89536988,
+     "accuracy_stream_b": 0.687973055,
+     "accuracy_stream_c": 0.711055901,
+     "elapsed_stream_a": 63.1,
+     "elapsed_stream_b": 432.3,
+     "elapsed_stream_c": 184.1,
+     "log_loss_stream_a": 0.269828664,
+     "log_loss_stream_b": 1.02060516,
+     "log_loss_stream_c": 0.973975917,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 1.0
     },
     {
-     "timestamp": "2026-09-04T06:36:21.022120+00:00",
-     "model": "baseline:aggregated_mondrian_forest",
-     "is_final": true,
-     "seed": "456",
-     "accuracy_sea": 0.6038,
-     "elapsed_sea": 2.8,
-     "accuracy_hyperplane": 0.8158,
-     "elapsed_hyperplane": 3.0,
-     "accuracy_drift": 0.6972,
-     "elapsed_drift": 3.3
-    },
-    {
-     "timestamp": "2026-09-04T06:36:21.022474+00:00",
-     "model": "baseline:aggregated_mondrian_forest",
+     "timestamp": "2026-09-05T15:53:05.032258+00:00",
+     "model": "baseline:leveraging_bagging",
      "is_final": true,
      "seed": "mean",
-     "accuracy_sea": 0.6109333333333333,
-     "elapsed_sea": 3.3666666666666667,
-     "accuracy_hyperplane": 0.8018000000000001,
-     "elapsed_hyperplane": 3.6,
-     "accuracy_drift": 0.6843333333333333,
-     "elapsed_drift": 3.466666666666667
+     "accuracy_stream_a": 0.89536988,
+     "accuracy_stream_b": 0.687973055,
+     "accuracy_stream_c": 0.711055901,
+     "elapsed_stream_a": 63.1,
+     "elapsed_stream_b": 432.3,
+     "elapsed_stream_c": 184.1,
+     "log_loss_stream_a": 0.269828664,
+     "log_loss_stream_b": 1.02060516,
+     "log_loss_stream_c": 0.973975917,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 1.0
     },
     {
-     "timestamp": "2026-09-04T06:36:17.244605+00:00",
-     "model": "baseline:hoeffding_tree",
-     "is_final": true,
-     "seed": "123",
-     "accuracy_sea": 0.5184,
-     "elapsed_sea": 2.0,
-     "accuracy_hyperplane": 0.9288,
-     "elapsed_hyperplane": 2.0,
-     "accuracy_drift": 0.8218,
-     "elapsed_drift": 2.0
-    },
-    {
-     "timestamp": "2026-09-04T06:36:17.244063+00:00",
-     "model": "baseline:hoeffding_tree",
+     "timestamp": "2026-09-05T15:53:05.033006+00:00",
+     "model": "baseline:online_bagging",
      "is_final": true,
      "seed": "42",
-     "accuracy_sea": 0.5414,
-     "elapsed_sea": 1.4,
-     "accuracy_hyperplane": 0.9302,
-     "elapsed_hyperplane": 2.2,
-     "accuracy_drift": 0.8062,
-     "elapsed_drift": 1.7
+     "accuracy_stream_a": 0.824262888,
+     "accuracy_stream_b": 0.562802755,
+     "accuracy_stream_c": 0.608695652,
+     "elapsed_stream_a": 16.5,
+     "elapsed_stream_b": 116.8,
+     "elapsed_stream_c": 52.9,
+     "log_loss_stream_a": 0.39605311,
+     "log_loss_stream_b": 3.07220419,
+     "log_loss_stream_c": 2.67938564,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 1.0
     },
     {
-     "timestamp": "2026-09-04T06:36:17.245051+00:00",
-     "model": "baseline:hoeffding_tree",
-     "is_final": true,
-     "seed": "456",
-     "accuracy_sea": 0.5474,
-     "elapsed_sea": 2.8,
-     "accuracy_hyperplane": 0.9208,
-     "elapsed_hyperplane": 2.4,
-     "accuracy_drift": 0.8194,
-     "elapsed_drift": 3.0
-    },
-    {
-     "timestamp": "2026-09-04T06:36:17.245457+00:00",
-     "model": "baseline:hoeffding_tree",
+     "timestamp": "2026-09-05T15:53:05.033441+00:00",
+     "model": "baseline:online_bagging",
      "is_final": true,
      "seed": "mean",
-     "accuracy_sea": 0.5357333333333333,
-     "elapsed_sea": 2.0666666666666664,
-     "accuracy_hyperplane": 0.9266,
-     "elapsed_hyperplane": 2.1999999999999997,
-     "accuracy_drift": 0.8158,
-     "elapsed_drift": 2.2333333333333334
+     "accuracy_stream_a": 0.824262888,
+     "accuracy_stream_b": 0.562802755,
+     "accuracy_stream_c": 0.608695652,
+     "elapsed_stream_a": 16.5,
+     "elapsed_stream_b": 116.8,
+     "elapsed_stream_c": 52.9,
+     "log_loss_stream_a": 0.39605311,
+     "log_loss_stream_b": 3.07220419,
+     "log_loss_stream_c": 2.67938564,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 1.0
+    },
+    {
+     "timestamp": "2026-09-05T15:53:05.033915+00:00",
+     "model": "baseline:single_tree_null",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_stream_a": 0.798486052,
+     "accuracy_stream_b": 0.517048895,
+     "accuracy_stream_c": 0.585838509,
+     "elapsed_stream_a": 3.7,
+     "elapsed_stream_b": 12.3,
+     "elapsed_stream_c": 6.3,
+     "log_loss_stream_a": 0.735858189,
+     "log_loss_stream_b": 4.32875383,
+     "log_loss_stream_c": 4.90380836,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 1.0
+    },
+    {
+     "timestamp": "2026-09-05T15:53:05.034488+00:00",
+     "model": "baseline:single_tree_null",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_stream_a": 0.798486052,
+     "accuracy_stream_b": 0.517048895,
+     "accuracy_stream_c": 0.585838509,
+     "elapsed_stream_a": 3.7,
+     "elapsed_stream_b": 12.3,
+     "elapsed_stream_c": 6.3,
+     "log_loss_stream_a": 0.735858189,
+     "log_loss_stream_b": 4.32875383,
+     "log_loss_stream_c": 4.90380836,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 1.0
     }
    ]
   },
@@ -140935,136 +140982,193 @@
     "model",
     "is_final",
     "seed",
-    "accuracy_bananas",
-    "log_loss_bananas",
-    "elapsed_bananas",
-    "accuracy_phishing",
-    "log_loss_phishing",
-    "elapsed_phishing",
-    "accuracy_segments",
-    "log_loss_segments",
-    "elapsed_segments"
+    "accuracy_stream_a",
+    "accuracy_stream_b",
+    "accuracy_stream_c",
+    "elapsed_stream_a",
+    "elapsed_stream_b",
+    "elapsed_stream_c",
+    "log_loss_stream_a",
+    "log_loss_stream_b",
+    "log_loss_stream_c",
+    "n_empty_stream_a",
+    "n_empty_stream_b",
+    "n_empty_stream_c"
    ],
    "metric_columns": [
-    "accuracy_bananas",
-    "accuracy_phishing",
-    "accuracy_segments"
+    "accuracy_stream_a",
+    "accuracy_stream_b",
+    "accuracy_stream_c"
    ],
    "metric_directions": {
-    "accuracy_bananas": "higher",
-    "accuracy_phishing": "higher",
-    "accuracy_segments": "higher"
+    "accuracy_stream_a": "higher",
+    "accuracy_stream_b": "higher",
+    "accuracy_stream_c": "higher"
    },
    "metric_groups": [
     {
-     "setting": "bananas",
+     "setting": "stream_a",
      "metrics": [
-      "accuracy_bananas"
+      "accuracy_stream_a"
      ]
     },
     {
-     "setting": "phishing",
+     "setting": "stream_b",
      "metrics": [
-      "accuracy_phishing"
+      "accuracy_stream_b"
      ]
     },
     {
-     "setting": "segments",
+     "setting": "stream_c",
      "metrics": [
-      "accuracy_segments"
+      "accuracy_stream_c"
      ]
     }
    ],
    "rows": [
     {
-     "timestamp": "2026-09-04T06:44:07.414262+00:00",
-     "model": "baseline:diverse_window",
-     "is_final": true,
-     "seed": "42",
-     "accuracy_bananas": 0.75444444,
-     "log_loss_bananas": 0.92412549,
-     "elapsed_bananas": 1.7,
-     "accuracy_phishing": 0.76222222,
-     "log_loss_phishing": 1.09431891,
-     "elapsed_phishing": 1.5,
-     "accuracy_segments": 0.79222222,
-     "log_loss_segments": 0.81576452,
-     "elapsed_segments": 1.7
-    },
-    {
-     "timestamp": "2026-09-04T06:44:07.414988+00:00",
-     "model": "baseline:diverse_window",
-     "is_final": true,
-     "seed": "mean",
-     "accuracy_bananas": 0.75444444,
-     "log_loss_bananas": 0.92412549,
-     "elapsed_bananas": 1.7,
-     "accuracy_phishing": 0.76222222,
-     "log_loss_phishing": 1.09431891,
-     "elapsed_phishing": 1.5,
-     "accuracy_segments": 0.79222222,
-     "log_loss_segments": 0.81576452,
-     "elapsed_segments": 1.7
-    },
-    {
-     "timestamp": "2026-09-04T06:36:32.650804+00:00",
+     "timestamp": "2026-09-05T08:26:12.580333+00:00",
      "model": "baseline:inverse_distance",
      "is_final": true,
      "seed": "42",
-     "accuracy_bananas": 0.83111111,
-     "log_loss_bananas": 0.50476291,
-     "elapsed_bananas": 3.0,
-     "accuracy_phishing": 0.80722222,
-     "log_loss_phishing": 0.5742357,
-     "elapsed_phishing": 3.4,
-     "accuracy_segments": 0.79222222,
-     "log_loss_segments": 0.61167404,
-     "elapsed_segments": 3.4
+     "accuracy_stream_a": 0.884716981,
+     "accuracy_stream_b": 0.902597403,
+     "accuracy_stream_c": 0.857631532,
+     "elapsed_stream_a": 2.1,
+     "elapsed_stream_b": 2.3,
+     "elapsed_stream_c": 10.0,
+     "log_loss_stream_a": 0.883271255,
+     "log_loss_stream_b": 0.965221014,
+     "log_loss_stream_c": 1.1814689,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 1.0
     },
     {
-     "timestamp": "2026-09-04T06:36:32.651413+00:00",
+     "timestamp": "2026-09-05T08:26:12.581089+00:00",
      "model": "baseline:inverse_distance",
      "is_final": true,
      "seed": "mean",
-     "accuracy_bananas": 0.83111111,
-     "log_loss_bananas": 0.50476291,
-     "elapsed_bananas": 3.0,
-     "accuracy_phishing": 0.80722222,
-     "log_loss_phishing": 0.5742357,
-     "elapsed_phishing": 3.4,
-     "accuracy_segments": 0.79222222,
-     "log_loss_segments": 0.61167404,
-     "elapsed_segments": 3.4
+     "accuracy_stream_a": 0.884716981,
+     "accuracy_stream_b": 0.902597403,
+     "accuracy_stream_c": 0.857631532,
+     "elapsed_stream_a": 2.1,
+     "elapsed_stream_b": 2.3,
+     "elapsed_stream_c": 10.0,
+     "log_loss_stream_a": 0.883271255,
+     "log_loss_stream_b": 0.965221014,
+     "log_loss_stream_c": 1.1814689,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 1.0
     },
     {
-     "timestamp": "2026-09-04T06:36:35.145440+00:00",
-     "model": "baseline:uniform_knn",
+     "timestamp": "2026-09-05T08:26:12.581556+00:00",
+     "model": "baseline:knn_adwin",
      "is_final": true,
      "seed": "42",
-     "accuracy_bananas": 0.79388889,
-     "log_loss_bananas": 0.91950978,
-     "elapsed_bananas": 2.8,
-     "accuracy_phishing": 0.76,
-     "log_loss_phishing": 1.07530784,
-     "elapsed_phishing": 2.8,
-     "accuracy_segments": 0.72555556,
-     "log_loss_segments": 1.08565264,
-     "elapsed_segments": 2.8
+     "accuracy_stream_a": 0.884716981,
+     "accuracy_stream_b": 0.862770563,
+     "accuracy_stream_c": 0.871071681,
+     "elapsed_stream_a": 2.4,
+     "elapsed_stream_b": 2.3,
+     "elapsed_stream_c": 16.9,
+     "log_loss_stream_a": 0.883271255,
+     "log_loss_stream_b": 1.64412379,
+     "log_loss_stream_c": 1.1453549,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 1.0
     },
     {
-     "timestamp": "2026-09-04T06:36:35.146053+00:00",
-     "model": "baseline:uniform_knn",
+     "timestamp": "2026-09-05T08:26:12.581928+00:00",
+     "model": "baseline:knn_adwin",
      "is_final": true,
      "seed": "mean",
-     "accuracy_bananas": 0.79388889,
-     "log_loss_bananas": 0.91950978,
-     "elapsed_bananas": 2.8,
-     "accuracy_phishing": 0.76,
-     "log_loss_phishing": 1.07530784,
-     "elapsed_phishing": 2.8,
-     "accuracy_segments": 0.72555556,
-     "log_loss_segments": 1.08565264,
-     "elapsed_segments": 2.8
+     "accuracy_stream_a": 0.884716981,
+     "accuracy_stream_b": 0.862770563,
+     "accuracy_stream_c": 0.871071681,
+     "elapsed_stream_a": 2.4,
+     "elapsed_stream_b": 2.3,
+     "elapsed_stream_c": 16.9,
+     "log_loss_stream_a": 0.883271255,
+     "log_loss_stream_b": 1.64412379,
+     "log_loss_stream_c": 1.1453549,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 1.0
+    },
+    {
+     "timestamp": "2026-09-05T08:26:12.582305+00:00",
+     "model": "baseline:prior_null",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_stream_a": 0.551132075,
+     "accuracy_stream_b": 0.125974026,
+     "accuracy_stream_c": 0.57532221,
+     "elapsed_stream_a": 0.5,
+     "elapsed_stream_b": 0.6,
+     "elapsed_stream_c": 0.8,
+     "log_loss_stream_a": 0.701122255,
+     "log_loss_stream_b": 2.05134262,
+     "log_loss_stream_c": 0.683293131,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 1.0
+    },
+    {
+     "timestamp": "2026-09-05T08:26:12.582643+00:00",
+     "model": "baseline:prior_null",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_stream_a": 0.551132075,
+     "accuracy_stream_b": 0.125974026,
+     "accuracy_stream_c": 0.57532221,
+     "elapsed_stream_a": 0.5,
+     "elapsed_stream_b": 0.6,
+     "elapsed_stream_c": 0.8,
+     "log_loss_stream_a": 0.701122255,
+     "log_loss_stream_b": 2.05134262,
+     "log_loss_stream_c": 0.683293131,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 1.0
+    },
+    {
+     "timestamp": "2026-09-05T08:26:12.583037+00:00",
+     "model": "baseline:uniform_vote",
+     "is_final": true,
+     "seed": "42",
+     "accuracy_stream_a": 0.887358491,
+     "accuracy_stream_b": 0.88961039,
+     "accuracy_stream_c": 0.838894774,
+     "elapsed_stream_a": 1.8,
+     "elapsed_stream_b": 2.5,
+     "elapsed_stream_c": 10.5,
+     "log_loss_stream_a": 0.877883856,
+     "log_loss_stream_b": 0.990429481,
+     "log_loss_stream_c": 1.20629454,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 1.0
+    },
+    {
+     "timestamp": "2026-09-05T08:26:12.583417+00:00",
+     "model": "baseline:uniform_vote",
+     "is_final": true,
+     "seed": "mean",
+     "accuracy_stream_a": 0.887358491,
+     "accuracy_stream_b": 0.88961039,
+     "accuracy_stream_c": 0.838894774,
+     "elapsed_stream_a": 1.8,
+     "elapsed_stream_b": 2.5,
+     "elapsed_stream_c": 10.5,
+     "log_loss_stream_a": 0.877883856,
+     "log_loss_stream_b": 0.990429481,
+     "log_loss_stream_c": 1.20629454,
+     "n_empty_stream_a": 1.0,
+     "n_empty_stream_b": 1.0,
+     "n_empty_stream_c": 1.0
     }
    ]
   },
@@ -141822,6 +141926,363 @@
     }
    ]
   },
+  "ood-atc-density-ratio": {
+   "task_id": "ood-atc-density-ratio",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "mae_alpha",
+    "elapsed_alpha",
+    "mae_beta",
+    "elapsed_beta",
+    "mae_gamma",
+    "elapsed_gamma"
+   ],
+   "metric_columns": [
+    "mae_alpha",
+    "mae_beta",
+    "mae_gamma"
+   ],
+   "metric_directions": {
+    "mae_alpha": "lower",
+    "mae_beta": "lower",
+    "mae_gamma": "lower"
+   },
+   "metric_groups": [
+    {
+     "setting": "alpha",
+     "metrics": [
+      "mae_alpha"
+     ]
+    },
+    {
+     "setting": "beta",
+     "metrics": [
+      "mae_beta"
+     ]
+    },
+    {
+     "setting": "gamma",
+     "metrics": [
+      "mae_gamma"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-05T08:28:58.897521+00:00",
+     "model": "baseline:im_equal_mass10",
+     "is_final": true,
+     "seed": "42",
+     "mae_alpha": 11.129625778947368,
+     "elapsed_alpha": 0.4,
+     "mae_beta": 5.767517000000012,
+     "elapsed_beta": 0.4,
+     "mae_gamma": 22.455023333333333,
+     "elapsed_gamma": 0.4
+    },
+    {
+     "timestamp": "2026-09-05T08:28:58.898094+00:00",
+     "model": "baseline:im_equal_mass10",
+     "is_final": true,
+     "seed": "mean",
+     "mae_alpha": 11.129625778947368,
+     "elapsed_alpha": 0.4,
+     "mae_beta": 5.767517000000012,
+     "elapsed_beta": 0.4,
+     "mae_gamma": 22.455023333333333,
+     "elapsed_gamma": 0.4
+    },
+    {
+     "timestamp": "2026-09-05T08:28:58.058566+00:00",
+     "model": "baseline:im_hist10",
+     "is_final": true,
+     "seed": "42",
+     "mae_alpha": 11.650071684210527,
+     "elapsed_alpha": 0.6,
+     "mae_beta": 6.331161000000009,
+     "elapsed_beta": 0.4,
+     "mae_gamma": 12.294259000000004,
+     "elapsed_gamma": 0.4
+    },
+    {
+     "timestamp": "2026-09-05T08:28:58.059063+00:00",
+     "model": "baseline:im_hist10",
+     "is_final": true,
+     "seed": "mean",
+     "mae_alpha": 11.650071684210527,
+     "elapsed_alpha": 0.6,
+     "mae_beta": 6.331161000000009,
+     "elapsed_beta": 0.4,
+     "mae_gamma": 12.294259000000004,
+     "elapsed_gamma": 0.4
+    },
+    {
+     "timestamp": "2026-09-05T08:28:55.572832+00:00",
+     "model": "baseline:uniform",
+     "is_final": true,
+     "seed": "42",
+     "mae_alpha": 20.392052631578945,
+     "elapsed_alpha": 0.7,
+     "mae_beta": 9.905000000000001,
+     "elapsed_beta": 0.7,
+     "mae_gamma": 30.81333333333333,
+     "elapsed_gamma": 0.7
+    },
+    {
+     "timestamp": "2026-09-05T08:28:55.573431+00:00",
+     "model": "baseline:uniform",
+     "is_final": true,
+     "seed": "mean",
+     "mae_alpha": 20.392052631578945,
+     "elapsed_alpha": 0.7,
+     "mae_beta": 9.905000000000001,
+     "elapsed_beta": 0.7,
+     "mae_gamma": 30.81333333333333,
+     "elapsed_gamma": 0.7
+    }
+   ]
+  },
+  "ood-atc-disagreement": {
+   "task_id": "ood-atc-disagreement",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "mae_alpha",
+    "elapsed_alpha",
+    "mae_beta",
+    "elapsed_beta",
+    "mae_gamma",
+    "elapsed_gamma"
+   ],
+   "metric_columns": [
+    "mae_alpha",
+    "mae_beta",
+    "mae_gamma"
+   ],
+   "metric_directions": {
+    "mae_alpha": "lower",
+    "mae_beta": "lower",
+    "mae_gamma": "lower"
+   },
+   "metric_groups": [
+    {
+     "setting": "alpha",
+     "metrics": [
+      "mae_alpha"
+     ]
+    },
+    {
+     "setting": "beta",
+     "metrics": [
+      "mae_beta"
+     ]
+    },
+    {
+     "setting": "gamma",
+     "metrics": [
+      "mae_gamma"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-05T08:29:16.128251+00:00",
+     "model": "baseline:ac",
+     "is_final": true,
+     "seed": "42",
+     "mae_alpha": 12.155724178947374,
+     "elapsed_alpha": 0.6,
+     "mae_beta": 6.815853000000004,
+     "elapsed_beta": 0.4,
+     "mae_gamma": 12.013521000000003,
+     "elapsed_gamma": 0.4
+    },
+    {
+     "timestamp": "2026-09-05T08:29:16.128832+00:00",
+     "model": "baseline:ac",
+     "is_final": true,
+     "seed": "mean",
+     "mae_alpha": 12.155724178947374,
+     "elapsed_alpha": 0.6,
+     "mae_beta": 6.815853000000004,
+     "elapsed_beta": 0.4,
+     "mae_gamma": 12.013521000000003,
+     "elapsed_gamma": 0.4
+    },
+    {
+     "timestamp": "2026-09-05T08:29:15.294541+00:00",
+     "model": "baseline:atc_mc",
+     "is_final": true,
+     "seed": "42",
+     "mae_alpha": 5.4634210526315785,
+     "elapsed_alpha": 1.8,
+     "mae_beta": 4.200000000000003,
+     "elapsed_beta": 0.4,
+     "mae_gamma": 0.8083333333333312,
+     "elapsed_gamma": 0.4
+    },
+    {
+     "timestamp": "2026-09-05T08:29:15.295699+00:00",
+     "model": "baseline:atc_mc",
+     "is_final": true,
+     "seed": "mean",
+     "mae_alpha": 5.4634210526315785,
+     "elapsed_alpha": 1.8,
+     "mae_beta": 4.200000000000003,
+     "elapsed_beta": 0.4,
+     "mae_gamma": 0.8083333333333312,
+     "elapsed_gamma": 0.4
+    },
+    {
+     "timestamp": "2026-09-05T08:29:11.177083+00:00",
+     "model": "baseline:gde",
+     "is_final": true,
+     "seed": "42",
+     "mae_alpha": 7.810526315789476,
+     "elapsed_alpha": 6.2,
+     "mae_beta": 4.550000000000011,
+     "elapsed_beta": 6.0,
+     "mae_gamma": 23.05,
+     "elapsed_gamma": 6.0
+    },
+    {
+     "timestamp": "2026-09-05T08:29:11.177641+00:00",
+     "model": "baseline:gde",
+     "is_final": true,
+     "seed": "mean",
+     "mae_alpha": 7.810526315789476,
+     "elapsed_alpha": 6.2,
+     "mae_beta": 4.550000000000011,
+     "elapsed_beta": 6.0,
+     "mae_gamma": 23.05,
+     "elapsed_gamma": 6.0
+    }
+   ]
+  },
+  "ood-atc-score-function": {
+   "task_id": "ood-atc-score-function",
+   "columns": [
+    "timestamp",
+    "model",
+    "is_final",
+    "seed",
+    "mae_alpha",
+    "elapsed_alpha",
+    "mae_beta",
+    "elapsed_beta",
+    "mae_gamma",
+    "elapsed_gamma"
+   ],
+   "metric_columns": [
+    "mae_alpha",
+    "mae_beta",
+    "mae_gamma"
+   ],
+   "metric_directions": {
+    "mae_alpha": "lower",
+    "mae_beta": "lower",
+    "mae_gamma": "lower"
+   },
+   "metric_groups": [
+    {
+     "setting": "alpha",
+     "metrics": [
+      "mae_alpha"
+     ]
+    },
+    {
+     "setting": "beta",
+     "metrics": [
+      "mae_beta"
+     ]
+    },
+    {
+     "setting": "gamma",
+     "metrics": [
+      "mae_gamma"
+     ]
+    }
+   ],
+   "rows": [
+    {
+     "timestamp": "2026-09-05T08:28:29.566529+00:00",
+     "model": "baseline:ac",
+     "is_final": true,
+     "seed": "42",
+     "mae_alpha": 12.155724178947374,
+     "elapsed_alpha": 0.9,
+     "mae_beta": 6.815853000000004,
+     "elapsed_beta": 0.6,
+     "mae_gamma": 12.013521000000003,
+     "elapsed_gamma": 0.6
+    },
+    {
+     "timestamp": "2026-09-05T08:28:29.567235+00:00",
+     "model": "baseline:ac",
+     "is_final": true,
+     "seed": "mean",
+     "mae_alpha": 12.155724178947374,
+     "elapsed_alpha": 0.9,
+     "mae_beta": 6.815853000000004,
+     "elapsed_beta": 0.6,
+     "mae_gamma": 12.013521000000003,
+     "elapsed_gamma": 0.6
+    },
+    {
+     "timestamp": "2026-09-05T08:28:23.158314+00:00",
+     "model": "baseline:atc_mc",
+     "is_final": true,
+     "seed": "42",
+     "mae_alpha": 5.4634210526315785,
+     "elapsed_alpha": 1.8,
+     "mae_beta": 4.200000000000003,
+     "elapsed_beta": 0.6,
+     "mae_gamma": 0.8083333333333312,
+     "elapsed_gamma": 0.6
+    },
+    {
+     "timestamp": "2026-09-05T08:28:23.159533+00:00",
+     "model": "baseline:atc_mc",
+     "is_final": true,
+     "seed": "mean",
+     "mae_alpha": 5.4634210526315785,
+     "elapsed_alpha": 1.8,
+     "mae_beta": 4.200000000000003,
+     "elapsed_beta": 0.6,
+     "mae_gamma": 0.8083333333333312,
+     "elapsed_gamma": 0.6
+    },
+    {
+     "timestamp": "2026-09-05T08:28:32.767790+00:00",
+     "model": "baseline:atc_ne",
+     "is_final": true,
+     "seed": "42",
+     "mae_alpha": 3.9105263157894736,
+     "elapsed_alpha": 2.1,
+     "mae_beta": 3.6750000000000114,
+     "elapsed_beta": 0.6,
+     "mae_gamma": 3.766666666666667,
+     "elapsed_gamma": 0.6
+    },
+    {
+     "timestamp": "2026-09-05T08:28:32.768405+00:00",
+     "model": "baseline:atc_ne",
+     "is_final": true,
+     "seed": "mean",
+     "mae_alpha": 3.9105263157894736,
+     "elapsed_alpha": 2.1,
+     "mae_beta": 3.6750000000000114,
+     "elapsed_beta": 0.6,
+     "mae_gamma": 3.766666666666667,
+     "elapsed_gamma": 0.6
+    }
+   ]
+  },
   "ood-atc-threshold": {
    "task_id": "ood-atc-threshold",
    "columns": [
@@ -141837,12 +142298,78 @@
     "elapsed_beta",
     "abs_error_gamma",
     "estimate_gamma",
-    "elapsed_gamma"
+    "elapsed_gamma",
+    "mae_alpha",
+    "mae_beta",
+    "mae_gamma"
    ],
-   "metric_columns": [],
-   "metric_directions": {},
-   "metric_groups": [],
+   "metric_columns": [
+    "mae_alpha",
+    "mae_beta",
+    "mae_gamma"
+   ],
+   "metric_directions": {
+    "mae_alpha": "lower",
+    "mae_beta": "lower",
+    "mae_gamma": "lower"
+   },
+   "metric_groups": [
+    {
+     "setting": "alpha",
+     "metrics": [
+      "mae_alpha"
+     ]
+    },
+    {
+     "setting": "beta",
+     "metrics": [
+      "mae_beta"
+     ]
+    },
+    {
+     "setting": "gamma",
+     "metrics": [
+      "mae_gamma"
+     ]
+    }
+   ],
    "rows": [
+    {
+     "timestamp": "2026-09-05T08:27:58.800214+00:00",
+     "model": "baseline:ac",
+     "is_final": true,
+     "seed": "42",
+     "abs_error_alpha": null,
+     "estimate_alpha": null,
+     "elapsed_alpha": 0.5,
+     "abs_error_beta": null,
+     "estimate_beta": null,
+     "elapsed_beta": 0.5,
+     "abs_error_gamma": null,
+     "estimate_gamma": null,
+     "elapsed_gamma": 0.5,
+     "mae_alpha": 12.155724178947374,
+     "mae_beta": 6.815853000000004,
+     "mae_gamma": 12.013521000000003
+    },
+    {
+     "timestamp": "2026-09-05T08:27:58.801733+00:00",
+     "model": "baseline:ac",
+     "is_final": true,
+     "seed": "mean",
+     "abs_error_alpha": null,
+     "estimate_alpha": null,
+     "elapsed_alpha": 0.5,
+     "abs_error_beta": null,
+     "estimate_beta": null,
+     "elapsed_beta": 0.5,
+     "abs_error_gamma": null,
+     "estimate_gamma": null,
+     "elapsed_gamma": 0.5,
+     "mae_alpha": 12.155724178947374,
+     "mae_beta": 6.815853000000004,
+     "mae_gamma": 12.013521000000003
+    },
     {
      "timestamp": "2026-09-04T07:23:22.917950+00:00",
      "model": "baseline:atc",
@@ -141856,7 +142383,10 @@
      "elapsed_beta": 3.0,
      "abs_error_gamma": 13.28125,
      "estimate_gamma": 96.484375,
-     "elapsed_gamma": 3.0
+     "elapsed_gamma": 3.0,
+     "mae_alpha": null,
+     "mae_beta": null,
+     "mae_gamma": null
     },
     {
      "timestamp": "2026-09-04T07:23:22.918528+00:00",
@@ -141871,7 +142401,82 @@
      "elapsed_beta": 3.0,
      "abs_error_gamma": 13.28125,
      "estimate_gamma": 96.484375,
-     "elapsed_gamma": 3.0
+     "elapsed_gamma": 3.0,
+     "mae_alpha": null,
+     "mae_beta": null,
+     "mae_gamma": null
+    },
+    {
+     "timestamp": "2026-09-05T08:28:00.202300+00:00",
+     "model": "baseline:atc_mc",
+     "is_final": true,
+     "seed": "42",
+     "abs_error_alpha": null,
+     "estimate_alpha": null,
+     "elapsed_alpha": 1.9,
+     "abs_error_beta": null,
+     "estimate_beta": null,
+     "elapsed_beta": 0.4,
+     "abs_error_gamma": null,
+     "estimate_gamma": null,
+     "elapsed_gamma": 0.7,
+     "mae_alpha": 5.4634210526315785,
+     "mae_beta": 4.200000000000003,
+     "mae_gamma": 0.8083333333333312
+    },
+    {
+     "timestamp": "2026-09-05T08:28:00.203045+00:00",
+     "model": "baseline:atc_mc",
+     "is_final": true,
+     "seed": "mean",
+     "abs_error_alpha": null,
+     "estimate_alpha": null,
+     "elapsed_alpha": 1.9,
+     "abs_error_beta": null,
+     "estimate_beta": null,
+     "elapsed_beta": 0.4,
+     "abs_error_gamma": null,
+     "estimate_gamma": null,
+     "elapsed_gamma": 0.7,
+     "mae_alpha": 5.4634210526315785,
+     "mae_beta": 4.200000000000003,
+     "mae_gamma": 0.8083333333333312
+    },
+    {
+     "timestamp": "2026-09-05T08:27:55.394269+00:00",
+     "model": "baseline:doc",
+     "is_final": true,
+     "seed": "42",
+     "abs_error_alpha": null,
+     "estimate_alpha": null,
+     "elapsed_alpha": 0.8,
+     "abs_error_beta": null,
+     "estimate_beta": null,
+     "elapsed_beta": 0.6,
+     "abs_error_gamma": null,
+     "estimate_gamma": null,
+     "elapsed_gamma": 0.6,
+     "mae_alpha": 11.42731645263158,
+     "mae_beta": 6.085985000000008,
+     "mae_gamma": 12.018122000000004
+    },
+    {
+     "timestamp": "2026-09-05T08:27:55.395094+00:00",
+     "model": "baseline:doc",
+     "is_final": true,
+     "seed": "mean",
+     "abs_error_alpha": null,
+     "estimate_alpha": null,
+     "elapsed_alpha": 0.8,
+     "abs_error_beta": null,
+     "estimate_beta": null,
+     "elapsed_beta": 0.6,
+     "abs_error_gamma": null,
+     "estimate_gamma": null,
+     "elapsed_gamma": 0.6,
+     "mae_alpha": 11.42731645263158,
+     "mae_beta": 6.085985000000008,
+     "mae_gamma": 12.018122000000004
     },
     {
      "timestamp": "2026-09-04T07:29:39.027499+00:00",
@@ -141886,7 +142491,10 @@
      "elapsed_beta": 2.0,
      "abs_error_gamma": 15.783691000000005,
      "estimate_gamma": 98.986816,
-     "elapsed_gamma": 2.0
+     "elapsed_gamma": 2.0,
+     "mae_alpha": null,
+     "mae_beta": null,
+     "mae_gamma": null
     },
     {
      "timestamp": "2026-09-04T07:29:39.029697+00:00",
@@ -141901,7 +142509,10 @@
      "elapsed_beta": 2.0,
      "abs_error_gamma": 15.783691000000005,
      "estimate_gamma": 98.986816,
-     "elapsed_gamma": 2.0
+     "elapsed_gamma": 2.0,
+     "mae_alpha": null,
+     "mae_beta": null,
+     "mae_gamma": null
     },
     {
      "timestamp": "2026-09-04T07:27:27.849448+00:00",
@@ -141916,7 +142527,10 @@
      "elapsed_beta": 4.0,
      "abs_error_gamma": 13.28125,
      "estimate_gamma": 96.484375,
-     "elapsed_gamma": 4.0
+     "elapsed_gamma": 4.0,
+     "mae_alpha": null,
+     "mae_beta": null,
+     "mae_gamma": null
     },
     {
      "timestamp": "2026-09-04T07:27:27.850327+00:00",
@@ -141931,7 +142545,10 @@
      "elapsed_beta": 4.0,
      "abs_error_gamma": 13.28125,
      "estimate_gamma": 96.484375,
-     "elapsed_gamma": 4.0
+     "elapsed_gamma": 4.0,
+     "mae_alpha": null,
+     "mae_beta": null,
+     "mae_gamma": null
     }
    ]
   },
@@ -190401,7 +191018,10 @@
     "success_rate_can_mh",
     "success_rate_can_ph_std",
     "success_rate_square_ph_std",
-    "success_rate_can_mh_std"
+    "success_rate_can_mh_std",
+    "elapsed_can_ph",
+    "elapsed_square_ph",
+    "elapsed_can_mh"
    ],
    "metric_columns": [
     "success_rate_can_ph",
@@ -190433,7 +191053,128 @@
      ]
     }
    ],
-   "rows": []
+   "rows": [
+    {
+     "timestamp": "2026-09-05T16:13:06.147668+00:00",
+     "model": "baseline:CVAE",
+     "is_final": true,
+     "seed": "42",
+     "success_rate_can_ph": 0.94,
+     "success_rate_square_ph": 0.9,
+     "success_rate_can_mh": 0.94,
+     "success_rate_can_ph_std": null,
+     "success_rate_square_ph_std": null,
+     "success_rate_can_mh_std": null,
+     "elapsed_can_ph": 18163.89315843582,
+     "elapsed_square_ph": 18365.630360126495,
+     "elapsed_can_mh": 18189.403232097626
+    },
+    {
+     "timestamp": "2026-09-05T16:13:06.147668+00:00",
+     "model": "baseline:CVAE",
+     "is_final": true,
+     "seed": "mean",
+     "success_rate_can_ph": 0.94,
+     "success_rate_square_ph": 0.9,
+     "success_rate_can_mh": 0.94,
+     "success_rate_can_ph_std": null,
+     "success_rate_square_ph_std": null,
+     "success_rate_can_mh_std": null,
+     "elapsed_can_ph": 18163.89315843582,
+     "elapsed_square_ph": 18365.630360126495,
+     "elapsed_can_mh": 18189.403232097626
+    },
+    {
+     "timestamp": "2026-09-05T16:13:06.147668+00:00",
+     "model": "baseline:DDPM",
+     "is_final": true,
+     "seed": "42",
+     "success_rate_can_ph": 0.88,
+     "success_rate_square_ph": 0.7,
+     "success_rate_can_mh": 0.52,
+     "success_rate_can_ph_std": null,
+     "success_rate_square_ph_std": null,
+     "success_rate_can_mh_std": null,
+     "elapsed_can_ph": 18272.583632707596,
+     "elapsed_square_ph": 18584.447798252106,
+     "elapsed_can_mh": 18272.079263687134
+    },
+    {
+     "timestamp": "2026-09-05T16:13:06.147668+00:00",
+     "model": "baseline:DDPM",
+     "is_final": true,
+     "seed": "mean",
+     "success_rate_can_ph": 0.88,
+     "success_rate_square_ph": 0.7,
+     "success_rate_can_mh": 0.52,
+     "success_rate_can_ph_std": null,
+     "success_rate_square_ph_std": null,
+     "success_rate_can_mh_std": null,
+     "elapsed_can_ph": 18272.583632707596,
+     "elapsed_square_ph": 18584.447798252106,
+     "elapsed_can_mh": 18272.079263687134
+    },
+    {
+     "timestamp": "2026-09-05T16:13:06.147668+00:00",
+     "model": "baseline:Flow Matching",
+     "is_final": true,
+     "seed": "42",
+     "success_rate_can_ph": 1.0,
+     "success_rate_square_ph": 0.86,
+     "success_rate_can_mh": 0.96,
+     "success_rate_can_ph_std": null,
+     "success_rate_square_ph_std": null,
+     "success_rate_can_mh_std": null,
+     "elapsed_can_ph": 18052.800718545914,
+     "elapsed_square_ph": 18301.076436042786,
+     "elapsed_can_mh": 18079.310618162155
+    },
+    {
+     "timestamp": "2026-09-05T16:13:06.147668+00:00",
+     "model": "baseline:Flow Matching",
+     "is_final": true,
+     "seed": "mean",
+     "success_rate_can_ph": 1.0,
+     "success_rate_square_ph": 0.86,
+     "success_rate_can_mh": 0.96,
+     "success_rate_can_ph_std": null,
+     "success_rate_square_ph_std": null,
+     "success_rate_can_mh_std": null,
+     "elapsed_can_ph": 18052.800718545914,
+     "elapsed_square_ph": 18301.076436042786,
+     "elapsed_can_mh": 18079.310618162155
+    },
+    {
+     "timestamp": "2026-09-05T16:13:06.147668+00:00",
+     "model": "baseline:MSE Regression",
+     "is_final": true,
+     "seed": "42",
+     "success_rate_can_ph": 1.0,
+     "success_rate_square_ph": 0.82,
+     "success_rate_can_mh": 0.96,
+     "success_rate_can_ph_std": null,
+     "success_rate_square_ph_std": null,
+     "success_rate_can_mh_std": null,
+     "elapsed_can_ph": 17871.732918977737,
+     "elapsed_square_ph": 18094.493777513504,
+     "elapsed_can_mh": 17934.28085064888
+    },
+    {
+     "timestamp": "2026-09-05T16:13:06.147668+00:00",
+     "model": "baseline:MSE Regression",
+     "is_final": true,
+     "seed": "mean",
+     "success_rate_can_ph": 1.0,
+     "success_rate_square_ph": 0.82,
+     "success_rate_can_mh": 0.96,
+     "success_rate_can_ph_std": null,
+     "success_rate_square_ph_std": null,
+     "success_rate_can_mh_std": null,
+     "elapsed_can_ph": 17871.732918977737,
+     "elapsed_square_ph": 18094.493777513504,
+     "elapsed_can_mh": 17934.28085064888
+    }
+   ]
   },
   "safe-exploration-fixed-budget": {
    "task_id": "safe-exploration-fixed-budget",
