@@ -1,6 +1,14 @@
 {
   "rows": [
     {
+      "model": "Claude Fable 5.1",
+      "company": "anthropic",
+      "modelOpen": false,
+      "harness": "Claude Code (max effort)",
+      "harnessOpen": false,
+      "performance": 50.3
+    },
+    {
       "model": "Qwen3.8-Max-0902",
       "company": "qwen",
       "modelOpen": true,
