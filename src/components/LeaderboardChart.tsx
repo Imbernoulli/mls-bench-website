@@ -70,9 +70,14 @@ function ColumnTick({ x = 0, y = 0, payload, index = 0, byKey, compact }: TickPr
   const nameY = pillY + pillH + (compact ? 8 : 9);
   const nameSize = compact ? 9.5 : 10.5;
   const isMax = d.effort === "max";
-  // The first label's angled tail would overflow the svg's left edge;
-  // nudge just that one right instead of padding the whole axis.
-  const nameX = x + (index === 0 ? (compact ? 18 : 24) : 0);
+  // A label anchored at its end and rotated -26° reaches left of its bar by
+  // about width·cos(26°). Only the first column can run past the svg's left
+  // edge, and only when its name is long, so nudge it right by exactly the
+  // overflow (plus a 2px guard) rather than by a fixed amount: a fixed nudge
+  // visibly misaligns a short first name such as "Claude Fable 5.1".
+  const approxNameWidth = d.name.length * nameSize * 0.56;
+  const leftReach = approxNameWidth * Math.cos((26 * Math.PI) / 180);
+  const nameX = x + (index === 0 ? Math.max(0, leftReach - x + 2) : 0);
 
   return (
     <g>
@@ -242,11 +247,16 @@ export default function LeaderboardChart({ data, compact = false, humanSota, tit
   const domainMax = yDomainMax(Math.max(...data.map((d) => d.score)));
 
   // ---- columns (vertical bars) geometry ----
-  const colChartHeight = compact ? 210 : 250;
-  const colXAxisHeight = compact ? 88 : 96;
+  // The axis band must hold the longest angled name (its tail reaches
+  // ~55px below the name baseline); 96px clipped "DeepSeek-V4 Pro Preview".
+  const colChartHeight = compact ? 218 : 258;
+  const colXAxisHeight = compact ? 96 : 104;
+  // The left margin reserves room for the first column's angled name label,
+  // which reaches ~75-85px left of its bar; ColumnTick only nudges a label
+  // when it would still run past the svg edge.
   const colMargin = compact
-    ? { top: 14, right: 8, bottom: 4, left: 8 }
-    : { top: 16, right: 10, bottom: 4, left: 10 };
+    ? { top: 14, right: 8, bottom: 4, left: 34 }
+    : { top: 16, right: 10, bottom: 4, left: 40 };
   const colPlotHeight =
     colChartHeight - colMargin.top - colMargin.bottom - colXAxisHeight;
 
