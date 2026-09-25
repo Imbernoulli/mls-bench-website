@@ -17,6 +17,14 @@
       "performance": 50.1
     },
     {
+      "model": "GPT-6 Astra",
+      "company": "openai",
+      "modelOpen": false,
+      "harness": "Codex (max)",
+      "harnessOpen": true,
+      "performance": 50.0
+    },
+    {
       "model": "Claude Fable 5",
       "company": "anthropic",
       "modelOpen": false,
